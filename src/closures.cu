@@ -132,6 +132,12 @@ SmithPerp::SmithPerp(Grids* grids, const Geometry* geo, int q, cuComplex w0):
     Aclos_h[2].x = -0.181713;
     Aclos_h[2].y = 0.249684;
   }
+  else if(grids_->Nlaguerre==5 && q_==2) {
+    Aclos_h[0].x = -1.58112;
+    Aclos_h[0].y = 0.395598;
+    Aclos_h[1].x = -0.561009;
+    Aclos_h[1].y = 0.320926;
+  }
   else if(grids_->Nlaguerre==5 && q_==3) {
     Aclos_h[0].x = -2.24233;
     Aclos_h[0].y = 0.551885;

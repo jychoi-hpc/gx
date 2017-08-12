@@ -30,7 +30,13 @@ int RungeKutta2::advance(double *t, Moments* m, Fields* f) {
   }
 
   m->copyFrom(mStar);
+
   solver_->fieldSolve(m, f);
+
+  linear_->dissipation(m, f, dt_);
+
+  solver_->fieldSolve(m, f);
+
   *t+=dt_;
   return 0;
 }

@@ -72,22 +72,13 @@ Linear::~Linear()
 
 int Linear::rhs(Moments* m, Fields* f, Moments* mRhs) {
 
-  // calculate conservation terms for collision operator
-  conservation_terms<<<grids_->NxNycNz/pars_->maxThreadsPerBlock+1, pars_->maxThreadsPerBlock>>>
-	(upar_bar, uperp_bar, t_bar, m->ghl, f->phi, geo_->kperp2, pars_->species);
-
   // calculate RHS
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
-      	(m->ghl, f->phi, upar_bar, uperp_bar, t_bar,
+      	(m->ghl, f->phi,
 	geo_->kperp2, geo_->omegad, geo_->bgrad, 
        	grids_->ky, pars_->species, mRhs_par->ghl, mRhs->ghl);
   // mRhs_par = sqrt(l+1) G_l+1,m + sqrt(l) G_l-1,m
   // mRhs = ...
-
-  // hypercollisions
-  if(pars_->hypercollisions) {
-    hypercollisions<<<dimGrid,dimBlock>>>(m->ghl, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->p_hyper_l, pars_->p_hyper_m, mRhs->ghl);
-  }
 
   // parallel gradient term
   grad_par->eval(mRhs_par);
@@ -103,10 +94,32 @@ int Linear::rhs(Moments* m, Fields* f, Moments* mRhs) {
   return 0;
 }
 
+// handle dissipative terms implicitly
+int Linear::dissipation(Moments* m, Fields* f, double dt) {
+
+  // calculate conservation terms for collision operator
+  conservation_terms<<<grids_->NxNycNz/pars_->maxThreadsPerBlock+1, pars_->maxThreadsPerBlock>>>
+	(upar_bar, uperp_bar, t_bar, m->ghl, f->phi, geo_->kperp2, pars_->species);
+
+  if(pars_->nu_kpar!=0.) {
+    for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) {
+      grad_par->fft_only(&m->ghl[grids_->NxNycNz*i], &m->ghl[grids_->NxNycNz*i], CUFFT_FORWARD);
+    }
+  }
+
+  dissipation_kernel<<<dimGrid,dimBlock>>>(m->ghl, f->phi, geo_->kperp2, grids_->kz, pars_->species, pars_->nu_kpar, upar_bar, uperp_bar, t_bar,
+                                           pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->p_hyper_l, pars_->p_hyper_m, dt);
+
+  if(pars_->nu_kpar!=0.) {
+    for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) {
+      grad_par->fft_only(&m->ghl[grids_->NxNycNz*i], &m->ghl[grids_->NxNycNz*i], CUFFT_INVERSE);
+    }
+  }
+}
+
 // main kernel function for calculating RHS
 # define S_G(L, M) s_g[sidxyz + (sDimx)*(M) + (sDimx)*(sDimy)*(L)]
 __global__ void rhs_linear(cuComplex *g, cuComplex* phi, 
-	cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
 	float* b, float* omegad, float* bgrad, float* ky, specie* species,
 	cuComplex* rhs_par, cuComplex* rhs)
 {
@@ -267,6 +280,37 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
     }
   }
 }
+
+__global__ void dissipation_kernel(cuComplex* g, cuComplex* phi, float* b, float* kz, specie* species, float nu_kpar,
+				   cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
+  				   float nu_hyper_l, float nu_hyper_m, int p_hyper_l, int p_hyper_m, float dt)
+{
+
+  const unsigned int idxyz = get_id1();
+  const unsigned int idz = idxyz / (nx*nyc);
+  if(idxyz<nx*nyc*nz) {
+   for(int is=0; is<nspecies; is++) { 
+    for (int l = threadIdx.z; l < nhermite; l += blockDim.z) {
+     for (int m = threadIdx.y; m < nlaguerre; m += blockDim.y) {
+      int globalIdx = idxyz + nx*nyc*nz*m + nx*nyc*nz*nlaguerre*l + nx*nyc*nz*nlaguerre*nhermite*is; 
+      int c = 1;
+      if(l<=2) c=0; // to switch off hypercollisions for l=0,1,2
+
+      float damp = species[is].nu_ss*( b[idxyz] + l + 2*m ) 
+		+ c*nu_hyper_l*pow((float) l/nhermite, (float) p_hyper_l)
+		+ c*nu_hyper_m*pow((float)m/nlaguerre, p_hyper_m)
+		+ nu_kpar*pow(kz[idz],2);
+
+      g[globalIdx] = (g[globalIdx] - dt*damp*phi[idxyz])/(1+dt*damp);
+ 
+      // need conservation terms
+
+     }
+    }
+   }
+  }
+}
+				   
 
 __global__ void hypercollisions(cuComplex* g, float nu_hyper_l, float nu_hyper_m, int p_hyper_l, int p_hyper_m, cuComplex* rhs) {
   unsigned int idxyz = get_id1();
