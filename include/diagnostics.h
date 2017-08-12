@@ -17,7 +17,7 @@ class Diagnostics {
   void writeGridFile(const char* filename); // MFM
   void writeMomOrField(cuComplex* m, const char* filename);
   void writeMomOrFieldKpar(cuComplex* m, const char* filename);
-  void writeHLspectrum(cuComplex* ghl);
+  void writeHLspectrum(cuComplex* ghl, int ikx=-100, int iky=-100);
   void writeGeo();
   void writeGrowthRates();
   void writeTimeHistory(cuComplex* f, float time, int i, int j, int k, FILE* out);
@@ -41,13 +41,15 @@ class Diagnostics {
 
   void print_growth_rates_to_screen();
 
-  void HLspectrum(cuComplex* ghl);
+  void HLspectrum(cuComplex* ghl, int ikx=-100, int iky=-100);
 
   bool checkstop();
  
   float* hlspectrum;
  
   float fluxDenom;
+
+  bool mask;
 
   char stopfilename_[2000];
   FILE* timefile;

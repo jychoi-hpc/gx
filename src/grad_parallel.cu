@@ -85,10 +85,10 @@ void GradParallel::eval(cuComplex* m, cuComplex* res)
 }
 
 // FFT only for a single moment
-void GradParallel::fft_only(cuComplex* m, cuComplex* res)
+void GradParallel::fft_only(cuComplex* m, cuComplex* res, int dir)
 {
   // use gradpar_plan_inverse since it does not multiply by i kz via callback 
-  cufftExecC2C(gradpar_plan_inverse, m, res, CUFFT_FORWARD);
+  cufftExecC2C(gradpar_plan_inverse, m, res, dir);
 }
 
 GradParallelLocal::GradParallelLocal(Grids* grids, bool abs) :

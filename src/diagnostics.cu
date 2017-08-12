@@ -56,6 +56,9 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
     // open new file (i.e. overwrite an existing one)
     timefile = fopen(ofilename,"w");
   }
+
+  // skip over masked elements in x and y?
+  mask = !pars_->linear;
 }
 
 Diagnostics::~Diagnostics()
@@ -110,7 +113,11 @@ void Diagnostics::final_diagnostics(Moments* moms, Fields* fields)
   writeMomOrFieldKpar(fields->phi, "phi");
 
   // write Hermite-Laguerre spectrum |G|**2(l,m)
-  writeHLspectrum(moms->ghl);
+  if(pars_->source_option==PHIEXT) {
+    writeHLspectrum(moms->ghl, 1, 0);
+  } else {
+    writeHLspectrum(moms->ghl);
+  }
 
   // write geometry coefficient arrays
   writeGeo();
@@ -124,7 +131,9 @@ void Diagnostics::print_growth_rates_to_screen()
 {
   int Nx = grids_->Nx;
   int Ny = grids_->Ny;
+  int Nyc = grids_->Nyc;
 
+     if(mask) {
   	printf("ky\tkx\t\tomega\t\tgamma\t\tconverged?\n");
   	//for(int i=0; i<1; i++) {
         for(int i=0; i<((Nx-1)/3+1); i++) {
@@ -145,7 +154,22 @@ void Diagnostics::print_growth_rates_to_screen()
   	      printf("\n");
   	  }
   	  printf("\n");
-  	}	
+  	}
+    } else {
+  	printf("ky\tkx\t\tomega\t\tgamma\t\tconverged?\n");
+  	//for(int i=0; i<1; i++) {
+        for(int i=0; i<Nx; i++) {
+  	  for(int j=0; j<Nyc; j++) {
+  	    int index = j + (Ny/2+1)*i;
+  	    if(index!=0) {
+  	      printf("%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], growth_rates_h[index].x, growth_rates_h[index].y);
+  	      printf("\n");
+  	    }
+  	  }
+  	  printf("\n");
+  	}
+
+    }	
 }
 
 void Diagnostics::writeGrowthRates()
@@ -157,6 +181,7 @@ void Diagnostics::writeGrowthRates()
   sprintf(ofilename, "%s.omega.kykx", pars_->run_name);
   FILE* out = fopen(ofilename,"w+");
 
+     if(mask) {
   	fprintf(out, "ky\tkx\t\tomega\t\tgamma\t\tconverged?\n");
   	//for(int i=0; i<1; i++) {
         for(int i=0; i<((Nx-1)/3+1); i++) {
@@ -178,6 +203,20 @@ void Diagnostics::writeGrowthRates()
   	  }
   	  fprintf(out, "\n");
   	}	
+    } else {
+  	fprintf(out, "ky\tkx\t\tomega\t\tgamma\t\tconverged?\n");
+  	//for(int i=0; i<1; i++) {
+        for(int i=0; i<Nx; i++) {
+  	  for(int j=0; j<Ny/2+1; j++) {
+  	    int index = j + (Ny/2+1)*i;
+  	    if(index!=0) {
+  	      fprintf(out, "%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], growth_rates_h[index].x, growth_rates_h[index].y);
+  	      fprintf(out, "\n");
+  	    }
+  	  }
+  	  fprintf(out, "\n");
+  	}
+    }
   fclose(out);
 }
 
@@ -194,27 +233,43 @@ void Diagnostics::writeMomOrFieldKpar(cuComplex* m, const char* name) {
   fprintf(out, "#\tkz (1)\t\t\tky (2)\t\t\tkx (3)\t\t\tRe (4)\t\t\tIm (5)\t\t\t");  
   fprintf(out, "\n");
   int blockid = 0;
-  for(int i=0; i<(Nx-1)/3+1; i++) {
-    for(int j=0; j<(Ny-1)/3+1; j++) {
-      fprintf(out, "\n#%d\n\n", blockid);
-      blockid++;      
-      for(int k=0; k<Nz; k++) {
-        int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
-	//if(index!=0){
-	  fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", grids_->kz_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
-        //}
-      }     
+  if(mask) {
+    for(int i=0; i<(Nx-1)/3+1; i++) {
+      for(int j=0; j<(Ny-1)/3+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;      
+        for(int k=0; k<Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+          //if(index!=0){
+            fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", grids_->kz_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+          //}
+        }     
+      }
     }
-  }
-  for(int i=2*Nx/3+1; i<Nx; i++) {
-    for(int j=0; j<(Ny-1)/3+1; j++) {
-      fprintf(out, "\n#%d\n\n", blockid);
-      blockid++;
-      for(int k=0; k<Nz; k++) {
-        int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
-	fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", grids_->kz_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
-      }    
+    for(int i=2*Nx/3+1; i<Nx; i++) {
+      for(int j=0; j<(Ny-1)/3+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;
+        for(int k=0; k<Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+          fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", grids_->kz_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+        }    
+      }
     }
+  } else {
+    for(int i=0; i<Nx; i++) {
+      for(int j=0; j<Ny/2+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;      
+        for(int k=0; k<Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+          //if(index!=0){
+            fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", grids_->kz_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+          //}
+        }     
+      }
+    }
+
   }
   fclose(out);
 
@@ -232,29 +287,47 @@ void Diagnostics::writeMomOrField(cuComplex* m, const char* name) {
   fprintf(out, "#\tz (1)\t\t\tky (2)\t\t\tkx (3)\t\t\tRe (4)\t\t\tIm (5)\t\t\t");  
   fprintf(out, "\n");
   int blockid = 0;
-  for(int i=0; i<(Nx-1)/3+1; i++) {
-    for(int j=0; j<(Ny-1)/3+1; j++) {
-      fprintf(out, "\n#%d\n\n", blockid);
-      blockid++;      
-      for(int k=0; k<=Nz; k++) {
-        int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
-	//if(index!=0){
-	  if(k==Nz) fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", -geo_->z_h[0], grids_->ky_h[j], grids_->kx_h[i], m_h[j+(Ny/2+1)*i].x, m_h[j+(Ny/2+1)*i].y); 
-	  else fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", geo_->z_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
-        //}
-      }     
+  if(mask) {
+    for(int i=0; i<(Nx-1)/3+1; i++) {
+      for(int j=0; j<(Ny-1)/3+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;      
+        for(int k=0; k<=Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+  	//if(index!=0){
+  	  if(k==Nz) fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", -geo_->z_h[0], grids_->ky_h[j], grids_->kx_h[i], m_h[j+(Ny/2+1)*i].x, m_h[j+(Ny/2+1)*i].y); 
+  	  else fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", geo_->z_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+          //}
+        }     
+      }
     }
-  }
-  for(int i=2*Nx/3+1; i<Nx; i++) {
-    for(int j=0; j<(Ny-1)/3+1; j++) {
-      fprintf(out, "\n#%d\n\n", blockid);
-      blockid++;
-      for(int k=0; k<=Nz; k++) {
-        int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
-	if(k==Nz) fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", -geo_->z_h[0], grids_->ky_h[j], grids_->kx_h[i], m_h[j+(Ny/2+1)*i].x, m_h[j+(Ny/2+1)*i].y); 
-	else fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", geo_->z_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
-      }    
+    for(int i=2*Nx/3+1; i<Nx; i++) {
+      for(int j=0; j<(Ny-1)/3+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;
+        for(int k=0; k<=Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+  	if(k==Nz) fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", -geo_->z_h[0], grids_->ky_h[j], grids_->kx_h[i], m_h[j+(Ny/2+1)*i].x, m_h[j+(Ny/2+1)*i].y); 
+  	else fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", geo_->z_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+        }    
+      }
     }
+  } else {
+
+    for(int i=0; i<Nx; i++) {
+      for(int j=0; j<Ny/2+1; j++) {
+        fprintf(out, "\n#%d\n\n", blockid);
+        blockid++;      
+        for(int k=0; k<=Nz; k++) {
+          int index = j+(Ny/2+1)*i+(Ny/2+1)*Nx*k;
+  	//if(index!=0){
+  	  if(k==Nz) fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", -geo_->z_h[0], grids_->ky_h[j], grids_->kx_h[i], m_h[j+(Ny/2+1)*i].x, m_h[j+(Ny/2+1)*i].y); 
+  	  else fprintf(out, "\t%f\t\t%f\t\t%f\t\t%e\t\t%e\t\n", geo_->z_h[k], grids_->ky_h[j], grids_->kx_h[i], m_h[index].x, m_h[index].y);    	  
+          //}
+        }     
+      }
+    }
+
   }
   fclose(out);
 }
@@ -277,10 +350,10 @@ void Diagnostics::writeGridFile(const char* name) {
 }
 
 
-void Diagnostics::writeHLspectrum(cuComplex* ghl)
+void Diagnostics::writeHLspectrum(cuComplex* ghl, int ikx, int iky)
 {
   // calculate spectrum  
-  HLspectrum(ghl);
+  HLspectrum(ghl, ikx, iky);
   cudaDeviceSynchronize();
 
   char ofilename[2000];
@@ -297,7 +370,9 @@ void Diagnostics::writeHLspectrum(cuComplex* ghl)
 }
 
 // sum over ky, kz, z with flux surface average
-__global__ void volume_average(float* res, cuComplex* f, float* jacobian, float fluxDenomInv) {
+__global__ void volume_average(float* res, cuComplex* f, float* jacobian, float fluxDenomInv, int ikx, int iky) {
+  // reduction code follows https://github.com/parallel-forall/code-samples/blob/master/posts/parallel_reduction_with_shfl/device_reduce_atomic.h
+  // device_reduce_atomic_kernel
   float sum = 0.;
   for(int idxyz=blockIdx.x*blockDim.x+threadIdx.x;idxyz<nx*nyc*nz;idxyz+=blockDim.x*gridDim.x) {
     unsigned int idy = idxyz % (nx*nyc) % nyc; 
@@ -306,12 +381,16 @@ __global__ void volume_average(float* res, cuComplex* f, float* jacobian, float 
     float fac;
     if(idy==0) fac = 1.;
     else fac = 0.5;
-    if(idy>0 || idx>0) sum += (f[idxyz].x*f[idxyz].x + f[idxyz].y*f[idxyz].y)*jacobian[idz]*fac*fluxDenomInv;
+    if(ikx<0 && iky<0) {
+      if(idy>0 || idx>0) sum += (f[idxyz].x*f[idxyz].x + f[idxyz].y*f[idxyz].y)*jacobian[idz]*fac*fluxDenomInv;
+    } else {
+      if(idy==iky && idx==ikx) sum += (f[idxyz].x*f[idxyz].x + f[idxyz].y*f[idxyz].y)*jacobian[idz]*fac*fluxDenomInv;
+    }
   }
   atomicAdd(res,sum);
 }
 
-void Diagnostics::HLspectrum(cuComplex* ghl)
+void Diagnostics::HLspectrum(cuComplex* ghl, int ikx, int iky)
 {
   int threads=256;
   int blocks=min((grids_->NxNycNz+threads-1)/threads,2048);
@@ -320,7 +399,7 @@ void Diagnostics::HLspectrum(cuComplex* ghl)
     for(int m=0; m<grids_->Nlaguerre; m++) {
       volume_average<<<blocks,threads>>>
 	(&hlspectrum[m+grids_->Nlaguerre*l], 
-	 &ghl[grids_->NxNycNz*m + grids_->NxNycNz*grids_->Nlaguerre*l], geo_->jacobian, 1./fluxDenom);
+	 &ghl[grids_->NxNycNz*m + grids_->NxNycNz*grids_->Nlaguerre*l], geo_->jacobian, 1./fluxDenom, ikx, iky);
     }
   }
 }
