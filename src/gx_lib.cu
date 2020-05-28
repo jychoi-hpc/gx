@@ -14,14 +14,16 @@ __global__ void test(float* z) {
 }
 
 void gx_get_default_parameters_(struct external_parameters_struct * externalpars,
-				char *run_name, MPI_Comm mpcom, int devid) {  
+				char *run_name, MPI_Comm mpcom, int devid) {
   
+  // MM // should the MPI functions be used only in the CPU code (or not at all)? Or is there some use for them in the GPU version?
   int iproc;
 
   //  printf("Communicator is %d\n", mpcom);
   
   MPI_Comm_rank(mpcom, &iproc);
 
+  // MM // GPU for next 4 lines, maybe some similar setup with #cores/#nodes for CPU
   int numdev;
 
   cudaGetDeviceCount(&numdev);
@@ -30,18 +32,25 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
   cudaGetDevice(&externalpars->mpirank); // this does not look right
   if(iproc==0 && false) printf("Initializing gx ...\t runname is %s\n", run_name);
 
+  
+  /*  // MM // At least 2 variables in parametrs.h are GPU-specific
+      - Parameters class constructor/destructor do all GPU stuff
+      - Overloaded constructor for CPU/GPU?
+      - Destructor with if-statements?
+  */
   // read input parameters from namelist
-  Parameters *pars = new Parameters;
+  Parameters *pars = new Parameters; 
   //  pars->read_namelist(run_name);
   pars->get_nml_vars(run_name);
 
   // copy elements of input_parameters_struct into external_parameters_struct externalpars
-  if (iproc==0) pars->set_externalpars(externalpars);
+  if (iproc==0) pars->set_externalpars(externalpars); // MM // I think set_externalpars is processor-independent
 
   int nprocs;
 
   MPI_Comm_size(mpcom, &nprocs);
-  
+
+  // MM // what are these serial strings?
   char serial_full[100];
   char serial[100];
   FILE *fp;
@@ -154,6 +163,7 @@ void gx_main(int argc, char* argv[], MPI_Comm mpcom) {
   struct external_parameters_struct externalpars;
   struct gx_outputs_struct gxouts;
 
+  // MM // GPU
   int devid = 0; // This should be determined (optionally) on the command line
   
   char *run_name;
