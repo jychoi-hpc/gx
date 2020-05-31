@@ -28,7 +28,8 @@ LD = $(NVCC)
 GEO_LIBS=${GS2}/geometry_c_interface.o 
 GS2_CUDA_FLAGS=-I ${GS2} ${GS2}/libgs2.a ${GS2}/libsimpledataio.a 
 
-CFLAGS= -std=c++03 ${CUDA_INC} ${MPI_INC} ${GSL_INC} 
+# CFLAGS= -std=c++03 ${CUDA_INC} ${MPI_INC} ${GSL_INC} 
+CFLAGS= -std=c++11 ${CUDA_INC} ${MPI_INC} ${GSL_INC} 
 LDFLAGS=$(CUDA_LIB) ${MPI_LIB} ${GSL_LIB} ${NETCDF_LIB} ${FORT_LIB}
 
 #####################################
