@@ -39,7 +39,7 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
       - Destructor with if-statements?
   */
   // read input parameters from namelist
-  Parameters *pars = new Parameters; 
+  Parameters *pars = new Parameters; // MM // work to be done with the class 
   //  pars->read_namelist(run_name);
   pars->get_nml_vars(run_name);
 
@@ -50,12 +50,12 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
 
   MPI_Comm_size(mpcom, &nprocs);
 
-  // MM // what are these serial strings?
+  // MM ?? what are these serial strings?
   char serial_full[100];
   char serial[100];
   FILE *fp;
 
-  fp = popen("nvidia-smi -q | grep Serial", "r");
+  fp = popen("nvidia-smi -q | grep Serial", "r"); // MM // probably GPU only
   //  while(fgets(serial_full, sizeof(serial_full)-1,fp) != NULL) {
   //    printf("%s\n", serial_full);
   //  }
@@ -105,9 +105,10 @@ void gx_get_fluxes_(struct external_parameters_struct *  externalpars,
   // between calls to gx_get_default_parameters and gx_get_fluxes.
   // pars then needs to be updated since pars is what is used in run_gx.
   if(iproc==0) { pars->import_externalpars(externalpars); }
-  
-  Geometry* geo;  // geometry coefficient arrays
-  Grids* grids;   // grids (e.g. kx, ky, z)
+
+  // MM ?? It seems the constructors of these 3 classes could be completely CPU or GPU specific, so the interface class would work well here
+  Geometry* geo;  // geometry coefficient arrays // MM // Bunch of GPU allocation and a few kernels in this class
+  Grids* grids;   // grids (e.g. kx, ky, z) // MM // Bunch of allocations and copies, probably could just use macros. A single kernel, kInit
   Diagnostics* diagnostics;
   //  HermiteTransform* herm;
   
@@ -149,7 +150,7 @@ void gx_get_fluxes_(struct external_parameters_struct *  externalpars,
     CUDA_DEBUG("Initializing Hermite transforms: %s \n");    
   }
 
-  cudaDeviceSynchronize();
+  cudaDeviceSynchronize(); // MM // GPU
 
   run_gx(pars, grids, geo, diagnostics);
 

@@ -16,6 +16,7 @@
 extern "C" void broadcast_integer(int* a);
 #endif
 
+// MM // GPU Function
 void getDeviceMemoryUsage() {
   cudaDeviceSynchronize();
   // show memory usage of GPU
@@ -51,7 +52,8 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   Timestepper *stepper; 
 
   double time = 0;
-  
+
+  // MM ?? curious why there is dynamic allocation of objects
   if(iproc == 0) {
     DEBUGPRINT("Initializing fields...\n");           fields = new Fields(grids);
     CUDA_DEBUG("Initializing fields: %s \n");
@@ -113,10 +115,10 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
     if(pars->scheme_opt == SSPX2) {stepper = new SSPx2(linear, nonlinear, solver, pars, grids, forcing, pars->dt);
       CUDA_DEBUG("Initalizing timestepper SSPx2: %s\n");
     }
-    checkCuda(cudaGetLastError());
+    checkCuda(cudaGetLastError()); // MM // GPU
       
     DEBUGPRINT("After initialization:\n");
-    getDeviceMemoryUsage();
+    getDeviceMemoryUsage(); // MM // GPU
   
     if (pars->write_moms) diagnostics->write_init(momsG, fields);
   }
@@ -124,6 +126,7 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   // TIMESTEP LOOP
   int counter = 0;
 
+  // MM // GPU
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);

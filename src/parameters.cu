@@ -6,6 +6,8 @@ using namespace std;
 extern "C" {void read_nml(char *runname);}
 
 Parameters::Parameters() {
+  // MM // I think that a similar pointer-type thing should be done for the constructor/destructor here, since the CPU version shouldn't need to know anything about cuda keywords
+
   initialized = false;
 
   // some cuda parameters (not from input file)

@@ -6,8 +6,9 @@
 #include "netcdf.h"
 #include <sys/stat.h>
 
+
 __global__ void growthRates(cuComplex *phi, cuComplex *phiOld, double dt, cuComplex *omega)
-{
+{ // MM //
   unsigned int idxy = get_id1();
   cuComplex i_dt = make_cuComplex(0., (float) 1./dt);
   int J = nx*nyc;
@@ -33,18 +34,18 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo)
 {  
   fields_old = new Fields(grids_);
-  cudaDeviceSynchronize();
+  cudaDeviceSynchronize(); // MM ?? why is there a synchronize here and in the following?
   CUDA_DEBUG("Fields: %s \n");
 
   id = new NetCDF_ids(grids_, pars_, geo_);
-  cudaDeviceSynchronize(); 
+  cudaDeviceSynchronize(); // MM // GPU
   CUDA_DEBUG("NetCDF_ids: %s \n");
   
   grad_parallel = new GradParallelPeriodic(grids_);
-  cudaDeviceSynchronize();
+  cudaDeviceSynchronize(); // MM // GPU
   CUDA_DEBUG("Grad parallel periodic: %s \n");
 
-  if (pars_->write_omega) {
+  if (pars_->write_omega) { // MM // GPU
     cudaMalloc    ((void**) &growth_rates,   sizeof(cuComplex)*grids_->NxNyc);
     cudaMallocHost((void**) &growth_rates_h, sizeof(cuComplex)*grids_->NxNyc);
 
@@ -83,6 +84,7 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   // set up stop file
   sprintf(stopfilename_, "%s.stop", pars_->run_name);
 
+  // MM ?? I think there should be some delete [] statements here for the objects that were dynamically allocated
 }
 
 Diagnostics::~Diagnostics()
