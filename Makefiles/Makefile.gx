@@ -20,7 +20,8 @@ FORT_LIB = -lgfortran
 GSL_LIB = -lgsl -lgslcblas -lm
 
 FC=gfortran
-NVCC=nvcc
+NVCC=/usr/local/cuda-10.2/bin/nvcc
+#NVCC=nvcc
 CUDAARCH=70
 
 CUDA_LIB = -lcufft_static -lculibos -lcublas -lcusolver

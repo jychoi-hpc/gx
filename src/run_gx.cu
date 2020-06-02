@@ -43,6 +43,7 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
 {
   int iproc = pars->iproc;  
 
+  // MM // I think most if not all of the constructors are CUDA based
   Fields *fields;
   MomentsG *momsG;
   Solver *solver;
@@ -53,7 +54,8 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
 
   double time = 0;
 
-  // MM ?? curious why there is dynamic allocation of objects
+  // MM ?? curious why the objects are pointers. Is it related to copying info to GPU?
+  // I was thinking that, for example, in fields.h since most of the member variables are pointers, the objects themselves might take up less memory and it could be faster to just use the objects themselves.
   if(iproc == 0) {
     DEBUGPRINT("Initializing fields...\n");           fields = new Fields(grids);
     CUDA_DEBUG("Initializing fields: %s \n");
