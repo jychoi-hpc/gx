@@ -36,4 +36,8 @@ TEST_CASE("check zero", "[tag]") {
 - It is also possible to have SECTIONS in each TEST_CASE, which are each executed from the start (i.e. local changes to variables in one SECTION will not be passed to another)
 
 - If making assertions with floating points, it is possible to give a tolerance or margin for how close the result must be to the reference (see the final TEST_CASE in test.cpp)
-		   
+
+------------------------------------------------------------
+
+- To run all the tests, simply give ./unit_tests
+- If you only want to run tests with certain tags, give ./unit_tests [tag_name]
