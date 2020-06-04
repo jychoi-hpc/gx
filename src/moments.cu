@@ -63,9 +63,11 @@ MomentsG::~MomentsG() {
 }
 
 int MomentsG::initialConditions(Geometry* geo, double* time) {
- 
+
+  // MM // GPU
   cudaDeviceSynchronize(); // to make sure its safe to operate on host memory
 
+  // MM // GPU
   cuComplex* init_h = (cuComplex*) malloc(Momsize_);
   for (int idx=0; idx<grids_->NxNycNz; idx++) {
     init_h[idx].x = 0.;
@@ -106,7 +108,7 @@ int MomentsG::initialConditions(Geometry* geo, double* time) {
 	  
 	  //loop over z *here*, to get rid of randomness in z in initial condition
 	  for(int k=0; k<grids_->Nz; k++) {
-	    int index = j + grids_->Nyc*idx + grids_->NxNyc*k;
+	    int index = j + grids_->Nyc*idx + grids_->NxNyc*k; // MM // indexing prob meant for GPU
 	    init_h[index].x = ra*cos(pars_->kpar_init*geo->z_h[k]/pars_->Zp);
 	    init_h[index].y = rb*cos(pars_->kpar_init*geo->z_h[k]/pars_->Zp);
 	  }
@@ -149,10 +151,11 @@ int MomentsG::initialConditions(Geometry* geo, double* time) {
   
   this->reality();
 
+  // MM // GPU
   cudaDeviceSynchronize();
   checkCuda(cudaGetLastError());
 
-  return cudaGetLastError();
+  return cudaGetLastError(); // MM // GPU
 }
 
 int MomentsG::zero() {
