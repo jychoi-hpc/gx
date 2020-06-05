@@ -1,8 +1,10 @@
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch.h"
 #include <string>
+#include <iostream>
 
 // some example function I found online that returns strings based on what the input number is divisible by. Easy to test different catch2 functions with in test.cpp
+
 std::string fizzbuzz(int const number) {
   if (number != 0) {
     auto m3 = number % 3;

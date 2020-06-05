@@ -1,0 +1,37 @@
+#include "fake_grids.h"
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <netcdf.h>
+
+Grids::Grids() : something(3) {
+  other = 2;
+}
+
+int Grids::simple_function(int value) {
+  return value + 1;
+}
+
+int Grids::get_netcdf_varname() {
+  int nc_id, var_id, ret_val;  
+  nc_open("/home/mfmartin/proc_comments_gx/catch2_tests/cyc01.nc", NC_NOWRITE, &nc_id);
+  nc_inq_varid(nc_id, "ntheta", &var_id);
+  nc_get_var_int(nc_id, var_id, &ret_val);
+  nc_close(nc_id);
+  return ret_val;
+}
+  
+void Grids::get_filename(std::vector<int> &vec) {
+
+  std::ifstream in_file;
+  in_file.open("/home/mfmartin/proc_comments_gx/catch2_tests/file.txt");
+  int x;
+  
+  if (!in_file) {
+    exit(1);   // call system to stop
+  }
+  while (in_file >> x) {
+    vec.push_back(x);
+  }
+  in_file.close();
+}
