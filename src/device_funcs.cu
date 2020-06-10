@@ -458,7 +458,8 @@ __device__ bool unmasked(int idx, int idy) {
        && idy <  (ny-1)/3 + 1
        && idx <   nx                 // both indices must be in range 
        && ikx <  (nx-1)/3 + 1
-       && ikx > -(nx-1)/3 - 1)
+       && ikx > -(nx-1)/3 - 1
+       )
     return true;
   else
     return false;
