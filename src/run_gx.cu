@@ -1,4 +1,9 @@
+#ifdef USE_MPI
 #include "mpi.h"
+#else
+typedef int MPI_Comm;
+#endif
+
 #include "geometry.h"
 #include "parameters.h"
 #include "grids.h"

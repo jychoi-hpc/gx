@@ -13,7 +13,7 @@
  forcing_init = F
  
  nhermite = 4
- nlaguerre = 16
+ nlaguerre = 2
  closure_model = "none"
  
  dt = 0.01

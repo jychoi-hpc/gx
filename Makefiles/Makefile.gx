@@ -12,8 +12,10 @@ ifdef USE_LAPACK
 	LAPACK_LIB = -L/usr/lib/x86_64-linux-gnu -llapack
 endif
 
-MPI_INC= -I/usr/lib/x86_64-linux-gnu/openmpi/include/
-MPI_LIB= -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi
+ifdef USE_MPI
+      MPI_INC= -I/usr/lib/x86_64-linux-gnu/openmpi/include/
+      MPI_LIB= -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi
+endif
 
 FORT_LIB = -lgfortran
 

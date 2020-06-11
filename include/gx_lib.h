@@ -3,7 +3,11 @@
 #include <string.h>
 #include <float.h>
 #include <time.h>
+#ifdef USE_MPI
 #include "mpi.h"
+#else
+typedef int MPI_Comm;
+#endif
 
 #define DEBUGPRINT(_fmt, ...)  if (pars->debug) fprintf(stderr, "[file %s, line %d]: " _fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 

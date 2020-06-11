@@ -1,5 +1,9 @@
 #include "gx_lib.h"
+#ifdef USE_MPI
 #include "mpi.h"
+#else
+typedef int MPI_Comm;
+#endif
 #include "cufft.h"
 #include "parameters.h"
 #include "run_gx.h"
@@ -21,15 +25,18 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
 
   //  printf("Communicator is %d\n", mpcom);
   
+#ifdef USE_MPI
   MPI_Comm_rank(mpcom, &iproc);
-
+#else
+  iproc = 0;
+#endif  
   // MM // GPU for next 4 lines, maybe some similar setup with #cores/#nodes for CPU
   int numdev;
 
   cudaGetDeviceCount(&numdev);
   cudaSetDevice(devid);
 
-  cudaGetDevice(&externalpars->mpirank); // this does not look right
+  cudaGetDevice(&externalpars->mpirank);
   if(iproc==0 && false) printf("Initializing gx ...\t runname is %s\n", run_name);
 
   
@@ -48,8 +55,12 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
 
   int nprocs;
 
+#ifdef USE_MPI
   MPI_Comm_size(mpcom, &nprocs);
-
+#else
+  nprocs = 1;
+#endif
+  
   // MM ?? what are these serial strings?
   char serial_full[100];
   char serial[100];
@@ -77,9 +88,11 @@ void gx_get_default_parameters_(struct external_parameters_struct * externalpars
   // to work as long as all MPI processes are running on the same
   // architecture. 
   int ret;
+#ifdef USE_MPI
   ret = MPI_Bcast(&*externalpars, sizeof(external_parameters_struct), MPI_BYTE, 0, mpcom);
   if (false) printf("Broadcasted externalpars (%d) %d %d\n", ret, nprocs, iproc);
   // This has to be set after the broadcast
+#endif  
   externalpars->pars_address = (void *)pars; 
   if (false) printf("Finished gx_get_default_parameters_\n");
 
@@ -91,8 +104,11 @@ void gx_get_fluxes_(struct external_parameters_struct *  externalpars,
   int iproc;
   // iproc doesn't necessarily have to be the same as it was in 
   // gx_get_default_parameters_
+#ifdef USE_MPI
   MPI_Comm_rank(mpcom, &iproc);
-  
+#else
+  iproc = 0;
+#endif
   Parameters* pars = (Parameters *)externalpars->pars_address;
   
   pars->iproc = iproc;
