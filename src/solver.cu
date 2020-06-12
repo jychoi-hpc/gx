@@ -28,7 +28,7 @@ Solver::Solver(Parameters* pars, Grids* grids, Geometry* geo) :
     (phiavgdenom, geo_->kperp2, geo_->jacobian, pars_->species, pars_->ti_ov_te); 
   
   // cuda dims for qneut calculation
-  dimBlock_qneut = dim3(32, 4, 4);
+  dimBlock_qneut = dim3(32, 4, 4); // MM ?? are these grid/block dimensions based on shared memory limitations?
   dimGrid_qneut = dim3(grids_->Nyc/dimBlock_qneut.x+1, grids_->Nx/dimBlock_qneut.y+1, grids_->Nz/dimBlock_qneut.z+1);
 }
 

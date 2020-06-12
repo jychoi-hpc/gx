@@ -48,7 +48,7 @@ system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
 
-VPATH=.:src
+VPATH=.:src catch2_tests
 
 ##########################
 ## Suffix Build Rules
@@ -59,6 +59,14 @@ VPATH=.:src
 .DEFAULT_GOAL := $(TARGET)
 
 HEADERS=$(wildcard include/*.h) 
+
+CATCH2_HEADERS=$(wildcard catch2_tests/*.h)
+
+catch2_tests/%.o: %.cpp $(CATCH2_HEADERS) $(HEADERS)
+	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I include
+
+catch2_tests/%.o: %.cu $(CATCH2_HEADERS) $(HEADERS)
+	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I include
 
 ## special dependencies
 obj/parameters.o: read_nml.f90
@@ -77,7 +85,14 @@ obj/%.o: %.f90
 # Rules for building gx
 ####################################
 
-OBJS = main.o run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields.o solver.o linear.o timestepper.o diagnostics.o device_funcs.o grad_parallel.o grad_parallel_linked.o closures.o cuda_constants.o smith_par_closure.o forcing.o laguerre_transform.o nonlinear.o grad_perp.o ncdf.o read_nml.o hermite_transform.o
+OBJS = main.o run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields.o solver.o linear.o timestepper.o diagnostics.o device_funcs.o grad_parallel.o grad_parallel_linked.o closures.o cuda_constants.o smith_par_closure.o forcing.o laguerre_transform.o nonlinear.o grad_perp.o ncdf.o read_nml.o hermite_transform.o reductions.o
+
+OBJS_NOMAIN = run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields.o solver.o linear.o timestepper.o diagnostics.o device_funcs.o grad_parallel.o grad_parallel_linked.o closures.o cuda_constants.o smith_par_closure.o forcing.o laguerre_transform.o nonlinear.o grad_perp.o ncdf.o read_nml.o hermite_transform.o reductions.o
+
+TEST_OBJS = test_main.o initial_tests.o kernel_class.o
+
+catch2_tests/unit_tests: $(addprefix catch2_tests/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN))
+	$(NVCC) -o $@ $(addprefix catch2_tests/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN)) $(LDFLAGS)
 
 # main program
 $(TARGET): $(addprefix obj/, $(OBJS)) 
@@ -88,10 +103,11 @@ $(TARGET): $(addprefix obj/, $(OBJS))
 ########################
 
 clean: 
-	rm -rf obj/*.o *~ \#*
+	rm -rf obj/*.o catch2_tests/*.o *~ \#*
 
-distclean: clean clean_tests
+distclean: clean
 	rm -rf $(TARGET)
+	rm -rf unit_tests
 
 
 

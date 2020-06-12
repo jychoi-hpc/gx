@@ -1,0 +1,14 @@
+
+class Kernels {
+ public:
+  Kernels();
+  void kInit(int, int, int, int, int, float*, float*, float*, float, float, float);
+
+  float * ky;
+  float * kx;
+  float * kz;
+
+  float * ky_h;
+  float * kx_h;
+  float * kz_h;
+};
