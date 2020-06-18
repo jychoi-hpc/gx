@@ -1,6 +1,8 @@
 #pragma once
 #include "grids.h"
 #include "moments.h"
+#include "cufftXt.h"
+#include "cufft.h"
 
 class MomentsG; // Forward Declaration
 
@@ -31,6 +33,7 @@ class GradParallelPeriodic : public GradParallel {
   cufftHandle dz_plan_forward;
   cufftHandle abs_dz_plan_forward;
   cufftHandle dz_plan_inverse;
+
 };
 
 class GradParallelLinked : public GradParallel {
@@ -93,6 +96,6 @@ class GradParallel1D {
   
   cufftHandle dz_plan_forward;
   cufftHandle dz_plan_inverse;
-
+  
   cuComplex *b_complex;
 };

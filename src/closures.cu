@@ -4,9 +4,6 @@
 #include "get_error.h"
 #include "smith_par_closure.h"
 
-__global__ void beer_toroidal_closures(cuComplex* g, cuComplex* gRhs, float* omegad, cuComplex* nu);
-__global__ void smith_perp_toroidal_closures(cuComplex* g, cuComplex* gRhs, float* omegad, cuComplex* Aclos, int q);
-
 Beer42::Beer42(Grids* grids, const Geometry* geo, GradParallel* grad_par_in): 
     grids_(grids), grad_par(grad_par_in), omegad_(geo->omegad), gpar_(geo->gradpar)
 {
@@ -78,34 +75,6 @@ int Beer42::apply_closures(MomentsG* G, MomentsG* GRhs)
   return 0;
 }
 
-# define LM(L, M) idxyz + nx*nyc*nz*(L) + nx*nyc*nz*nl*(M)
-__global__ void beer_toroidal_closures(cuComplex* g, cuComplex* gRhs, float* omegad, cuComplex* nu)
-{
-  unsigned int idxyz = get_id1();
-
-  if(idxyz<nx*nyc*nz) {
-
-    const cuComplex iomegad = make_cuComplex(0., omegad[idxyz]);
-    const float abs_omegad = abs(omegad[idxyz]);
-
-    gRhs[LM(0,2)] = gRhs[LM(0,2)]
-      - sqrtf(2)*abs_omegad*( nu[1].x*sqrtf(2)*g[LM(0,2)] + nu[2].x*g[LM(1,0)] )
-      - sqrtf(2)* iomegad * ( nu[1].y*sqrtf(2)*g[LM(0,2)] + nu[2].y*g[LM(1,0)] );
-
-    gRhs[LM(1,0)] = gRhs[LM(1,0)]
-      - 2.*abs_omegad*( nu[3].x*sqrtf(2)*g[LM(0,2)] + nu[4].x*g[LM(1,0)] )
-      - 2.* iomegad * ( nu[3].y*sqrtf(2)*g[LM(0,2)] + nu[4].y*g[LM(1,0)] );
-
-    gRhs[LM(0,3)] = gRhs[LM(0,3)]
-      - 1./sqrtf(6)*abs_omegad*( nu[5].x*g[LM(0,1)] + nu[6].x*sqrtf(6)*g[LM(0,3)] + nu[7].x*g[LM(1,1)] )
-      - 1./sqrtf(6)* iomegad * ( nu[5].y*g[LM(0,1)] + nu[6].y*sqrtf(6)*g[LM(0,3)] + nu[7].y*g[LM(1,1)] );
-
-    gRhs[LM(1,1)] = gRhs[LM(1,1)]
-      - abs_omegad*( nu[8].x*g[LM(0,1)] + nu[9].x*sqrtf(6)*g[LM(0,3)] + nu[10].x*g[LM(1,1)] )
-      -  iomegad * ( nu[8].y*g[LM(0,1)] + nu[9].y*sqrtf(6)*g[LM(0,3)] + nu[10].y*g[LM(1,1)] );
-  }
-
-}
 
 SmithPerp::SmithPerp(Grids* grids, const Geometry* geo, int q, cuComplex w0): 
     grids_(grids), omegad_(geo->omegad), q_(q)
@@ -209,31 +178,6 @@ int SmithPerp::apply_closures(MomentsG* G, MomentsG* GRhs)
   smith_perp_toroidal_closures<<<dimGrid,dimBlock>>>(G->G(), GRhs->G(), omegad_, Aclos_, q_);
 
   return 0;
-}
-
-__global__ void smith_perp_toroidal_closures(cuComplex* g, cuComplex* gRhs, float* omegad, cuComplex* Aclos, int q)
-{
-  unsigned int idxyz = get_id1();
-  
-  if(idxyz<nx*nyc*nz) {
-
-    const cuComplex iomegad = make_cuComplex(0., omegad[idxyz]);
-    const cuComplex abs_omegad = make_cuComplex(abs(omegad[idxyz]),0.);
-
-    int L = nl - 1;
-
-    // apply closure to Lth laguerre equation for all hermite moments
-    for(int m=0; m<nm; m++) {
-      // calculate closure expression as sum of lower laguerre moments
-      cuComplex clos = make_cuComplex(0.,0.);
-      for(int l=L; l>=nl-q; l--) {
-        clos = clos + (abs_omegad*Aclos[L-l].y + iomegad*Aclos[L-l].x)*g[LM(l,m)];
-      }
-
-      gRhs[LM(L,m)] = gRhs[LM(L,m)] - (L+1)*clos;
-    }
-  }
-
 }
 
 SmithPar::SmithPar(Grids* grids, const Geometry* geo, GradParallel* grad_par_in, int q): 

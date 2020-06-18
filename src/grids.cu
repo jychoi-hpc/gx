@@ -1,25 +1,8 @@
 #include "grids.h"
 #include "cuda_constants.h"
 #include "get_error.h"
+#include "device_funcs.h"
 
-__global__ void kInit(float* kx, float* ky, float* kz, float X0, float Y0, int Zp) 
-{
-  int id = threadIdx.x + blockIdx.x*blockDim.x;
-
-  if(id<nyc) { 
-    ky[id] = (float) id/Y0;
-  }
-  if(id<nx/2+1) {
-    kx[id] = (float) id/X0;
-  } else if (id<nx) {
-    kx[id] = (float) (id - nx)/X0;
-  }
-  if(id<(nz/2+1)) {
-    kz[id] = (float) id/Zp;
-  } else if(id<nz) {
-    kz[id] = (float) (id - nz)/Zp;
-  }
-}
 /*
 The moments are defined as functions of (ky, kx, z) natively.
 The moments are real functions of (y, x, z). But we are working 

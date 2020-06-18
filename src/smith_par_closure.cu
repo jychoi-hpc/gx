@@ -6,13 +6,13 @@
 #include <cusolverDn.h>
 #include <cuComplex.h>
 #include <parameters.h>
+#include "device_funcs.h"
 
 void smith_par_getAs (int n, int q, cuComplex *x_answer);
 void get_power_series (cuDoubleComplex *power_series, int q);
 void fill_r_matrix (cuDoubleComplex *power_series, cuDoubleComplex **rMatrix, int q);
 void get_normalized_hermite_coefficients (cuDoubleComplex **matrix, int n, double scaling, char type);
 int linearSolverLU (cusolverDnHandle_t handle, int n, const cuDoubleComplex *Acopy, int lda, const cuDoubleComplex *b, cuDoubleComplex *x); 
-__global__ void castDoubleToFloat (cuDoubleComplex *array_d, cuComplex *array_f, int size); 
 
 /*
 int main() {	
@@ -383,11 +383,5 @@ int linearSolverLU(cusolverDnHandle_t handle, int n, const cuDoubleComplex *Acop
   if (ipiv  ) { cudaFree(ipiv);}
   
   return 0;
-}
-
-/* Kernel to cast cuDoubleComplex array to a cuComplex array (calculation is done with double precision
-   and then converted to single precision for use in the simulation */
-__global__ void castDoubleToFloat(cuDoubleComplex *array_d, cuComplex *array_f, int size) {
-  for (int i = 0; i < size; i++) array_f[i] = cuComplexDoubleToFloat(array_d[i]);
 }
 

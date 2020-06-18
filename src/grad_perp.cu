@@ -4,39 +4,6 @@
 #include "grad_perp.h"
 #include "cuda_constants.h"
 
-__device__ cuComplex i_kx(void *dataIn, size_t offset, void *kxData, void *sharedPtr)
-{
-  float *kx = (float*) kxData;
-  unsigned int idx = offset / nyc % nx;
-  cuComplex Ikx = make_cuComplex(0., kx[idx]);
-  return Ikx*((cuComplex*)dataIn)[offset];
-}
-
-__device__ cuComplex i_ky(void *dataIn, size_t offset, void *kyData, void *sharedPtr)
-{
-  float *ky = (float*) kyData;
-  unsigned int idy = offset % nyc; 
-  cuComplex Iky = make_cuComplex(0., ky[idy]);
-  return Iky*((cuComplex*)dataIn)[offset];
-}
-
-__device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
-{
-  unsigned int idx = offset / nyc % nx;
-  unsigned int idy = offset % nyc; 
-  if (masked(idx, idy)) {
-    ((cuComplex*)dataOut)[offset].x = 0.;
-    ((cuComplex*)dataOut)[offset].y = 0.;
-  } else {
-    // scale
-    ((cuComplex*)dataOut)[offset] = element/(nx*ny);
-  }
-}
-
-__managed__ cufftCallbackLoadC i_kx_callbackPtr = i_kx;
-__managed__ cufftCallbackLoadC i_ky_callbackPtr = i_ky;
-__managed__ cufftCallbackStoreC mask_and_scale_callbackPtr = mask_and_scale;
-
 GradPerp::GradPerp(Grids* grids, int batch_size)
  : grids_(grids), batch_size_(batch_size)
 {

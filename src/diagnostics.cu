@@ -6,30 +6,6 @@
 #include "netcdf.h"
 #include <sys/stat.h>
 
-
-__global__ void growthRates(cuComplex *phi, cuComplex *phiOld, double dt, cuComplex *omega)
-{ // MM //
-  unsigned int idxy = get_id1();
-  cuComplex i_dt = make_cuComplex(0., (float) 1./dt);
-  int J = nx*nyc;
-  int IG = (int) nz/2 ;
-  
-  if ( idxy<J && idxy > 0) {
-    if (abs(phi[idxy+J*IG].x)!=0 && abs(phi[idxy+J*IG].y)!=0) {
-      cuComplex ratio = phi[ idxy + J*IG ] / phiOld[ idxy + J*IG ];
-      
-      cuComplex logr;
-      logr.x = (float) log(cuCabsf(ratio));
-      logr.y = (float) atan2(ratio.y,ratio.x);
-      omega[idxy] = logr*i_dt;
-    } else {
-      omega[idxy].x = 0.;
-      omega[idxy].y = 0.;
-    }
-  }
-}
-
-
 Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo)
 {  
@@ -333,34 +309,6 @@ void Diagnostics::writeHspectrum(MomentsG* G, bool endrun, int ikx, int iky)
   cudaFreeHost(hspectrum_h);
 }
 
-// sum over ky, kz, z with flux surface average
-__global__ void volume_average(float* res, cuComplex* f, cuComplex* g, float* jacobian, float fluxDenomInv, int ikx=-1, int iky=-1) {
-  // reduction code follows https://github.com/parallel-forall/code-samples/blob/master/posts/parallel_reduction_with_shfl/device_reduce_atomic.h
-  // device_reduce_atomic_kernel
-  float sum = 0.;
-  cuComplex fg;
-  for(int idxyz=blockIdx.x*blockDim.x+threadIdx.x;idxyz<nx*nyc*nz;idxyz+=blockDim.x*gridDim.x) {
-    unsigned int idy = idxyz % nyc; 
-    unsigned int idx = idxyz % (nx*nyc) / nyc; 
-    unsigned int idz = idxyz / (nx*nyc);
-    float fac=2.;
-    if(idy==0) fac = 1.0;
-
-    if(ikx<0 && iky<0) { // default: sum over all k's
-      if(idy>0 || idx>0) {
-        fg = cuConjf(f[idxyz])*g[idxyz]*jacobian[idz]*fac*fluxDenomInv;
-        sum += fg.x;
-      }
-    } else {
-      if(idy==iky && idx==ikx) {
-        fg = cuConjf(f[idxyz])*g[idxyz]*jacobian[idz]*fac*fluxDenomInv;
-        sum += fg.x;
-      }
-    }
-  }
-  atomicAdd(res,sum);
-}
-
 void Diagnostics::LHspectrum(MomentsG* G, float* lhspectrum, int ikx, int iky)
 {
   int threads=256;
@@ -401,104 +349,6 @@ void Diagnostics::Hspectrum(MomentsG* G, float* hspectrum, int ikx, int iky)
     for(int l=0; l<grids_->Nl; l++) {
       volume_average <<<blocks,threads>>> (&hspectrum[m], 
 	 G->G(l,m), G->G(l,m), geo_->jacobian, 1./fluxDenom, ikx, iky);
-    }
-  }
-}
-
-__global__ void get_pzt (float* primary, float* secondary, float* tertiary, cuComplex* phi, cuComplex* tbar)
-{
-  float Psum = 0.;
-  float Zsum = 0.;
-  float Tsum = 0.;
-  
-  cuComplex P2, T2;
-  for (int idxyz=blockIdx.x*blockDim.x+threadIdx.x;idxyz<nx*nyc*nz;idxyz+=blockDim.x*gridDim.x) {
-
-    unsigned int idy = idxyz % nyc; 
-    unsigned int idx = idxyz / nyc % nx;
-
-    if ( unmasked(idx, idy)) {
-
-      // Ultimately:
-      // For this xyz, get:
-
-      // phi_zonal(kx) = 0.
-      // phi_zonal(kx) = int dz Phi (kx, ky=0, z)
-      // secondary = sum phi_zonal**2 (kx)
-      //
-      // primary = 0.
-      // primary = sum Phi(kx=0, ky, z)**2
-      //
-      // tertiary = 0.
-      // tertiary = sum (Phi(kx, ky=0, z)**2 ) - secondary
-
-      // for now:
-      // secondary = sum Phi (kx, ky=0, z)**2
-      // primary   = sum tbar(kx=0, ky, z)**2
-      // tertiary  = sum tbar(kx!=0,ky, z)**2
-
-      // Caution: missing all geometry 
-      
-      float fac = 2.;
-      if(idy==0) fac = 1.0;
-      
-      P2 = cuConjf(phi[idxyz])*phi[idxyz]*fac;
-      T2 = cuConjf(tbar[idxyz])*tbar[idxyz]*fac; // assumes main species only
-
-      if (idx==0) {
-	Psum = T2.x;   atomicAdd(primary, Psum);       // P2
-      } else {
-	Tsum = T2.x;   atomicAdd(tertiary, Tsum);       // T2
-      }
-            
-      if (idy==0) {
-	Zsum = P2.x;   atomicAdd(secondary,Zsum);       // Z2
-      }
-    }
-  }
-}
-
-# define G_(XYZ, L, M) g[(XYZ) + nx*nyc*nz*(L) + nx*nyc*nz*nl*(M)]
-__global__ void heat_flux(float* qflux, cuComplex* phi, cuComplex* g, float* ky, 
-                          float* jacobian, float fluxDenomInv, float *kperp2, float rho2_s, 
-                          int ikx=-1, int iky=-1)
-{
-  float sum = 0.;
-  cuComplex fg;
-  for(int idxyz=blockIdx.x*blockDim.x+threadIdx.x;idxyz<nx*nyc*nz;idxyz+=blockDim.x*gridDim.x) {
-    //  float sum = 0.; // This was being zeroed out before the loop. It should be zero for each trip since we atomicadd each trip
-
-    unsigned int idy = idxyz % nyc; 
-    unsigned int idx = idxyz / nyc % nx;
-
-    if ( unmasked(idx, idy) && idy > 0) {
-
-      unsigned int idz = idxyz / (nx*nyc);
-      cuComplex vE_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
-      
-      float b_s = kperp2[idxyz]*rho2_s;
-      
-      // sum over l
-      cuComplex p_bar = make_cuComplex(0.,0.);
-      for(int l=0; l<nl; l++) {
-	// G_(...) is defined by macro above
-	p_bar = p_bar + 1./sqrtf(2.)*Jflr(l,b_s)*G_(idxyz, l, 2)
-	  + ( l*Jflr(l-1,b_s) + (2.*l+1.5)*Jflr(l,b_s) + (l+1)*Jflr(l+1,b_s) )*G_(idxyz, l, 0);
-      }
-      
-      float fac = 2.;
-      if(idy==0) fac = 1.0;
-      
-      if(ikx<0 && iky<0) { // default: sum over all relevant k's
-	fg = cuConjf(vE_r)*p_bar*jacobian[idz]*fac*fluxDenomInv;
-	sum = fg.x;
-      } else { // single mode specified by ikx, iky
-	if(idy==iky && idx==ikx) {
-	  fg = cuConjf(vE_r)*p_bar*jacobian[idz]*fac*fluxDenomInv;
-	  sum = fg.x;
-	}
-      }
-      atomicAdd(qflux,sum);
     }
   }
 }

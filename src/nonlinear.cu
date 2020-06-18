@@ -6,12 +6,6 @@
 #include "cudaReduc_kernel.cu"
 #include "maxReduc.cu"
 
-__global__ void J0phiToGrid(cuComplex* J0phi, cuComplex* phi, float* b,
-			    float* muB, float rho2_s);
-
-__global__ void bracket(float* g_res, float* dg_dx, float* dJ0phi_dy,
-			float* dg_dy, float* dJ0Phi_dx, float kxfac);
-
 Nonlinear::Nonlinear(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo)
 {
@@ -149,33 +143,4 @@ double Nonlinear::cfl(double dt_max)
   dt_cfl = (pars_->cfl/vmax < dt_max) ? pars_->cfl/vmax : dt_max;
   //  printf("dt_cfl = %f \n", dt_cfl);
   return dt_cfl;
-}
-
-__global__ void J0phiToGrid(cuComplex* J0phi, cuComplex* phi, float* kperp2,
-			    float* muB, float rho2_s)
-{
-  unsigned int idxyz = get_id1();
-  unsigned int J = (3*nl/2-1);
-
-  if(idxyz<nx*nyc*nz) {
-    for (int j = threadIdx.y; j < J; j += blockDim.y) {
-      J0phi[idxyz + nx*nyc*nz*j] = j0f(sqrtf(2. * muB[j] * kperp2[idxyz]*rho2_s)) * phi[idxyz];
-    }
-  }
-}
-
-__global__ void bracket(float* g_res, float* dg_dx, float* dJ0phi_dy,
-			float* dg_dy, float* dJ0phi_dx, float kxfac)
-{
-  unsigned int idxyz = get_id1();
-  unsigned int J = (3*nl/2-1);
-
-  if(idxyz<nx*ny*nz) {
-    for (int j = threadIdx.y; j < J; j += blockDim.y) {
-      unsigned int ig = idxyz + nx*ny*nz*j;
-
-      g_res[ig] = ( dg_dx[ig] * dJ0phi_dy[ig] - dg_dy[ig] * dJ0phi_dx[ig] ) * kxfac;
-
-    }
-  }
 }

@@ -6,60 +6,6 @@
 #include <stdlib.h>
 #include "get_error.h"
 
-__global__ void linkedCopy(cuComplex* G, cuComplex* G_linked, int nLinks, int nChains, int* ikx, int* iky, int nMoms);
-__global__ void linkedCopyBack(cuComplex* G_linked, cuComplex* G, int nLinks, int nChains, int* ikx, int* iky, int nMoms);
-
-__device__ void i_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
-{
-  /*
-  // Could do it this way: 
-  // Passed: nLinks; we know nz
-  unsigned int nzL = nz*nLinks;
-  unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
-  float kz;
-  int j = idz % (nzL/2+1)     
-  if (idz < nzL/2+1) {
-    kz = (float) idz * zpnLinv;
-  } else {
-    int idzs = idz-nzL;
-    kz = (float) idzs * zpnLinv;
-  }
-  cuComplex Ikz = make_cuComplex(0., kz);
-  float normalization = (float) 1./nzL;
-  ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
-  */
-  float *kz = (float*) kzData;
-  int nLinks = (int) lrintf(1./(zp*kz[1]));
-  unsigned int idz = offset % (nz*nLinks);
-  cuComplex Ikz = make_cuComplex(0., kz[idz]);
-  float normalization = (float) 1./(nz*nLinks);
-  ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
-}
-
-__device__ void abs_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
-{
-  float *kz = (float*) kzData;
-  int nLinks = (int) lrintf(1./(zp*kz[1]));
-  unsigned int idz = offset % (nz*nLinks);
-  float normalization = (float) 1./(nz*nLinks);
-  ((cuComplex*)dataOut)[offset] = abs(kz[idz])*element*normalization;
-}
-
-__global__ void init_kzLinked(float* kz, int nLinks)
-{
-  for(int i=0; i<nz*nLinks; i++) {
-    if(i<nz*nLinks/2+1) {
-      kz[i] = (float) i/(zp*nLinks);
-    } else {
-      kz[i] = (float) (i-nz*nLinks)/(zp*nLinks);
-    }
-  }
-}
-
-__managed__ cufftCallbackStoreC i_kzLinked_callbackPtr = i_kzLinked;
-__managed__ cufftCallbackStoreC abs_kzLinked_callbackPtr = abs_kzLinked;
-
 GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
  : grids_(grids)
 {
@@ -233,34 +179,6 @@ void GradParallelLinked::abs_dz(cuComplex* m, cuComplex* res)
   reality_singlemom_kernel<<<dim3(32,32,1),dim3(grids_->Nx/32+1, grids_->Nz/32+1,1)>>>(res);
 }
 
-__global__ void linkedCopy(cuComplex* G, cuComplex* G_linked, int nLinks, int nChains, int* ikx, int* iky, int nMoms)
-{
-  unsigned int idz = get_id1();
-  unsigned int idk = get_id2();
-  unsigned int idlm = get_id3();
-
-  if(idz<nz && idk<nLinks*nChains && idlm<nMoms) {
-    unsigned int idlink = idz + nz*idk + nz*nLinks*nChains*idlm;
-    unsigned int globalIdx = iky[idk] + nyc*ikx[idk] + idz*nx*nyc + idlm*nx*nyc*nz;
-
-    // NRM: seems hopeless to make these accesses coalesced. how bad is it?
-    G_linked[idlink] = G[globalIdx];
-  }
-}
-
-__global__ void linkedCopyBack(cuComplex* G_linked, cuComplex* G, int nLinks, int nChains, int* ikx, int* iky, int nMoms)
-{
-  unsigned int idz = get_id1();
-  unsigned int idk = get_id2();
-  unsigned int idlm = get_id3();
-
-  if(idz<nz && idk<nLinks*nChains && idlm<nMoms) {
-    unsigned int idlink = idz + nz*idk + nz*nLinks*nChains*idlm;
-    unsigned int globalIdx = iky[idk] + nyc*ikx[idk] + idz*nx*nyc + idlm*nx*nyc*nz;
-
-    G[globalIdx] = G_linked[idlink];
-  }
-}
 
 int compare (const void * a, const void * b)
 {

@@ -5,13 +5,6 @@
 #include "grad_parallel.h"
 #include "get_error.h"
 
-__global__ void init_kperp2(float* kperp2, float* kx, float* ky,
-			    float* gds2, float* gds21, float* gds22,
-			    float* bmagInv, float shat) ;
-__global__ void init_omegad(float* omegad, float* cv_d, float* gb_d, float* kx, float* ky,
-			    float* cv, float* gb, float* cv0, float* gb0, float shat) ;
-__global__ void calc_bgrad(float* bgrad, float* bgrad_temp, float* bmag, float scale);
-
 Geometry::~Geometry() {
   cudaFree(z);
   cudaFree(bmag);

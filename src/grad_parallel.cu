@@ -4,33 +4,6 @@
 #include "cufft.h"
 #include "device_funcs.h"
 
-__device__ void i_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
-{
-  float *kz = (float*) kzData;
-  unsigned int idz = offset / (nx*nyc);
-  cuComplex Ikz = make_cuComplex(0., kz[idz]);
-  ((cuComplex*)dataOut)[offset] = Ikz*element/nz;    
-}
-
-__device__ void abs_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
-{
-  float *kz = (float*) kzData;
-  unsigned int idz = offset / (nx*nyc);
-  ((cuComplex*)dataOut)[offset] = abs(kz[idz])*element/nz;
-}
-
-__device__ void i_kz_1d(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
-{
-  float *kz = (float*) kzData;
-  unsigned int idz = offset;
-  cuComplex Ikz = make_cuComplex(0., kz[idz]);
-  ((cuComplex*)dataOut)[offset] = Ikz*element/nz;
-}
-
-__managed__ cufftCallbackStoreC i_kz_callbackPtr = i_kz;
-__managed__ cufftCallbackStoreC i_kz_1d_callbackPtr = i_kz_1d;
-__managed__ cufftCallbackStoreC abs_kz_callbackPtr = abs_kz;
-
 GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
   grids_(grids)
 {
