@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+
+regression_tests_dir = "/home/mfmartin/proc_comments_gx/catch2_tests/regression/"
+files = os.listdir(regression_tests_dir)
+
+# remove any *.nc files from previous tests
+for item in files:
+    if item.endswith(".nc"):
+        os.remove(os.path.join(regression_tests_dir, item))
+
+def kh01():
+    submitCommand = "./catch2_tests/gx ./catch2_tests/kh01"
+    subprocess.call(submitCommand.split()) # do linear run and create restart file
+    
+    submitCommand2 = "./catch2_tests/gx ./catch2_tests/kh01a"
+    subprocess.call(submitCommand2.split()) # nonlinear run w/ restart file

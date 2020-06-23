@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+
+import os
+from scipy.io import netcdf
+
+def set_GX_defaults(netcdf_file):
+    f = netcdf.netcdf_file(netcdf_file,'r',mmap=False)
+    x_nc = f.variables['nx'][()]
+    y_nc = f.variables['ny'][()]
+    y0_nc = f.variables['y0'][()]
+
+    defaults = dict()
+    defaults['nx'] = x_nc
+    defaults['ny'] = y_nc
+    defaults['y0'] = y0_nc
+    
+    return defaults
+            
+
+def type_check(input_pars):
+
+    # could type check in either python or cpp??
+    if (not isinstance(input_pars["nx"], int)):
+        print("type of nx = ",type(input_pars["nx"]))
+        return["nx","int"]
+
+    if (not isinstance(input_pars["ny"], int)):
+        print("type of ny = ",type(input_pars["ny"]))
+        return["ny","int"]
+
+    if (not isinstance(input_pars["y0"], float)):
+        print("type of y0 = ",type(input_pars["y0"]))
+        return["y0","float"]
+    
+    return [0]
+

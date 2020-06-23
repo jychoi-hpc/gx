@@ -1,0 +1,47 @@
+CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
+
+PROJECT (UNIT_TESTS CUDA CXX)
+SET (CMAKE_CXX_STANDARD_LIBRARIES -lstdc++)
+
+
+FIND_PACKAGE (MPI REQUIRED)
+INCLUDE_DIRECTORIES (SYSTEM ${MPI_CXX_INCLUDE_PATH})
+
+SET (INCLUDE_LIST "")
+SET (LIBRARY_LINK_LIST "")
+
+#SET (ENV{PKG_CONFIG_PATH} $ENV{PKG_CONFIG_PATH}:/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig)
+INCLUDE (FindPkgConfig)
+
+PKG_CHECK_MODULES (NETCDF netcdf)
+PKG_CHECK_MODULES (NETCDF netcdf)
+IF (NETCDF_FOUND)
+  LIST (APPEND INCLUDE_LIST ${NETCDF_INCLUDEDIR})
+  FOREACH (NETCDF_LIB_IND ${NETCDF_LINK_LIBRARIES})
+    LIST (APPEND LIBRARY_LINK_LIST ${NETCDF_LIB_IND})
+    MESSAGE ("${NETCDF_LIB_IND}")
+  ENDFOREACH ()
+  LIST (APPEND LIBRARY_LINK_LIST /usr/lib/x86_64-linux-gnu/libnetcdff.so)
+ENDIF ()
+
+# CUDA/NVCC Flags and Libraries (need better way to handle this)
+#SET (CUDAARCH 70)
+#SET (NVCC_FLAGS -arch=compute_${CUDAARCH})
+#LIST (APPEND ${NVCC_FLAGS} -code=sm_${CUDAARCH})
+#LIST (APPEND ${NVCC_FLAGS} -use_fast_math)
+#LIST (APPEND ${NVCC_FLAGS} -prec-sqrt=true)
+#SET (CUDA_LIB -lcufft_static)
+LIST (APPEND ${CUDA_LIB} -lculibos)
+LIST (APPEND ${CUDA_LIB} -lcublas)
+LIST (APPEND ${CUDA_LIB} -lcusolver)
+
+FILE (GLOB SRC_FILES /home/mfmartin/proc_comments_gx/src/*.cpp)
+FILE (GLOB INCLUDE_FILES /home/mfmartin/proc_comments_gx/include/*.h)
+
+ADD_EXECUTABLE (unit_tests grids_test.cpp fake_grids.h fake_grids.cpp)
+
+#TARGET_INCLUDE_DIRECTORIES (unit_tests PUBLIC /home/mfmartin/proc_comments_gx/include PUBLIC ${INCLUDE_LIST})
+#TARGET_COMPILE_OPTIONS (unit_tests PUBLIC ${NVCC_FLAGS})
+TARGET_LINK_LIBRARIES (unit_tests PUBLIC ${CUDA_LIB} ${LIBRARY_LINK_LIST})
+SET_PROPERTY (TARGET unit_tests PROPERTY CXX_STANDARD 11)
+SET_TARGET_PROPERTIES (unit_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${UNIT_TESTS_SOURCE_DIR})

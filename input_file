@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+def input_file(_): # do not remove or change this line
+    _['nx'] = 7
+    _['y0'] = 3.0
+    return _ # do not remove or change this line

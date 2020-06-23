@@ -1,0 +1,12 @@
+#include "catch.h"
+#include "regression.h"
+#include <vector>
+
+TEST_CASE_METHOD(Regression, "regression tests", "[regression]") {
+  Regression *reg = new Regression;
+  reg->kh01();
+  // ny = 4 ---> naky = 2
+  // nx = 4 ---> nakx = 3
+  CHECK(reg->omega[0] == 0);
+  CHECK(reg->gamma[0] == 0);
+}

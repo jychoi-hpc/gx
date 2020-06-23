@@ -1,0 +1,93 @@
+&gx
+ debug = F 
+ scheme = "k10"
+
+ ntheta = 1
+ nperiod = 1
+ ny = 4
+ nx = 4
+ y0 = 10.0
+ x0 = 10.0
+ boundary = "periodic"
+ forcing_amp = 0.
+ forcing_init = F
+ 
+ nhermite = 8
+ nlaguerre = 4
+ closure_model = "none"
+ 
+ dt = 0.01
+ nstep  = 500
+ nwrite = 100
+ navg   = 5
+ nsave  = 100000
+
+ beta = 0. 
+ TiTe = 1.0
+
+ igeo = 0,     rhoc = 0.,     eps = 0.,   shat = 1.e-7
+ Rmaj = 1.,    shift = 0.0,   qinp = 1.,
+ akappa = 1.0, akappri = 0.0, tri = 0.,   tripri = 0.
+
+ slab = T,     const_curv = F
+
+ nonlinear_mode = T 
+ cfl = 0.5 
+
+ nspecies = 1
+
+ kpar_init = 0.
+ write_fluxes = F
+ write_omega  = T
+ write_phi    = T
+
+ write_lh_spectrum = T
+ write_h_spectrum  = T
+ write_l_spectrum  = T
+ write_spec_v_time = F
+
+ write_phi_kpar = F
+ write_moms = T
+ write_rh = F
+ restart = T
+ restart_from_file = "jet.nc"
+
+ eqfix = F
+ ikx_fixed = 0
+ iky_fixed = 1
+
+ save_for_restart = F
+ restart_to_file = "kh01a.out.nc"
+ init_field = "density"
+ init_single = F
+ ikx_single = 1
+ iky_single = 1
+ init_amp = 1.e-8
+ iphi00 = 2  
+ scale = 100.
+/
+
+&species_parameters_1
+ z = 1.0 
+ mass = 1.0 
+ dens = 1.0
+ temp = 1.0 
+ tprim = 0.0
+ fprim = 0.0 
+ uprim = 0.0 
+ vnewk = 0.0
+ type = "ion" 
+/
+
+&species_parameters_2
+ z = -1.0 
+ mass = 2.7e-4
+ dens = 1. 
+ temp = 1.0 
+ tprim = 6.9
+ fprim = 2.2 
+ uprim = 0.0 
+ vnewk = 0. 
+ type = "electron" 
+/
+
