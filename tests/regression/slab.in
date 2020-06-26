@@ -1,0 +1,81 @@
+&gx
+ debug = F
+ scheme = "sspx2"
+
+ ntheta = 8
+ nperiod = 1
+ ny = 32
+ nx = 1
+ y0 = 5.
+ boundary = "periodic"
+ 
+ nhermite = 6
+ nlaguerre = 6
+ closure_model = "smith_par"
+ smith_par_q = 3
+ 
+ dt = 0.04
+ nstep  = 10000
+ nwrite = 2000
+ nsave  = 100000
+
+ beta = 0. 
+ TiTe = 1.0
+
+ igeo = 0,      rhoc = 0.,    eps = 0.,  shat = 1.e-7
+ Rmaj = 10.,    shift = 0.,   qinp = 1.0,
+ akappa = 1.,   akappri = 0., tri = 0.,   tripri = 0.
+
+ slab = T,     const_curv = F
+
+ nonlinear_mode = F 
+ cfl = 0.5 
+
+ nspecies = 1
+
+ kpar_init = 1.
+ write_fluxes = F
+ write_omega  = T
+ write_phi    = T
+
+ write_lh_spectrum = F
+ write_h_spectrum  = F
+ write_l_spectrum  = F
+ write_spec_v_time = F
+
+ write_phi_kpar = F
+ write_moms = T
+ write_rh = F
+ restart = F
+ restart_to_file = "slab.nc"
+ save_for_restart = F
+ init_field = "density"
+
+ init_amp = 1.e-5
+ iphi00 = 1  
+/
+
+&species_parameters_1
+ z = 1.0 
+ mass = 1.0
+ dens = 1.0
+ temp = 1.0
+ tprim = 2.0
+ fprim = 1.0
+ uprim = 0.0 
+ vnewk = 0. 
+ type = "ion" 
+/
+
+&species_parameters_2
+ z = -1.0 
+ mass = 2.7e-4
+ dens = 1. 
+ temp = 1.0 
+ tprim = 6.9
+ fprim = 2.2 
+ uprim = 0.0 
+ vnewk = 0. 
+ type = "electron" 
+/
+
