@@ -4,9 +4,9 @@
 
  ntheta = 8
  nperiod = 1
- ny = 32
+ ny = 16
  nx = 1
- y0 = 5.
+ y0 = 2.
  boundary = "periodic"
  
  nhermite = 6

@@ -3,6 +3,7 @@
 #######################################
 
 TARGET    = gx
+all: $(TARGET) unit_tests
 
 #######################################
 # Include system-dependent make variables
@@ -19,6 +20,8 @@ $(error GK_SYSTEM is not set)
 endif
 include Makefiles/Makefile.$(GK_SYSTEM)
 
+USE_PYBIND ?= on
+
 ############################
 ## Setup Compiler Flags
 ###########################
@@ -29,8 +32,8 @@ GEO_LIBS=${GS2}/geometry_c_interface.o
 GS2_CUDA_FLAGS=-I ${GS2} ${GS2}/libgs2.a ${GS2}/libsimpledataio.a 
 
 # CFLAGS= -std=c++03 ${CUDA_INC} ${MPI_INC} ${GSL_INC} 
-CFLAGS= -std=c++11 ${CUDA_INC} ${MPI_INC} ${GSL_INC} 
-LDFLAGS=$(CUDA_LIB) ${MPI_LIB} ${GSL_LIB} ${NETCDF_LIB} ${FORT_LIB}
+CFLAGS= -std=c++11 -Xcompiler -fopenmp ${CUDA_INC} ${MPI_INC} ${GSL_INC} ${PYBIND_INC}
+LDFLAGS=-lgomp $(CUDA_LIB) ${MPI_LIB} ${GSL_LIB} ${NETCDF_LIB} ${FORT_LIB} ${PYBIND_LIB}
 
 #####################################
 # Rule for building the system_config
@@ -48,7 +51,7 @@ system_config:
 	$(error "STANDARD_SYSTEM_CONFIGURATION is not defined for this system")
 endif
 
-VPATH=.:src catch2_tests
+VPATH=.:src tests/unit_tests tests/regression
 
 ##########################
 ## Suffix Build Rules
@@ -58,15 +61,20 @@ VPATH=.:src catch2_tests
 .SUFFIXES: .c .cpp .cu .o .d .f90
 .DEFAULT_GOAL := $(TARGET)
 
-HEADERS=$(wildcard include/*.h) 
+HEADERS=$(wildcard include/*.h)
+BLEJ=$(wildcard tests/*.h)
 
-CATCH2_HEADERS=$(wildcard catch2_tests/*.h)
+UNIT_TEST_HEADERS=$(wildcard tests/unit_tests/*.h)
+REGRESSION_HEADERS=$(wildcard tests/regression/*.h)
 
-catch2_tests/%.o: %.cpp $(CATCH2_HEADERS) $(HEADERS)
-	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I include
+tests/obj/%.o: tests/regression/%.cpp $(REGRESSION_HEADERS) $(HEADERS)
+	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I./tests -I include
 
-catch2_tests/%.o: %.cu $(CATCH2_HEADERS) $(HEADERS)
-	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I include
+tests/obj/%.o: tests/unit_tests/%.cpp $(UNIT_TEST_HEADERS) $(HEADERS)
+	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I./tests -I include
+
+tests/obj/%.o: tests/unit_tests/%.cu $(UNIT_TEST_HEADERS) $(HEADERS)
+	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) -I. -I./tests -I include
 
 ## special dependencies
 obj/parameters.o: read_nml.f90
@@ -89,10 +97,10 @@ OBJS = main.o run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields
 
 OBJS_NOMAIN = run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields.o solver.o linear.o timestepper.o diagnostics.o device_funcs.o grad_parallel.o grad_parallel_linked.o closures.o cuda_constants.o smith_par_closure.o forcing.o laguerre_transform.o nonlinear.o grad_perp.o ncdf.o read_nml.o hermite_transform.o reductions.o
 
-TEST_OBJS = test_main.o initial_tests.o kernel_class.o
+TEST_OBJS = test_main.o initial_tests.o kernel_class.o regression.o regression_tests.o
 
-catch2_tests/unit_tests: $(addprefix catch2_tests/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN))
-	$(NVCC) -o $@ $(addprefix catch2_tests/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN)) $(LDFLAGS)
+unit_tests: $(addprefix tests/obj/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN))
+	$(NVCC) -o $@ $(addprefix tests/obj/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN)) $(LDFLAGS)
 
 # main program
 $(TARGET): $(addprefix obj/, $(OBJS)) 
@@ -103,11 +111,10 @@ $(TARGET): $(addprefix obj/, $(OBJS))
 ########################
 
 clean: 
-	rm -rf obj/*.o catch2_tests/*.o *~ \#*
+	rm -rf obj/*.o tests/obj/*.o *~ \#*
 
 distclean: clean
-	rm -rf $(TARGET)
-	rm -rf unit_tests
+	rm -rf $(TARGET) unit_tests
 
 
 

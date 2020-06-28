@@ -16,22 +16,29 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-namespace py = pybind11;
-using namespace py::literals;
+//namespace py = pybind11;
+//using namespace py::literals;
 
-//void execute_gx(char *);
-
-Regression::Regression() {};
+Regression::Regression() {}
 
 void Regression::kh01() {
+  // remove any previous .nc outputs
+  if ("./tests/regression/kh01.nc") {
+    std::remove("./tests/regression/kh01.nc");
+  }
+  if ("./tests/regression/kh01a.nc") {
+    std::remove("./tests/regression/kh01a.nc");
+  }
+  
   // need to search for kh01.in and kh01a.in
   std::ifstream kh01{ "./tests/regression/kh01.in" };
   std::ifstream kh01a{ "./tests/regression/kh01a.in" };
-  
+
   if (!kh01 or !kh01a) {
     std::cerr << "One of the required input files could not be found. Exiting...\n";
     exit(1);
   }
+  
   // potentially read in relevant input variables (k-values) to ensure that these are not somehow altered when running the code
 
   // call function to execute GX for input file
@@ -60,39 +67,37 @@ test_var = 4
     std::cerr << "The output file kh01a.nc was not found. Exiting...";
     exit(1);
   }
-  int nc_id{};
-  int var_id{};
-  int nstep, nwrite, ny, nx, ntime;
-  nc_open("./tests/regression/kh01a.nc", NC_NOWRITE, &nc_id);
-  // get information about nstep/nwrite s
-  nc_inq_varid(nc_id, "nstep", &var_id);
-  nc_get_var_int(nc_id, var_id, &nstep);
-  nc_inq_varid(nc_id, "nwrite", &var_id);
-  nc_get_var_int(nc_id, var_id, &nwrite);
-  nc_inq_varid(nc_id, "ny", &var_id);
-  nc_get_var_int(nc_id, var_id, &ny);
-  nc_inq_varid(nc_id, "nx", &var_id);
-  nc_get_var_int(nc_id, var_id, &nx);
-  ntime = (nstep/nwrite);
-  float time_data[ntime];
-  nc_inq_varid(nc_id, "time", &var_id);
-  nc_get_var_float(nc_id, var_id, &time_data[0]);
-  /*  std::cout << "Time: ";
-  for (int i=0; i<ntime; i++) {
-    std::cout << time_data[i] << ", ";
+
+  read_netcdf_output("./tests/regression/kh01a.nc");
+
+}
+
+void Regression::slab() {
+  // remove any previous .nc outputs
+  if ("./tests/regression/slab.nc") {
+    std::remove("./tests/regression/slab.nc");
   }
-  std::cout << "\n";*/
-  // Number of simulated modes
-  int Naky = (ny-1)/3 + 1;
-  int Nakx = (2*(nx-1)/3) + 1;
-  float omega_v_time[Naky*Nakx*ntime][2];
-  nc_inq_varid(nc_id, "omega_v_time", &var_id);
-  nc_get_var_float(nc_id, var_id, &omega_v_time[0][0]);
-  for (int z=0; z<Naky*Nakx; z++) {
-    omega.push_back(omega_v_time[Nakx*Naky*ntime+z][0]);
-    gamma.push_back(omega_v_time[Nakx*Naky*ntime+z][1]);
+
+  // need to search for kh01.in and kh01a.in
+  std::ifstream slab{ "./tests/regression/slab.in" };
+  
+  if (!slab) {
+    std::cerr << "One of the required input files could not be found. Exiting...\n";
+    exit(1);
   }
-  nc_close(nc_id);
+  // potentially read in relevant input variables (k-values) to ensure that these are not somehow altered when running the code
+
+  // call function to execute GX for input file
+  execute_gx("./tests/regression/slab");
+  
+  // read in the output file
+  if (!"./tests/regression/slab.nc") {
+    std::cerr << "The output file slab.nc was not found. Exiting...";
+    exit(1);
+  }
+
+  read_netcdf_output("./tests/regression/slab.nc");
+
 }
 
 void Regression::execute_gx(char *in_file) {
@@ -127,3 +132,59 @@ void Regression::execute_gx(char *in_file) {
     }
   }
 }
+
+void Regression::read_netcdf_output(char *out_file) {
+  int nc_id;
+  int var_id;
+
+  std::cout << out_file << "\n";
+  nc_open(out_file, NC_NOWRITE, &nc_id);
+  // get information about nstep/nwrite s
+  nc_inq_varid(nc_id, "nstep", &var_id);
+  nc_get_var_int(nc_id, var_id, &nstep_);
+  std::cout << "nstep = " << nstep_ << ", ";
+  
+  nc_inq_varid(nc_id, "nwrite", &var_id);
+  nc_get_var_int(nc_id, var_id, &nwrite_);
+  std::cout << "nwrite = " << nwrite_ << ", ";
+  
+  nc_inq_varid(nc_id, "ny", &var_id);
+  nc_get_var_int(nc_id, var_id, &ny_);
+  std::cout << "ny = " << ny_ << ", ";
+  
+  nc_inq_varid(nc_id, "nx", &var_id);
+  nc_get_var_int(nc_id, var_id, &nx_);
+  std::cout << "nx = " << nx_ << ", ";
+  
+  ntime_ = (nstep_/nwrite_);
+  std::cout << "ntime = " << ntime_ << "\n";
+  float time_data_[ntime_];
+
+  nc_inq_varid(nc_id, "time", &var_id);
+  nc_get_var_float(nc_id, var_id, &time_data_[0]);
+  
+  std::cout << "Time: ";
+  for (int i=0; i<ntime_; i++) {
+    std::cout << time_data_[i] << ", ";
+  }
+  std::cout << "\n";
+  
+  // Number of simulated modes
+  Naky_ = (ny_-1)/3 + 1;
+  Nakx_ = (2*(nx_-1)/3) + 1;
+  std::cout << "Naky = " << Naky_ << ", ";
+  std::cout << "Nakx = " << Nakx_ << "\n";
+
+  float omega_v_time_[Naky_*Nakx_*(ntime_+1)][2];
+  nc_inq_varid(nc_id, "omega_v_time", &var_id);
+  nc_get_var_float(nc_id, var_id, &omega_v_time_[0][0]);
+
+  for (int z=0; z<Naky_*Nakx_; z++) {
+    omega_.push_back(omega_v_time_[Nakx_*Naky_*(ntime_)+z][0]);
+    gamma_.push_back(omega_v_time_[Nakx_*Naky_*(ntime_)+z][1]);
+  }
+
+  nc_close(nc_id);  
+}
+
+Regression::~Regression() {}
