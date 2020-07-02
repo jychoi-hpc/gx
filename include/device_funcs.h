@@ -2,13 +2,14 @@
 #include "cufft.h"
 #include "cufftXt.h"
 #include "species.h" // needed to add this
+#include "cuda_constants.h"
 
 __device__ unsigned int get_id1(void);
 __device__ unsigned int get_id2(void);
 __device__ unsigned int get_id3(void);
 
 __host__ __device__ float factorial(int m);
-__device__ float Jflr(int l, float b, bool enforce_JL_0=true);
+__host__ __device__ float Jflr(int l, float b, bool enforce_JL_0=true);
 
 __device__ float g0(float b);
 __device__ float g1(float b);
@@ -95,7 +96,7 @@ __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 __global__ void reality_kernel(cuComplex* g);
 __global__ void reality_singlemom_kernel(cuComplex* mom);
 
-__device__ int get_ikx(int idx);
+__host__ __device__ int get_ikx(int idx); // MM - 07/01/20
 __device__ bool unmasked(int idx, int idy);
 __device__ bool   masked(int idx, int idy);
 

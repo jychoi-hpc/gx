@@ -9,10 +9,10 @@ gx
 *.out*
 *.field
 tests/test_*
-tests/*_tests
 *.z
 *.pyc
 *_field
 *omega.kykx
 catch2_tests/unit_tests
 catch2_tests/build/CMake*
+*_tests

@@ -1,5 +1,6 @@
 #include "device_funcs.h"
 #include "cuda_constants.h"
+#include "grids.h"
 
 __device__ unsigned int get_id1(void) {return __umul24(blockIdx.x,blockDim.x)+threadIdx.x;}
 __device__ unsigned int get_id2(void) {return __umul24(blockIdx.y,blockDim.y)+threadIdx.y;}
@@ -17,12 +18,14 @@ __host__ __device__ float factorial(int m) {
   else return sqrtf(2.*M_PI*m)*powf(m,m)*expf(-m)*(1.+1./(12.*m)+1./(288.*m*m));
 }
 
-__device__ float Jflr(int l, float b, bool enforce_JL_0) {
+__host__ __device__ float Jflr(int l, float b, bool enforce_JL_0) {
   if (l>30) return 0.; // protect against underflow for single precision evaluation
 
   if (l<0) return 0.;
+
   else if (l>=nl && enforce_JL_0) return 0;
-  else return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.);
+
+  else return (1./factorial(l))*pow(-0.5*b, l)*expf(-b/2.);
 }
 
 __device__ float g0(float b) {
@@ -175,7 +178,8 @@ __host__ __device__ cuDoubleComplex operator/(cuDoubleComplex f, cuDoubleComplex
   return cuCdiv(f,g);
 }
 
-__device__ int get_ikx(int idx) {
+__host__ __device__ int get_ikx(int idx) {
+
   if (idx < nx/2+1)
     return idx;
   else

@@ -26,7 +26,7 @@ class Grids {
   const int NxNz;
   const int NycNz;
   const int Nmoms;
-  
+
   float * ky;
   float * kx;
   float * kz;

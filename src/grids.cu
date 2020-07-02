@@ -112,7 +112,7 @@ Grids::Grids(Parameters* pars) :
   NycNz(Nyc * Nz),
   Nmoms(Nm*Nl),
   pars_(pars)
-{
+{  
   cudaDeviceSynchronize();
   cudaMallocHost((void**) &theta0_h, sizeof(float)*Nakx);
 
@@ -124,9 +124,9 @@ Grids::Grids(Parameters* pars) :
   cudaMalloc((void**) &ky, sizeof(float)*Nyc);
   cudaMalloc((void**) &kz, sizeof(float)*Nz);
 
-  //  printf("In grids constructor. Nyc = %i \n",Nyc);
-  
-  // copy some parameters to device constant memory 
+#ifdef __CUDA_ARCH__
+  // copy some parameters to device constant memory
+  // these are all __constant__ from cuda_constants.h
   cudaMemcpyToSymbol(nx,  &Nx, sizeof(int),0,cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(ny,  &Ny, sizeof(int),0,cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(nyc, &Nyc, sizeof(int),0,cudaMemcpyHostToDevice);
@@ -137,6 +137,20 @@ Grids::Grids(Parameters* pars) :
   cudaMemcpyToSymbol(zp,  &pars_->Zp, sizeof(float),0,cudaMemcpyHostToDevice);  
   cudaMemcpyToSymbol(ikx_fixed, &pars_->ikx_fixed, sizeof(int),0,cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(iky_fixed, &pars_->iky_fixed, sizeof(int),0,cudaMemcpyHostToDevice);
+#else
+  // Setting global CPU constants for use in __host__ __device__ functions when tested with host code
+  nx = Nx;
+  ny = Ny;
+  nyc = Nyc;
+  nz = Nz;
+  nspecies = Nspecies;
+  nm = Nm;
+  nl = Nl;
+  zp = pars->Zp;
+  ikx_fixed = pars->ikx_fixed;
+  iky_fixed = pars->iky_fixed;
+#endif
+  
   cudaDeviceSynchronize();
 
   // initialize k arrays
