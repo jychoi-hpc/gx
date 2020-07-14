@@ -22,7 +22,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   npol = 1;
   desired_normalized_toroidal_flux = 0.25;
   zeta_center = 0.0;
-  vmec_surface_option = 1;
+  vmec_surface_option = 2;
   verbose = 1;
 
   // Reference length and magnetic field are chosen to be the GIST values
@@ -195,51 +195,63 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   //  std::cout << "confusing issue with indexing compared to fortran code. Check for more cases\n";
   
   if (verbose) {
-    if (abs(vmec_radial_weight_half[0] < 1.e-14)) {
+    /*    if (abs(vmec_radial_weight_half[0] < 1.e-14)) {
       std::cout << "Using radial index " << vmec_radial_index_half[1] << "of " << vmec->ns-1 << "from VMEC's half mesh\n";
       }
     else if (abs(vmec_radial_weight_half[1]) < 1.e-14) {
       std::cout << "Using radial index " << vmec_radial_index_half[0] << "of " << vmec->ns-1 << "from VMEC's half mest\n";
     }
-    else {
+    else {*/
       std::cout << "Interpolating using radial indices " << vmec_radial_index_half[0] << " and " << vmec_radial_index_half[1] << " of " << vmec->ns-1 << " from VMEC's half mesh\n";
       std::cout << "Weight for half mesh = " << vmec_radial_weight_half[0] << " and " << vmec_radial_weight_half[1] << "\n";
       std::cout << "Interpolating using radial indicies " << vmec_radial_index_full[0] << " and " << vmec_radial_index_full[1] << " of " << vmec->ns << " from VMEC's full mesh\n";
       std::cout << "Weight for full mesh = " << vmec_radial_weight_full[0] << " and " << vmec_radial_weight_full[1] << "\n";
-    }
+    
   }
 
   // Evaluate several radial-profile functions at the flux surface we ended up choosing
 
   iota = vmec->iotas[vmec_radial_index_half[0]]*vmec_radial_weight_half[0] + vmec->iotas[vmec_radial_index_half[1]]*vmec_radial_weight_half[1];
+  //iota = vmec->iotaf[vmec_radial_index_full[0]]*vmec_radial_weight_full[0] + vmec->iotaf[vmec_radial_index_full[1]]*vmec_radial_weight_full[1];
   if (verbose) { std::cout << "iota = " << iota << "\n"; }
   safety_factor_q = 1./iota;
 
-  d_iota_ds_on_half_grid = new double[vmec->ns];
-  d_pressure_ds_on_half_grid = new double[vmec->ns];
+  d_iota_ds_on_half_grid = new double[vmec->ns]{};
+  /*  double *d_iota_ds_on_full_grid = new double[vmec->ns-1]{};
+  double *dq_ds_half_grid = new double[vmec->ns]{};
+  double temp_d_iota;*/
+  d_pressure_ds_on_half_grid = new double[vmec->ns]{};
 
-  d_iota_ds_on_half_grid[0] = 0;
-  d_pressure_ds_on_half_grid[0] = 0.0;
   ds = normalized_toroidal_flux_full_grid[1] - normalized_toroidal_flux_full_grid[0];
   if (verbose) { std::cout << "ds = " << ds << "\n"; }
 
   for (int i=1; i<vmec->ns; i++) {
+    //d_iota_ds_on_half_grid[i] = (vmec->iotas[i] - vmec->iotas[i-1]) / ds;
+    //dq_ds_half_grid[i] = (1./(vmec->iotaf[i]) - 1./(vmec->iotaf[i-1])) / ds;
     d_iota_ds_on_half_grid[i] = (vmec->iotaf[i] - vmec->iotaf[i-1]) / ds;
     d_pressure_ds_on_half_grid[i] = (vmec->presf[i] - vmec->presf[i-1]) / ds;
     //    std::cout << "iota[1] = " << iotaf_vmec[i] << ", iota[0] = " << iotaf_vmec[i-1] << "\n";
     //    std::cout << "diota/ds = " << d_iota_ds_on_half_grid[i] << "\n";
   }
+  /*  for (int i=1; i<vmec->ns-1; i++) {
+    d_iota_ds_on_full_grid[i] = (vmec->iotas[i] - vmec->iotas[i-1]) / ds;
+    }*/
+  //  d_iota_ds = d_iota_ds_on_half_grid[vmec_radial_index_full[0]]*vmec_radial_weight_full[0] + d_iota_ds_on_half_grid[vmec_radial_index_full[1]]*vmec_radial_weight_full[1];
+  temp_d_iota = d_iota_ds_on_full_grid[vmec_radial_index_full[0]+1]*vmec_radial_weight_full[0] + d_iota_ds_on_full_grid[vmec_radial_index_full[1]+1]*vmec_radial_weight_full[1];
+  std::cout << "temp_d_iota = " << temp_d_iota << "\n";
   d_iota_ds = d_iota_ds_on_half_grid[vmec_radial_index_half[0]]*vmec_radial_weight_half[0] + d_iota_ds_on_half_grid[vmec_radial_index_half[1]]*vmec_radial_weight_half[1];
   d_pressure_ds = d_pressure_ds_on_half_grid[vmec_radial_index_half[0]]*vmec_radial_weight_half[0] + d_pressure_ds_on_half_grid[vmec_radial_index_half[1]]*vmec_radial_weight_half[1];
 
   // shat = (r/q)(dq/dr) where r = a sqrt(s)
   //      = -(r/iota)(d iota / dr) = -2 (s/iota) (d iota/ ds)
   shat = (-2 * normalized_toroidal_flux_used / iota) * d_iota_ds;
+  //double shat2 = (-2 * normalized_toroidal_flux_used / iota) * temp_d_iota;
   
   delete[] d_iota_ds_on_half_grid;
   delete[] d_pressure_ds_on_half_grid;
   if (verbose) {
     std::cout << "shat = " << shat << "\n";
+    //    std::cout << "shat2 = " << shat2 << "\n";
     std::cout << "d iota / ds = " << d_iota_ds << "\n";
     std::cout << "d pressure / ds = " << d_pressure_ds << "\n";
   }
@@ -250,21 +262,21 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
 
   // Creating uniform theta grid to be [-npol*pi, npol*pi]
   theta = new double[2*nzgrid+1];
-  std::cout << "theta = [";
+  //  std::cout << "theta = [";
   for (int i=0; i<2*nzgrid+1; i++) {
     theta[i] = (npol*M_PI*(i-nzgrid))/nzgrid;
-    std::cout << theta[i] << ", ";
+    //    std::cout << theta[i] << ", ";
   }
-  std::cout << "]\n\n";
+  //  std::cout << "]\n\n";
 
   // Creating zeta grid based on alpha = theta - iota*zeta
   zeta = new double[2*nzgrid+1]; 
-  std::cout << "zeta = [";
+  //  std::cout << "zeta = [";
   for (int i=0; i<2*nzgrid+1; i++) {
     zeta[i] = (theta[i] - alpha) / iota;
-    std::cout << zeta[i] << ", ";
+    //    std::cout << zeta[i] << ", ";
   }
-  std::cout << "]\n\n";
+  //  std::cout << "]\n\n";
   
   // theta_pest = alpha + iota*zeta
   // Need to determine ---> theta_vmec = theta_pest - Lambda
@@ -925,9 +937,15 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   gbdrift0_temp = new double[2*nzgrid+1]{};
   cvdrift_temp = new double[2*nzgrid+1]{};
   cvdrift0_temp = new double[2*nzgrid+1]{};
+
+  // Except for bmag and gradpar, the following are related to dx/dpsi and/or dy/dalpha
+  // Depending on the sign of the toroidal flux, the sign of dx/dpsi and dy/alpha will change to ensure that
+  //
+  // kxfac = B_ref * dx/dpsi * dy/dalpha = 1
+  // Therefore, each instance of dx/dpsi or dy/alpha must also include a sign_psi factor
   
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
-    
+   
     bmag_temp[itheta] = B[itheta] / B_reference;
 
     // Using theta to set gradpar, as opposed to zeta for the full surface version
@@ -935,17 +953,17 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     
     gds2_temp[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
-    gds21_temp[itheta] = sign_psi * (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
+    gds21_temp[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
     
     gds22_temp[itheta] = (grad_psi_X[itheta] * grad_psi_X[itheta] + grad_psi_Y[itheta] * grad_psi_Y[itheta] + grad_psi_Z[itheta] * grad_psi_Z[itheta]) * ( (shat * shat) / (L_reference * L_reference * B_reference * B_reference * normalized_toroidal_flux_used) );
 
-    gbdrift_temp[itheta] = 2 * B_reference * L_reference * L_reference * sqrt_s * B_cross_grad_B_dot_grad_alpha[itheta] / ( B[itheta] * B[itheta] * B[itheta] );
+    gbdrift_temp[itheta] = sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * B_cross_grad_B_dot_grad_alpha[itheta] / ( B[itheta] * B[itheta] * B[itheta] );
 
-    gbdrift0_temp[itheta] = ( (B_sub_theta_vmec[itheta] * dB_dzeta[itheta] - B_sub_zeta[itheta] * dB_dtheta_vmec[itheta]) / sqrt_g[itheta] )
+    gbdrift0_temp[itheta] = sign_psi * ( (B_sub_theta_vmec[itheta] * dB_dzeta[itheta] - B_sub_zeta[itheta] * dB_dtheta_vmec[itheta]) / sqrt_g[itheta] )
       * ( (edge_toroidal_flux_over_2pi * 2 * shat) / (B[itheta] * B[itheta] * B[itheta] * sqrt_s) );
     // In the above expression for gbdrift0, the first line and the edge_toroidal_flux_over_2pi is \vec{B} \times \nabla B \cdot \nabla \psi
 
-    cvdrift_temp[itheta] = gbdrift_temp[itheta] + 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
+    cvdrift_temp[itheta] = gbdrift_temp[itheta] + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
 
     cvdrift0_temp[itheta] = gbdrift0_temp[itheta];
 
@@ -1033,22 +1051,22 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
 
   desired_gradpar = M_PI/z_on_theta_grid[2*nzgrid];
 
-  std::cout << "z_on_theta_grid = [";
+  //  std::cout << "z_on_theta_grid = [";
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     z_on_theta_grid[itheta] = z_on_theta_grid[itheta] * desired_gradpar;
     gradpar_temp[itheta] = desired_gradpar; // setting entire gradpar array to the constant value "desired_gradpar"
-    std::cout <<  z_on_theta_grid[itheta] << ", ";
+    //    std::cout <<  z_on_theta_grid[itheta] << ", ";
   }
-  std::cout << "]\n\n";
+  //  std::cout << "]\n\n";
 
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     uniform_zgrid[itheta] = z_on_theta_grid[0] + itheta*dtheta;
     final_theta_grid[itheta] = uniform_zgrid[itheta];
-    std::cout << uniform_zgrid[itheta] << ", ";
+    //    std::cout << uniform_zgrid[itheta] << ", ";
   }
 
   
-  std::cout << "\n";
+  //  std::cout << "\n";
 
   // Interpolating each geometric array from the non-uniform theta grid, onto to the
   // uniform z grid where gradpar=const
