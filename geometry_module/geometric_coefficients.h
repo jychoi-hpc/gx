@@ -10,8 +10,8 @@ class Geometric_coefficients {
   Geometric_coefficients(VMEC_variables*);
   ~Geometric_coefficients();
   void test_arrays(double*, double*, int, double, const std::string&);
-  void get_GX_geo_arrays(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
-  void write_geo_arrays_to_file(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
+  void get_GX_geo_arrays(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
+  void write_geo_arrays_to_file(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
   friend void solver_vmec_theta(double*, double*, int, double, double, VMEC_variables*, int*, double*);
   VMEC_variables *vmec;
 
@@ -19,6 +19,7 @@ class Geometric_coefficients {
   double *theta_grid;
   double *bmag;
   double *gradpar;
+  double *grho;
   double *gds2;
   double *gds21;
   double *gds22;
@@ -128,6 +129,7 @@ class Geometric_coefficients {
   double *theta_grid_temp;
   double *bmag_temp;
   double *gradpar_temp;
+  double *grho_temp;
   double *gds2_temp;
   double *gds21_temp;
   double *gds22_temp;

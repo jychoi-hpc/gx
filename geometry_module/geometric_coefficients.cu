@@ -237,8 +237,8 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     d_iota_ds_on_full_grid[i] = (vmec->iotas[i] - vmec->iotas[i-1]) / ds;
     }*/
   //  d_iota_ds = d_iota_ds_on_half_grid[vmec_radial_index_full[0]]*vmec_radial_weight_full[0] + d_iota_ds_on_half_grid[vmec_radial_index_full[1]]*vmec_radial_weight_full[1];
-  temp_d_iota = d_iota_ds_on_full_grid[vmec_radial_index_full[0]+1]*vmec_radial_weight_full[0] + d_iota_ds_on_full_grid[vmec_radial_index_full[1]+1]*vmec_radial_weight_full[1];
-  std::cout << "temp_d_iota = " << temp_d_iota << "\n";
+  //  temp_d_iota = d_iota_ds_on_full_grid[vmec_radial_index_full[0]+1]*vmec_radial_weight_full[0] + d_iota_ds_on_full_grid[vmec_radial_index_full[1]+1]*vmec_radial_weight_full[1];
+  //  std::cout << "temp_d_iota = " << temp_d_iota << "\n";
   d_iota_ds = d_iota_ds_on_half_grid[vmec_radial_index_half[0]]*vmec_radial_weight_half[0] + d_iota_ds_on_half_grid[vmec_radial_index_half[1]]*vmec_radial_weight_half[1];
   d_pressure_ds = d_pressure_ds_on_half_grid[vmec_radial_index_half[0]]*vmec_radial_weight_half[0] + d_pressure_ds_on_half_grid[vmec_radial_index_half[1]]*vmec_radial_weight_half[1];
 
@@ -930,6 +930,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   theta_grid_temp = new double[2*nzgrid+1]{};
   bmag_temp = new double[2*nzgrid+1]{};
   gradpar_temp = new double[2*nzgrid+1]{};
+  grho_temp = new double[2*nzgrid+1]{};
   gds2_temp = new double[2*nzgrid+1]{};
   gds21_temp = new double[2*nzgrid+1]{};
   gds22_temp = new double[2*nzgrid+1]{};
@@ -950,6 +951,8 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
 
     // Using theta to set gradpar, as opposed to zeta for the full surface version
     gradpar_temp[itheta] = ( L_reference * B_sup_theta_vmec[itheta] ) / B[itheta];
+
+    grho_temp[itheta] = sqrt( grad_psi_X[itheta]*grad_psi_X[itheta] + grad_psi_Y[itheta]*grad_psi_Y[itheta] + grad_psi_Z[itheta]*grad_psi_Z[itheta] );
     
     gds2_temp[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
@@ -975,6 +978,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   theta_grid = new double[2*nzgrid+1]{};
   bmag = new double[2*nzgrid+1]{};
   gradpar = new double[2*nzgrid+1]{};
+  grho = new double[2*nzgrid+1]{};
   gds2 = new double[2*nzgrid+1]{};
   gds21 = new double[2*nzgrid+1]{};
   gds22 = new double[2*nzgrid+1]{};
@@ -983,12 +987,13 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   cvdrift = new double[2*nzgrid+1]{};
   cvdrift0 = new double[2*nzgrid+1]{};
 
-  get_GX_geo_arrays(bmag_temp, gradpar_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta);
+  get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta);
 
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     theta_grid[itheta] = theta_grid_temp[itheta];
     bmag[itheta] = bmag_temp[itheta];
     gradpar[itheta] = gradpar_temp[itheta];
+    grho[itheta] = grho_temp[itheta];
     gds2[itheta] = gds2_temp[itheta];
     gds21[itheta] = gds21_temp[itheta];
     gds22[itheta] = gds22_temp[itheta];
@@ -1008,12 +1013,12 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   delete[] cvdrift_temp;
   delete[] cvdrift0_temp;
 
-  write_geo_arrays_to_file(theta_grid, bmag, gradpar, gds2, gds21, gds22, gbdrift, gbdrift0, cvdrift, cvdrift0);
+  write_geo_arrays_to_file(theta_grid, bmag, gradpar, grho, gds2, gds21, gds22, gbdrift, gbdrift0, cvdrift, cvdrift0);
   
 }
 
 
-void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpar_temp, double *gds2_temp, double* gds21_temp, double *gds22_temp, double *gbdrift_temp, double *gbdrift0_temp, double *cvdrift_temp, double *cvdrift0_temp, double *final_theta_grid, double *theta) {
+void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpar_temp, double* grho_temp, double *gds2_temp, double* gds21_temp, double *gds22_temp, double *gbdrift_temp, double *gbdrift0_temp, double *cvdrift_temp, double *cvdrift0_temp, double *final_theta_grid, double *theta) {
 
   //-----------------------------------------------------------------
   // Due to the FFTs in GX, need to have a uniform grid
@@ -1081,18 +1086,23 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   
 }
   
-void Geometric_coefficients::write_geo_arrays_to_file(double *theta_grid, double* bmag, double* gradpar, double* gds2, double* gds21, double* gds22, double* gbdrift, double* gbdrift0, double* cvdrift, double* cvdrift0) {
+void Geometric_coefficients::write_geo_arrays_to_file(double *theta_grid, double* bmag, double* gradpar, double* grho, double* gds2, double* gds21, double* gds22, double* gbdrift, double* gbdrift0, double* cvdrift, double* cvdrift0) {
 
   std::string out_name;
+  std::string tor_flux = std::to_string(normalized_toroidal_flux_used);
+  std::string theta_grid_points = std::to_string(2*nzgrid);
+  tor_flux = tor_flux.substr(0,5);
+  std::string vmec_name = vmec->vmec_file;
+  vmec_name = vmec_name.substr(0,vmec_name.size()-3);
+  out_name = "grid.gx_" + vmec_name + "_psiN_" + tor_flux + "_nt_" + theta_grid_points;
   
-  
-  ofstream out_file("test.out");
+  ofstream out_file(out_name);
   if (out_file.is_open()) {
     out_file << "ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q scale\n";
     out_file << nzgrid << " " << npol << " " << 2*nzgrid << " 1.0 1.0 " << shat << " 1.0 1.0 1.0 \n";
     out_file << "gbdrift\t gradpar\t grho\t tgrid\n";
     for (int i=0; i<2*nzgrid+1; i++) {
-      out_file << std::right << setprecision(10) << std::setw(20) << gbdrift[i] << "\t" << std::setw(20) << gradpar[i] << "\t" << std::setw(10) << "1\t" << std::setw(20) << theta_grid[i] << "\n";
+      out_file << std::right << setprecision(10) << std::setw(20) << gbdrift[i] << "\t" << std::setw(20) << gradpar[i] << "\t" << std::setw(20) << grho[i] << "\t" << std::setw(20) << theta_grid[i] << "\n";
     }
 
     out_file << "cvdrift\t gds2\t bmag\t tgrid\n";
