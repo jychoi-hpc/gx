@@ -11,9 +11,9 @@ __device__ unsigned int get_id3(void);
 __host__ __device__ float factorial(int m);
 __host__ __device__ float Jflr(int l, float b, bool enforce_JL_0=true);
 
-__device__ float g0(float b);
-__device__ float g1(float b);
-__device__ float sgam0 (float b);
+__host__ __device__ float g0(float b);
+__host__ __device__ float g1(float b);
+__host__ __device__ float sgam0 (float b);
 
 __host__ __device__ bool operator>(cuComplex f, cuComplex g);
 __host__ __device__ bool operator<(cuComplex f, cuComplex g);
@@ -97,8 +97,8 @@ __global__ void reality_kernel(cuComplex* g);
 __global__ void reality_singlemom_kernel(cuComplex* mom);
 
 __host__ __device__ int get_ikx(int idx); // MM - 07/01/20
-__device__ bool unmasked(int idx, int idy);
-__device__ bool   masked(int idx, int idy);
+__host__ __device__ bool unmasked(int idx, int idy);
+__host__ __device__ bool   masked(int idx, int idy);
 
 __global__ void Tbar(cuComplex* t_bar, cuComplex* g, cuComplex* phi, float *kperp2);
 

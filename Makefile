@@ -97,7 +97,7 @@ OBJS = main.o run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields
 
 OBJS_NOMAIN = run_gx.o gx_lib.o parameters.o geometry.o grids.o moments.o fields.o solver.o linear.o timestepper.o diagnostics.o device_funcs.o grad_parallel.o grad_parallel_linked.o closures.o cuda_constants.o smith_par_closure.o forcing.o laguerre_transform.o nonlinear.o grad_perp.o ncdf.o read_nml.o hermite_transform.o reductions.o
 
-TEST_OBJS = test_main.o initial_tests.o kernel_class.o regression.o regression_tests.o
+TEST_OBJS = test_main.o initial_tests.o regression.o regression_tests.o
 
 unit_tests: $(addprefix tests/obj/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN))
 	$(NVCC) -o $@ $(addprefix tests/obj/, $(TEST_OBJS)) $(addprefix obj/, $(OBJS_NOMAIN)) $(LDFLAGS)

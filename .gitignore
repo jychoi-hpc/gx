@@ -16,3 +16,5 @@ tests/test_*
 catch2_tests/unit_tests
 catch2_tests/build/CMake*
 *_tests
+geometry_module/build/*
+geometry_module/convert_VMEC_to_GX

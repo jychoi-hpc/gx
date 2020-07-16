@@ -28,7 +28,7 @@ __host__ __device__ float Jflr(int l, float b, bool enforce_JL_0) {
   else return (1./factorial(l))*pow(-0.5*b, l)*expf(-b/2.);
 }
 
-__device__ float g0(float b) {
+__host__ __device__ float g0(float b) {
 
   float tol = 1.e-7;
   float tk, b2, b2sq;
@@ -38,7 +38,11 @@ __device__ float g0(float b) {
 
   b2 = 0.5 * b;
   b2sq = b2 * b2;
+#ifdef __CUDA_ARCH__
   tk = __expf(-b);
+#else
+  tk = exp(-b);
+#endif
   g = tk;
 
   x = 1.;
@@ -57,7 +61,7 @@ __device__ float g0(float b) {
 
 }
 
-__device__ float g1(float b) {
+__host__ __device__ float g1(float b) {
 
   float tol = 1.e-7;
   float tk, b2, b2sq;
@@ -67,7 +71,11 @@ __device__ float g1(float b) {
 
   b2 = 0.5 * b;
   b2sq = b2 * b2;
+#ifdef __CUDA_ARCH__
   tk = __expf(-b) * b2;
+#else
+  tk = exp(-b) * b2;
+#endif
   g = tk;
 
   x = 1.;
@@ -87,7 +95,7 @@ __device__ float g1(float b) {
 
 }
 
-__device__ float sgam0 (float b) {return sqrt(g0(b));}
+__host__ __device__ float sgam0 (float b) {return sqrt(g0(b));}
 
 __host__ __device__ bool operator>(cuComplex f, cuComplex g)
 {
@@ -456,7 +464,7 @@ __global__ void reality_singlemom_kernel(cuComplex* mom)
   }
 }
 
-__device__ bool unmasked(int idx, int idy) {
+__host__ __device__ bool unmasked(int idx, int idy) {
   int ikx = get_ikx(idx);
   if ( !(idx==0 && idy==0)
        && idy <  (ny-1)/3 + 1
@@ -470,7 +478,7 @@ __device__ bool unmasked(int idx, int idy) {
 }
 
 // not the opposite of unmasked b/c indices could simply be out of range
-__device__ bool masked(int idx, int idy) {
+__host__ __device__ bool masked(int idx, int idy) {
   int ikx = get_ikx(idx);
   if ( ( (idx==0 && idy==0) || idy > (ny-1)/3  || ikx > (nx-1)/3 || ikx < -(nx-1)/3 )
        && idx < nx  // index should be in range to be actively masked

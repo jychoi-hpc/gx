@@ -17,7 +17,7 @@ ifdef USE_MPI
       MPI_LIB= -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi
 endif
 
-PYBIND_INC = -I/home/mfmartin/proc_comments_gx/include/pybind11/include/ -I/usr/include/python3.6/
+PYBIND_INC = -I/home/mfmartin/proc_comments/include/pybind11/include/ -I/usr/include/python3.6/
 PYBIND_LIB = -lpython3.6m
 
 FORT_LIB = -lgfortran
