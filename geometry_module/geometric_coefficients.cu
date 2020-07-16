@@ -790,10 +790,6 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     grad_psi_Y[itheta] = grad_s_Y[itheta] * abs(edge_toroidal_flux_over_2pi);
     grad_psi_Z[itheta] = grad_s_Z[itheta] * abs(edge_toroidal_flux_over_2pi);
 
-    /*    grad_psi_X[itheta] = grad_s_X[itheta] * edge_toroidal_flux_over_2pi;
-    grad_psi_Y[itheta] = grad_s_Y[itheta] * edge_toroidal_flux_over_2pi;
-    grad_psi_Z[itheta] = grad_s_Z[itheta] * edge_toroidal_flux_over_2pi;*/
-
     grad_alpha_X[itheta] = (dLambda_ds[itheta] - zeta[itheta]*d_iota_ds) * grad_s_X[itheta] + (1.0 + dLambda_dtheta_vmec[itheta]) * grad_theta_vmec_X[itheta] + (-iota + dLambda_dzeta[itheta]) * grad_zeta_X[itheta];
     grad_alpha_Y[itheta] = (dLambda_ds[itheta] - zeta[itheta]*d_iota_ds) * grad_s_Y[itheta] + (1.0 + dLambda_dtheta_vmec[itheta]) * grad_theta_vmec_Y[itheta] + (-iota + dLambda_dzeta[itheta]) * grad_zeta_Y[itheta];
     grad_alpha_Z[itheta] = (dLambda_ds[itheta] - zeta[itheta]*d_iota_ds) * grad_s_Z[itheta] + (1.0 + dLambda_dtheta_vmec[itheta]) * grad_theta_vmec_Z[itheta] + (-iota + dLambda_dzeta[itheta]) * grad_zeta_Z[itheta];
@@ -801,11 +797,6 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     grad_B_X[itheta] = dB_ds[itheta] * grad_s_X[itheta] + dB_dtheta_vmec[itheta] * grad_theta_vmec_X[itheta] + dB_dzeta[itheta] * grad_zeta_X[itheta];
     grad_B_Y[itheta] = dB_ds[itheta] * grad_s_Y[itheta] + dB_dtheta_vmec[itheta] * grad_theta_vmec_Y[itheta] + dB_dzeta[itheta] * grad_zeta_Y[itheta];
     grad_B_Z[itheta] = dB_ds[itheta] * grad_s_Z[itheta] + dB_dtheta_vmec[itheta] * grad_theta_vmec_Z[itheta] + dB_dzeta[itheta] * grad_zeta_Z[itheta];
-
-    // Need to be careful with sign of toroidal flux here!
-    /*B_X[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dX_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dX_dtheta_vmec[itheta]) / sqrt_g[itheta];
-    B_Y[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dY_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dY_dtheta_vmec[itheta]) / sqrt_g[itheta];
-    B_Z[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dZ_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dZ_dtheta_vmec[itheta]) / sqrt_g[itheta];*/
 
     B_X[itheta] = abs(edge_toroidal_flux_over_2pi) * ((1.0 + dLambda_dtheta_vmec[itheta]) * dX_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dX_dtheta_vmec[itheta]) / sqrt_g[itheta];
     B_Y[itheta] = abs(edge_toroidal_flux_over_2pi) * ((1.0 + dLambda_dtheta_vmec[itheta]) * dY_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dY_dtheta_vmec[itheta]) / sqrt_g[itheta];
@@ -952,7 +943,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     // Using theta to set gradpar, as opposed to zeta for the full surface version
     gradpar_temp[itheta] = ( L_reference * B_sup_theta_vmec[itheta] ) / B[itheta];
 
-    grho_temp[itheta] = sqrt( grad_psi_X[itheta]*grad_psi_X[itheta] + grad_psi_Y[itheta]*grad_psi_Y[itheta] + grad_psi_Z[itheta]*grad_psi_Z[itheta] );
+    grho_temp[itheta] = (1. / (L_reference * B_reference * sqrt_s) ) * sqrt( grad_psi_X[itheta]*grad_psi_X[itheta] + grad_psi_Y[itheta]*grad_psi_Y[itheta] + grad_psi_Z[itheta]*grad_psi_Z[itheta] );
     
     gds2_temp[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
