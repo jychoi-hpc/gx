@@ -78,10 +78,22 @@ __global__ void add_scaled_kernel(cuComplex* res,
 
 __global__ void scale_kernel(cuComplex* res, cuComplex* m, double s);
 __global__ void scale_kernel(cuComplex* res, cuComplex* m, cuComplex s);
+
+__host__ __device__ void scale_singlemom(cuComplex* res, cuComplex* m, cuComplex s, unsigned int idxyz);
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, cuComplex s);
 
 // Should we have some eqfix options in the singlemom_kernels? 
 
+__host__ __device__ void add_scaled_singlemom(cuComplex* res,
+					      double c1, cuComplex* m1,
+					      double c2, cuComplex* m2, unsigned int idxyz);
+__host__ __device__ void add_scaled_singlemom(cuComplex* res,
+					      double c1, cuComplex* m1,
+					      double c2, cuComplex* m2,
+					      double c3, cuComplex* m3, unsigned int idxyz);
+__host__ __device__ void add_scaled_singlemom(cuComplex* res,
+					      cuComplex c1, cuComplex* m1,
+					      cuComplex c2, cuComplex* m2, unsigned int idxyz);
 __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 					    double c1, cuComplex* m1,
 					    double c2, cuComplex* m2);

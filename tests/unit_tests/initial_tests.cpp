@@ -466,6 +466,230 @@ TEST_CASE_METHOD(Parameters, "device_functions", "[device]") {
   CHECK( masked(7,0) == false );
   CHECK( masked(4,3) == true );
   CHECK( masked(3,3) == false );
+
+  // -------------------------------------------------------
+  // __host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, unsigned int idxyz)
+  //
+  // This is a function within the kernel "add_scaled_singlemom_kernel", which simply adds c1*m1[idxyz] + c2*m2[idxyz] as long as idxyz < nx*nyc*nz
+  // Here nx=10, nyc=6, nz=32
+  
+  // Setting up random complex arrays for testing overloaded versions of add_scaled_singlemom()
+  double c1, c2, c3; unsigned int idxyz;
+  cuComplex res_arr[5], m1_arr[5], m2_arr[5], m3_arr[5];
+  // The *bound* arrays are to check that nothing happens when idxyz > nx*nyc*nz
+  cuComplex res_bound_arr[1921], m1_bound_arr[1921], m2_bound_arr[1921], m3_bound_arr[1921];
+  double m1_real[5] {1.0, 2.2, 1.3, 7.6, 10.0}; double m1_imag[5] {-3.6, 2.0, 1.6, 9.2, -4.0};
+  double m2_real[5] {-1.0, 5.3, 9.7, -8.3, -2.0}; double m2_imag[5] {8.6, 1.0, -5.4, 4.4, -2.2};
+  double m3_real[5] {-6.3, -7.0, -1.0, 0.0, 4.9}; double m3_imag[5] = {-1.0, -2.0, -3.0, -4.0, -5.6};
+  res_bound_arr[1920].x = 1.0; m1_bound_arr[1920].x = 1; m2_bound_arr[1920].x = 1; m3_bound_arr[1920].x = 1;
+  res_bound_arr[1920].y = 1.0; m1_bound_arr[1920].y = 1; m2_bound_arr[1920].y = 1; m3_bound_arr[1920].y = 1;
+  for (int i=0; i<5; i++) {
+    m1_arr[i].x = m1_real[i]; m1_arr[i].y = m1_imag[i];
+    m2_arr[i].x = m2_real[i]; m2_arr[i].y = m2_imag[i];
+    m3_arr[i].x = m3_real[i]; m3_arr[i].y = m3_imag[i];
+  }
+  cuComplex *res{res_arr}, *m1{m1_arr}, *m2{m2_arr}, *m3{m3_arr};
+  cuComplex *res_bound{res_bound_arr}, *m1_bound{m1_bound_arr}, *m2_bound{m2_bound_arr}, *m3_bound{m3_bound_arr};
+  
+  // Beginning tests
+  c1 = 0.0; c2 = 0.0;
+  idxyz = 1920; // value of nx*nyc*nz
+  add_scaled_singlemom(res_bound, c1, m1_bound, c2, m2_bound, idxyz);
+  // The scaling of m1 and m2 by c1 and c2 shouldn't happen, so the values at this index should remain 1
+  CHECK( res_bound_arr[idxyz].x == 1.0 ); CHECK (res_bound_arr[idxyz].y == 1.0 );
+  
+  c1 = 0.0; c2 = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == 0 ); CHECK( res_arr[idxyz].y == 0 );
+  }
+  c1 = 1.0; c2 = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].y );
+  }
+  c1 = 0.0; c2 = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == m2_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m2_arr[idxyz].y );
+  }
+  c1 = 1.0; c2 = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x+m2_arr[idxyz].x );
+    CHECK( res_arr[idxyz].y == m1_arr[idxyz].y+m2_arr[idxyz].y );
+  }
+  c1 = 3.0; c2 = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == 3*m1_arr[idxyz].x+m2_arr[idxyz].x );
+    CHECK( res_arr[idxyz].y == 3*m1_arr[idxyz].y+m2_arr[idxyz].y );
+  }
+  c1 = 3.03; c2 = -5.5;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
+    CHECK( res_arr[idxyz].x == Approx(3.03*m1_arr[idxyz].x+(-5.5)*m2_arr[idxyz].x).epsilon(0.01) );
+    CHECK( res_arr[idxyz].y == Approx(3.03*m1_arr[idxyz].y+(-5.5)*m2_arr[idxyz].y).epsilon(0.01) );
+  }
+  
+  // -------------------------------------------------------
+  // __host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, double c3, cuComplex*m3, unsigned int idxyz)
+  //
+  // Same as above, but adding 3 scaled arrays
+  c1 = 0.0; c2 = 0.0; c3 = 0.0;
+  idxyz = 1920; // value of nx*nyc*nz
+  add_scaled_singlemom(res_bound, c1, m1_bound, c2, m2_bound, c3, m3_bound, idxyz);
+  // The scaling of m1 and m2 by c1 and c2 shouldn't happen, so the values at this index should remain 1
+  CHECK( res_bound_arr[idxyz].x == 1.0 ); CHECK (res_bound_arr[idxyz].y == 1.0 );
+  
+  c1 = 0.0; c2 = 0.0; c3 = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == 0 ); CHECK( res_arr[idxyz].y == 0 );
+  }
+  c1 = 1.0; c2 = 0.0; c3 = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].y );
+  }
+  c1 = 0.0; c2 = 1.0; c3 = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == m2_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m2_arr[idxyz].y );
+  }
+  c1 = 0.0; c2 = 0.0; c3 = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == m3_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m3_arr[idxyz].y );
+  }
+  c1 = 1.0; c2 = 1.0; c3 = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x+m2_arr[idxyz].x+m3_arr[idxyz].x );
+    CHECK( res_arr[idxyz].y == m1_arr[idxyz].y+m2_arr[idxyz].y+m3_arr[idxyz].y );
+  }
+  c1 = 3.0; c2 = 1.0; c3 = 2.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == 3*m1_arr[idxyz].x+m2_arr[idxyz].x+2*m3_arr[idxyz].x );
+    CHECK( res_arr[idxyz].y == 3*m1_arr[idxyz].y+m2_arr[idxyz].y+2*m3_arr[idxyz].y );
+  }
+  c1 = 3.03; c2 = -5.5; c3 = 14.5;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
+    CHECK( res_arr[idxyz].x == Approx(3.03*m1_arr[idxyz].x+(-5.5)*m2_arr[idxyz].x+14.5*m3_arr[idxyz].x).epsilon(0.01) );
+    CHECK( res_arr[idxyz].y == Approx(3.03*m1_arr[idxyz].y+(-5.5)*m2_arr[idxyz].y+14.5*m3_arr[idxyz].y).epsilon(0.01) );
+  }
+
+  // -------------------------------------------------------
+  // __host__ __device__ void add_scaled_singlemom(cuComplex* res, cuComplex c1, cuComplex* m1, cuComplex c2, cuComplex* m2, unsigned int idxyz)
+  //
+  // Same as above, but adding 3 scaled arrays
+  cuComplex result, c1_c, c2_c, c3_c; // _c represents complex scaling of arrays
+  // Beginning tests
+  c1_c.x = 0.0; c1_c.y = 0.0; c2_c.x = 0.0; c2_c.y = 0.0;
+  idxyz = 1920; // value of nx*nyc*nz
+  add_scaled_singlemom(res_bound, c1_c, m1_bound, c2_c, m2_bound, idxyz);
+  // The scaling of m1 and m2 by c1 and c2 shouldn't happen, so the values at this index should remain 1
+  CHECK( res_bound_arr[idxyz].x == 1.0 ); CHECK (res_bound_arr[idxyz].y == 1.0 );
+  
+  c1_c.x = 0.0; c1_c.y = 0.0; c2_c.x = 0.0; c2_c.y = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c, m1, c2_c, m2, idxyz);
+    CHECK( res_arr[idxyz].x == 0 ); CHECK( res_arr[idxyz].y == 0 );
+  }
+  c1_c.x = 1.0; c1_c.y = 0.0; c2_c.x = 0.0; c2_c.y = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c, m1, c2_c, m2, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].y );
+  }
+  c1_c.x = 0.0; c1_c.y = 1.0; c2_c.x = 0.0; c2_c.y = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c, m1, c2_c, m2, idxyz);
+    CHECK( res_arr[idxyz].x == -m1_arr[idxyz].y ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].x );
+  }
+  c1_c.x = 1.0; c1_c.y = 1.0; c2_c.x = 1.0; c2_c.y = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c, m1, c2_c, m2, idxyz);
+    result = c1_c*m1_arr[idxyz] + c2_c*m2_arr[idxyz];
+    CHECK( res_arr[idxyz].x == result.x );
+    CHECK( res_arr[idxyz].y == result.y );
+  }
+  c1_c.x = -4.0; c1_c.y = 1.0; c2_c.x = 19.0; c2_c.y = -41.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c, m1, c2_c, m2, idxyz);
+    result = c1_c*m1_arr[idxyz] + c2_c*m2_arr[idxyz]; 
+    CHECK( res_arr[idxyz].x == result.x );
+    CHECK( res_arr[idxyz].y == result.y );
+  }
+  c1_c.x = -3.03; c1_c.y = 4.12; c2_c.x = -5.5; c2_c.y = -41.78;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    add_scaled_singlemom(res, c1_c , m1, c2_c, m2, idxyz);
+    result = c1_c*m1_arr[idxyz] + c2_c*m2_arr[idxyz]; 
+    CHECK( res_arr[idxyz].x == Approx(result.x).epsilon(0.01) );
+    CHECK( res_arr[idxyz].y == Approx(result.y).epsilon(0.01) );
+  }
+  
+  // -------------------------------------------------------
+  // __host__ __device__ void scale_singlemom(cuComplex* res, cuComplex* mom, cuComplex scalar, unsigned int idxyz)
+  //
+  c1_c.x = 0.0; c1_c.y = 0.0;
+  idxyz = 1920; // value of nx*nyc*nz
+  scale_singlemom(res_bound, m1_bound, c1_c, idxyz);
+  // The scaling of m1 and m2 by c1 and c2 shouldn't happen, so the values at this index should remain 1
+  CHECK( res_bound_arr[idxyz].x == 1.0 ); CHECK (res_bound_arr[idxyz].y == 1.0 );
+  
+  c1_c.x = 0.0; c1_c.y = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    scale_singlemom(res, m1, c1_c, idxyz);
+    CHECK( res_arr[idxyz].x == 0 ); CHECK( res_arr[idxyz].y == 0 );
+  }
+  c1_c.x = 1.0; c1_c.y = 0.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    scale_singlemom(res, m1, c1_c, idxyz);
+    CHECK( res_arr[idxyz].x == m1_arr[idxyz].x ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].y );
+  }
+  c1_c.x = 0.0; c1_c.y = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    scale_singlemom(res, m1, c1_c, idxyz);
+    CHECK( res_arr[idxyz].x == -m1_arr[idxyz].y ); CHECK( res_arr[idxyz].y == m1_arr[idxyz].x );
+  }
+  c1_c.x = 1.0; c1_c.y = 1.0;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    scale_singlemom(res, m1, c1_c, idxyz);
+    result = c1_c*m1_arr[idxyz];
+    CHECK( res_arr[idxyz].x == result.x ); CHECK( res_arr[idxyz].y == result.y );
+  }
+  c1_c.x = 9.04; c1_c.y = -8.54;
+  for (int i=0; i<5; i++) {
+    idxyz = i;
+    scale_singlemom(res, m1, c1_c, idxyz);
+    result = c1_c*m1_arr[idxyz];
+    CHECK( res_arr[idxyz].x == result.x ); CHECK( res_arr[idxyz].y == result.y );
+  }  
   
   delete grids2;
   delete grids;

@@ -202,22 +202,36 @@ __device__ bool not_fixed_eq(int idxyz) {
     return true;
 }
 
+// MM // Introduced __host__ __device__ functions to the add_scaled_singlemom_x kernels
+
+__host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, unsigned int idxyz) { 
+  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
+}
+
+__host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, double c3, cuComplex* m3, unsigned int idxyz) { 
+  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz] + c3*m3[idxyz];
+}
+
+__host__ __device__ void add_scaled_singlemom(cuComplex* res, cuComplex c1, cuComplex* m1, cuComplex c2, cuComplex* m2, unsigned int idxyz) { 
+  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
+}
+
 __global__ void add_scaled_singlemom_kernel(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2)
 {
   unsigned int idxyz = get_id1();
-  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
+  add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
 }
 
 __global__ void add_scaled_singlemom_kernel(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, double c3, cuComplex* m3)
 {
   unsigned int idxyz = get_id1();
-  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz] + c3*m3[idxyz];
+  add_scaled_singlemom(res, c1, m1, c2, m2, c3, m3, idxyz);
 }
 
 __global__ void add_scaled_singlemom_kernel(cuComplex* res, cuComplex c1, cuComplex* m1, cuComplex c2, cuComplex* m2)
 {
   unsigned int idxyz = get_id1();
-  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
+  add_scaled_singlemom(res, c1, m1, c2, m2, idxyz);
 }
 
 __global__ void add_scaled_kernel(cuComplex* res,
@@ -418,10 +432,15 @@ __global__ void scale_kernel(cuComplex* res, cuComplex* mom, cuComplex scalar)
   }
 }
 
+__host__ __device__ void scale_singlemom(cuComplex* res, cuComplex* mom, cuComplex scalar, unsigned int idxyz)
+{
+  if(idxyz<nx*nyc*nz) res[idxyz] = scalar*mom[idxyz];
+}
+
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* mom, cuComplex scalar)
 {
   unsigned int idxyz = get_id1();
-  if(idxyz<nx*nyc*nz) res[idxyz] = scalar*mom[idxyz];
+  scale_singlemom(res, mom, scalar, idxyz);
 }
 
 __global__ void reality_kernel(cuComplex* g) 
