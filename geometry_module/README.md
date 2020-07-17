@@ -1,8 +1,7 @@
 # VMEC to GX Geometry Interface
 
-The purpose of this module is to calculate the required geometric quantities for GX from a VMEC equilibrium file at each grid point in the parallel coordinates. The parallel coordinate is altered so that gradpar = hat{b}\cdot\nabla_{\parallel} = const. in order to allow for FFTs along a field line. The output of this interface is a grid file that can be used as the value for the input parameter "geofilename".
+The purpose of this module is to calculate the required geometric quantities for GX from a VMEC equilibrium file at each grid point in the parallel coordinates. The parallel coordinate is altered so that gradpar = hat{b}\cdot\nabla_{\parallel} = const. (gradpar = <b>b</b>&#183;&nabla;<sub>&#8741;</sub> = const.) in order to allow for FFTs along a field line. The output of this interface is a grid file that can be used as the value for the input parameter "geofilename".
 
-gradpar = <b>b</b>&#183;&nabla;<sub>&#8741;</sub> = const
 ## Prerequisites
 
 CMake
@@ -33,7 +32,7 @@ The input parameters are currently set in the geometric_coefficients.cu source f
 
 ## Running the module
 
-The only command line input is the VMEC equilibrium file, which must be in the *.nc format
+Back in the main geometry module directory, give ./convert_VMEC_to_GX, with the only command line input being the VMEC equilibrium file, which must be in the *.nc format
 ```
 ./convert_VMEC_to_GX [vmec_file.nc]
 ```
