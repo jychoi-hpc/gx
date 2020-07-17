@@ -23,7 +23,7 @@ The input parameters are currently set in the geometric_coefficients.cu source f
 
 - alpha: Magnetic field line label. alpha=0.0 would correspond to a flux tube with the center at the outboard midplane and the center of one of the symmetric field periods.
 - nzgrid: The number of grid points in GX will be 2*nzgrid+1
-- npol: Sets limits of the flux tube to be [-npol*&pi, npol*&pi]
+- npol: Sets limits of the flux tube to be [-npol*&pi;, npol*&pi;]
 - desired_normalized_toroidal_flux
 - vmec_surface_option:
   * 0 - interpolates quantities between VMEC's half and full grid to get geometric quantities at exactly the "desired_normalized_toroidal_flux" input
