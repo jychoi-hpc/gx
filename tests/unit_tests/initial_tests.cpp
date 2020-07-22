@@ -444,6 +444,7 @@ TEST_CASE_METHOD(Parameters, "device_functions", "[device]") {
   CHECK( unmasked(0,0) == false ); // (0,0) mode not evolved
   CHECK( unmasked(0,4) == false ); // idy > (ny-1)/3 + 1
   CHECK( unmasked(10,0) == false ); // idx > nx
+  CHECK( unmasked(11,0) == false );
   CHECK( unmasked(5,0) == false ); // ikx > (nx-1)/3 + 1
   CHECK( unmasked(6,0) == false ); // ikx < -(nx-1)/3 + 1
   CHECK( unmasked(0,3) == true );

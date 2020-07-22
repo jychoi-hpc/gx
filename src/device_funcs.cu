@@ -195,7 +195,7 @@ __host__ __device__ int get_ikx(int idx) {
 }
 
 __device__ bool not_fixed_eq(int idxyz) {
-  int idxy_fixed = iky_fixed + ikx_fixed*nyc;
+  int idxy_fixed = iky_fixed + ikx_fixed*nyc; // should be idx_fixed??
   if ( idxyz%(nx*nyc) == idxy_fixed )
     return false;
   else
@@ -204,15 +204,15 @@ __device__ bool not_fixed_eq(int idxyz) {
 
 // MM // Introduced __host__ __device__ functions to the add_scaled_singlemom_x kernels
 
-__host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, unsigned int idxyz) { 
-  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
-}
-
 __host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, double c3, cuComplex* m3, unsigned int idxyz) { 
   if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz] + c3*m3[idxyz];
 }
 
 __host__ __device__ void add_scaled_singlemom(cuComplex* res, cuComplex c1, cuComplex* m1, cuComplex c2, cuComplex* m2, unsigned int idxyz) { 
+  if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
+}
+
+__host__ __device__ void add_scaled_singlemom(cuComplex* res, double c1, cuComplex* m1, double c2, cuComplex* m2, unsigned int idxyz) { 
   if(idxyz<nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz];
 }
 
@@ -238,6 +238,7 @@ __global__ void add_scaled_kernel(cuComplex* res,
 				  double c1, cuComplex* m1,
 				  double c2, cuComplex* m2)
 {
+  // should this be masked? tested for un/masked?
   unsigned int idxyz = get_id1();
   if(idxyz<nx*nyc*nz) {
     for(int s = 0; s < nspecies; s++) {
