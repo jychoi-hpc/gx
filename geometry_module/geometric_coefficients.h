@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <vector>
 #include "parameters.h"
 #include "vmec_variables.h"
 
@@ -10,9 +11,17 @@ class Geometric_coefficients {
   Geometric_coefficients(VMEC_variables*);
   ~Geometric_coefficients();
   void test_arrays(double*, double*, int, double, const std::string&);
+
   void get_GX_geo_arrays(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
+
   void write_geo_arrays_to_file(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
+
+  std::vector<double> get_cut_indices(double*, int&, int&, int&);
+
   friend void solver_vmec_theta(double*, double*, int, double, double, VMEC_variables*, int*, double*);
+
+  std::vector<double> slice(std::vector<double> const &, int, int);
+
   VMEC_variables *vmec;
 
   // output geometric quantities
@@ -137,6 +146,23 @@ class Geometric_coefficients {
   double *gbdrift0_temp;
   double *cvdrift_temp;
   double *cvdrift0_temp;
+
+  double dtheta_custom;
+  std::vector<double> custom_theta;
+  double *custom_theta_grid;
+  std::vector<double> theta_grid_cut;
+  std::vector<double> theta_cut_temp;
+  double *theta_cut;
+  std::vector<double> bmag_cut;
+  std::vector<double> gradpar_cut;
+  std::vector<double> grho_cut;
+  std::vector<double> gds2_cut;
+  std::vector<double> gds21_cut;
+  std::vector<double> gds22_cut;
+  std::vector<double> gbdrift_cut;
+  std::vector<double> gbdrift0_cut;
+  std::vector<double> cvdrift_cut;
+  std::vector<double> cvdrift0_cut;
   
   bool non_Nyquist_mode_available;
   bool found_imn;
@@ -152,23 +178,26 @@ class Geometric_coefficients {
   double *z_on_theta_grid;
   double *uniform_zgrid;
   double dtheta;
+  double dtheta_pi;
   double desired_gradpar;
   int index_of_middle;
   
   // misc variables
   int i, index, m, n, imn, imn_ind;
   double min_dr2, scale_factor;
+  int ileft, iright;
 
   // input variables for the interface
-  double alpha;
-  int nzgrid;
-  int npol;
+  double alpha = 0.0;
+  int nzgrid = 16;
+  int npol = 1;
   int sign_psi;
-  double desired_normalized_toroidal_flux;
-  double zeta_center;
-  int number_field_periods_to_include;
-  int vmec_surface_option;
-  int verbose;
+  double desired_normalized_toroidal_flux = 0.25;
+  int vmec_surface_option = 2;
+  int verbose = 1;
+  std::string flux_tube_cut = "none";
+  double custom_length = M_PI;
+  int which_crossing = 1;
 
   // strings for test_arrays function
   const std::string iota_name = "iota";

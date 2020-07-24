@@ -30,6 +30,17 @@ The input parameters are currently set in the geometric_coefficients.cu source f
   * 1 - calculates quantities on the closest surface of VMEC's half grid to "desired_normalized_toroidal_flux"
   * 2 - calculates quantities on the closest surface of VMEC's full grid to "desired_normalized_toroidal_flux"
 
+### Choosing custom flux tube sizes
+
+If desired, one can choose the exact endpoints of the flux tube, or have the endpoints coincide with the zeros of gds21 or gbdrift0. The input parameters to control this feature are below:
+- flux_tube_cut:
+  * "none" - This is the default parameter corresponding to no cutting. npol will completely control the length
+  * "custom" - Choose the exact endpoints of the tube
+  * "gds21" (not currently functional) - Choose a particular zero of the gds21 array as the endpoints
+  * "gbdrift0" (not currently functional) - Choose a particular zero of the gbdrift0 array as the endpoints
+- custom_length: If "custom" is chosen for flux_tube_cut, the theta values for the flux tube will be [-custom_length , custom_length]
+- which_crossing (not currently functional): If either "gds21" or "gbdrift0" are chosen for flux_tube_cut, this integer value will specify which zero to use, since these functions will have numerous crossing. Choosing "1" will yield the first zero from the center, "2" will yield the second, and so on.
+
 ## Running the module
 
 Back in the main geometry module directory, give ./convert_VMEC_to_GX, with the only command line input being the VMEC equilibrium file, which must be in the *.nc format

@@ -97,7 +97,7 @@ double fzero_residual(double theta_vmec_try, void *p) {
   return fzero_residual;
 }
 
-void interp_to_uniform_grid(double *geo_array, double *z_on_theta_grid, double *uniform_grid, int nzgrid) {
+void interp_to_new_grid(double *geo_array, double *z_on_theta_grid, double *uniform_grid, int nzgrid) {
 
   gsl_interp_accel *acc = gsl_interp_accel_alloc ();
   gsl_spline *spline = gsl_spline_alloc (gsl_interp_cspline, 2*nzgrid+1);

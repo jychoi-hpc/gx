@@ -12,4 +12,4 @@ struct g_params {
 
 double fzero_residual(double, void*);
 void solver_vmec_theta(double*, double*, int, double, double, VMEC_variables*, int*, double*);
-void interp_to_uniform_grid(double*, double*, double*, int);
+void interp_to_new_grid(double*, double*, double*, int);

@@ -11,20 +11,28 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <vector>
 
 using namespace std;
 
 Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec(vmec_vars) {
 
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  // INPUT PARAMETERS
   // the following are literals for now, but should be input file parameters
   alpha = 0.0;
   nzgrid = 128;
-  npol = 1;
+  npol = 2;
   desired_normalized_toroidal_flux = 0.25;
-  zeta_center = 0.0;
   vmec_surface_option = 2;
-  verbose = 1;
-
+  flux_tube_cut = "none"; // default is "none"
+  custom_length = 1.5; // default is [-pi, pi]
+  which_crossing = 1;
+  
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  
   // Reference length and magnetic field are chosen to be the GIST values
   // MM * may have to adapt this for GX normalizations
   std::cout << "Phi_vmec at LCFS = " << vmec->phi[vmec->ns-1] << "\n";
@@ -262,12 +270,14 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
 
   // Creating uniform theta grid to be [-npol*pi, npol*pi]
   theta = new double[2*nzgrid+1];
-  //  std::cout << "theta = [";
+  std::vector<double> theta_std_copy (2*nzgrid+1, 0.0); // for potential use when cutting flux tube
+  //std::cout << "theta = [";
   for (int i=0; i<2*nzgrid+1; i++) {
     theta[i] = (npol*M_PI*(i-nzgrid))/nzgrid;
-    //    std::cout << theta[i] << ", ";
+    theta_std_copy[i] = theta[i];
+    //std::cout << theta[i] << ", ";
   }
-  //  std::cout << "]\n\n";
+  //std::cout << "]\n\n";
 
   // Creating zeta grid based on alpha = theta - iota*zeta
   zeta = new double[2*nzgrid+1]; 
@@ -918,17 +928,16 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   // For a derivation of the following formulae, see the .tex document
   // included in this directory
 
-  theta_grid_temp = new double[2*nzgrid+1]{};
-  bmag_temp = new double[2*nzgrid+1]{};
-  gradpar_temp = new double[2*nzgrid+1]{};
-  grho_temp = new double[2*nzgrid+1]{};
-  gds2_temp = new double[2*nzgrid+1]{};
-  gds21_temp = new double[2*nzgrid+1]{};
-  gds22_temp = new double[2*nzgrid+1]{};
-  gbdrift_temp = new double[2*nzgrid+1]{};
-  gbdrift0_temp = new double[2*nzgrid+1]{};
-  cvdrift_temp = new double[2*nzgrid+1]{};
-  cvdrift0_temp = new double[2*nzgrid+1]{};
+  std::vector<double> bmag_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gradpar_pest (2*nzgrid+1, 0.0);
+  std::vector<double> grho_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gds2_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gds21_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gds22_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gbdrift_pest (2*nzgrid+1, 0.0);
+  std::vector<double> gbdrift0_pest (2*nzgrid+1, 0.0);
+  std::vector<double> cvdrift_pest (2*nzgrid+1, 0.0);
+  std::vector<double> cvdrift0_pest (2*nzgrid+1, 0.0);
 
   // Except for bmag and gradpar, the following are related to dx/dpsi and/or dy/dalpha
   // Depending on the sign of the toroidal flux, the sign of dx/dpsi and dy/alpha will change to ensure that
@@ -938,34 +947,123 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
    
-    bmag_temp[itheta] = B[itheta] / B_reference;
+    bmag_pest[itheta] = B[itheta] / B_reference;
 
     // Using theta to set gradpar, as opposed to zeta for the full surface version
-    gradpar_temp[itheta] = ( L_reference * B_sup_theta_vmec[itheta] ) / B[itheta];
+    gradpar_pest[itheta] = ( L_reference * B_sup_theta_vmec[itheta] ) / B[itheta];
 
-    grho_temp[itheta] = (1. / (L_reference * B_reference * sqrt_s) ) * sqrt( grad_psi_X[itheta]*grad_psi_X[itheta] + grad_psi_Y[itheta]*grad_psi_Y[itheta] + grad_psi_Z[itheta]*grad_psi_Z[itheta] );
+    grho_pest[itheta] = (1. / (L_reference * B_reference * sqrt_s) ) * sqrt( grad_psi_X[itheta]*grad_psi_X[itheta] + grad_psi_Y[itheta]*grad_psi_Y[itheta] + grad_psi_Z[itheta]*grad_psi_Z[itheta] );
     
-    gds2_temp[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
+    gds2_pest[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
-    gds21_temp[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
+    gds21_pest[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
     
-    gds22_temp[itheta] = (grad_psi_X[itheta] * grad_psi_X[itheta] + grad_psi_Y[itheta] * grad_psi_Y[itheta] + grad_psi_Z[itheta] * grad_psi_Z[itheta]) * ( (shat * shat) / (L_reference * L_reference * B_reference * B_reference * normalized_toroidal_flux_used) );
+    gds22_pest[itheta] = (grad_psi_X[itheta] * grad_psi_X[itheta] + grad_psi_Y[itheta] * grad_psi_Y[itheta] + grad_psi_Z[itheta] * grad_psi_Z[itheta]) * ( (shat * shat) / (L_reference * L_reference * B_reference * B_reference * normalized_toroidal_flux_used) );
 
-    gbdrift_temp[itheta] = sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * B_cross_grad_B_dot_grad_alpha[itheta] / ( B[itheta] * B[itheta] * B[itheta] );
+    gbdrift_pest[itheta] = sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * B_cross_grad_B_dot_grad_alpha[itheta] / ( B[itheta] * B[itheta] * B[itheta] );
 
-    gbdrift0_temp[itheta] = sign_psi * ( (B_sub_theta_vmec[itheta] * dB_dzeta[itheta] - B_sub_zeta[itheta] * dB_dtheta_vmec[itheta]) / sqrt_g[itheta] )
+    gbdrift0_pest[itheta] = sign_psi * ( (B_sub_theta_vmec[itheta] * dB_dzeta[itheta] - B_sub_zeta[itheta] * dB_dtheta_vmec[itheta]) / sqrt_g[itheta] )
       * ( (edge_toroidal_flux_over_2pi * 2 * shat) / (B[itheta] * B[itheta] * B[itheta] * sqrt_s) );
     // In the above expression for gbdrift0, the first line and the edge_toroidal_flux_over_2pi is \vec{B} \times \nabla B \cdot \nabla \psi
 
-    cvdrift_temp[itheta] = gbdrift_temp[itheta] + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
+    cvdrift_pest[itheta] = gbdrift_pest[itheta] + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
 
-    cvdrift0_temp[itheta] = gbdrift0_temp[itheta];
+    cvdrift0_pest[itheta] = gbdrift0_pest[itheta];
 
   }
 
   // ---------------------------------------------------------------------
+  // Take subset of grid in theta for boundary condition considerations
+  // ---------------------------------------------------------------------
+    
+  if (flux_tube_cut == "none") {
+    std::cout << "**************************************************\n";
+    std::cout << "You have chosen not to take a subset of the flux tube. The (unscaled) flux tube will go from [-" << M_PI*npol << "," << M_PI*npol << "]\n";
+    std::cout << "**************************************************\n";
+
+    //    theta_grid_temp = &theta_grid_pest[0];
+    bmag_temp = &bmag_pest[0];
+    gradpar_temp = &gradpar_pest[0];
+    grho_temp = &grho_pest[0];
+    gds2_temp = &gds2_pest[0];
+    gds21_temp = &gds21_pest[0];
+    gds22_temp = &gds22_pest[0];
+    gbdrift_temp = &gbdrift_pest[0];
+    gbdrift0_temp = &gbdrift0_pest[0];
+    cvdrift_temp = &cvdrift_pest[0];
+    cvdrift0_temp = &cvdrift0_pest[0];
+
+    theta_cut = &theta_std_copy[0];
+    
+  }
+  
+  else { // if user desires some subset of the arrays
+
+    std::cout << "**************************************************\n";
+    std::cout << "You have chosen to take a custom subset of the flux tube. The (unscaled) flux tube will go from [-" << custom_length << "," << custom_length << "]\n";
+    std::cout << "**************************************************\n";
+    
+    // get_cut_indices will use input parameters to return a subset of the full theta grid
+    // THIS WILL REDEFINE NZGRID!!!
+    theta_grid_cut = get_cut_indices(theta, ileft, iright, nzgrid);
+
+    dtheta_custom = abs(custom_length)/nzgrid;
+    for (int i=0; i<2*nzgrid+1; i++) {
+      custom_theta.push_back(-custom_length + i*dtheta_custom);
+    }
+    custom_theta_grid = &custom_theta[0];
+    /*
+    std::cout << "ileft = " << ileft << ", iright = " << iright << "\n";
+    std::cout << "nzgrid outside = " << nzgrid << "\n";
+    for (int i=0; i<2*nzgrid+1; i++) {
+      std::cout << theta_grid_cut[i] << ", ";
+    }
+    std::cout << "\n";*/
+
+    // take the subset of the geometric arrays corresponding to the theta value that is closest to the desired custom grid
+    bmag_cut = slice(bmag_pest, ileft, iright);
+    gradpar_cut = slice(gradpar_pest, ileft, iright);
+    grho_cut = slice(grho_pest, ileft, iright);
+    gds2_cut = slice(gds2_pest, ileft, iright);
+    gds21_cut = slice(gds21_pest, ileft, iright);
+    gds22_cut = slice(gds22_pest, ileft, iright);
+    gbdrift_cut = slice(gbdrift_pest, ileft, iright);
+    gbdrift0_cut = slice(gbdrift0_pest, ileft, iright);
+    cvdrift_cut = slice(cvdrift_pest, ileft, iright);
+    cvdrift0_cut = slice(cvdrift0_pest, ileft, iright);
+    theta_cut_temp = slice(theta_std_copy, ileft, iright);
+    
+    bmag_temp = &bmag_cut[0];
+    gradpar_temp = &gradpar_cut[0];
+    grho_temp = &grho_cut[0];
+    gds2_temp = &gds2_cut[0];
+    gds21_temp = &gds21_cut[0];
+    gds22_temp = &gds22_cut[0];
+    gbdrift_temp = &gbdrift_cut[0];
+    gbdrift0_temp = &gbdrift0_cut[0];
+    cvdrift_temp = &cvdrift_cut[0];
+    cvdrift0_temp = &cvdrift0_cut[0];
+    theta_cut = &theta_grid_cut[0];
+
+    // Interpolate the cut grid onto the equally spaced custom grid
+    interp_to_new_grid(bmag_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gradpar_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(grho_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gds2_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gds21_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gds22_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gbdrift_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(gbdrift0_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(cvdrift_temp, theta_cut, custom_theta_grid, nzgrid);
+    interp_to_new_grid(cvdrift0_temp, theta_cut, custom_theta_grid, nzgrid);
+    
+  }
+
+  
+  // ---------------------------------------------------------------------
   // Interpolate the above geometric quantities onto a uniform grid for GX
   // ---------------------------------------------------------------------
+  theta_grid_temp = new double[2*nzgrid+1]{};
   theta_grid = new double[2*nzgrid+1]{};
   bmag = new double[2*nzgrid+1]{};
   gradpar = new double[2*nzgrid+1]{};
@@ -977,8 +1075,8 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   gbdrift0 = new double[2*nzgrid+1]{};
   cvdrift = new double[2*nzgrid+1]{};
   cvdrift0 = new double[2*nzgrid+1]{};
-
-  get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta);
+  
+  get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta_cut);
 
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     theta_grid[itheta] = theta_grid_temp[itheta];
@@ -994,20 +1092,64 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     cvdrift0[itheta] = cvdrift0_temp[itheta];
     }
 
-  delete[] bmag_temp;
-  delete[] gradpar_temp;
-  delete[] gds2_temp;
-  delete[] gds21_temp;
-  delete[] gds22_temp;
-  delete[] gbdrift_temp;
-  delete[] gbdrift0_temp;
-  delete[] cvdrift_temp;
-  delete[] cvdrift0_temp;
-
   write_geo_arrays_to_file(theta_grid, bmag, gradpar, grho, gds2, gds21, gds22, gbdrift, gbdrift0, cvdrift, cvdrift0);
   
 }
 
+
+std::vector<double> Geometric_coefficients::get_cut_indices(double *theta, int &ileft_, int &iright_, int &nzgrid_) {
+
+  std::vector<double> theta_std (2*nzgrid+1, 0.0);
+  std::vector<double> theta_minus (2*nzgrid+1, 0.0);
+  std::vector<double> theta_plus (2*nzgrid+1, 0.0);
+  std::vector<double> short_theta;
+  int theta_index_1, theta_index_2;
+
+  // Converting to theta to std::vector type to enable some features
+  for (int i=0; i<2*nzgrid+1; i++) {
+    theta_std[i] = theta[i];
+  }
+
+  if (flux_tube_cut == "custom") {
+
+    // Find index of full theta grid that is closest to the desired custom grid
+    for (int i=0; i<2*nzgrid+1; i++) {
+      theta_minus[i] = abs(theta_std[i] - custom_length);
+      theta_plus[i] = abs(theta_std[i] + custom_length);
+    }
+
+    auto min_val_1 = std::min_element(theta_minus.begin(), theta_minus.end());
+    theta_index_1 = std::distance(theta_minus.begin(), min_val_1);
+    auto min_val_2 = std::min_element(theta_plus.begin(), theta_plus.end());
+    theta_index_2 = std::distance(theta_plus.begin(), min_val_2);
+
+    if (theta_std[theta_index_1] < theta_std[theta_index_2]) {
+      ileft_ = theta_index_1;
+      iright_ = theta_index_2;
+    }
+    else {
+      ileft_ = theta_index_2;
+      iright_ = theta_index_1;
+    }
+    std::cout << "Desired custom length = [" << -custom_length << "," << custom_length << "]\n";
+    std::cout << "Theta value at closest indices in full array = " << theta_std[ileft_] << "," << theta_std[iright_] << "\n";
+    
+    short_theta = slice(theta_std, ileft_, iright_);
+
+    // nzgrid is now redefined for the subset of the input theta grid
+    nzgrid_ = (short_theta.size() - 1) / 2;
+    
+    /*std::cout << "short_theta = [";
+    for (int i=0; i<short_theta.size(); i++) {
+      std::cout << short_theta[i] << ", ";
+    }
+    std::cout << "]\n";
+
+    std::cout << "New nzgrid = " << nzgrid << "\n";*/
+  }
+  return short_theta;
+  
+}
 
 void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpar_temp, double* grho_temp, double *gds2_temp, double* gds21_temp, double *gds22_temp, double *gbdrift_temp, double *gbdrift0_temp, double *cvdrift_temp, double *cvdrift0_temp, double *final_theta_grid, double *theta) {
 
@@ -1030,7 +1172,8 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   z_on_theta_grid = new double[2*nzgrid+1]{};
   uniform_zgrid = new double[2*nzgrid+1]{};
   
-  dtheta = theta[1] - theta[0]; // dtheta on uniform grid
+  dtheta = theta[1] - theta[0]; // dtheta in pest coordinates
+  dtheta_pi = M_PI/nzgrid; // dtheta on uniform -pi,pi grid with 2*nzgrid+1 points
   index_of_middle = nzgrid;
   
   for (int itheta=0; itheta<2*nzgrid; itheta++) {
@@ -1047,33 +1190,34 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
 
   desired_gradpar = M_PI/z_on_theta_grid[2*nzgrid];
 
-  //  std::cout << "z_on_theta_grid = [";
+  //std::cout << "z_on_theta_grid = [";
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     z_on_theta_grid[itheta] = z_on_theta_grid[itheta] * desired_gradpar;
     gradpar_temp[itheta] = desired_gradpar; // setting entire gradpar array to the constant value "desired_gradpar"
-    //    std::cout <<  z_on_theta_grid[itheta] << ", ";
+    //std::cout <<  z_on_theta_grid[itheta] << ", ";
   }
-  //  std::cout << "]\n\n";
+  //std::cout << "]\n\n";
 
+  //  std::cout << "uniform_theta_grid = [";
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
-    uniform_zgrid[itheta] = z_on_theta_grid[0] + itheta*dtheta;
+    uniform_zgrid[itheta] = z_on_theta_grid[0] + itheta*dtheta_pi;
     final_theta_grid[itheta] = uniform_zgrid[itheta];
-    //    std::cout << uniform_zgrid[itheta] << ", ";
+    //std::cout << uniform_zgrid[itheta] << ", ";
   }
-
+  //std::cout << "\n";
   
   //  std::cout << "\n";
 
   // Interpolating each geometric array from the non-uniform theta grid, onto to the
   // uniform z grid where gradpar=const
-  interp_to_uniform_grid(bmag_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(gds2_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(gds21_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(gds22_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(gbdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(gbdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(cvdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
-  interp_to_uniform_grid(cvdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(bmag_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(gds2_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(gds21_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(gds22_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(gbdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(gbdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(cvdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
+  interp_to_new_grid(cvdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid);
   
 }
   
@@ -1081,11 +1225,18 @@ void Geometric_coefficients::write_geo_arrays_to_file(double *theta_grid, double
 
   std::string out_name;
   std::string tor_flux = std::to_string(normalized_toroidal_flux_used);
+  std::string custom_info = std::to_string(custom_length);
+  custom_info = custom_info.substr(0,5);
   std::string theta_grid_points = std::to_string(2*nzgrid);
   tor_flux = tor_flux.substr(0,5);
   std::string vmec_name = vmec->vmec_file;
   vmec_name = vmec_name.substr(0,vmec_name.size()-3);
-  out_name = "grid.gx_" + vmec_name + "_psiN_" + tor_flux + "_nt_" + theta_grid_points;
+  if (flux_tube_cut == "custom") {
+    out_name = "grid.gx_" + vmec_name + "_psiN_" + tor_flux + "_custom_[-" + custom_info + "," + custom_info + "]_nt_" + theta_grid_points;
+  }
+  else {
+    out_name = "grid.gx_" + vmec_name + "_psiN_" + tor_flux + "_nt_" + theta_grid_points;
+  }
   
   ofstream out_file(out_name);
   if (out_file.is_open()) {
@@ -1228,4 +1379,11 @@ Geometric_coefficients::~Geometric_coefficients() {
   delete[] B_cross_grad_s_dot_grad_alpha;
   delete[] B_cross_grad_s_dot_grad_alpha_alternate;
 
+}
+
+std::vector<double> Geometric_coefficients::slice(std::vector<double> const &v, int m, int n) {
+  auto first = v.cbegin() + m;
+  auto last = v.cbegin() + n + 1;
+  std::vector<double> vec(first, last);
+  return vec;
 }
