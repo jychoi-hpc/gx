@@ -1,4 +1,4 @@
-# GX Unit Tests
+# GX Tests
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ make unit_tests
 
 ## Running Regression and/or Unit Tests
 
-All tests are written using the Catch2 header library (documentation can be found at: <a href="https://github.com/catchorg/Catch2">Catch2</a>). To run all tests, in the main directory give:
+All tests are written using the Catch2 header library (<a href="https://github.com/catchorg/Catch2">Catch2 Repository</a>). To run all tests, in the main directory give:
 
 ```
 ./unit_tests
