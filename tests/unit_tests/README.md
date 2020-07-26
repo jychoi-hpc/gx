@@ -1,43 +1,41 @@
-README for notes on using Catch2
+# GX Unit Tests
 
-To compile when in the catch2_tests directory:
-'cd build'
-'cmake ..'
-'make'
+## Prerequisites
 
-- Right now the source code and tests are in the same .cpp file, and the catch.hpp header is in the same directory, so the compiling could also just be done trivially on the command line
-- All that is required to use catch2 is #include "catch.hpp" in the test.cpp file
-- In pure test files, it isn't necessary to have a main(), assuming that the macro #define CATCH_CONFIG_MAIN is added at the top of the test file
+- All that is required to use catch2 is the header "catch.h", with the appropriate #include "catch.h" in the source files
 
-------------------------
-- The function fizzbuzz(int) is a toy problem that returns "fizz" if the integer is divisible by 3, "buzz" if divisible by 5, "fizzbuzz" if divisible by both 3 and 5, and the number itself if not divisble by either.
-- I'll use this to do some very simple catch2 tests
+## Compiling
 
--------------------------
+Compiling the regression and unit tests requires the user to give, in the main directory:
+
+```
+make unit_tests
+```
+
+## Running Regression and/or Unit Tests
+
+All tests are written using the Catch2 header library (documentation can be found at: <a href="https://github.com/catchorg/Catch2">Catch2</a>). To run all tests, in the main directory give:
+
+```
+./unit_tests
+```
+
+However, the tests are set up in such a way that allows the user to run only a subset of all these tests through the use of a Catch2 feature known as a tag. This can be done by simply adding the tag (details for how to find the tag are given below) as an argument to the previous command:
+
+```
+./unit_tests [tag_name]
+```
+
+## Test Sources
+
+The source files for the tests can be found in GX/tests. Specifically, regression tests are located in GX/tests/regression/regression.cpp, and unit tests in GX/tests/unit_tests/initial_tests.cpp. The aforementioned "tags" can be identified by the third argument to the TEST_CASE_METHOD function in the source files above.
+
+## Some Notes on Catch2
+
+- An example source file showing basic Catch2 functionality can be found in GX/tests/unit_tests/basic_examples/test_examples.cpp
 - The "TEST_CASE" keyword simply sets up some tests to perform. It can be provided with some naming string and an optional tag
-
-- In cpp this takes the form:
-TEST_CASE("test name", "[tag_name]") {
-		do stuff
-		}
-
 - In each test case one can make assertions
 - If the "REQUIRE" assertion fails, the whole TEST_CASE fails and no further lines in that TEST_CASE are read
 - If the "CHECK" assertion fails, only that assertion fails, and the remaining lines in that TEST_CASE will still be executed
-- Using the fizzbuzz function with "0" as an argument should return "0" since it isn't divisible by 3 or 5, so a test could look like this:
-
-TEST_CASE("check zero", "[tag]") {
-		 REQUIRE(fizzbuzz(0) == "0"); // pass
-		 CHECK(fizzbuzz(0) == "1"); // will fail, but next line is still read
-		 REQUIRE(fizzbuzz(0) == "1"); // fail, next line not read
-		 std::cout << "finished\n"; // doesn't get printed
-		 }
-
 - It is also possible to have SECTIONS in each TEST_CASE, which are each executed from the start (i.e. local changes to variables in one SECTION will not be passed to another)
-
-- If making assertions with floating points, it is possible to give a tolerance or margin for how close the result must be to the reference (see the final TEST_CASE in test.cpp)
-
-------------------------------------------------------------
-
-- To run all the tests, simply give ./unit_tests
-- If you only want to run tests with certain tags, give ./unit_tests [tag_name]
+- If making assertions with floating points, it is possible to give a tolerance or margin for how close the result must be to the reference (see the final TEST_CASE in test_examples.cpp)
