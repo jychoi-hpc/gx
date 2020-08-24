@@ -28,7 +28,8 @@ class NetCDF_ids {
   int write_lh_spectrum, lh_ikx, lh_iky, lhspec, lspec, hspec, source_opt;
   int write_spec_v_time, lhspec_t, lspec_t, hspec_t, density_kpar, phi_kpar;
   int eqfix, ikx_fixed, iky_fixed, write_pzt, prim, sec, tert;
-  
+  int hmom_real, hmom_real_t, hmom_imag, hmom_imag_t;
+
   //  char closure_model[32], scheme[32], source[32];
   
   int v_kx[1];            // dims for a real scalar as a function of kx 

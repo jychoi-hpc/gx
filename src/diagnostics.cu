@@ -305,16 +305,43 @@ void Diagnostics::writeHspectrum(MomentsG* G, bool endrun)
 
   CP_TO_CPU(hspectrum_h, hspectrum, sizeof(float)*grids_->Nm);
   cudaFree(hspectrum);
+ 
+  float *hmom_real, *hmom_real_h, *hmom_imag, *hmom_imag_h; 
   
+  cudaMalloc    ((void**) &hmom_real,     sizeof(float)*grids_->Nm);
+  cudaMemset(hmom_real, 0.,               sizeof(float)*grids_->Nm);
+  cudaMallocHost((void**) &hmom_real_h,   sizeof(float)*grids_->Nm);
+  for (int m=0; m<grids_->Nm; m++) hmom_real_h[m] = 0.;
+  
+  cudaMalloc    ((void**) &hmom_imag,     sizeof(float)*grids_->Nm);
+  cudaMemset(hmom_imag, 0.,               sizeof(float)*grids_->Nm);
+  cudaMallocHost((void**) &hmom_imag_h,   sizeof(float)*grids_->Nm);
+  for (int m=0; m<grids_->Nm; m++) hmom_imag_h[m] = 0.;
+
+  for (int m = 0; m < grids_->Nm; m++) {
+      Hmom <<<1,1>>> (G->G(0,m), hmom_real, hmom_imag, m, pars_->forcing_index);
+  }
+
+  CP_TO_CPU(hmom_real_h, hmom_real, sizeof(float)*grids_->Nm);
+  cudaFree(hmom_real);
+
+  CP_TO_CPU(hmom_imag_h, hmom_imag, sizeof(float)*grids_->Nm);
+  cudaFree(hmom_imag);
+
   if (endrun) {
     if (retval=nc_put_vara(id->file, id->hspec, id->m_start, id->m_count, hspectrum_h)) ERR(retval);
+    if (retval=nc_put_vara(id->file, id->hmom_real, id->m_start, id->m_count, hmom_real_h)) ERR(retval);
+    if (retval=nc_put_vara(id->file, id->hmom_imag, id->m_start, id->m_count, hmom_imag_h)) ERR(retval);
   } else {
     if (retval=nc_put_vara(id->file, id->hspec_t, id->mt_start, id->mt_count, hspectrum_h)) ERR(retval);
+    if (retval=nc_put_vara(id->file, id->hmom_real_t, id->mt_start, id->mt_count, hmom_real_h)) ERR(retval);
+    if (retval=nc_put_vara(id->file, id->hmom_imag_t, id->mt_start, id->mt_count, hmom_imag_h)) ERR(retval);
     id->mt_start[0] += 1;
   }    
   cudaFreeHost(hspectrum_h);
+  cudaFreeHost(hmom_real_h);
+  cudaFreeHost(hmom_imag_h);
 }
-
 void Diagnostics::LHspectrum(MomentsG* G, float* lhspectrum)
 {
   for(int m=0; m<grids_->Nm; m++) {

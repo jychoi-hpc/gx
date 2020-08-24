@@ -194,5 +194,4 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar,
 __global__ void hypercollisions(cuComplex* g, float nu_hyper_l, float nu_hyper_m,
 				int p_hyper_l, int p_hyper_m, cuComplex* rhs);
 
-
-
+__global__ void Hmom(cuComplex * G, float* hmom_real, float* hmom_imag, int m, int forcing_index);

@@ -187,16 +187,22 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
     }
   }
   
+  
   if (pars_->write_h_spectrum) {
     g_v_m[0] = m_dim;
     if (retval = nc_def_var(file, "h_spec", NC_FLOAT, 1, g_v_m, &hspec))  ERR(retval);
-    m_start[0] = 0; 
-    m_count[0] = grids_->Nm;    
+    if (retval = nc_def_var(file, "hmom_real", NC_FLOAT, 1, g_v_m, &hmom_real)) ERR(retval);
+    if (retval = nc_def_var(file, "hmom_imag", NC_FLOAT, 1, g_v_m, &hmom_imag)) ERR(retval);
 
-    if (pars_->write_spec_v_time) {
+    m_start[0] = 0; 
+    m_count[0] = grids_->Nm;
+
+   if (pars_->write_spec_v_time) {
       g_v_mt[0] = time_dim;
       g_v_mt[1] = m_dim;
       if (retval = nc_def_var(file, "h_spec_t", NC_FLOAT, 2, g_v_mt, &hspec_t))  ERR(retval);
+      if (retval = nc_def_var(file, "hmom_real_t", NC_FLOAT, 2, g_v_mt, &hmom_real_t))  ERR(retval);
+      if (retval = nc_def_var(file, "hmom_imag_t", NC_FLOAT, 2, g_v_mt, &hmom_imag_t)) ERR(retval);
       mt_start[0] = 0;
       mt_start[1] = 0;
 

@@ -806,8 +806,8 @@ __global__ void qneutAdiab_part2(cuComplex* Phi, cuComplex* PhiAvgNum_tmp, cuCom
 
     //    Phi[index].x = (( nbar[index].x  ) / (ti_ov_te + pfilter2) ) * jacobian[idz];
     //    Phi[index].y = (( nbar[index].y  ) / (ti_ov_te + pfilter2) ) * jacobian[idz];    
-    Phi[index].x = ( nbar[index].x + ti_ov_te*PhiAvg.x ) / (ti_ov_te + pfilter2);
-    Phi[index].y = ( nbar[index].y + ti_ov_te*PhiAvg.y ) / (ti_ov_te + pfilter2);
+    Phi[index].x = 0.0*( nbar[index].x + ti_ov_te*PhiAvg.x ) / (ti_ov_te + pfilter2);
+    Phi[index].y = 0.0*( nbar[index].y + ti_ov_te*PhiAvg.y ) / (ti_ov_te + pfilter2);
   }
 }
 
@@ -871,8 +871,8 @@ __global__ void qneutAdiab(cuComplex* Phi, cuComplex* nbar,
     //    Phi[index].x = ( nbar[index].x / (ti_ov_te + pfilter2 ) ) * jacobian[idz]; // what is this factor of jacobian[idz]?
     //    Phi[index].y = ( nbar[index].y / (ti_ov_te + pfilter2 ) ) * jacobian[idz];
 
-    Phi[index].x = ( nbar[index].x / (ti_ov_te + pfilter2 ) );
-    Phi[index].y = ( nbar[index].y / (ti_ov_te + pfilter2 ) );
+    Phi[index].x = 0.0*( nbar[index].x / (ti_ov_te + pfilter2 ) );
+    Phi[index].y = 0.0*( nbar[index].y / (ti_ov_te + pfilter2 ) );
   }
 }
 
@@ -1167,4 +1167,10 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
       uperp_bar[index] = uperp_bar[index]*sqrtf(b_s);
     }
   }
+}
+
+__global__ void Hmom(cuComplex * G, float* hmom_real, float* hmom_imag, int m, int forcing_index)
+{
+    hmom_real[m] = G[forcing_index].x;
+    hmom_imag[m] = G[forcing_index].y;
 }
