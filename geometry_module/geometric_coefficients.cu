@@ -26,8 +26,8 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   npol = 2;
   desired_normalized_toroidal_flux = 0.25;
   vmec_surface_option = 2;
-  flux_tube_cut = "none"; // default is "none"
-  custom_length = 1.5; // default is [-pi, pi]
+  flux_tube_cut = "custom"; // default is "none"
+  custom_length = 4.5; // default is [-pi, pi]
   which_crossing = 1;
   
   // ------------------------------------------------------------------------
@@ -271,13 +271,13 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   // Creating uniform theta grid to be [-npol*pi, npol*pi]
   theta = new double[2*nzgrid+1];
   std::vector<double> theta_std_copy (2*nzgrid+1, 0.0); // for potential use when cutting flux tube
-  //std::cout << "theta = [";
+  std::cout << "theta pest = [";
   for (int i=0; i<2*nzgrid+1; i++) {
     theta[i] = (npol*M_PI*(i-nzgrid))/nzgrid;
     theta_std_copy[i] = theta[i];
-    //std::cout << theta[i] << ", ";
+    std::cout << theta[i] << ", ";
   }
-  //std::cout << "]\n\n";
+  std::cout << "]\n\n";
 
   // Creating zeta grid based on alpha = theta - iota*zeta
   zeta = new double[2*nzgrid+1]; 
@@ -300,7 +300,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
 
   std::cout << "Values of theta_vmec from GSL solver:\n[";
   for(int i=0; i<2*nzgrid+1; i++) {
-    std::cout << theta_vmec[i] << " ";
+    std::cout << theta_vmec[i] << ", ";
   }
   std::cout << "]\n";
   std::cout << "---------------------------------------------\n\n";
@@ -1173,12 +1173,15 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   uniform_zgrid = new double[2*nzgrid+1]{};
   
   dtheta = theta[1] - theta[0]; // dtheta in pest coordinates
-  dtheta_pi = M_PI/nzgrid; // dtheta on uniform -pi,pi grid with 2*nzgrid+1 points
+  dtheta_pi = M_PI/nzgrid; // dtheta on the SCALED uniform -pi,pi grid with 2*nzgrid+1 points
+  std::cout << "dtheta = " << dtheta << ", dtheta_pi = " << dtheta_pi << "\n";
   index_of_middle = nzgrid;
-  
-  for (int itheta=0; itheta<2*nzgrid; itheta++) {
+
+  // Note: gradpar_half_grid has 1 less grid point than gradpar_temp
+  for (int itheta=0; itheta<2*nzgrid-1; itheta++) {
     gradpar_half_grid[itheta] = 0.5 * (abs(gradpar_temp[itheta]) + abs(gradpar_temp[itheta+1]));
   }
+  gradpar_half_grid[2*nzgrid-1] = gradpar_half_grid[0];
 
   for (int itheta=1; itheta<2*nzgrid+1; itheta++) {
     temp_grid[itheta] = temp_grid[itheta-1] + dtheta * (1. / abs(gradpar_half_grid[itheta-1]));
@@ -1187,7 +1190,7 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     z_on_theta_grid[itheta] = temp_grid[itheta] - temp_grid[index_of_middle];
   }
-
+  
   desired_gradpar = M_PI/z_on_theta_grid[2*nzgrid];
 
   //std::cout << "z_on_theta_grid = [";
