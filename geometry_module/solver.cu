@@ -97,18 +97,40 @@ double fzero_residual(double theta_vmec_try, void *p) {
   return fzero_residual;
 }
 
-void interp_to_new_grid(double *geo_array, double *z_on_theta_grid, double *uniform_grid, int nzgrid) {
+void interp_to_new_grid(double *geo_array, double *z_on_theta_grid, double *uniform_grid, int nzgrid, bool include_final_grid_point) {
 
   gsl_interp_accel *acc = gsl_interp_accel_alloc ();
   gsl_spline *spline = gsl_spline_alloc (gsl_interp_cspline, 2*nzgrid+1);
 
   gsl_spline_init (spline, z_on_theta_grid, geo_array, 2*nzgrid+1);
 
-  for (int j=0; j < 2*nzgrid; j++) {
-    geo_array[j] = gsl_spline_eval(spline, uniform_grid[j], acc);
+  if (include_final_grid_point) {
+    for (int j=0; j < 2*nzgrid+1; j++) {
+      geo_array[j] = gsl_spline_eval(spline, uniform_grid[j], acc);
+    }
   }
-
+  
+  else {
+    for (int j=0; j < 2*nzgrid; j++) {
+      geo_array[j] = gsl_spline_eval(spline, uniform_grid[j], acc);
+    }
+  }
+  
   gsl_spline_free (spline);
   gsl_interp_accel_free (acc);
 
+}
+
+double find_zero_crossing(double* geo_array, double* theta_grid, int npoints) {
+  double zero_loc = 0;
+  //  if (geo_array.size() == theta_grid.size()) {
+  //    std::cout << "length of arrays are equal\n";
+  //  }
+  /* gsl_interp_accel *acc = gsl_interp_accel_alloc ();
+  gsl_spline *spline = gsl_spline_alloc (gsl_interp_cspline, 2*nzgrid+1);
+
+  gsl_spline_init (spline, theta_grid, geo_array, npoints);
+  gsl_function F;
+  F.function = &spline;*/
+  return zero_loc;
 }

@@ -16,7 +16,11 @@ class Geometric_coefficients {
 
   void write_geo_arrays_to_file(double*, double*, double*, double*, double*, double*, double*, double*, double*, double*, double*);
 
-  std::vector<double> get_cut_indices(double*, int&, int&, int&);
+  void get_cut_indices_custom(std::vector<double>&, int&, int&, int&);
+  void get_revised_theta_custom(std::vector<double>&, std::vector<double>&, std::vector<double>&);
+
+  void get_cut_indices_zeros(std::vector<double>&, int&, int&, int&, int&, int&);
+  void get_revised_theta_zeros(std::vector<double>&, std::vector<double>&, std::vector<double>&, std::vector<double>&);
 
   friend void solver_vmec_theta(double*, double*, int, double, double, VMEC_variables*, int*, double*);
 
@@ -24,6 +28,10 @@ class Geometric_coefficients {
 
   VMEC_variables *vmec;
 
+  template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+  }
+  
   // output geometric quantities
   double *theta_grid;
   double *bmag;
@@ -148,8 +156,8 @@ class Geometric_coefficients {
   double *cvdrift0_temp;
 
   double dtheta_custom;
-  std::vector<double> custom_theta;
-  double *custom_theta_grid;
+  std::vector<double> revised_theta;
+  double *revised_theta_grid;
   std::vector<double> theta_grid_cut;
   std::vector<double> theta_cut_temp;
   double *theta_cut;
@@ -181,11 +189,15 @@ class Geometric_coefficients {
   double dtheta_pi;
   double desired_gradpar;
   int index_of_middle;
+
+  // variables for geometric coeff rootfinder
+  double *temp_tgrid;
   
   // misc variables
   int i, index, m, n, imn, imn_ind;
   double min_dr2, scale_factor;
   int ileft, iright;
+  int root_idx_left, root_idx_right;
 
   // input variables for the interface
   double alpha = 0.0;
