@@ -4,11 +4,11 @@
 
 int main(int argc, char* argv[]) {
 
-  //  char *vmec_file="../wout_w7x_standardConfig.nc";
   VMEC_variables *vmec = new VMEC_variables(argv[1]);
   Geometric_coefficients *geo = new Geometric_coefficients(vmec);
 
   delete vmec;
   delete geo;
+  
   return 0;
 }

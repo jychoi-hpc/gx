@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 
-PROJECT (GEO_MODULE CUDA)
+PROJECT (GEO_MODULE CXX)
 SET (CMAKE_CXX_STANDARD_LIBRARIES -lstdc++)
 SET (CMAKE_CXX_FLAGS "-Wno-write-strings")
 
@@ -30,13 +30,11 @@ IF (GSL_FOUND)
   LIST (APPEND LIBRARY_LINK_LIST /usr/lib/x86_64-linux-gnu/libnetcdff.so)
 ENDIF ()
 
-LIST (APPEND ${CUDA_LIB} -lculibos)
-LIST (APPEND ${CUDA_LIB} -lcublas)
-LIST (APPEND ${CUDA_LIB} -lcusolver)
+FILE (GLOB SRC_FILES src/*.cpp)
+FILE (GLOB HEADER_FILES include/*.h)
 
-ADD_EXECUTABLE (convert_VMEC_to_GX main.cu vmec_variables.cu geometric_coefficients.cu solver.cu geometric_coefficients.h vmec_variables.h solver.h)
-
-TARGET_INCLUDE_DIRECTORIES (convert_VMEC_to_GX PUBLIC /home/mfmartin/proc_comments_gx/include PUBLIC ${INCLUDE_LIST})
-TARGET_LINK_LIBRARIES (convert_VMEC_to_GX PUBLIC ${CUDA_LIB} ${LIBRARY_LINK_LIST})
+ADD_EXECUTABLE (convert_VMEC_to_GX ${SRC_FILES} ${HEADER_FILES})
+TARGET_INCLUDE_DIRECTORIES (convert_VMEC_to_GX PUBLIC /home/mfmartin/proc_comments_gx/include PUBLIC ${INCLUDE_LIST} PUBLIC ${GEO_MODULE_SOURCE_DIR}/include)
+TARGET_LINK_LIBRARIES (convert_VMEC_to_GX PUBLIC ${LIBRARY_LINK_LIST})
 SET_PROPERTY (TARGET convert_VMEC_to_GX PROPERTY CXX_STANDARD 11)
 SET_TARGET_PROPERTIES (convert_VMEC_to_GX PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${GEO_MODULE_SOURCE_DIR})

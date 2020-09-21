@@ -1,4 +1,4 @@
-// Adapted from Fortran module written by:
+// Adapted from Fortran full surface module written by:
 // Matt Landreman, University of Maryland
 
 #include <iostream>

@@ -36,10 +36,10 @@ If desired, one can choose the exact endpoints of the flux tube, or have the end
 - flux_tube_cut:
   * "none" - This is the default parameter corresponding to no cutting. npol will completely control the length
   * "custom" - Choose the exact endpoints of the tube
-  * "gds21" (not currently functional) - Choose a particular zero of the gds21 array as the endpoints
-  * "gbdrift0" (not currently functional) - Choose a particular zero of the gbdrift0 array as the endpoints
+  * "gds21" - Choose a particular zero of the gds21 array as the endpoints
+  * "gbdrift0" - Choose a particular zero of the gbdrift0 array as the endpoints
 - custom_length: If "custom" is chosen for flux_tube_cut, the theta values for the flux tube will be [-custom_length , custom_length]
-- which_crossing (not currently functional): If either "gds21" or "gbdrift0" are chosen for flux_tube_cut, this integer value will specify which zero to use, since these functions will have numerous crossing. Choosing "1" will yield the first zero from the center, "2" will yield the second, and so on.
+- which_crossing: If either "gds21" or "gbdrift0" are chosen for flux_tube_cut, this integer value will specify which zero to use, since these functions will have numerous crossing. Choosing "1" will yield the first zero from the center, "2" will yield the second, and so on.
 
 ## Running the module
 
