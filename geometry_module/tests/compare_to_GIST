@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+
+import matplotlib.pyplot as plt
+import numpy as np
+import inspect
+from scipy.interpolate import interp1d, splrep, splev
+import sys
+import itertools
+
+# Read in GIST file
+f = open(sys.argv[1],'r')
+lines = f.readlines()
+f.close()
+
+splitline = lines[0].split()
+gist_ntheta = int(splitline[0])
+pol_turns = float(splitline[1])
+shat = float(splitline[2])
+drhodpsi = float(splitline[3])
+
+numLines = gist_ntheta*2+1
+numCols = 10 # Number of geometric factors in GIST file
+
+print("This GIST file has %d grid points per 2*pi segment" % int((numLines-1)/pol_turns))
+print ("")
+
+gist_data = np.zeros([numLines,numCols])
+for irow in range(numLines):
+    splitline = lines[irow+1].split()
+    for icol in range(numCols):
+        gist_data[irow,icol] = float(splitline[icol])
+
+theta = gist_data[:,0]
+bmag = gist_data[:,1]
+gradpar = gist_data[:,2]
+gds2 = gist_data[:,3]
+gds21 = gist_data[:,4]
+gds22 = gist_data[:,5]
+cvdrift = gist_data[:,6]
+cvdrift0 = gist_data[:,7]
+gbdrift = gist_data[:,8]
+gbdrift0 = gist_data[:,9]
+print(len(gbdrift0))
+
+# Read in GX output file
+
+theta_gx = []
+bmag_gx = []
+gds2_gx = []
+gds21_gx = []
+gds22_gx = []
+gbdrift_gx = []
+gbdrift0_gx = []
+cvdrift_gx = []
+cvdrift0_gx = []
+
+gx = open(sys.argv[2], "r")
+gx.readline()
+header = gx.readline().split()
+ntheta = int(header[2])
+scale_factor = float(header[8])
+
+a = []
+gx.readline()
+gx_lines = gx.readlines()
+for line in itertools.islice(gx_lines,0,ntheta+1):
+    gbdrift_gx.append(float(line.split()[0]))
+    theta_gx.append(float(line.split()[3]))
+
+for line in itertools.islice(gx_lines,ntheta+2,2*ntheta+3):
+    cvdrift_gx.append(float(line.split()[0]))
+    gds2_gx.append(float(line.split()[1]))
+    bmag_gx.append(float(line.split()[2]))
+
+for line in itertools.islice(gx_lines,2*ntheta+4,3*ntheta+5):
+    gds21_gx.append(float(line.split()[0]))
+    gds22_gx.append(float(line.split()[1]))
+
+for line in itertools.islice(gx_lines,3*ntheta+6,4*ntheta+7):
+    cvdrift0_gx.append(float(line.split()[0]))
+    gbdrift0_gx.append(float(line.split()[1]))
+
+fig, a = plt.subplots(3,3)
+theta_gx = np.array(theta_gx)
+# bmag
+a[0][0].set_xticklabels([])
+a[0][0].set_title("bmag")
+a[0][0].plot(theta,bmag)
+a[0][0].plot(scale_factor*theta_gx,bmag_gx)
+
+# gds2
+a[0][1].set_xticklabels([])
+a[0][1].set_title("gds2")
+a[0][1].plot(theta,gds2)
+a[0][1].plot(scale_factor*theta_gx,gds2_gx)
+
+# gds21
+a[0][2].set_xticklabels([])
+a[0][2].set_title("gds21")
+a[0][2].plot(theta,gds21)
+a[0][2].plot(scale_factor*theta_gx,gds21_gx)
+
+# gds22
+a[1][0].set_xticklabels([])
+a[1][0].set_title("gds22")
+a[1][0].plot(theta,gds22)
+a[1][0].plot(scale_factor*theta_gx,gds22_gx)
+
+# gbdrift
+a[1][1].set_xticklabels([])
+a[1][1].set_title("gbdrift")
+a[1][1].plot(theta,gbdrift)
+a[1][1].plot(scale_factor*theta_gx,gbdrift_gx)
+
+# gbdrift0
+a[1][2].set_xticklabels([])
+a[1][2].set_title("gbdrift0")
+a[1][2].plot(theta,gbdrift0)
+a[1][2].plot(scale_factor*theta_gx,gbdrift0_gx)
+
+# cvdrift
+a[2][0].set_xticklabels([])
+a[2][0].set_title("cvdrift")
+a[2][0].plot(theta,cvdrift)
+a[2][0].plot(scale_factor*theta_gx,cvdrift_gx)
+
+# cvdrift0
+a[2][1].set_xticklabels([])
+a[2][1].set_title("cvdrift0")
+a[2][1].plot(theta,cvdrift0)
+a[2][1].plot(scale_factor*theta_gx,cvdrift0_gx)
+
+plt.show()
+

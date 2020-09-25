@@ -200,6 +200,7 @@ class Geometric_coefficients {
   double min_dr2, scale_factor;
   int ileft, iright;
   int root_idx_left, root_idx_right;
+  double domain_scaling_factor;
 
   // input variables for the interface
   double alpha = 0.0;

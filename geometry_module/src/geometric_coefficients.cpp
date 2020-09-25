@@ -24,12 +24,14 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   // the following are literals for now, but should be input file parameters
   alpha = 0.0;
   nzgrid = 64;
-  npol = 1;
-  desired_normalized_toroidal_flux = 0.25;
+  npol = 2;
+  //  desired_normalized_toroidal_flux = 0.25;
+  desired_normalized_toroidal_flux = 0.12755;
   vmec_surface_option = 2;
   flux_tube_cut = "none"; // default is "none"
+  // the following are used or ignored based on choice of flux_tube_cut
   custom_length = 4.5; // default is [-pi, pi]
-  which_crossing = 1;
+  which_crossing = 3;
   
   // ------------------------------------------------------------------------
   // ------------------------------------------------------------------------
@@ -956,6 +958,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     
     gds2_pest[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
+    // Note that the gds21 value from GIST had the incorrect sign at some point. Thus, if comparing to GIST, it is possible that the signs will disagree
     gds21_pest[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
     
     gds22_pest[itheta] = (grad_psi_X[itheta] * grad_psi_X[itheta] + grad_psi_Y[itheta] * grad_psi_Y[itheta] + grad_psi_Z[itheta] * grad_psi_Z[itheta]) * ( (shat * shat) / (L_reference * L_reference * B_reference * B_reference * normalized_toroidal_flux_used) );
@@ -968,7 +971,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
 
     cvdrift_pest[itheta] = gbdrift_pest[itheta] + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
 
-    cvdrift0_pest[itheta] = gbdrift0_pest[itheta];
+    cvdrift0_pest[itheta] = gbdrift0_pest[itheta];// + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);;
 
   }
 
@@ -1079,7 +1082,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
       std::cout << gbdrift0_temp[itheta] << ", ";
     }
     std::cout << "]\n\n";
-    exit(1);
+
   }
   else {
     
@@ -1096,7 +1099,7 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     gbdrift_temp = &gbdrift_pest[0];
     gbdrift0_temp = &gbdrift0_pest[0];
     cvdrift_temp = &cvdrift_pest[0];
-    cvdrift0_temp = &cvdrift_pest[0];
+    cvdrift0_temp = &cvdrift0_pest[0];
     //    theta_grid_temp = &theta_std_copy[0];
   }
  
@@ -1117,12 +1120,20 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   cvdrift0 = new double[2*nzgrid+1]{};
   
   if (flux_tube_cut == "none") {
+    
     get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta);
+
+    // Flux tube length is always scaled to [-pi,pi] for GX grid files. The variable domain_scaling_factor accounts for that scaling for plotting results on the actual flux tube domain
+    domain_scaling_factor = abs(theta[0]/theta_grid_temp[0]);
   }
   else {
-    get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, theta_cut);
-  }
 
+    get_GX_geo_arrays(bmag_temp, gradpar_temp, grho_temp, gds2_temp, gds21_temp, gds22_temp, gbdrift_temp, gbdrift0_temp, cvdrift_temp, cvdrift0_temp, theta_grid_temp, &revised_theta_grid[0]);
+    std::cout << "nzgrid = " << nzgrid << "\n";
+    // see above
+    domain_scaling_factor = abs(revised_theta_grid[0]/theta_grid_temp[0]);
+
+  }
 
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
     theta_grid[itheta] = theta_grid_temp[itheta];
@@ -1383,7 +1394,6 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   //std::cout << "\n";
   
   //  std::cout << "\n";
-
   // Interpolating each geometric array from the non-uniform theta grid, onto to the
   // uniform z grid where gradpar=const
   interp_to_new_grid(bmag_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
@@ -1395,7 +1405,7 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
   interp_to_new_grid(gbdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
   interp_to_new_grid(cvdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
   interp_to_new_grid(cvdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  
+  std::cout << "got here\n";  
 }
   
 void Geometric_coefficients::write_geo_arrays_to_file(double *theta_grid, double* bmag, double* gradpar, double* grho, double* gds2, double* gds21, double* gds22, double* gbdrift, double* gbdrift0, double* cvdrift, double* cvdrift0) {
@@ -1418,7 +1428,7 @@ void Geometric_coefficients::write_geo_arrays_to_file(double *theta_grid, double
   ofstream out_file(out_name);
   if (out_file.is_open()) {
     out_file << "ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q scale\n";
-    out_file << nzgrid << " " << npol << " " << 2*nzgrid << " 1.0 1.0 " << shat << " 1.0 1.0 1.0 \n";
+    out_file << nzgrid << " 1.0 " << 2*nzgrid << " 1.0 1.0 " << shat << " 1.0 1.0 " << domain_scaling_factor << " \n";
     out_file << "gbdrift\t gradpar\t grho\t tgrid\n";
     for (int i=0; i<2*nzgrid+1; i++) {
       out_file << std::right << setprecision(10) << std::setw(20) << gbdrift[i] << "\t" << std::setw(20) << gradpar[i] << "\t" << std::setw(20) << grho[i] << "\t" << std::setw(20) << theta_grid[i] << "\n";
