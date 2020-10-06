@@ -23,10 +23,15 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   // INPUT PARAMETERS
   // the following are literals for now, but should be input file parameters
   alpha = 0.0;
-  nzgrid = 64;
-  npol = 2;
+  nzgrid = 800;
+  npol = 4;
   //  desired_normalized_toroidal_flux = 0.25;
-  desired_normalized_toroidal_flux = 0.12755;
+  ////////////////////////
+  // values for comparison with GIST files that are at surf=12
+  desired_normalized_toroidal_flux = 0.12755; // W7-X
+  //  desired_normalized_toroidal_flux = 0.19531; // Quasdex
+  //  desired_normalized_toroidal_flux = 0.26042; // NCSX
+  ////////////////////////
   vmec_surface_option = 2;
   flux_tube_cut = "none"; // default is "none"
   // the following are used or ignored based on choice of flux_tube_cut
@@ -799,9 +804,9 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
   //-------------------------------------------------------------
 
   for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
-    grad_psi_X[itheta] = grad_s_X[itheta] * edge_toroidal_flux_over_2pi;
-    grad_psi_Y[itheta] = grad_s_Y[itheta] * edge_toroidal_flux_over_2pi;
-    grad_psi_Z[itheta] = grad_s_Z[itheta] * edge_toroidal_flux_over_2pi;
+    grad_psi_X[itheta] = grad_s_X[itheta] * (edge_toroidal_flux_over_2pi);
+    grad_psi_Y[itheta] = grad_s_Y[itheta] * (edge_toroidal_flux_over_2pi);
+    grad_psi_Z[itheta] = grad_s_Z[itheta] * (edge_toroidal_flux_over_2pi);
 
     grad_alpha_X[itheta] = (dLambda_ds[itheta] - zeta[itheta]*d_iota_ds) * grad_s_X[itheta] + (1.0 + dLambda_dtheta_vmec[itheta]) * grad_theta_vmec_X[itheta] + (-iota + dLambda_dzeta[itheta]) * grad_zeta_X[itheta];
     grad_alpha_Y[itheta] = (dLambda_ds[itheta] - zeta[itheta]*d_iota_ds) * grad_s_Y[itheta] + (1.0 + dLambda_dtheta_vmec[itheta]) * grad_theta_vmec_Y[itheta] + (-iota + dLambda_dzeta[itheta]) * grad_zeta_Y[itheta];
@@ -811,9 +816,9 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     grad_B_Y[itheta] = dB_ds[itheta] * grad_s_Y[itheta] + dB_dtheta_vmec[itheta] * grad_theta_vmec_Y[itheta] + dB_dzeta[itheta] * grad_zeta_Y[itheta];
     grad_B_Z[itheta] = dB_ds[itheta] * grad_s_Z[itheta] + dB_dtheta_vmec[itheta] * grad_theta_vmec_Z[itheta] + dB_dzeta[itheta] * grad_zeta_Z[itheta];
 
-    B_X[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dX_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dX_dtheta_vmec[itheta]) / sqrt_g[itheta];
-    B_Y[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dY_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dY_dtheta_vmec[itheta]) / sqrt_g[itheta];
-    B_Z[itheta] = edge_toroidal_flux_over_2pi * ((1.0 + dLambda_dtheta_vmec[itheta]) * dZ_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dZ_dtheta_vmec[itheta]) / sqrt_g[itheta];
+    B_X[itheta] = (edge_toroidal_flux_over_2pi) * ((1.0 + dLambda_dtheta_vmec[itheta]) * dX_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dX_dtheta_vmec[itheta]) / sqrt_g[itheta];
+    B_Y[itheta] = (edge_toroidal_flux_over_2pi) * ((1.0 + dLambda_dtheta_vmec[itheta]) * dY_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dY_dtheta_vmec[itheta]) / sqrt_g[itheta];
+    B_Z[itheta] = (edge_toroidal_flux_over_2pi) * ((1.0 + dLambda_dtheta_vmec[itheta]) * dZ_dzeta[itheta] + (iota - dLambda_dzeta[itheta]) * dZ_dtheta_vmec[itheta]) / sqrt_g[itheta];
   }
     
   sqrt_s = sqrt(normalized_toroidal_flux_used);
@@ -959,14 +964,17 @@ Geometric_coefficients::Geometric_coefficients(VMEC_variables *vmec_vars) : vmec
     gds2_pest[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta]) * L_reference * L_reference * normalized_toroidal_flux_used;
 
     // Note that the gds21 value from GIST had the incorrect sign at some point. Thus, if comparing to GIST, it is possible that the signs will disagree
-    gds21_pest[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
+    // it seems like the sign needs to be flipped if the VMEC toroidal flux is positive, otherwise gds21 is incorrect (potentially related to signgs = -1?)
+    gds21_pest[itheta] = (sign_psi * signgs) * (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
+    //    gds21_pest[itheta] = (sign_psi * vmec->signgs) * (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
     
     gds22_pest[itheta] = (grad_psi_X[itheta] * grad_psi_X[itheta] + grad_psi_Y[itheta] * grad_psi_Y[itheta] + grad_psi_Z[itheta] * grad_psi_Z[itheta]) * ( (shat * shat) / (L_reference * L_reference * B_reference * B_reference * normalized_toroidal_flux_used) );
+
 
     gbdrift_pest[itheta] = sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * B_cross_grad_B_dot_grad_alpha[itheta] / ( B[itheta] * B[itheta] * B[itheta] );
 
     gbdrift0_pest[itheta] = sign_psi * ( (B_sub_theta_vmec[itheta] * dB_dzeta[itheta] - B_sub_zeta[itheta] * dB_dtheta_vmec[itheta]) / sqrt_g[itheta] )
-      * ( (edge_toroidal_flux_over_2pi * 2 * shat) / (B[itheta] * B[itheta] * B[itheta] * sqrt_s) );
+      * ( (abs(edge_toroidal_flux_over_2pi) * 2 * shat) / (B[itheta] * B[itheta] * B[itheta] * sqrt_s) );
     // In the above expression for gbdrift0, the first line and the edge_toroidal_flux_over_2pi is \vec{B} \times \nabla B \cdot \nabla \psi
 
     cvdrift_pest[itheta] = gbdrift_pest[itheta] + sign_psi * 2 * B_reference * L_reference * L_reference * sqrt_s * mu_0 * d_pressure_ds * B_cross_grad_s_dot_grad_alpha[itheta] / (B[itheta] *B[itheta] * B[itheta] * B[itheta]);
