@@ -115,7 +115,7 @@ void interp_to_new_grid(double *geo_array, double *z_on_theta_grid, double *unif
       geo_array[j] = gsl_spline_eval(spline, uniform_grid[j], acc);
     }
   }
-  
+
   gsl_spline_free (spline);
   gsl_interp_accel_free (acc);
 

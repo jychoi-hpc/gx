@@ -59,6 +59,7 @@ gx.readline()
 header = gx.readline().split()
 ntheta = int(header[2])
 scale_factor = float(header[8])
+#scale_factor = 1.0
 
 a = []
 gx.readline()
@@ -80,55 +81,90 @@ for line in itertools.islice(gx_lines,3*ntheta+6,4*ntheta+7):
     cvdrift0_gx.append(float(line.split()[0]))
     gbdrift0_gx.append(float(line.split()[1]))
 
+#invariant_ratio_gist = np.zeros(len(gds21))
+#invariant_ratio_gx = np.zeros(len(gds21_gx))
+#for i in range(len(gds21)):
+#    invariant_ratio_gist[i] = ((gds21[i]*gbdrift[i])/(gds2[i]*gbdrift0[i]))/np.abs((gds21[i]*gbdrift[i])/(gds2[i]*gbdrift0[i]))
+#for i in range(len(gds21_gx)):
+#    invariant_ratio_gx[i] = ((gds21_gx[i]*gbdrift_gx[i])/(gds2_gx[i]*gbdrift0_gx[i]))/np.abs(((gds21_gx[i]*gbdrift_gx[i])/(gds2_gx[i]*gbdrift0_gx[i])))
+
+#print(invariant_ratio_gist[0])
+#print(invariant_ratio_gx[0])
+    
 fig, a = plt.subplots(3,3)
 theta_gx = np.array(theta_gx)
+#x_limits = np.pi*scale_factor
+x_limits = 2*np.pi
 # bmag
 a[0][0].set_xticklabels([])
 a[0][0].set_title("bmag")
-a[0][0].plot(theta,bmag)
-a[0][0].plot(scale_factor*theta_gx,bmag_gx)
+a[0][0].plot(theta,bmag,label='gist')
+a[0][0].plot(scale_factor*theta_gx,bmag_gx,label='gx')
+a[0][0].set_xlim(-x_limits,x_limits)
+a[0][0].legend()
 
 # gds2
 a[0][1].set_xticklabels([])
 a[0][1].set_title("gds2")
 a[0][1].plot(theta,gds2)
 a[0][1].plot(scale_factor*theta_gx,gds2_gx)
+a[0][1].set_xlim(-x_limits,x_limits)
 
 # gds21
 a[0][2].set_xticklabels([])
 a[0][2].set_title("gds21")
 a[0][2].plot(theta,gds21)
 a[0][2].plot(scale_factor*theta_gx,gds21_gx)
+a[0][2].set_xlim(-x_limits,x_limits)
 
 # gds22
 a[1][0].set_xticklabels([])
 a[1][0].set_title("gds22")
 a[1][0].plot(theta,gds22)
 a[1][0].plot(scale_factor*theta_gx,gds22_gx)
+a[1][0].set_xlim(-x_limits,x_limits)
 
 # gbdrift
 a[1][1].set_xticklabels([])
 a[1][1].set_title("gbdrift")
 a[1][1].plot(theta,gbdrift)
 a[1][1].plot(scale_factor*theta_gx,gbdrift_gx)
+a[1][1].set_xlim(-x_limits,x_limits)
 
 # gbdrift0
 a[1][2].set_xticklabels([])
 a[1][2].set_title("gbdrift0")
 a[1][2].plot(theta,gbdrift0)
 a[1][2].plot(scale_factor*theta_gx,gbdrift0_gx)
+a[1][2].set_xlim(-x_limits,x_limits)
 
 # cvdrift
 a[2][0].set_xticklabels([])
 a[2][0].set_title("cvdrift")
 a[2][0].plot(theta,cvdrift)
 a[2][0].plot(scale_factor*theta_gx,cvdrift_gx)
+a[2][0].set_xlim(-x_limits,x_limits)
 
 # cvdrift0
 a[2][1].set_xticklabels([])
 a[2][1].set_title("cvdrift0")
 a[2][1].plot(theta,cvdrift0)
 a[2][1].plot(scale_factor*theta_gx,cvdrift0_gx)
+a[2][1].set_xlim(-x_limits,x_limits)
+
+# invariant quantity
+#a[2][2].set_xticklabels([])
+#a[2][2].set_title("invariant quantity")
+#a[2][2].plot(theta,invariant_ratio_gist)
+#a[2][2].plot(scale_factor*theta_gx,invariant_ratio_gx)
+#a[2][2].set_xlim(-x_limits,x_limits)
+
+fig1, b = plt.subplots()
+b.set_title("gds21")
+b.plot(theta,gds21)
+b.plot(scale_factor*theta_gx,gds21_gx)
+b.set_xlim(-x_limits,x_limits)
+b.set_ylim(-2.,2.)
 
 plt.show()
 
