@@ -43,7 +43,12 @@ If desired, one can choose the exact endpoints of the flux tube, or have the end
 
 ## Running the module
 
-Back in the main geometry module directory, give ./convert_VMEC_to_GX, with the only command line input being the VMEC equilibrium file, which must be in the *.nc format
+In whatever directory the VMEC equilibrium is located, give /path/to/convert_VMEC_to_GX, with the only command line input being the VMEC equilibrium file, which must be in the *.nc format
 ```
-./convert_VMEC_to_GX [vmec_file.nc]
+/path/to/convert_VMEC_to_GX [vmec_file.nc]
 ```
+
+## Test Cases
+
+The tests/ directory contains 3 separate VMEC equilibria, as well as the corresponding outputs from the GIST code, which similarly computes geometric quantities for GENE and GS2 from a VMEC input.
+One can choose any of the 3 equilibria with some combination of input paramters and compare the results from this module to the GIST
