@@ -107,7 +107,8 @@ private:
   std::vector<int64_t> extent_W, extent_P, extent_A, extent_B, extent_Q, extent_R, extent_I;
   std::vector<std::vector<int64_t>> extents;
   char version_red;
-  cutensorHandle_t handle;
+  static cutensorHandle_t handle;
+  static bool isCuTensorInitialised;
   
   std::vector<cutensorTensorDescriptor_t> desc; // for WSPECTRA, PSPECTRA, ASPECTRA
   cutensorTensorDescriptor_t dW; // for data like G**2 

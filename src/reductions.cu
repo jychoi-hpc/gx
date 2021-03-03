@@ -1,6 +1,12 @@
 #include "reductions.h"
 #include <iostream>
 
+// static member to hold `global' handle to cuTensor library
+cutensorHandle_t Red::handle;
+// Before any instances of Red have been constructed nobody has
+// called init.
+bool Red::isCuTensorInitialised = false; 
+
 // catch-all reduction to a scalar, for any block of N contiguous floats
 Red::Red(int N, int nspecies) : N_(N)
 {
@@ -16,7 +22,11 @@ Red::Red(int N, int nspecies) : N_(N)
 
   //  for (auto mode : Amode) cout << Amode[mode] << '\n';
   
-  HANDLE_ERROR( cutensorInit(&handle));
+  if( !isCuTensorInitialised ) {
+     // First time, do initialisation
+     HANDLE_ERROR( cutensorInit(&handle));
+  }
+
   HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dA, nAmode, extent_A.data(), NULL, cfloat, CUTENSOR_OP_ABS));
   HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dB, nBmode, extent_B.data(), NULL, cfloat, CUTENSOR_OP_ABS));
   HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dQ, nQmode, extent_Q.data(), NULL, cfloat, CUTENSOR_OP_IDENTITY));
@@ -46,7 +56,11 @@ Red::Red(Grids *grids, std::vector<int> spectra) : grids_(grids), spectra_(spect
     if (spectra_[j] == 1) {
       for (auto mode : Modes[j]) extents[j].push_back(extent[mode]);
 
-      HANDLE_ERROR( cutensorInit(&handle));
+      if( !isCuTensorInitialised ) {
+         // First time, do initialisation
+         HANDLE_ERROR( cutensorInit(&handle));
+      }
+
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dW, nWmode, extent_W.data(),
 						 NULL, cfloat, CUTENSOR_OP_ABS));
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &desc[j], Modes[j].size(),
@@ -79,7 +93,11 @@ Red::Red(Grids *grids, std::vector<int> spectra, bool potential) : grids_(grids)
     if (spectra_[j] == 1) {
       for (auto mode : pModes[j]) extents[j].push_back(extent[mode]);
       
-      HANDLE_ERROR( cutensorInit(&handle));
+      if( !isCuTensorInitialised ) {
+         // First time, do initialisation
+         HANDLE_ERROR( cutensorInit(&handle));
+      }
+
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dP, nPmode, extent_P.data(), NULL, cfloat, CUTENSOR_OP_ABS));
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &desc[j], pModes[j].size(),
 						 extents[j].data(), NULL, cfloat, CUTENSOR_OP_ABS));
@@ -105,8 +123,12 @@ Red::Red(Grids *grids, std::vector<int> spectra, float dum) : grids_(grids), spe
       for (auto mode : iModes[j]) extents[j].push_back(extent[mode]);
 
       //      printf("0 =? %d \n",iModes[0].size());
-      
-      HANDLE_ERROR( cutensorInit(&handle));
+     
+      if( !isCuTensorInitialised ) {
+         // First time, do initialisation
+         HANDLE_ERROR( cutensorInit(&handle));
+      }
+
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &dI, nImode, extent_I.data(), NULL, cfloat, CUTENSOR_OP_ABS));
       HANDLE_ERROR( cutensorInitTensorDescriptor(&handle, &desc[j], iModes[j].size(),
 						 extents[j].data(), NULL, cfloat, CUTENSOR_OP_ABS));
