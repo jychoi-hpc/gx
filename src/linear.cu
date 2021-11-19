@@ -226,7 +226,67 @@ void Linear::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
 }
 
+// break rhs into implicit terms (streaming and hypercollisions) and explicit terms
+void Linear::rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
+  // to be safe, start with zeros on RHS
+  GRhs->set_zero();
+  
+  // calculate conservation terms for collision operator
+  int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
+  if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
+			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, geo_->kperp2, G->zt(), G->r2());
+
+  // Free-streaming requires parallel FFTs, so do that first
+  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, geo_->kperp2, G->r2(), geo_->gradpar, G->vt(), G->zt(), GRhs->G());
+  grad_par->dz(GRhs);
+  
+  // calculate most of the RHS
+  cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, 12*1024*sizeof(cuComplex));    
+  rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
+      	(G->G(), f->phi, upar_bar, uperp_bar, t_bar,
+        geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bgrad, 
+	 grids_->ky, G->vt(), G->zt(), G->tz(), G->nu(), G->tp(), G->up(), G->fp(), G->r2(), G->ty(),
+	 GRhs->G());
+
+  // hyper model by Hammett and Belli
+  if (pars_->HB_hyper) {
+    
+    int nt1 = min(128, grids_->Nx);
+    int nb1 = 1 + (grids_->Nx*grids_->Nyc-1)/nt1;
+    
+    fieldlineaverage <<< nb1, nt1 >>> (favg, df, f->phi, vol_fac);
+
+    get_s01 <<< 1, 1 >>> (s01, favg, grids_->kx, pars_->w_osc);
+    nt1 = min(128, grids_->Nz);
+    nb1 = 1 + (grids_->Nz-1)/nt1;
+    
+    get_s1 <<< nb1, nt1 >>> (s10, s11, grids_->kx, grids_->ky, df, pars_->w_osc);
+    
+    HB_hyper <<< dG_all, dB_all >>> (G->G(), s01, s10, s11,
+				     grids_->kx, grids_->ky, pars_->D_HB, pars_->p_HB, GRhs->G());
+    
+  }
+  
+  // closures
+  switch (pars_->closure_model_opt) {
+  case Closure::none : break;
+  case Closure::beer42 : closures->apply_closures(G, GRhs); break;
+  case Closure::smithperp : closures->apply_closures(G, GRhs); break;
+  case Closure::smithpar : closures->apply_closures(G, GRhs); break;
+  }
+
+  // hypercollisions
+  if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
+								   pars_->nu_hyper_l,
+								   pars_->nu_hyper_m,
+								   pars_->p_hyper_l,
+								   pars_->p_hyper_m, GRhs->G());
+  // hyper in k-space
+  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());
+
+}
 
 
 

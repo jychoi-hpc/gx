@@ -16,6 +16,12 @@ class Timestepper {
   virtual double get_dt() = 0;
 };
 
+// ================================
+// Classical Runge-Kutta methods
+// see e.g. Durran Ch 2.3.1-2.3.2
+// ================================
+
+// classic second-order RK2 
 class RungeKutta2 : public Timestepper {
  public:
   RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -40,6 +46,7 @@ class RungeKutta2 : public Timestepper {
   MomentsG   * G1         ;
 };
 
+// classic fourth-order RK4 
 class RungeKutta4 : public Timestepper {
  public:
   RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -65,6 +72,39 @@ class RungeKutta4 : public Timestepper {
   MomentsG   * G_q1       ;
   MomentsG   * G_q2       ;
 };
+
+// ================================
+// SSP Runge-Kutta methods
+// see e.g. Durran Ch 2.3.3
+// ================================
+
+// 3-stage 3rd order SSP-RK scheme of Shu & Osher (1988)
+class SSPRK3 : public Timestepper {
+ public:
+  SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~SSPRK3();
+  void advance(double* t, MomentsG* G, Fields* fields);
+  double get_dt() {return dt_;};
+
+ private:
+  void EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* GRhs, Fields* f, bool setdt);
+
+  const double dt_max;
+ 
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG     * G1         ;
+  MomentsG     * G2         ;
+  MomentsG     * GRhs       ;
+  double dt_;
+};
+
 /*
 class SDCe : public Timestepper {
  public:
@@ -88,6 +128,7 @@ class SDCe : public Timestepper {
 }
 */
 
+// low-storage 10-stage 4th order SSP-RK method (Ketcheson, SIAM JSC 2008)
 class Ketcheson10 : public Timestepper {
  public:
   Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -140,6 +181,12 @@ class K2 : public Timestepper {
   MomentsG   * G_q2       ;
 };
 
+// ================================
+// extended SSP Runge-Kutta methods
+// unpublished, but from G. Hammett
+// ================================
+
+// extended SSP-RK2
 class SSPx2 : public Timestepper {
  public:
   SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -164,6 +211,7 @@ class SSPx2 : public Timestepper {
   MomentsG   * GRhs       ;
 };
 
+// extended SSP-RK3
 class SSPx3 : public Timestepper {
  public:
   SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,

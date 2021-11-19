@@ -26,7 +26,7 @@
 
 enum class inits {density, upar, tpar, tperp, qpar, qperp};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
-enum class Tmethod {sspx2, sspx3, rk2, rk4, k10, g3, k2}; 
+enum class Tmethod {sspx2, sspx3, rk2, rk4, k10, g3, k2, ssprk3}; 
 enum class Closure {none, beer42, smithperp, smithpar};
 enum WSpectra {WSPECTRA_species,
 	       WSPECTRA_kx,
@@ -105,7 +105,7 @@ class Parameters {
   float x0, y0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;
   float forcing_amp, me_ov_mi, nu_ei, nu_hyper, D_hyper;
   float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m;
-  float D_HB, w_osc;
+  float D_HB, w_osc, vtmax;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
   float avail_cpu_time, margin_cpu_time;

@@ -1057,7 +1057,7 @@ void Parameters::get_nml_vars(char* filename)
   // record the values of jtwist and x0 used in runname.nc
   putint (nc_dom, "jtwist", jtwist);
   put_real (nc_dom, "x0", x0);
-     
+
   //  if(strcmp(closure_model, "beer4+2")==0) {
   closure_model_opt = Closure::none   ;
   if( closure_model == "beer4+2") {
@@ -1098,6 +1098,7 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "rk4")   scheme_opt = Tmethod::rk4;
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
+  if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
 
   if (eqfix && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
     printf("\n");
@@ -1128,14 +1129,22 @@ void Parameters::get_nml_vars(char* filename)
 
   nspec = nspec_in;
   init_species(species_h);
+
+  //// set max value of dt based on max CFL from streaming term
+  //dt = min(dt, 1/(sqrt(nm_in+1)*nz_in/Zp*vtmax));
+  //printf("\nSet dt_max = %g\n\n", dt);
+  //put_real (nc_time, "dt", dt);
+
   initialized = true;
   printf(ANSI_COLOR_RESET);    
 }
 
 void Parameters::init_species(specie* species)
 {
+  vtmax = 0.;
   for(int s=0; s<nspec_in; s++) {
     species[s].vt   = sqrt(species[s].temp / species[s].mass);
+    vtmax = max(vtmax, species[s].vt);
     species[s].tz   = species[s].temp / species[s].z;
     species[s].zt   = species[s].z / species[s].temp;
     species[s].rho2 = species[s].temp * species[s].mass / (species[s].z * species[s].z);

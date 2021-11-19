@@ -10,7 +10,7 @@ NETCDF_LIB = -L/usr/local/netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3/lib64 -lnet
 GSL_LIB = -lgsl -lgslcblas -lm
 
 CUDAARCH=70
-CUDA_DIR=/usr/local/cuda-11.2
+CUDA_DIR=/usr/local/cuda-11.3
 CC=gcc
 
 
