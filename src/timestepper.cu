@@ -237,7 +237,12 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
 
 IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
 {
-  if (GRhs)  delete GRhs;
+  if (A0)    delete A0; 
+  if (A1)    delete A1; 
+  if (A2)    delete A2; 
+  if (B0)    delete B0; 
+  if (B1)    delete B1; 
+  if (B2)    delete B2; 
   if (G1)    delete G1; 
   if (G2)    delete G2; 
   if (grad_par) delete grad_par;
@@ -273,7 +278,8 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   implicit_terms(B0, G, f);
   // G1 = G + dt*A0 + dt*B0
   G1->add_scaled(1., G, dt_, A0, dt_, B0);
-  solver_->fieldSolve(G1, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G1, f);         
+  if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   // stage 2
   // compute A1 = F_explicit(G1)
@@ -284,7 +290,8 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   G1->add_scaled(1., G, dt_/4., A0, dt_/4., A1, dt_/6., B0, -dt_/3., B1);
   // G2 = inv(I - 2*dt/3*F_implicit)*G1
   invert_implicit_terms(G2, G1);
-  solver_->fieldSolve(G2, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G2, f);         
+  if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   // stage 3
   // compute A2 = F_explicit(G2)
@@ -294,11 +301,13 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   // G = G + dt/6*A0 + dt/6*A1 + 2*dt/3*A2 + dt/6*B0 + dt/6*B1 + 2*dt/3*B2
   G->add_scaled(1., G, dt_/6., A0, dt_/6., A1, dt_/3., A2); 
   G->add_scaled(1., G, dt_/6., B0, dt_/6., B1, dt_/3., B2); 
-  solver_->fieldSolve(G, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G, f);        
+  if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   if (forcing_ != nullptr) forcing_->stir(G);  
   G->mask();
-  solver_->fieldSolve(G, f);          if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G, f);         
+  if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   *t += dt_;
 }

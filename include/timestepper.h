@@ -105,6 +105,37 @@ class SSPRK3 : public Timestepper {
   double dt_;
 };
 
+class IMEX_SSPRK3_DIRK : public Timestepper {
+ public:
+  IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~IMEX_SSPRK3_DIRK();
+  void advance(double* t, MomentsG* G, Fields* fields);
+  double get_dt() {return dt_;};
+
+ private:
+  void EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* GRhs, Fields* f, bool setdt);
+
+  const double dt_max;
+ 
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG     * G1         ;
+  MomentsG     * G2         ;
+  MomentsG     * A0         ;
+  MomentsG     * A1         ;
+  MomentsG     * A2         ;
+  MomentsG     * B0         ;
+  MomentsG     * B1         ;
+  MomentsG     * B2         ;
+  double dt_;
+};
+
 /*
 class SDCe : public Timestepper {
  public:
