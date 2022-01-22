@@ -37,29 +37,29 @@ Geometry::~Geometry() {
   if (bmag)      cudaFree(bmag);
   if (bmagInv)   cudaFree(bmagInv);
   if (bgrad)     cudaFree(bgrad);
-  if (gds2);     cudaFree(gds2);	
-  if (gds21);    cudaFree(gds21);	
-  if (gds22);    cudaFree(gds22);	
-  if (gbdrift);  cudaFree(gbdrift);	
-  if (gbdrift0); cudaFree(gbdrift0);	
-  if (cvdrift);  cudaFree(cvdrift);	
-  if (cvdrift0); cudaFree(cvdrift0);	
-  if (grho);     cudaFree(grho);	
-  if (jacobian); cudaFree(jacobian);	
+  if (gds2)      cudaFree(gds2);	
+  if (gds21)     cudaFree(gds21);	
+  if (gds22)     cudaFree(gds22);	
+  if (gbdrift)   cudaFree(gbdrift);	
+  if (gbdrift0)  cudaFree(gbdrift0);	
+  if (cvdrift)   cudaFree(cvdrift);	
+  if (cvdrift0)  cudaFree(cvdrift0);	
+  if (grho)      cudaFree(grho);	
+  if (jacobian)  cudaFree(jacobian);	
 
-  if (z_h)         cudaFreeHost(z_h);
-  if (bmag_h)      cudaFreeHost(bmag_h);
-  if (bmagInv_h)   cudaFreeHost(bmagInv_h);
-  if (bgrad_h)     cudaFreeHost(bgrad_h);
-  if (gds2_h);     cudaFreeHost(gds2_h);	
-  if (gds21_h);    cudaFreeHost(gds21_h);	
-  if (gds22_h);    cudaFreeHost(gds22_h);	
-  if (gbdrift_h);  cudaFreeHost(gbdrift_h);	
-  if (gbdrift0_h); cudaFreeHost(gbdrift0_h);	
-  if (cvdrift_h);  cudaFreeHost(cvdrift_h);	
-  if (cvdrift0_h); cudaFreeHost(cvdrift0_h);	
-  if (grho_h);     cudaFreeHost(grho_h);	
-  if (jacobian_h); cudaFreeHost(jacobian_h);	
+  if (z_h)         free(z_h);
+  if (bmag_h)      free(bmag_h);
+  if (bmagInv_h)   free(bmagInv_h);
+  if (bgrad_h)     free(bgrad_h);
+  if (gds2_h)      free(gds2_h);	
+  if (gds21_h)     free(gds21_h);	
+  if (gds22_h)     free(gds22_h);	
+  if (gbdrift_h)   free(gbdrift_h);	
+  if (gbdrift0_h)  free(gbdrift0_h);	
+  if (cvdrift_h)   free(cvdrift_h);	
+  if (cvdrift0_h)  free(cvdrift0_h);	
+  if (grho_h)      free(grho_h);	
+  if (jacobian_h)  free(jacobian_h);	
 
   if(operator_arrays_allocated_) {
     if (kperp2) cudaFree(kperp2);
@@ -75,21 +75,21 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   float theta;
   operator_arrays_allocated_=false;
   size_t size = sizeof(float)*Nz;
-  cudaMallocHost ((void**) &z_h, size);
-  cudaMallocHost ((void**) &bmag_h, size);
-  cudaMallocHost ((void**) &bmagInv_h, size);
-  cudaMallocHost ((void**) &bgrad_h, size);
-  cudaMallocHost ((void**) &gds2_h, size);
-  cudaMallocHost ((void**) &gds21_h, size);
-  cudaMallocHost ((void**) &gds22_h, size);
-  cudaMallocHost ((void**) &gbdrift_h, size);
-  cudaMallocHost ((void**) &gbdrift0_h, size);
-  cudaMallocHost ((void**) &cvdrift_h, size);
-  cudaMallocHost ((void**) &cvdrift0_h, size);
-  cudaMallocHost ((void**) &grho_h, size);
-  cudaMallocHost ((void**) &jacobian_h, size);
+  z_h = (float*) malloc (size);
+  bmag_h = (float*) malloc (size);
+  bmagInv_h = (float*) malloc (size);
+  bgrad_h = (float*) malloc (size);
+  gds2_h = (float*) malloc (size);
+  gds21_h = (float*) malloc (size);
+  gds22_h = (float*) malloc (size);
+  gbdrift_h = (float*) malloc (size);
+  gbdrift0_h = (float*) malloc (size);
+  cvdrift_h = (float*) malloc (size);
+  cvdrift0_h = (float*) malloc (size);
+  grho_h = (float*) malloc (size);
+  jacobian_h = (float*) malloc (size);
 
-  //  cudaMallocHost((void**) &kperp2_h, sizeof(float)*grids->NxNycNz);
+  // kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);
   
   cudaMalloc ((void**) &z, size);
   cudaMalloc ((void**) &bmag, size);
@@ -223,19 +223,28 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
 
   // allocate space for variables on the CPU
   double * dtmp;
-  cudaMallocHost ((void**) &dtmp, sizeof(double)*N);
+  dtmp = (double*) malloc(sizeof(double)*N);
+  z_h = (float*) malloc (size);
+  bmag_h = (float*) malloc (size);
+  bmagInv_h = (float*) malloc (size);
+  gds2_h = (float*) malloc (size);
+  gds21_h = (float*) malloc (size);
+  gds22_h = (float*) malloc (size);
+  gbdrift_h = (float*) malloc (size);
+  gbdrift0_h = (float*) malloc (size);
+  cvdrift_h = (float*) malloc (size);
+  cvdrift0_h = (float*) malloc (size);
+  grho_h = (float*) malloc (size);
+  jacobian_h = (float*) malloc (size);
   
   // read the data with nc_get_var
   int id;
   if (retval = nc_inq_varid(ncgeo, "theta", &id))        ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &z_h, size);
   for (int n=0; n<N; n++) z_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "bmag", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &bmag_h, size);
-  cudaMallocHost ((void**) &bmagInv_h, size);
   for (int n=0; n<N; n++) bmag_h[n] = (float) dtmp[n];
   for (int n=0; n<N; n++) bmagInv_h[n] = 1./bmag_h[n];
 
@@ -245,45 +254,37 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
 
   if (retval = nc_inq_varid(ncgeo, "grho", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &grho_h, size);
   for (int n=0; n<N; n++) grho_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "gds2", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &gds2_h, size);
   for (int n=0; n<N; n++) gds2_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "gds21", &id))        ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &gds21_h, size);
   for (int n=0; n<N; n++) gds21_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "gds22", &id))        ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &gds22_h, size);
   for (int n=0; n<N; n++) gds22_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &gbdrift_h, size);
   for (int n=0; n<N; n++) gbdrift_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &gbdrift0_h, size);
   for (int n=0; n<N; n++) gbdrift0_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &cvdrift_h, size);
   for (int n=0; n<N; n++) cvdrift_h[n] = (float) dtmp[n];
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  cudaMallocHost ((void**) &cvdrift0_h, size);
   for (int n=0; n<N; n++) cvdrift0_h[n] = (float) dtmp[n];
   
-  cudaFreeHost(dtmp);
+  free(dtmp);
 
   double stmp; 
   
@@ -292,7 +293,6 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   pars->drhodpsi = (float) stmp;
   drhodpsi = pars->drhodpsi;
   
-  cudaMallocHost ((void**) &jacobian_h, size);
   for (int n=0; n<N; n++) jacobian_h[n] = 1./abs(drhodpsi*gradpar*bmag_h[n]);
       
   if (retval = nc_inq_varid(ncgeo, "kxfac", &id))        ERR(retval);
@@ -360,18 +360,18 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
 
   operator_arrays_allocated_=false;
   size_t size = sizeof(float)*grids->Nz; 
-  cudaMallocHost ((void**) &z_h, size);
-  cudaMallocHost ((void**) &bmag_h, size);
-  cudaMallocHost ((void**) &bmagInv_h, size);
-  cudaMallocHost ((void**) &gds2_h, size);
-  cudaMallocHost ((void**) &gds21_h, size);
-  cudaMallocHost ((void**) &gds22_h, size);
-  cudaMallocHost ((void**) &gbdrift_h, size);
-  cudaMallocHost ((void**) &gbdrift0_h, size);
-  cudaMallocHost ((void**) &cvdrift_h, size);
-  cudaMallocHost ((void**) &cvdrift0_h, size);
-  cudaMallocHost ((void**) &grho_h, size);
-  cudaMallocHost ((void**) &jacobian_h, size);
+  z_h = (float*) malloc (size);
+  bmag_h = (float*) malloc (size);
+  bmagInv_h = (float*) malloc (size);
+  gds2_h = (float*) malloc (size);
+  gds21_h = (float*) malloc (size);
+  gds22_h = (float*) malloc (size);
+  gbdrift_h = (float*) malloc (size);
+  gbdrift0_h = (float*) malloc (size);
+  cvdrift_h = (float*) malloc (size);
+  cvdrift0_h = (float*) malloc (size);
+  grho_h = (float*) malloc (size);
+  jacobian_h = (float*) malloc (size);
 
   cudaMalloc ((void**) &z, size);
   cudaMalloc ((void**) &bmag, size);
@@ -391,7 +391,7 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
   if (geoFile == NULL) {
     printf("Cannot open file %s \n", pars->geofilename.c_str());
     exit(0);
-  }
+  } else DEBUGPRINT("Using igeo = 1. Opened geo file %s \n", pars->geofilename.c_str());
 
   int nlines=0;
   fpos_t lineStartPos;
@@ -413,40 +413,42 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       getline (myfile, datline);  // text
       getline (myfile, datline);  
       stringstream ss(datline);      string element;       
-      getline( ss, element, ' '); ntgrid         = stoi(element);    
-      getline( ss, element, ' '); pars->nperiod  = stoi(element);
-      getline( ss, element, ' '); newNz          = stoi(element);   
-      getline( ss, element, ' '); pars->drhodpsi = stof(element);
-      getline( ss, element, ' '); pars->rmaj     = stof(element);
-      getline( ss, element, ' '); pars->shat     = stof(element);
-      getline( ss, element, ' '); pars->kxfac    = stof(element);       
-      getline( ss, element, ' '); pars->qsf      = stof(element);       
+      ss >> element; ntgrid         = stoi(element);    
+      ss >> element; pars->nperiod  = stoi(element);
+      ss >> element; newNz          = stoi(element);   
+      ss >> element; pars->drhodpsi = stof(element);
+      ss >> element; pars->rmaj     = stof(element);
+      ss >> element; pars->shat     = stof(element);
+      ss >> element; pars->kxfac    = stof(element);       
+      ss >> element; pars->qsf      = stof(element);       
 
       shat       = pars->shat;
       drhodpsi   = pars->drhodpsi;
       oldnperiod = pars->nperiod;
       
       DEBUGPRINT("\n\nIN READ_GEO_INPUT:\nntgrid = %d, nperiod = %d, Nz = %d, rmaj = %f, shat = %f\n\n\n",
-		 ntgrid, pars->nperiod, grids->Nz, pars->rmaj, shat);
-      
+		 ntgrid, pars->nperiod, newNz, pars->rmaj, pars->shat);
+
       if(oldNz != newNz) {
-	printf("old Nz = %d \t new Nz = %d \n",oldNz,newNz);
-	printf("You must set ntheta in the namelist equal to ntheta in the geofile. Exiting...\n");
-	abort();
+        printf("old Nz = %d \t new Nz = %d \n",oldNz,newNz);
+        printf("You must set ntheta in the namelist equal to ntheta in the geofile. Exiting...\n");
+        fflush(stdout);
+        abort();
       }
       int Nz = newNz;
       if(oldnperiod != pars->nperiod) {
-	printf("You must set nperiod in the namelist equal to nperiod in the geofile. Exiting...\n");
-	abort();
+        printf("You must set nperiod in the namelist equal to nperiod in the geofile. Exiting...\n");
+        fflush(stdout);
+        abort();
       }
       
       getline (myfile, datline);  // text
       for (int idz=0; idz < newNz; idz++) {
 	getline (myfile, datline); stringstream ss(datline);
-	getline( ss, element, ' '); gbdrift_h[idz] = stof(element); gbdrift_h[idz] *= 0.25;
-        getline( ss, element, ' '); gradpar        = stof(element);
-	getline( ss, element, ' '); grho_h[idz]    = stof(element);
-	getline( ss, element, ' '); z_h[idz]       = stof(element);
+        ss >> element; gbdrift_h[idz] = stof(element); gbdrift_h[idz] *= 0.25;
+        ss >> element; gradpar        = stof(element);
+        ss >> element; grho_h[idz]    = stof(element);
+        ss >> element; z_h[idz]       = stof(element);
       }
       getline(myfile, datline); // periodic points (not always periodic, but extra)
      
@@ -455,13 +457,13 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       
       getline (myfile, datline);  // text
       for (int idz=0; idz < newNz; idz++) {
-	getline (myfile, datline); stringstream ss(datline);
-	getline( ss, element, ' '); cvdrift_h[idz] = stof(element);
-	cvdrift_h[idz] *= 0.25;
-        getline( ss, element, ' '); gds2_h[idz]    = stof(element);
-	getline( ss, element, ' '); bmag_h[idz]    = stof(element);
-	bmagInv_h[idz]  = 1./bmag_h[idz];
-	jacobian_h[idz] = 1./abs(drhodpsi*gradpar*bmag_h[idz]);
+        getline (myfile, datline); stringstream ss(datline);
+        ss >> element; cvdrift_h[idz] = stof(element);
+        cvdrift_h[idz] *= 0.25;
+        ss >> element; gds2_h[idz]    = stof(element);
+        ss >> element; bmag_h[idz]    = stof(element);
+        bmagInv_h[idz]  = 1./bmag_h[idz];
+        jacobian_h[idz] = 1./abs(drhodpsi*gradpar*bmag_h[idz]);
       }
       getline(myfile, datline); // periodic points (not always periodic, but extra)
 
@@ -471,9 +473,9 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
 
       getline(myfile, datline); // text
       for (int idz=0; idz < newNz; idz++) {
-	getline (myfile, datline); stringstream ss(datline);
-	getline( ss, element, ' '); gds21_h[idz] = stof(element); 
-        getline( ss, element, ' '); gds22_h[idz] = stof(element);
+        getline (myfile, datline); stringstream ss(datline);
+        ss >> element; gds21_h[idz] = stof(element); 
+        ss >> element; gds22_h[idz] = stof(element);
       }
       getline(myfile, datline); // periodic points (not always periodic, but extra)
 
@@ -482,9 +484,9 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
 
             getline(myfile, datline); // text
       for (int idz=0; idz < newNz; idz++) {
-	getline (myfile, datline); stringstream ss(datline);
-	getline( ss, element, ' '); cvdrift0_h[idz] = stof(element); cvdrift0_h[idz] *= 0.25;
-        getline( ss, element, ' '); gbdrift0_h[idz] = stof(element); gbdrift0_h[idz] *= 0.25;
+        getline (myfile, datline); stringstream ss(datline);
+        ss >> element; cvdrift0_h[idz] = stof(element); cvdrift0_h[idz] *= 0.25;
+        ss >> element; gbdrift0_h[idz] = stof(element); gbdrift0_h[idz] *= 0.25;
       }
       getline(myfile, datline); // periodic points (not always periodic, but extra)
 
@@ -542,7 +544,7 @@ void Geometry::initializeOperatorArrays(Grids* grids) {
   init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
 
   /*
-  cudaMallocHost((void**) &kperp2_h, sizeof(float)*grids->NxNycNz);
+  kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);
   CP_TO_GPU (kperp2_h,    kperp2, sizeof(float)*grids->NxNycNz);
 
   for (int iz=0; iz < grids->Nz; iz++) {
@@ -563,7 +565,7 @@ void Geometry::calculate_bgrad(Grids* grids)
   operator_arrays_allocated_=false;
 
   size_t size = sizeof(float)*grids->Nz;
-  cudaMallocHost((void**) &bgrad_h, size);
+  bgrad_h = (float*) malloc (size);
 
   cudaMalloc ((void**) &bgrad, size);
   cudaMalloc ((void**) &bgrad_temp, size);

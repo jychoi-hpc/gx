@@ -5,8 +5,10 @@
 #include "version.h"
 using namespace std;
 
-Parameters::Parameters() {
+Parameters::Parameters(MPI_Comm mpcom) {
   initialized = false;
+
+  MPI_Comm_rank(mpcom, &iproc);
 
   // some cuda parameters (not from input file)
   int dev; 
@@ -102,6 +104,17 @@ void Parameters::get_nml_vars(char* filename)
   ks_epsf           = toml::find_or <float> (tnml, "ks_epsf",     -1.0 );
 
   tnml = nml;
+  if (nml.contains("KREHM")) tnml = toml::find (nml, "KREHM");
+  
+  krehm             = toml::find_or <bool>  (tnml, "krehm",     false );
+  if(krehm) gx = false;
+  rho_i             = toml::find_or <float> (tnml, "rho_i",       1.0 );
+  d_e               = toml::find_or <float> (tnml, "d_e",         1.0 );
+  nu_ei             = toml::find_or <float> (tnml, "nu_ei",       1.0 );
+  zt                = toml::find_or <float> (tnml, "zt",          1.0 );
+  rho_s = rho_i*sqrtf(zt/2);
+
+  tnml = nml;
   if (nml.contains("Diagnostics")) tnml = toml::find (nml, "Diagnostics");
 
   fixed_amplitude   = toml::find_or <bool> (tnml, "fixed_amplitude", false);
@@ -153,9 +166,10 @@ void Parameters::get_nml_vars(char* filename)
   write_all_xymom   = toml::find_or <bool> (tnml, "all_non_zonal", false );
 
   if (write_all_xymom) {
-    write_xyvEy = write_xykxvEy = write_xyTperp = write_xyTpar = true;
+    write_xyvEx = write_xyvEy = write_xykxvEy = write_xyTperp = write_xyTpar = true;
     write_xyden = write_xyUpar = write_xyqpar = true;
   } else {
+    write_xyvEx    = toml::find_or <bool> (tnml, "xyvEx",    false );
     write_xyvEy    = toml::find_or <bool> (tnml, "xyvEy",    false );
     write_xykxvEy  = toml::find_or <bool> (tnml, "xykxvEy",  false );
     write_xyden    = toml::find_or <bool> (tnml, "xyden",    false );
@@ -182,7 +196,7 @@ void Parameters::get_nml_vars(char* filename)
   write_kmom  = (write_kmom  || write_avg_zkden  || write_avg_zkUpar || write_avg_zkTpar);
   write_kmom  = (write_kmom  || write_avg_zkqpar );
   
-  write_xymom = (write_xyvEy || write_xykxvEy   || write_xyden      || write_xyUpar);
+  write_xymom = (write_xyvEy || write_xykxvEy   || write_xyden      || write_xyUpar    ||  write_xyvEx);
   write_xymom = (write_xymom || write_xyTpar    || write_xyTperp    || write_xyqpar);
   
   tnml = nml;
@@ -190,6 +204,7 @@ void Parameters::get_nml_vars(char* filename)
 
   i_share     = toml::find_or <int>    (tnml, "i_share",         8 );
   nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
+  local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
   init_single = toml::find_or <bool>   (tnml, "init_single", false );
   ikx_single  = toml::find_or <int>    (tnml, "ikx_single",      0 );
   iky_single  = toml::find_or <int>    (tnml, "iky_single",      1 );
@@ -460,9 +475,9 @@ void Parameters::get_nml_vars(char* filename)
     if ( add_Boltzmann_species ) aspectra[ASPECTRA_species] = 1;
   }
 
-  gx = (!ks && !vp);
+  gx = (!ks && !vp && !krehm);
   assert (!(ks && vp));
-  assert (ks || vp || gx);
+  assert (ks || vp || gx || krehm);
 
   int ksize = 0;
   for (int k=0; k<pspectra.size(); k++) ksize = max(ksize, pspectra[k]);
@@ -487,21 +502,23 @@ void Parameters::get_nml_vars(char* filename)
   if (write_moms || write_phi || write_phi_kpar) diagnosing_moments = true;
   
   species_h = (specie *) calloc(nspec_in, sizeof(specie));
-  for (int is=0; is < nspec_in; is++) {
-    species_h[is].uprim = 0.;
-    species_h[is].nu_ss = 0.;
-    species_h[is].temp = 1.;
-    
-    species_h[is].z     = toml::find <float>  (nml, "species", "z",     is);
-    species_h[is].mass  = toml::find <float>  (nml, "species", "mass",  is);
-    species_h[is].dens  = toml::find <float>  (nml, "species", "dens",  is);
-    species_h[is].temp  = toml::find <float>  (nml, "species", "temp",  is);
-    species_h[is].tprim = toml::find <float>  (nml, "species", "tprim", is);
-    species_h[is].fprim = toml::find <float>  (nml, "species", "fprim", is);
-    species_h[is].uprim = toml::find <float>  (nml, "species", "uprim", is);
-    species_h[is].nu_ss = toml::find <float>  (nml, "species", "vnewk", is);
-    string stype        = toml::find <string> (nml, "species", "type",  is);
-    species_h[is].type = stype == "ion" ? 0 : 1;
+  if (nml.contains("species")) {
+    for (int is=0; is < nspec_in; is++) {
+      species_h[is].uprim = 0.;
+      species_h[is].nu_ss = 0.;
+      species_h[is].temp = 1.;
+      
+      species_h[is].z     = toml::find <float>  (nml, "species", "z",     is);
+      species_h[is].mass  = toml::find <float>  (nml, "species", "mass",  is);
+      species_h[is].dens  = toml::find <float>  (nml, "species", "dens",  is);
+      species_h[is].temp  = toml::find <float>  (nml, "species", "temp",  is);
+      species_h[is].tprim = toml::find <float>  (nml, "species", "tprim", is);
+      species_h[is].fprim = toml::find <float>  (nml, "species", "fprim", is);
+      species_h[is].uprim = toml::find <float>  (nml, "species", "uprim", is);
+      species_h[is].nu_ss = toml::find <float>  (nml, "species", "vnewk", is);
+      string stype        = toml::find <string> (nml, "species", "type",  is);
+      species_h[is].type = stype == "ion" ? 0 : 1;
+    }
   }
   
   float numax = -1.;
@@ -707,6 +724,7 @@ void Parameters::get_nml_vars(char* filename)
   if (retval = nc_def_var (nc_diag, "kTperp",          NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_diag, "all_non_zonal",   NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diag, "xyvEx",           NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xyvEy",           NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xykxvEy",         NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xyden",           NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -919,6 +937,7 @@ void Parameters::get_nml_vars(char* filename)
   putbool  (nc_diag, "kqpar",        write_kqpar       );
 
   putbool  (nc_diag, "all_non_zonal", write_all_xymom  );
+  putbool  (nc_diag, "xyvEx",        write_xyvEx       );
   putbool  (nc_diag, "xyvEy",        write_xyvEy       );
   putbool  (nc_diag, "xykxvEy",      write_xykxvEy     );
   putbool  (nc_diag, "xyden",        write_xyden       );
@@ -1072,9 +1091,6 @@ void Parameters::get_nml_vars(char* filename)
   if( boundary == "periodic") { boundary_option_periodic = true;
   } else { boundary_option_periodic = false; }
   
-  local_limit = false;
-  if(qsf < 0  &&  nz_in == 1) { local_limit=true; }
-
   if     ( init_field == "density") { initf = inits::density; }
   else if( init_field == "upar"   ) { initf = inits::upar   ; }
   else if( init_field == "tpar"   ) { initf = inits::tpar   ; }
@@ -1137,6 +1153,89 @@ void Parameters::get_nml_vars(char* filename)
 
   initialized = true;
   printf(ANSI_COLOR_RESET);    
+}
+
+void Parameters::set_from_trinity(trin_parameters_struct *tpars)
+{
+   equilibrium_type = tpars->equilibrium_type;
+   if(tpars->restart>0) restart = true;
+
+   if (tpars->nstep > nstep) {
+     printf("ERROR: nstep has been increased above the default value. nstep must be less than or equal to what is in the input file");
+     abort();
+   }
+   trinity_timestep = tpars->trinity_timestep;
+   trinity_iteration = tpars->trinity_iteration;
+   trinity_conv_count = tpars->trinity_conv_count;
+   nstep = tpars->nstep;
+   navg = tpars->navg;
+   end_time = tpars->end_time;
+  /*char eqfile[800];*/
+   irho = tpars->irho ;
+   rhoc = tpars->rhoc ;
+   eps = tpars->eps;
+   // NB NEED TO SET EPS IN TRINITY!!!
+   //eps = rhoc/rmaj;
+   bishop = tpars->bishop ;
+   nperiod = tpars->nperiod ;
+   nz_in = tpars->ntheta ;
+
+ /* Miller parameters*/
+   rmaj = tpars->rgeo_local ;
+   r_geo = tpars->rgeo_lcfs ;
+   akappa  = tpars->akappa ;
+   akappri = tpars->akappri ;
+   tri = tpars->tri ;
+   tripri = tpars->tripri ;
+   shift = tpars->shift ;
+   qsf = tpars->qinp ;
+   shat = tpars->shat ;
+    // EGH These appear to be redundant
+   //asym = tpars->asym ;
+   //asympri = tpars->asympri ;
+
+  /* Other geometry parameters - Bishop/Greene & Chance*/
+   beta_prime_input = tpars->beta_prime_input ;
+   s_hat_input = tpars->s_hat_input ;
+
+  /*Flow shear*/
+   g_exb = tpars->g_exb ;
+
+  /* Species parameters... I think allowing 20 species should be enough!*/
+  int oldnSpecies = nspec;
+  nspec = tpars->ntspec ;
+
+  if (nspec!=oldnSpecies){
+          printf("oldnSpecies=%d,  nSpecies=%d\n", oldnSpecies, nspec);
+          printf("Number of species set in get_fluxes must equal number of species in gx input file\n");
+          exit(1);
+  }
+  if (debug) printf("nSpecies was set to %d\n", nspec);
+  for (int i=0;i<nspec;i++){
+           species_h[i].dens = tpars->dens[i] ;
+           species_h[i].temp = tpars->temp[i] ;
+           species_h[i].fprim = tpars->fprim[i] ;
+           species_h[i].tprim = tpars->tprim[i] ;
+           species_h[i].nu_ss = tpars->nu[i] ;
+  }
+  init_species(species_h);
+
+  //jtwist should never be < 0. If we set jtwist < 0 in the input file,
+  // this triggers the use of jtwist_square... i.e. jtwist is 
+  // set to what it needs to make the box square at the outboard midplane
+  if (jtwist < 0) {
+    int jtwist_square;
+    // determine value of jtwist needed to make X0~Y0
+    jtwist_square = (int) round(2*M_PI*abs(shat)*Zp);
+    if (jtwist_square == 0) jtwist_square = 1;
+    // as currently implemented, there is no way to manually set jtwist from input file
+    // there could be some switch here where we choose whether to use
+    // jtwist_in or jtwist_square
+    jtwist = jtwist_square*2;
+    //else use what is set in input file 
+  }
+  if(jtwist!=0 && abs(shat)>1.e-6) x0 = y0*jtwist/(2*M_PI*Zp*abs(shat));
+  //if(abs(shat)<1.e-6) x0 = y0;
 }
 
 void Parameters::init_species(specie* species)

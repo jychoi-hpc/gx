@@ -11,23 +11,23 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   tprp_ptr   = nullptr;  qpar_ptr   = nullptr;  qprp_ptr   = nullptr;
 
   size_t lhsize = grids_->size_G;
-  //  printf("nspecies = %d and size_G = %d \n",grids_->Nspecies, (int) grids_->size_G);
+  // printf("nspecies = %d and size_G = %d \n",grids_->Nspecies, (int) grids_->size_G);
   checkCuda(cudaMalloc((void**) &G_lm, lhsize)); 
-  cudaMemset(G_lm, 0., lhsize);
+  checkCuda(cudaMemset(G_lm, 0., lhsize));
 
-  float * vts_h; cudaMallocHost( &vts_h, sizeof(float) * grids_->Nspecies );
-  float * tzs_h; cudaMallocHost( &tzs_h, sizeof(float) * grids_->Nspecies );
-  float * zts_h; cudaMallocHost( &zts_h, sizeof(float) * grids_->Nspecies );
-  float * nts_h; cudaMallocHost( &nts_h, sizeof(float) * grids_->Nspecies );  
-  float * nzs_h; cudaMallocHost( &nzs_h, sizeof(float) * grids_->Nspecies );
-  float * r2s_h; cudaMallocHost( &r2s_h, sizeof(float) * grids_->Nspecies );
-  float * tps_h; cudaMallocHost( &tps_h, sizeof(float) * grids_->Nspecies );
-  float * fps_h; cudaMallocHost( &fps_h, sizeof(float) * grids_->Nspecies );
-  float * ups_h; cudaMallocHost( &ups_h, sizeof(float) * grids_->Nspecies );
-  float * aps_h; cudaMallocHost( &aps_h, sizeof(float) * grids_->Nspecies );
-  float * qns_h; cudaMallocHost( &qns_h, sizeof(float) * grids_->Nspecies );
-  float * nu_ss_h; cudaMallocHost( &nu_ss_h, sizeof(float) * grids_->Nspecies );
-  int   * typ_h; cudaMallocHost( &typ_h, sizeof(int) * grids_->Nspecies );
+  float * vts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * tzs_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * zts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * nts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );  
+  float * nzs_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * r2s_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * tps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * fps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * ups_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * aps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * qns_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * nu_ss_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  int   * typ_h = (int*) malloc(sizeof(int) * grids_->Nspecies );
   
   for (int is=0; is<grids_->Nspecies; is++) {
     vts_h[is] = pars_->species_h[is].vt;
@@ -73,10 +73,10 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   CP_TO_GPU(nu_ss, nu_ss_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(typ, typ_h, sizeof(int)  *grids_->Nspecies);
   
-  cudaFreeHost(vts_h);  cudaFreeHost(tzs_h);  cudaFreeHost(zts_h);  cudaFreeHost(nts_h);
-  cudaFreeHost(nzs_h);  cudaFreeHost(r2s_h);  cudaFreeHost(tps_h);  cudaFreeHost(fps_h);
-  cudaFreeHost(ups_h);  cudaFreeHost(aps_h);  cudaFreeHost(qns_h);  cudaFreeHost(nu_ss_h);  
-  cudaFreeHost(typ_h);
+  free(vts_h);  free(tzs_h);  free(zts_h);  free(nts_h);
+  free(nzs_h);  free(r2s_h);  free(tps_h);  free(fps_h);
+  free(ups_h);  free(aps_h);  free(qns_h);  free(nu_ss_h);  
+  free(typ_h);
   
   dens_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
   upar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
@@ -172,7 +172,7 @@ void MomentsG::set_zero(void) {
 void MomentsG::initVP(double *time) {
 
   cuComplex *init_h = nullptr;
-  cudaMallocHost((void**) &init_h, sizeof(cuComplex)*grids_->Nyc*grids_->Nm);
+  init_h = (cuComplex*) malloc(sizeof(cuComplex)*grids_->Nyc*grids_->Nm);
 
   for (int ig = 0; ig<grids_->Nyc*grids_->Nm; ig++) {
     init_h[ig].x = 0.;
@@ -185,63 +185,65 @@ void MomentsG::initVP(double *time) {
   init_h[1 + grids_->Nyc * 2].x = pars_->init_amp; // This is a temperature perturbation (up to a factor of sqrt(2)).
   
   CP_TO_GPU(G_lm, init_h, sizeof(cuComplex)*grids_->Nyc*grids_->Nm);
-  cudaFreeHost(init_h);
+  free(init_h);
 
   if (pars_->restart) this->restart_read(time);
 
   cudaDeviceSynchronize();
 }
 
-void MomentsG::initialConditions(double *time) {
+//void MomentsG::initialConditions(double *time) {
+//
+//  size_t momsize = sizeof(cuComplex)*grids_->NxNycNz;
+//  cuComplex *init_h = nullptr;
+//  init_h = (cuComplex*) malloc(momsize);
+//  
+//  std::random_device rd;
+//  std::mt19937 gen(rd());
+//  std::normal_distribution<float> ramp(0., pars_->init_amp);
+//
+//  for (int idy = 0; idy<grids_->Nyc; idy++) {
+//    init_h[idy].x = 0.;
+//    init_h[idy].y = 0.;
+//  }
+//  
+//  for (int idy = 1; idy<grids_->Naky; idy++) {
+//    init_h[idy].x = ramp(gen);
+//    init_h[idy].y = ramp(gen);
+//  }
+//
+//  //  init_h[1].x =  0.5;
+//  //  init_h[2].y = -0.25;
+//  
+//  CP_TO_GPU(G_lm, init_h, momsize);
+//  
+//  free(init_h);
+//
+//  // restart_read goes here, if restart == T
+//  // as in gs2, if restart_read is true, we want to *add* the restart values to anything
+//  // that has happened above and also move the value of time up to the end of the previous run
+//  if(pars_->restart) {
+//    DEBUG_PRINT("reading restart file \n");
+//    this->restart_read(time);
+//  }
+//
+//  cudaDeviceSynchronize();
+//  //  checkCuda(cudaGetLastError());
+//
+//  //  return cudaGetLastError();
+//  
+//}
 
-  size_t momsize = sizeof(cuComplex)*grids_->NxNycNz;
-  cuComplex *init_h = nullptr;
-  cudaMallocHost((void**) &init_h, momsize); 
-  
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<float> ramp(0., pars_->init_amp);
-
-  for (int idy = 0; idy<grids_->Nyc; idy++) {
-    init_h[idy].x = 0.;
-    init_h[idy].y = 0.;
-  }
-  
-  for (int idy = 1; idy<grids_->Naky; idy++) {
-    init_h[idy].x = ramp(gen);
-    init_h[idy].y = ramp(gen);
-  }
-
-  //  init_h[1].x =  0.5;
-  //  init_h[2].y = -0.25;
-  
-  CP_TO_GPU(G_lm, init_h, momsize);
-  
-  cudaFreeHost(init_h);
-
-  // restart_read goes here, if restart == T
-  // as in gs2, if restart_read is true, we want to *add* the restart values to anything
-  // that has happened above and also move the value of time up to the end of the previous run
-  if(pars_->restart) {
-    DEBUG_PRINT("reading restart file \n");
-    this->restart_read(time);
-  }
-
-  cudaDeviceSynchronize();
-  //  checkCuda(cudaGetLastError());
-
-  //  return cudaGetLastError();
-  
-}
-
-void MomentsG::initialConditions(float* z_h, double* time) {
+void MomentsG::initialConditions(double* time) {
  
   checkCuda(cudaGetLastError());
   cudaDeviceSynchronize(); // to make sure its safe to operate on host memory
 
+  float *z_h = grids_->z_h;
+
   size_t momsize = sizeof(cuComplex)*grids_->NxNycNz;
   cuComplex *init_h = nullptr;
-  cudaMallocHost(&init_h, momsize);   checkCuda(cudaGetLastError());
+  init_h = (cuComplex*) malloc(momsize);
 
   for (int idx=0; idx<grids_->NxNycNz; idx++) {
     init_h[idx].x = 0.;
@@ -268,8 +270,10 @@ void MomentsG::initialConditions(float* z_h, double* time) {
 	//    DEBUG_PRINT("fac = %f \n",fac);
 	for(int iz=0; iz<grids_->Nz; iz++) {
 	  int index = iky + grids_->Nyc*ikx + grids_->NxNyc*iz;
-	  init_h[index].x = pars_->init_amp; //*fac;
-	  init_h[index].y = 0.; //init_amp;
+	  init_h[index].x = pars_->init_amp*cos(pars_->kpar_init*z_h[iz]/pars_->Zp); //*fac;
+	  init_h[index].y = pars_->init_amp*cos(pars_->kpar_init*z_h[iz]/pars_->Zp); //*fac;
+	  //init_h[index].y = 0.; //init_amp;
+	      	    printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
 	}
       }
     } else {
@@ -304,7 +308,7 @@ void MomentsG::initialConditions(float* z_h, double* time) {
 		init_h[index].x *= cos(pars_->kpar_init*z_h[k]/pars_->Zp);
 		init_h[index].y *= cos(pars_->kpar_init*z_h[k]/pars_->Zp);
 	      }
-	      //	    printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
+	      	    printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
 	    }
 	  }
 	  if (pars_->random_init) {
@@ -344,7 +348,7 @@ void MomentsG::initialConditions(float* z_h, double* time) {
       }
     checkCuda(cudaGetLastError());    
   }
-  cudaFreeHost(init_h);     
+  free(init_h);     
   // restart_read goes here, if restart == T
   // as in gs2, if restart_read is true, we want to *add* the restart values to anything
   // that has happened above and also move the value of time up to the end of the previous run
@@ -481,8 +485,8 @@ void MomentsG::restart_write(double* time)
   unsigned int itot, jtot;
   jtot = Nx   * Nyc  * Nz * Nm * Nl * nspec;
   itot = Nakx * Naky * Nz * Nm * Nl * nspec;
-  cudaMallocHost((void**) &G_h,   sizeof(cuComplex) * jtot); 
-  cudaMallocHost((void**) &G_out, sizeof(float) * itot * 2);
+  G_h = (cuComplex*) malloc(sizeof(cuComplex) * jtot); 
+  G_out = (float*) malloc(sizeof(float) * itot * 2);
 
   for (unsigned int index=0; index <   jtot; index++) {G_h[index].x = 0.; G_h[index].y = 0.;}
   for (unsigned int index=0; index < 2*itot; index++) G_out[index] = 0.;
@@ -518,8 +522,8 @@ void MomentsG::restart_write(double* time)
 
   if (retval = nc_put_vara(ncres, id_G, start, count, G_out)) ERR(retval);
       
-  cudaFreeHost(G_out);
-  cudaFreeHost(G_h);
+  free(G_out);
+  free(G_h);
 
   if (retval = nc_close(ncres)) ERR(retval);
 }
@@ -617,9 +621,9 @@ void MomentsG::restart_read(double* time)
     int old_ns = nspec - pars_->ns_add;
     iitot = old_Nakx * old_Naky * old_Nz * old_Nm * old_Nl * old_ns;
   }
-  cudaMallocHost((void**) &G_hold, lhsize);
-  cudaMallocHost((void**) &G_h,    lhsize);
-  cudaMallocHost((void**) &G_in,   sizeof(float) * iitot * 2);
+  G_hold = (cuComplex*) malloc(lhsize);
+  G_h = (cuComplex*) malloc(lhsize);
+  G_in = (float*) malloc(sizeof(float) * iitot * 2);
   
   for (unsigned int index=0; index < itot;  index++) {G_hold[index].x = 0.; G_hold[index].y = 0.;}
   for (unsigned int index=0; index < itot;  index++) {G_h[index].x = 0.; G_h[index].y = 0.;}
@@ -715,13 +719,13 @@ void MomentsG::restart_read(double* time)
       }
     }
   }
-  cudaFreeHost(G_in);
-  cudaFreeHost(G_hold);
+  free(G_in);
+  free(G_hold);
   
   unsigned int jtot = Nx * Nyc * Nz * Nm * Nl * nspec;
   CP_TO_GPU(G_lm, G_h, sizeof(cuComplex)*jtot);
   
-  cudaFreeHost(G_h);
+  free(G_h);
 }
 
 void MomentsG::qvar(int N)

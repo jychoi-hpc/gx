@@ -334,7 +334,7 @@ void dBlock_Reduce::Sum(double* A, double* B, int i)
 		    opAdd, typeCompute64, Addwork, sizeAdd, 0);
   /*
   double * vec;
-  cudaMallocHost((void **) &vec, sizeof(double)*N_);
+  vec = (double*) malloc(sizeof(double)*N_);
   CP_TO_CPU(vec, A, sizeof(double)*N_);
   for (int n=0; n<N_; n++) {
     printf("A[%d] = %e \n",n,vec[n]);
@@ -342,7 +342,7 @@ void dBlock_Reduce::Sum(double* A, double* B, int i)
 
   CP_TO_CPU(vec, B, sizeof(double));
   printf("B = %e \n",vec[0]);
-  cudaFreeHost(vec);
+  free(vec);
   */
 }
 

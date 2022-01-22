@@ -8,7 +8,7 @@
 #define KXKY <<< dGk, dBk >>>
 #define loop_y <<< dgp, dbp >>> 
 
-Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
+Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
   fields_old(nullptr), id(nullptr), grad_par(nullptr), amom_d(nullptr), grad_perp(nullptr)//, grad_phi(nullptr)
 {
@@ -30,7 +30,9 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   G2          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
   vEk         = nullptr;  phi_max     = nullptr;
+  ry_h        = nullptr;  gy_h        = nullptr;  gy_d        = nullptr;
 
+  
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
   fields_old = new      Fields(pars_, grids_);      cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
 
@@ -38,21 +40,35 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
 
   if (pars_->Reservoir) rc = new Reservoir(pars_, grids_->NxNyNz*grids_->Nmoms);  
   
-  volDenom = 0. ;  cudaMallocHost (&vol_fac, sizeof(float) * nZ);
+  volDenom = 0.;  
+  float *vol_fac_h;
+  vol_fac_h = (float*) malloc (sizeof(float) * nZ);
+  cudaMalloc (&vol_fac, sizeof(float) * nZ);
   for (int i=0; i < nZ; i++) volDenom   += geo_->jacobian_h[i]; 
-  for (int i=0; i < nZ; i++) vol_fac[i]  = geo_->jacobian_h[i] / volDenom;
+  for (int i=0; i < nZ; i++) vol_fac_h[i]  = geo_->jacobian_h[i] / volDenom;
+  CP_TO_GPU(vol_fac, vol_fac_h, sizeof(float)*nZ);
+  free(vol_fac_h);
 
-  fluxDenom = 0.;  cudaMallocHost (&flux_fac, sizeof(float) * nZ);
-  //  for (int i=0; i<grids_->Nz; i++) fluxDenom   += geo_->jacobian_h[i]*geo_->grho_h[i];
-  //  for (int i=0; i<grids_->Nz; i++) flux_fac[i]  = geo_->jacobian_h[i]*geo_->grho_h[i] / fluxDenom;
+  fluxDenom = 0.;  
+  float *flux_fac_h;
+  flux_fac_h = (float*) malloc (sizeof(float) * nZ);
+  cudaMalloc(&flux_fac, sizeof(float)*nZ);
+  // for (int i=0; i<grids_->Nz; i++) fluxDenom   += geo_->jacobian_h[i]*geo_->grho_h[i];
+  //  for (int i=0; i<grids_->Nz; i++) flux_fac_h[i]  = geo_->jacobian_h[i]*geo_->grho_h[i] / fluxDenom;
   for (int i=0; i<grids_->Nz; i++) fluxDenom   += geo_->jacobian_h[i]*geo_->grho_h[i];
-  for (int i=0; i<grids_->Nz; i++) flux_fac[i]  = geo_->jacobian_h[i] / fluxDenom;
+  for (int i=0; i<grids_->Nz; i++) flux_fac_h[i]  = geo_->jacobian_h[i] / fluxDenom;
+  CP_TO_GPU(flux_fac, flux_fac_h, sizeof(float)*nZ);
+  free(flux_fac_h);
   
   if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2, sizeof(float) * nG); 
 
   if (pars_->diagnosing_kzspec) {
-    cudaMallocHost (&kvol_fac, sizeof(float) * nZ);
-    for (int i=0; i < nZ; i++) kvol_fac[i] = 1.0;
+    float *kvol_fac_h;
+    kvol_fac_h = (float*) malloc (sizeof(float) * nZ);
+    cudaMalloc (&kvol_fac, sizeof(float) * nZ);
+    for (int i=0; i < nZ; i++) kvol_fac_h[i] = 1.0;
+    CP_TO_GPU(kvol_fac, kvol_fac_h, sizeof(float)*nZ);
+    free(kvol_fac_h);
 
     cudaMalloc (&amom_d, sizeof(cuComplex) * nR * nS); 
     if (pars_->local_limit) {
@@ -68,7 +84,7 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   // need if (pars_->write_flux || "diagnosing potential) {
   cudaMalloc (&P2s, sizeof(float) * nR * nS);
 
-  if (id -> rh -> write) cudaMallocHost(&val, sizeof(float)*2);
+  if (id -> rh -> write) val = (float*) malloc(sizeof(float)*2);
 
   if (!pars_->all_kinetic) {
 
@@ -82,7 +98,7 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   
   if (id -> omg -> write_v_time) {
     cudaMalloc     (    &omg_d,   sizeof(cuComplex) * nX * nY);//     cudaMemset (omg_d, 0., sizeof(cuComplex) * nX * nY);
-    cudaMallocHost (&tmp_omg_h,   sizeof(cuComplex) * nX * nY);
+    tmp_omg_h = (cuComplex*) malloc (sizeof(cuComplex) * nX * nY);
     int nn = nX*nY; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;  cuComplex zero = make_cuComplex(0.,0.);
     setval <<< nb, nt >>> (omg_d, zero, nn);
   }  
@@ -93,9 +109,9 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   
   /*
   if (pars_->diagnosing_pzt) {
-    cudaMallocHost (&primary,   sizeof(float));    primary[0] = 0.;  
-    cudaMallocHost (&secondary, sizeof(float));    secondary[0] = 0.;
-    cudaMallocHost (&tertiary,  sizeof(float));    tertiary[0] = 0.;
+    primary = (float*) malloc (sizeof(float));    primary[0] = 0.;  
+    secondary = (float*) malloc (sizeof(float));  secondary[0] = 0.;  
+    tertiary = (float*) malloc (sizeof(float));    tertiary[0] = 0.;  
     cudaMalloc     (&t_bar,     sizeof(cuComplex) * nR * nS);
   }
   */
@@ -146,10 +162,10 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   
   if (pars_->ks) {
     cudaMalloc     (&gy_d, sizeof(float)*grids_->Ny);
-    cudaMallocHost (&gy_h, sizeof(float)*grids_->Ny);
+    gy_h = (float*) malloc (sizeof(float)*grids_->Ny);
 
     if (pars_->ResWrite) {
-      cudaMallocHost (&ry_h, sizeof(double)*pars_->ResQ*grids_->NxNyNz*grids_->Nmoms);
+      ry_h = (double*) malloc(sizeof(double)*pars_->ResQ*grids_->NxNyNz*grids_->Nmoms);
     }
   }
   
@@ -159,7 +175,7 @@ Diagnostics::Diagnostics(Parameters* pars, Grids* grids, Geometry* geo) :
   }    
 }
 
-Diagnostics::~Diagnostics()
+Diagnostics_GK::~Diagnostics_GK()
 {
   if (fields_old) delete fields_old;
   if (id)         delete id;
@@ -171,28 +187,36 @@ Diagnostics::~Diagnostics()
   if (omg_d)      cudaFree      ( omg_d     );
   if (gy_d)       cudaFree      ( gy_d      );
   if (amom_d)     cudaFree      ( amom_d    );
-
+  if (favg)       cudaFree      ( favg      );
+  if (df)         cudaFree      ( df        );
+  
   if (vEk)        cudaFree      ( vEk       );
   if (phi_max)    cudaFree      ( phi_max   );
   
-  if (vol_fac)    cudaFreeHost  ( vol_fac   );
-  if (flux_fac)   cudaFreeHost  ( flux_fac  );
-  if (kvol_fac)   cudaFreeHost  ( kvol_fac  );
-  if (val)        cudaFreeHost  ( val       );
-  if (tmp_omg_h)  cudaFreeHost  ( tmp_omg_h );
-  if (gy_h)       cudaFreeHost  ( gy_h      );
-  if (ry_h)       cudaFreeHost  ( ry_h      );
+  if (vol_fac)    cudaFree  ( vol_fac   );
+  if (flux_fac)   cudaFree  ( flux_fac  );
+  if (kvol_fac)   cudaFree  ( kvol_fac  );
+  if (val)        free  ( val       );
+  if (tmp_omg_h)  free  ( tmp_omg_h );
+  if (gy_h)       free  ( gy_h      );
+  if (ry_h)       free  ( ry_h      );
 }
 
-bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, double time) 
+bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, double time) 
 {
   int retval;
   bool stop = false;
   int nw;
 
+  if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+    int nt = min(512, grids_->NxNyc) ;
+    growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
+    fields_old->copyPhiFrom(fields);
+  }
+
   nw = pars_->nwrite;
 
-  if ((counter % nw == nw-1) && id -> omg -> write_v_time) fields_old->copyPhiFrom(fields);
+  //if ((counter % nw == nw-1) && id -> omg -> write_v_time) fields_old->copyPhiFrom(fields);
     
   if(counter%nw == 0) {
 
@@ -208,10 +232,6 @@ bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, doub
     if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
     
     if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
-
-      int nt = min(512, grids_->NxNyc) ;
-      growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
-      
       print_omg(omg_d);  id -> write_omg(omg_d);
     }
 
@@ -284,7 +304,7 @@ bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, doub
 
       if (pars_->ks) {
 	cuComplex * g_h;
-	cudaMallocHost (&g_h, sizeof(cuComplex)*grids_->Nyc);
+	g_h = (cuComplex*) malloc (sizeof(cuComplex)*grids_->Nyc);
 	CP_TO_CPU(g_h, G->G(), sizeof(cuComplex)*grids_->Nyc);
 	float Dtmp = 0.;
 	for (int i=0; i<grids_->Naky; i++) {
@@ -293,7 +313,7 @@ bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, doub
 	Dks += Dtmp;
 	printf("<D> = %f \t",Dks/((float) ndiag));
 	ndiag += 1;
-	cudaFreeHost  (g_h);
+	free(g_h);
       }
       
       id->write_Wm    (G2   );    id->write_Wl    (G2   );    id->write_Wlm   (G2   );    
@@ -340,6 +360,7 @@ bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, doub
     // Plot the non-zonal components as functions of (x, y)
     id -> write_moment ( id -> xykxvEy, fields->phi,    vol_fac);
     id -> write_moment ( id -> xyvEy,   fields->phi,    vol_fac);
+    id -> write_moment ( id -> xyvEx,   fields->phi,    vol_fac);
     id -> write_moment ( id -> xyden,   G->dens_ptr[0], vol_fac);
     id -> write_moment ( id -> xyUpar,  G->upar_ptr[0], vol_fac);
     id -> write_moment ( id -> xyTpar,  G->tpar_ptr[0], vol_fac);
@@ -375,7 +396,7 @@ bool Diagnostics::loop(MomentsG* G, Fields* fields, double dt, int counter, doub
   return stop;
 }
 
-void Diagnostics::finish(MomentsG* G, Fields* fields, double time) 
+void Diagnostics_GK::finish(MomentsG* G, Fields* fields, double time) 
 {
   if (pars_->Reservoir && rc->predicting()) {
     if (pars_->ResFakeData) {
@@ -399,7 +420,21 @@ void Diagnostics::finish(MomentsG* G, Fields* fields, double time)
   id->close_nc_file();  fflush(NULL);
 }
 
-void Diagnostics::print_omg(cuComplex *W)
+void Diagnostics_GK::copy_fluxes_to_trinity(trin_fluxes_struct *tfluxes)
+{
+  // these are placeholders for gx-computed quantities
+  float qflux = 0.;
+  float pflux = 0.;
+  float heat = 0.;
+
+  for(int s=0; s<grids_->Nspecies; s++) {
+    tfluxes->qflux[s] = qflux;
+    tfluxes->pflux[s] = pflux;
+    tfluxes->heat[s] = heat;
+  }
+}
+
+void Diagnostics_GK::print_omg(cuComplex *W)
 {
   CP_TO_CPU (tmp_omg_h, W, sizeof(cuComplex)*grids_->NxNyc);
   print_growth_rates_to_screen(tmp_omg_h);
@@ -427,7 +462,7 @@ void Diagnostics::print_omg(cuComplex *W)
   // whatever is leftover will give W.
   //
 
-void Diagnostics::get_rh(Fields* f)
+void Diagnostics_GK::get_rh(Fields* f)
 {
     ikx_local = 1; iky_local = 0; iz_local=grids_->Nz/2; // correct values for usual RH tests
 
@@ -438,7 +473,7 @@ void Diagnostics::get_rh(Fields* f)
     val[1] = valphi.y;
 }
 
-bool Diagnostics::checkstop() 
+bool Diagnostics_GK::checkstop() 
 {
   struct stat buffer;   
   bool stop = (stat (stopfilename_, &buffer) == 0);
@@ -446,7 +481,244 @@ bool Diagnostics::checkstop()
   return stop;
 }
 
-void Diagnostics::print_growth_rates_to_screen(cuComplex* w)
+void Diagnostics_GK::print_growth_rates_to_screen(cuComplex* w)
+{
+  int Nx = grids_->Nx;
+  int Naky = grids_->Naky;
+  int Nyc  = grids_->Nyc;
+
+  printf("ky\tkx\t\tomega\t\tgamma\n");
+
+  for(int j=0; j<Naky; j++) {
+    for(int i= 1 + 2*Nx/3; i<Nx; i++) {
+      int index = j + Nyc*i;
+      printf("%.4f\t%.4f\t\t%.6f\t%.6f",  grids_->ky_h[j], grids_->kx_h[i], w[index].x, w[index].y);
+      printf("\n");
+    }
+    for(int i=0; i < 1 + (Nx-1)/3; i++) {
+      int index = j + Nyc*i;
+      if(index!=0) {
+	printf("%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], w[index].x, w[index].y);
+	printf("\n");
+      } else {
+	printf("%.4f\t%.4f\n", grids_->ky_h[j], grids_->kx_h[i]);
+      }
+    }
+    if (Nx>1) printf("\n");
+  }
+}
+
+
+Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids) :
+  pars_(pars), grids_(grids),
+  fields_old(nullptr), id(nullptr), grad_par(nullptr), amom_d(nullptr), grad_perp(nullptr)//, grad_phi(nullptr)
+{
+  printf(ANSI_COLOR_BLUE);
+  
+  int nL  = grids_->Nl;
+  int nM  = grids_->Nm;
+  int nS  = grids_->Nspecies;
+  int nX  = grids_->Nx;
+  int nXk = grids_->Nakx;
+  int nY  = grids_->Nyc;
+  int nYk = grids_->Naky;
+  int nZ  = grids_->Nz;
+  int nR  = nX  * nY  * nZ; // nY is *not* the number of grid points in the y-direction. 
+  int nK  = nXk * nYk * nZ;
+  int nG  = nR * grids_->Nmoms * nS;
+
+  favg        = nullptr;  df          = nullptr;  val         = nullptr;  
+  G2          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
+  omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
+  vEk         = nullptr;  phi_max     = nullptr;
+
+  id         = new NetCDF_ids(grids_, pars_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
+  fields_old = new      Fields(pars_, grids_);      cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
+
+  float *vol_fac_h;
+  vol_fac_h = (float*) malloc (sizeof(float) * nZ);
+  cudaMalloc (&vol_fac, sizeof(float) * nZ);
+  for (int i=0; i < nZ; i++) vol_fac_h[i]  = 1;
+  CP_TO_GPU(vol_fac, vol_fac_h, sizeof(float)*nZ);
+  free(vol_fac_h);
+
+  //if (pars_->diagnosing_kzspec) {
+  //  float *kvol_fac_h;
+  //  kvol_fac_h = (float*) malloc (sizeof(float) * nZ);
+  //  cudaMalloc (&kvol_fac, sizeof(float) * nZ);
+  //  for (int i=0; i < nZ; i++) kvol_fac_h[i] = 1.0;
+  //  CP_TO_GPU(kvol_fac, kvol_fac_h, sizeof(float)*nZ);
+  //  free(kvol_fac_h);
+
+  //  cudaMalloc (&amom_d, sizeof(cuComplex) * nR * nS); 
+  //  if (pars_->local_limit) {
+  //    // nothing, this is not defined, or could be defined as an identity.
+  //  }
+  //  else if(pars_->boundary_option_periodic) {
+  //    grad_par = new GradParallelPeriodic(grids_);
+  //  }
+  //  else {
+  //    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+  //  }
+  //}
+  // need if (pars_->write_flux || "diagnosing potential) {
+  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2, sizeof(float) * nG); 
+  cudaMalloc (&P2s, sizeof(float) * nR * nS);
+
+  if (id -> omg -> write_v_time) {
+    cudaMalloc     (    &omg_d,   sizeof(cuComplex) * nX * nY);//     cudaMemset (omg_d, 0., sizeof(cuComplex) * nX * nY);
+    tmp_omg_h = (cuComplex*) malloc (sizeof(cuComplex) * nX * nY);
+    int nn = nX*nY; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;  cuComplex zero = make_cuComplex(0.,0.);
+    setval <<< nb, nt >>> (omg_d, zero, nn);
+  }  
+
+  if (id -> kxvEy -> write_v_time || id -> xykxvEy -> write_v_time) {
+    cudaMalloc     (&vEk,        sizeof(cuComplex) * grids_->NxNycNz);
+  }
+  
+  /*
+  if (pars_->diagnosing_pzt) {
+    primary = (float*) malloc (sizeof(float));    primary[0] = 0.;  
+    secondary = (float*) malloc (sizeof(float));  secondary[0] = 0.;  
+    tertiary = (float*) malloc (sizeof(float));    tertiary[0] = 0.;  
+    cudaMalloc     (&t_bar,     sizeof(cuComplex) * nR * nS);
+  }
+  */
+    
+  // Remember that delta theta is a constant in this formalism!   
+
+  // set up stop file
+  sprintf(stopfilename_, "%s.stop", pars_->run_name);
+
+  //  dB_scale = min(512, nR);
+  //  dG_scale = 1 + (nR-1)/dB_scale.x;
+
+  dB_spectra = dim3(min(16, nY), min(8, nX), min(8, nZ));
+  dG_spectra = dim3(1 + (nY-1)/dB_spectra.x, 1 + (nX-1)/dB_spectra.y, 1 + (nZ-1)/dB_spectra.z);  
+
+  int nyx =  nY * nX;
+  int nslm = nL * nM * nS;
+
+  int nt1 = 32;
+  int nb1 = 1 + (nyx-1)/nt1;
+
+  int nt2 = 32;
+  int nb2 = 1 + (grids_->Nz-1)/nt2;
+  
+  dB_all = dim3(nt1, nt2, 1);
+  dG_all = dim3(nb1, nb2, nslm);
+  
+  nt1 = min(32, grids_->Nyc);
+  nb1 = 1 + (grids_->Nyc-1)/nt1;
+
+  nt2 = min(32, grids_->Nx);
+  nb2 = 1 + (grids_->Nx-1)/nt2;
+
+  dBk = dim3(nt1, nt2, 1);
+  dGk = dim3(nb1, nb2, 1);
+  
+  if (grids_->Nakx > 1024) {printf("Need to redefine GFLA in diagnostics \n"); exit(1);}
+
+  nt1 = min(grids_->Ny, 512);
+  nb1 = 1 + (grids_->Ny-1)/nt1;
+
+  dbp = dim3(nt1, 1, 1);
+  dgp = dim3(nb1, 1, 1);
+
+  printf(ANSI_COLOR_RESET);
+  ndiag = 1;
+  Dks = 0.;
+}
+
+Diagnostics_KREHM::~Diagnostics_KREHM()
+{
+  if (fields_old) delete fields_old;
+  if (id)         delete id;
+
+  if (G2)         cudaFree      ( G2        );
+  if (P2s)        cudaFree      ( P2s       );
+  if (Phi2)       cudaFree      ( Phi2      );
+  if (t_bar)      cudaFree      ( t_bar     );
+  if (omg_d)      cudaFree      ( omg_d     );
+  if (amom_d)     cudaFree      ( amom_d    );
+
+  if (vEk)        cudaFree      ( vEk       );
+  if (phi_max)    cudaFree      ( phi_max   );
+  
+  if (vol_fac)   cudaFree  ( vol_fac  );
+  if (kvol_fac)   cudaFree  ( kvol_fac  );
+  if (val)        free  ( val       );
+  if (tmp_omg_h)  free  ( tmp_omg_h );
+}
+
+bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter, double time) 
+{
+  int retval;
+  bool stop = false;
+  int nw;
+
+  nw = pars_->nwrite;
+
+  if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+    int nt = min(512, grids_->NxNyc) ;
+    growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
+    fields_old->copyPhiFrom(fields);
+  }
+
+  if(counter%nw == 0) {
+
+    fflush(NULL);
+    id -> write_nc(id -> time, time);
+ 
+    //if (pars_->write_phi) id->write_nc(id->phi, phi);
+
+    if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
+    
+    if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+      print_omg(omg_d);  id -> write_omg(omg_d);
+    }
+
+    if (pars_->diagnosing_spectra) {                                        // Various spectra
+      W_summand GALL (G2, G->G(), vol_fac, G->nt());
+
+      Wphi_summand_krehm loop_R (P2(), fields->phi, vol_fac, grids_->kx, grids_->ky, pars_->rho_i);
+      
+      id->write_Wm    (G2   );    id->write_Wl    (G2   );    id->write_Wlm   (G2   );    
+      id->write_Wz    (G2   );    id->write_Wky   (G2   );    id->write_Wkx   (G2   );    id->write_Wkxky (G2  );    
+      id->write_Pz    (P2() );    id->write_Pky   (P2() );    id->write_Pkx   (P2() );    id->write_Pkxky (P2());    
+      
+      // Do not change the order of these four calls because totW is accumulated in order when it is requested:
+      //id->write_Ps(P2s);    id->write_Ws(G2);   // id->write_As(Phi2);    id->write_Wtot();
+    }
+
+    nc_sync(id->file);
+  }
+
+  // check to see if we should stop simulation
+  stop = checkstop();
+  return stop;
+}
+
+void Diagnostics_KREHM::finish(MomentsG* G, Fields* fields, double time) 
+{
+  id->close_nc_file();  fflush(NULL);
+}
+
+void Diagnostics_KREHM::print_omg(cuComplex *W)
+{
+  CP_TO_CPU (tmp_omg_h, W, sizeof(cuComplex)*grids_->NxNyc);
+  print_growth_rates_to_screen(tmp_omg_h);
+}
+
+bool Diagnostics_KREHM::checkstop() 
+{
+  struct stat buffer;   
+  bool stop = (stat (stopfilename_, &buffer) == 0);
+  if (stop) remove(stopfilename_);
+  return stop;
+}
+
+void Diagnostics_KREHM::print_growth_rates_to_screen(cuComplex* w)
 {
   int Nx = grids_->Nx;
   int Naky = grids_->Naky;

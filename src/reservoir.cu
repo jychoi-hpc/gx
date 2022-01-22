@@ -98,9 +98,9 @@ Reservoir::Reservoir(Parameters* pars, int Min) :
   bool first = true;
   
   double * A_h;  int * A_j;  double * W_h; 
-  cudaMallocHost((void**) &A_h, sizeof(double) * nnz);
-  cudaMallocHost((void**) &A_j, sizeof(int)   * nnz);
-  cudaMallocHost((void**) &W_h, sizeof(double) * N);
+  A_h = (double*) malloc(sizeof(double) * nnz);
+  A_j = (int*) malloc(sizeof(int)   * nnz);
+  W_h = (double*) malloc(sizeof(double) * N);
   
   std::random_device rd;
   std::mt19937 gen(rd()); 
@@ -132,9 +132,9 @@ Reservoir::Reservoir(Parameters* pars, int Min) :
   CP_TO_GPU (A_in,  A_h, sizeof(double) * nnz);
   CP_TO_GPU (A_col, A_j, sizeof(int)    * nnz);
   
-  cudaFreeHost(W_h);
-  cudaFreeHost(A_h);
-  cudaFreeHost(A_j);
+  free(W_h);
+  free(A_h);
+  free(A_j);
 
   if (false) {
     red = new dBlock_Reduce(N); cudaDeviceSynchronize();
@@ -215,7 +215,7 @@ void Reservoir::add_data(float* G)
     if (addNoise_) {
       float *Gnoise_h, *Gnoise;
       checkCuda(cudaMalloc(    (void**) &Gnoise,   sizeof(float)*M ));
-      checkCuda(cudaMallocHost((void**) &Gnoise_h, sizeof(float)*M ));
+      Gnoise_h = (float*) malloc(sizeof(float)*M);
       // specialize to KS for now
       // get a normally-distributed random number with mean = 1 and sigma=sigNoise_, 
       // make sure k=0 component has no noise;
@@ -227,7 +227,7 @@ void Reservoir::add_data(float* G)
       for (int m=0; m<M; m++) Gnoise_h[m] = 1. + Gnoise_h[m] - sum;
       
       CP_TO_GPU(Gnoise, Gnoise_h, sizeof(cuComplex)*M);
-      cudaFreeHost(Gnoise_h);
+      free(Gnoise_h);
       promote loop_M (dG, G, Gnoise, M);
       cudaFree(Gnoise);      
     } else {
@@ -256,7 +256,7 @@ void Reservoir::add_data(float* G)
 
     /*
     double * W_h;
-    cudaMallocHost((void**) &W_h, sizeof(double) * M * N);
+    W_h = (double*) malloc(sizeof(double)*M*N);
     CP_TO_GPU (W_h,  V, sizeof(double) *M*N  );
 
     for (int n1=0; n1<N; n1++) {
@@ -264,7 +264,7 @@ void Reservoir::add_data(float* G)
 	printf("W[%d, %d] = %e \n", n2, n1, W_h[n2+M*n1]);
       }
     }
-    cudaFreeHost(W_h);
+    free(W_h);
     exit(1);
     */
     

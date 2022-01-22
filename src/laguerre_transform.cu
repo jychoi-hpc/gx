@@ -5,9 +5,9 @@ LaguerreTransform::LaguerreTransform(Grids* grids, int batch_size) :
   toGrid(nullptr), toSpectral(nullptr), roots(nullptr)
 {
   float * toGrid_h     = nullptr;  float * toSpectral_h = nullptr;  float * roots_h      = nullptr;
-  cudaMallocHost ((void**) &toGrid_h,     sizeof(float)*L*J);
-  cudaMallocHost ((void**) &toSpectral_h, sizeof(float)*L*J);
-  cudaMallocHost ((void**) &roots_h,      sizeof(float)*J);
+  toGrid_h     = (float*) malloc(sizeof(float)*L*J);
+  toSpectral_h = (float*) malloc(sizeof(float)*L*J);
+  roots_h      = (float*) malloc(sizeof(float)*J);
 
   cudaMalloc ((void**) &toGrid,     sizeof(float)*L*J);
   cudaMalloc ((void**) &toSpectral, sizeof(float)*L*J);
@@ -20,9 +20,9 @@ LaguerreTransform::LaguerreTransform(Grids* grids, int batch_size) :
   CP_TO_GPU (roots,      roots_h,      sizeof(float)*J);
 
   cublasCreate (&handle);
-  if (toGrid_h)     cudaFreeHost (toGrid_h);
-  if (toSpectral_h) cudaFreeHost (toSpectral_h);
-  if (roots_h)      cudaFreeHost (roots_h);
+  if (toGrid_h)     free (toGrid_h);
+  if (toSpectral_h) free (toSpectral_h);
+  if (roots_h)      free (roots_h);
 }
 
 LaguerreTransform::~LaguerreTransform()

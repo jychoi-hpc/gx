@@ -12,9 +12,11 @@
 #define ERR(e) {printf("Error: %s. See file: %s, line %d\n", nc_strerror(e),__FILE__,__LINE__); exit(2);}
 
 #include "species.h"
+#include "trinity_interface.h"
 // #include <cufft.h>
 #include <string>
 #include <vector>
+#include <mpi.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -64,13 +66,14 @@ enum ASpectra {ASPECTRA_species,
 class Parameters {
 
  public:
-  Parameters(void);
+  Parameters(MPI_Comm mpcom);
   ~Parameters(void);
   
   const int nw_spectra = 10; // should match # of elements in WSpectra
   const int np_spectra = 7;  // should match # of elements in PSpectra
   const int na_spectra = 7;  // should match # of elements in ASpectra
   void get_nml_vars(char* file);
+  void set_from_trinity(trin_parameters_struct *tpars);
 
   void init_species(specie* species);
 
@@ -116,6 +119,10 @@ class Parameters {
   float eps_ks;
   float vp_nu, vp_nuh;
   int vp_alpha, vp_alpha_h;
+
+  // parameters for KREHM system
+  bool krehm;
+  float rho_s, rho_i, d_e, zt;
   
   cuComplex phi_test, smith_perp_w0;
 
@@ -132,7 +139,8 @@ class Parameters {
 
   bool write_vEy, write_kxvEy, write_kden, write_kUpar, write_kTpar, write_kTperp, write_kqpar;
 
-  bool write_xyvEy, write_xykxvEy, write_xyden, write_xyUpar, write_xyTpar, write_xyTperp, write_xyqpar;
+  bool write_xyvEx, write_xyvEy, write_xykxvEy, write_xyden, write_xyUpar;
+  bool write_xyTpar, write_xyTperp, write_xyqpar;
 
   bool nonlinear_mode, linear, iso_shear, secondary, local_limit, hyper, HB_hyper;
   bool no_landau_damping, turn_off_gradients_test, slab, hypercollisions;

@@ -37,7 +37,6 @@ class MomentsG {
   void qvar (int N);
   void apply_mask(void);
   void initVP(double* time);
-  void initialConditions(float* z_h, double* time);
   void initialConditions(double* time);
   void restart_write(double* time);
   void restart_read(double* time);

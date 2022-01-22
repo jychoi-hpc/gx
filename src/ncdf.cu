@@ -183,21 +183,24 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
 
   int nc_geo;
   if (retval = nc_inq_grp_ncid(file, "Geometry", &nc_geo)) ERR(retval);
-  
-  geo_v_theta[0] = nz; int ivar;
-  if (retval = nc_def_var (file,   "theta",    NC_FLOAT, 1, geo_v_theta, &theta))    ERR(retval);
-  if (retval = nc_def_var (nc_geo, "bmag",     NC_FLOAT, 1, geo_v_theta, &bmag))     ERR(retval);
-  if (retval = nc_def_var (nc_geo, "bgrad",    NC_FLOAT, 1, geo_v_theta, &bgrad))    ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gbdrift",  NC_FLOAT, 1, geo_v_theta, &gbdrift))  ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gbdrift0", NC_FLOAT, 1, geo_v_theta, &gbdrift0)) ERR(retval);
-  if (retval = nc_def_var (nc_geo, "cvdrift",  NC_FLOAT, 1, geo_v_theta, &cvdrift))  ERR(retval);
-  if (retval = nc_def_var (nc_geo, "cvdrift0", NC_FLOAT, 1, geo_v_theta, &cvdrift0)) ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gds2",     NC_FLOAT, 1, geo_v_theta, &gds2))     ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gds21",    NC_FLOAT, 1, geo_v_theta, &gds21))    ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gds22",    NC_FLOAT, 1, geo_v_theta, &gds22))    ERR(retval);
-  if (retval = nc_def_var (nc_geo, "grho",     NC_FLOAT, 1, geo_v_theta, &grho))     ERR(retval);
-  if (retval = nc_def_var (nc_geo, "jacobian", NC_FLOAT, 1, geo_v_theta, &jacobian)) ERR(retval);
-  if (retval = nc_def_var (nc_geo, "gradpar",  NC_FLOAT, 0, NULL,        &ivar))     ERR(retval);
+
+  int ivar;
+  if (geo_) {
+    geo_v_theta[0] = nz; 
+    if (retval = nc_def_var (file,   "theta",    NC_FLOAT, 1, geo_v_theta, &theta))    ERR(retval);
+    if (retval = nc_def_var (nc_geo, "bmag",     NC_FLOAT, 1, geo_v_theta, &bmag))     ERR(retval);
+    if (retval = nc_def_var (nc_geo, "bgrad",    NC_FLOAT, 1, geo_v_theta, &bgrad))    ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gbdrift",  NC_FLOAT, 1, geo_v_theta, &gbdrift))  ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gbdrift0", NC_FLOAT, 1, geo_v_theta, &gbdrift0)) ERR(retval);
+    if (retval = nc_def_var (nc_geo, "cvdrift",  NC_FLOAT, 1, geo_v_theta, &cvdrift))  ERR(retval);
+    if (retval = nc_def_var (nc_geo, "cvdrift0", NC_FLOAT, 1, geo_v_theta, &cvdrift0)) ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gds2",     NC_FLOAT, 1, geo_v_theta, &gds2))     ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gds21",    NC_FLOAT, 1, geo_v_theta, &gds21))    ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gds22",    NC_FLOAT, 1, geo_v_theta, &gds22))    ERR(retval);
+    if (retval = nc_def_var (nc_geo, "grho",     NC_FLOAT, 1, geo_v_theta, &grho))     ERR(retval);
+    if (retval = nc_def_var (nc_geo, "jacobian", NC_FLOAT, 1, geo_v_theta, &jacobian)) ERR(retval);
+    if (retval = nc_def_var (nc_geo, "gradpar",  NC_FLOAT, 0, NULL,        &ivar))     ERR(retval);
+  }
   
   ////////////////////////////
   //                        //
@@ -1009,11 +1012,11 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   }
   */
   
-  ////////////////////////////
-  //                        //
-  //  <v_ExB>_y,z (x)       // 
-  //                        //
-  ////////////////////////////
+  ////////////////////////////////
+  //  Zonal, y-component of v_E //
+  //  <v_ExB>_y,z (x)           // 
+  //                            //
+  ////////////////////////////////
 
   if (pars_->write_vEy) {
     vEy = new nca(grids_->NxNyNz, grids_->Nx);
@@ -1282,7 +1285,7 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   ////////////////////////////
   // Non-zonal              //
   // <v_ExB> (x, y)         // 
-  //                        //
+  // y-component            //
   ////////////////////////////
 
   if (pars_->write_xyvEy) {
@@ -1303,6 +1306,32 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
     xyvEy -> dx = true;
   } else {
     xyvEy = new nca(0);
+  }
+  
+  ////////////////////////////
+  //                        //
+  // v_ExB (x, y)           // 
+  // x-component            //
+  ////////////////////////////
+
+  if (pars_->write_xyvEx) {
+    xyvEx = new nca(grids_->NxNyNz, grids_->NxNy);
+    xyvEx->write_v_time = true;
+  
+    xyvEx -> time_dims[0] = ztime_dim;
+    xyvEx -> time_dims[1] = zy_dim;  // Transpose to accommodate ncview
+    xyvEx -> time_dims[2] = zx_dim;
+    
+    xyvEx -> file = z_file;
+    if (retval = nc_def_var(z_file, "vEx_xyt", NC_FLOAT, 3, xyvEx -> time_dims, &xyvEx->time)) ERR(retval);
+    
+    xyvEx -> time_count[1] = grids_->Ny;      
+    xyvEx -> time_count[2] = grids_->Nx;          
+
+    xyvEx -> xydata = true;
+    xyvEx -> mdy = true; // Requesting that the diagnostic write -d/dy because this is part of v_E
+  } else {
+    xyvEx = new nca(0);
   }
   
   ////////////////////////////
@@ -1600,8 +1629,10 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   kz_start[0] = 0;
   kz_count[0] = grids_->Nz;
 
-  for (int i=0; i<grids_->Nz; i++) grids_->kpar_outh[i] = geo_->gradpar*grids_->kz_outh[i];
-  if (retval = nc_put_vara(file, kz, kz_start, kz_count, grids_->kpar_outh))      ERR(retval);
+  if(geo_) {
+    for (int i=0; i<grids_->Nz; i++) grids_->kpar_outh[i] = geo_->gradpar*grids_->kz_outh[i];
+    if (retval = nc_put_vara(file, kz, kz_start, kz_count, grids_->kpar_outh))      ERR(retval);
+  }
 
   ///////////////////////////////////
   //                               //
@@ -1628,67 +1659,69 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   //  geometric information        //
   //                               //
   ///////////////////////////////////
-  geo_start[0] = 0;
-  geo_count[0] = grids_->Nz;
+  if(geo_) {
+    geo_start[0] = 0;
+    geo_count[0] = grids_->Nz;
 
-  if (retval = nc_put_vara(file, theta,    geo_start, geo_count, geo_->z_h))         ERR(retval);
+    if (retval = nc_put_vara(file, theta,    geo_start, geo_count, geo_->z_h))         ERR(retval);
 
-  if (linked && false) {
-    
-    int Nx = grids_->Nx;
-    int Ny = grids_->Ny;
-    int Nz = grids_->Nz;
-    
-    int Naky = grids_->Naky;
-    
-    zkxky_count[0] = Nz;
-    zkxky_count[1] = 1;
-    zkxky_count[2] = 1;
-    
-    size_t size = sizeof(float)*Nz;
-    cudaMallocHost((void**) &theta_extended, size);
-    float th0;
-    for (int i=0; i<(Nx-1)/3+1; i++) {
-      for (int j=0; j<(Ny-1)/3+1; j++) {
-	if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
-	for (int k=0; k<Nz; k++) {
-	  theta_extended[k] = geo_->z_h[k] - th0;
-	}
-	zkxky_start[0] = 0;
-	zkxky_start[1] = i;
-	zkxky_start[2] = j;
-	if (retval = nc_put_vara(nc_geo, theta_x, zkxky_start, zkxky_count, theta_extended)) ERR(retval);
+    if (linked && false) {
+      
+      int Nx = grids_->Nx;
+      int Ny = grids_->Ny;
+      int Nz = grids_->Nz;
+      
+      int Naky = grids_->Naky;
+      
+      zkxky_count[0] = Nz;
+      zkxky_count[1] = 1;
+      zkxky_count[2] = 1;
+      
+      size_t size = sizeof(float)*Nz;
+      theta_extended = (float*) malloc(size);
+      float th0;
+      for (int i=0; i<(Nx-1)/3+1; i++) {
+        for (int j=0; j<(Ny-1)/3+1; j++) {
+          if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
+          for (int k=0; k<Nz; k++) {
+            theta_extended[k] = geo_->z_h[k] - th0;
+          }
+          zkxky_start[0] = 0;
+          zkxky_start[1] = i;
+          zkxky_start[2] = j;
+          if (retval = nc_put_vara(nc_geo, theta_x, zkxky_start, zkxky_count, theta_extended)) ERR(retval);
+        }
       }
-    }
-    for(int i=2*Nx/3+1; i<Nx; i++) {
-      for(int j=0; j<Naky; j++) {
-	if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
-	for (int k=0; k<Nz; k++) {
-	  theta_extended[k] = geo_->z_h[k] - th0;
-	}
-	zkxky_start[0] = 0;
-	zkxky_start[1] = i-2*Nx/3+(Nx-1)/3;
-	zkxky_start[2] = j;
-	if (retval = nc_put_vara(nc_geo, theta_x, zkxky_start, zkxky_count, theta_extended)) ERR(retval);
+      for(int i=2*Nx/3+1; i<Nx; i++) {
+        for(int j=0; j<Naky; j++) {
+          if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
+          for (int k=0; k<Nz; k++) {
+            theta_extended[k] = geo_->z_h[k] - th0;
+          }
+          zkxky_start[0] = 0;
+          zkxky_start[1] = i-2*Nx/3+(Nx-1)/3;
+          zkxky_start[2] = j;
+          if (retval = nc_put_vara(nc_geo, theta_x, zkxky_start, zkxky_count, theta_extended)) ERR(retval);
+        }
       }
+      if (theta_extended) free(theta_extended);
     }
-    if (theta_extended) cudaFreeHost(theta_extended);
+
+    //  if (retval = nc_put_vara(file, theta,    geo_start, geo_count, geo_->z_h))         ERR(retval);
+    if (retval = nc_put_vara(nc_geo, bmag,     geo_start, geo_count, geo_->bmag_h))      ERR(retval);
+    if (retval = nc_put_vara(nc_geo, bgrad,    geo_start, geo_count, geo_->bgrad_h))     ERR(retval);
+    if (retval = nc_put_vara(nc_geo, gbdrift,  geo_start, geo_count, geo_->gbdrift_h))   ERR(retval);
+    if (retval = nc_put_vara(nc_geo, gbdrift0, geo_start, geo_count, geo_->gbdrift0_h))  ERR(retval);
+    if (retval = nc_put_vara(nc_geo, cvdrift,  geo_start, geo_count, geo_->cvdrift_h))   ERR(retval);
+    if (retval = nc_put_vara(nc_geo, cvdrift0, geo_start, geo_count, geo_->cvdrift0_h))  ERR(retval);
+    if (retval = nc_put_vara(nc_geo, gds2,     geo_start, geo_count, geo_->gds2_h))      ERR(retval);
+    if (retval = nc_put_vara(nc_geo, gds21,    geo_start, geo_count, geo_->gds21_h))     ERR(retval);  
+    if (retval = nc_put_vara(nc_geo, gds22,    geo_start, geo_count, geo_->gds22_h))     ERR(retval);
+    if (retval = nc_put_vara(nc_geo, grho,     geo_start, geo_count, geo_->grho_h))      ERR(retval);
+    if (retval = nc_put_vara(nc_geo, jacobian, geo_start, geo_count, geo_->jacobian_h))  ERR(retval);
+
+    if (retval = nc_put_var (nc_geo, ivar, &geo_->gradpar)) ERR(retval);
   }
-
-  //  if (retval = nc_put_vara(file, theta,    geo_start, geo_count, geo_->z_h))         ERR(retval);
-  if (retval = nc_put_vara(nc_geo, bmag,     geo_start, geo_count, geo_->bmag_h))      ERR(retval);
-  if (retval = nc_put_vara(nc_geo, bgrad,    geo_start, geo_count, geo_->bgrad_h))     ERR(retval);
-  if (retval = nc_put_vara(nc_geo, gbdrift,  geo_start, geo_count, geo_->gbdrift_h))   ERR(retval);
-  if (retval = nc_put_vara(nc_geo, gbdrift0, geo_start, geo_count, geo_->gbdrift0_h))  ERR(retval);
-  if (retval = nc_put_vara(nc_geo, cvdrift,  geo_start, geo_count, geo_->cvdrift_h))   ERR(retval);
-  if (retval = nc_put_vara(nc_geo, cvdrift0, geo_start, geo_count, geo_->cvdrift0_h))  ERR(retval);
-  if (retval = nc_put_vara(nc_geo, gds2,     geo_start, geo_count, geo_->gds2_h))      ERR(retval);
-  if (retval = nc_put_vara(nc_geo, gds21,    geo_start, geo_count, geo_->gds21_h))     ERR(retval);  
-  if (retval = nc_put_vara(nc_geo, gds22,    geo_start, geo_count, geo_->gds22_h))     ERR(retval);
-  if (retval = nc_put_vara(nc_geo, grho,     geo_start, geo_count, geo_->grho_h))      ERR(retval);
-  if (retval = nc_put_vara(nc_geo, jacobian, geo_start, geo_count, geo_->jacobian_h))  ERR(retval);
-
-  if (retval = nc_put_var (nc_geo, ivar, &geo_->gradpar)) ERR(retval);
   
   idum = pars_->boundary_option_periodic ? 1 : 0;
   if (retval = nc_put_var(file, periodic,      &idum))     ERR(retval);
@@ -2185,6 +2218,7 @@ void NetCDF_ids::close_nc_file() {
 void NetCDF_ids::write_moment(nca *D, cuComplex *f, float* vol_fac) {
   
   //
+  // If D->dy = true, take one derivative in y
   // If D->dx = true, take one derivative in x
   // If D->d2x = true, take two derivatives in x
   // Multiply by D->adj
@@ -2196,12 +2230,11 @@ void NetCDF_ids::write_moment(nca *D, cuComplex *f, float* vol_fac) {
 
   cuComplex zz = make_cuComplex(0., 0.);  setval loop_R (amom, zz, D->N_);
   
-  // Perform any desired d/dx operations
-  if (D->d2x) {
-    d2x Gmom (amom, f, grids_->kx); 
-  } else if (D->dx) {
-    ddx Gmom (amom, f, grids_->kx);
-  } else {
+  // Perform any desired derivatives
+  if (D->d2x) {    d2x Gmom (amom, f, grids_->kx);   } else
+  if (D->dx)  {    ddx Gmom (amom, f, grids_->kx);   } else
+  if (D->dy)  {    ddy Gmom (amom, f, grids_->ky);   } else            
+  if (D->mdy) {   mddy Gmom (amom, f, grids_->ky);   } else            {
     CP_ON_GPU (amom, f, sizeof(cuComplex)*grids_->NxNycNz);
   }
 

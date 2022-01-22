@@ -12,22 +12,25 @@ Fields::Fields(Parameters* pars, Grids* grids) :
 
   //  cudaMemset(phi, 0., size_);
 
-  cudaMallocHost((void**) &phi_h, size_);
+  phi_h = (cuComplex*) malloc(size_);
+  printf("Allocated a field array of size %.2f MB\n", size_/1024./1024.);
 
-  if (pars_->beta > 0.) {
+  if (pars_->beta > 0. || pars_->krehm) {
     checkCuda(cudaMalloc((void**) &apar, size_));
+    printf("Allocated a field array of size %.2f MB\n", size_/1024./1024.);
 
     cudaMemset(apar, 0., size_); setval <<< nb, nt >>> (apar, zero, nn);
 
-    cudaMallocHost((void**) &apar_h, size_);
+    apar_h = (cuComplex*) malloc(size_);
   }
+
 }
 
 Fields::~Fields() {
   if (phi)     cudaFree(phi);
-  if (phi_h)   cudaFreeHost(phi_h);
+  if (phi_h)   free(phi_h);
   if (apar)    cudaFree(apar);
-  if (apar_h)  cudaFreeHost(apar_h);
+  if (apar_h)  free(apar_h);
 }
 
 void Fields::print_phi(void)

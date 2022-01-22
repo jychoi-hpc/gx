@@ -8,7 +8,7 @@
  restart_to_file    = "kh01_restart.nc"
 
 [Controls]
- scheme = "k10"
+ scheme = "k10" 
  closure_model = "none"
  nonlinear_mode = false 
  cfl = 1.0

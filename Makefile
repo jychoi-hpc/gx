@@ -2,7 +2,7 @@
 #        Makefile for GX
 #######################################
 
-TARGET    = gx
+TARGET    = all
 
 #######################################
 # Include system-dependent make variables
@@ -28,8 +28,9 @@ LD = $(NVCC)
 GEO_LIBS=${GS2}/geometry_c_interface.o 
 GS2_CUDA_FLAGS=-I ${GS2} ${GS2}/libgs2.a ${GS2}/libsimpledataio.a 
 
-CFLAGS= ${CUDA_INC} ${MPI_INC} ${GSL_INC} ${CUTENSOR_INC}
-LDFLAGS= $(CUDA_LIB) ${MPI_LIB} ${GSL_LIB} ${NETCDF_LIB} ${CUTENSOR_LIB}
+CFLAGS= ${CUDA_INC} ${MPI_INC} ${CUTENSOR_INC}
+LDFLAGS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} ${CUTENSOR_LIB}
+#NVCCFLAGS=-arch=sm_70 --compiler-options="-fPIC"
 
 #####################################
 # Rule for building the system_config
@@ -79,12 +80,17 @@ src/version.c:
 #######################################
 # Rules for building gx
 ####################################
-OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o timestepper.o diagnostics.o run_gx.o version.o main.o 
+OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o timestepper.o diagnostics.o run_gx.o version.o trinity_interface.o
 
 # main program
-$(TARGET): $(addprefix obj/, $(OBJS))
-	$(NVCC) $(NVCCFLAGS) -o $@ $(addprefix obj/, $(OBJS)) $(LDFLAGS)
+gx: obj/main.o libgx.a 
+	$(NVCC) $(NVCCFLAGS) -o $@ $< -L. -lgx $(LDFLAGS) 
 	@mv src/version.c old/version.c
+
+libgx.a: $(addprefix obj/, $(OBJS)) $(HEADERS)
+	ar -crs libgx.a $(addprefix obj/, $(OBJS)) 
+
+all: gx libgx.a
 
 ########################
 # Cleaning up
@@ -108,6 +114,7 @@ test_make:
 	@echo CFLAGS= 	 $(CFLAGS)
 	@echo LDFLAGS= 	 $(LDFLAGS)
 	@echo NVCCFLAGS= $(NVCCFLAGS)
+	@echo NVCC_FLAGS= $(NVCC_FLAGS)
 	@echo CUDA_INC=  $(CUDA_INC)
 	@echo CUDA_LIB=  $(CUDA_LIB)
 	@echo CUTENSOR_LIB=  $(CUTENSOR_LIB)

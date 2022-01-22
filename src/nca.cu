@@ -9,7 +9,9 @@ nca::nca(int N, int Nwrite) :
   xydata = false;
   xdata = false;
   scalar = false;
-  dx = false;
+  mdy = false;
+  dy  = false;
+  dx  = false;
   d2x = false;
   adj = 1.0;
   time_start[0] = 0;
@@ -27,24 +29,24 @@ nca::nca(int N, int Nwrite) :
     cudaMalloc (&data, sizeof(float) * N);
     if (Nwrite > 0) {
       cudaMalloc      (&tmp_d, sizeof(float) * Nwrite);  // not needed for spectra
-      cudaMallocHost  (&tmp,   sizeof(float) * N);
-      cudaMallocHost  (&cpu,   sizeof(float) * Nwrite);
+      tmp = (float*) malloc  (sizeof(float) * N);
+      cpu = (float*) malloc  (sizeof(float) * Nwrite);
     } else {
-      cudaMallocHost  (&cpu,  sizeof(float) * N);      
+      cpu = (float*) malloc  (sizeof(float) * N);
     }
   } else { // omega only
     N = -N;
     if (Nwrite > 0) {
-      cudaMallocHost (&z_tmp,  sizeof(cuComplex) * N);
-      cudaMallocHost (&cpu,    sizeof(float)     * Nwrite);
+      z_tmp = (cuComplex*) malloc  (sizeof(cuComplex) * N);
+      cpu = (float*) malloc  (sizeof(float) * Nwrite);
     }
   }  
 }
 nca::~nca() {
   if (data)  cudaFree     ( data   );
   if (tmp_d) cudaFree     ( tmp_d  );
-  if (tmp)   cudaFreeHost ( tmp    );
-  if (cpu)   cudaFreeHost ( cpu    );
-  if (z_tmp) cudaFreeHost ( z_tmp  );
+  if (tmp)   free ( tmp    );
+  if (cpu)   free ( cpu    );
+  if (z_tmp) free ( z_tmp  );
 }
 void nca::increment_ts(void) {time_start[0] += 1;}

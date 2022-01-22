@@ -422,8 +422,12 @@ Diagnostic information is written in NetCDF format, to a file that uses the inpu
        This is a shortcut for turning on all such writes, instead of specifying them individually (below).
      - **false**
    * - **Diagnostics**
-     - xyvE
-     - Write the non-zonal, *y*-component of the ExB velocity as a function of *x* and time.
+     - xyvEx
+     - Write the *x*-component of the ExB velocity as a function of *x*, *y*, and time.
+     - **false**
+   * - **Diagnostics**
+     - xyvEy
+     - Write the non-zonal *y*-component of the ExB velocity as a function of *x*, *y*, and time.
      - **false**
    * - **Diagnostics**
      - xykvE

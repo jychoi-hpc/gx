@@ -57,23 +57,23 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
   dG = (dim3*) malloc(sizeof(dim3)*nClasses);
   dB = (dim3*) malloc(sizeof(dim3)*nClasses);
 
-  cudaMallocHost ((void**) &zft_plan_forward,              sizeof(cufftHandle*)*nClasses);
-  cudaMallocHost ((void**) &zft_plan_inverse,              sizeof(cufftHandle*)*nClasses);
-  cudaMallocHost ((void**) &zft_plan_forward_singlemom,    sizeof(cufftHandle*)*nClasses);
-  //  cudaMallocHost ((void**) &zft_plan_inverse_singlemom,    sizeof(cufftHandle*)*nClasses);
+  zft_plan_forward = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  zft_plan_inverse = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  zft_plan_forward_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  // zft_plan_inverse_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
 
-  cudaMallocHost ((void**) &dz_plan_forward,               sizeof(cufftHandle*)*nClasses);
-  cudaMallocHost ((void**) &dz_plan_inverse,               sizeof(cufftHandle*)*nClasses);
-  cudaMallocHost ((void**) &dz_plan_forward_singlemom,     sizeof(cufftHandle*)*nClasses);
-  cudaMallocHost ((void**) &dz_plan_inverse_singlemom,     sizeof(cufftHandle*)*nClasses);
+  dz_plan_forward = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  dz_plan_inverse = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  dz_plan_forward_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  dz_plan_inverse_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
 
-  cudaMallocHost ((void**) &abs_dz_plan_forward_singlemom, sizeof(cufftHandle*)*nClasses);
+  abs_dz_plan_forward_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
 
   // these are arrays of pointers to device memory
-  cudaMallocHost ((void**) &ikxLinked, sizeof(int*)      *nClasses);
-  cudaMallocHost ((void**) &ikyLinked, sizeof(int*)      *nClasses);
-  cudaMallocHost ((void**) &G_linked,  sizeof(cuComplex*)*nClasses);
-  cudaMallocHost ((void**) &kzLinked,  sizeof(float*)    *nClasses);
+  ikxLinked = (int**) malloc(sizeof(int*)*nClasses);
+  ikyLinked = (int**) malloc(sizeof(int*)*nClasses);
+  G_linked = (cuComplex**) malloc(sizeof(cuComplex*)*nClasses);
+  kzLinked = (float**) malloc(sizeof(float*)*nClasses);
 
   //  printf("nClasses = %d\n", nClasses);
   for(int c=0; c<nClasses; c++) {
@@ -176,24 +176,24 @@ GradParallelLinked::~GradParallelLinked()
     if (kzLinked[c])          cudaFree(kzLinked[c]);
     if (G_linked[c])          cudaFree(G_linked[c]);
   }
-  if (zft_plan_forward)              cudaFreeHost(    zft_plan_forward);
-  if (zft_plan_inverse)              cudaFreeHost(    zft_plan_inverse);
-  if (zft_plan_forward_singlemom)    cudaFreeHost(    zft_plan_forward_singlemom);
-  //  if (zft_plan_inverse_singlemom)    cudaFreeHost(    zft_plan_inverse_singlemom);
+  if (zft_plan_forward)              free(    zft_plan_forward);
+  if (zft_plan_inverse)              free(    zft_plan_inverse);
+  if (zft_plan_forward_singlemom)    free(    zft_plan_forward_singlemom);
+  //  if (zft_plan_inverse_singlemom)    free(    zft_plan_inverse_singlemom);
 
-  if (dz_plan_forward)               cudaFreeHost(    dz_plan_forward);
-  if (dz_plan_inverse)               cudaFreeHost(    dz_plan_inverse);
-  if (dz_plan_forward_singlemom)     cudaFreeHost(    dz_plan_forward_singlemom);
-  if (dz_plan_inverse_singlemom)     cudaFreeHost(    dz_plan_inverse_singlemom);
-  if (abs_dz_plan_forward_singlemom) cudaFreeHost(abs_dz_plan_forward_singlemom);
+  if (dz_plan_forward)               free(    dz_plan_forward);
+  if (dz_plan_inverse)               free(    dz_plan_inverse);
+  if (dz_plan_forward_singlemom)     free(    dz_plan_forward_singlemom);
+  if (dz_plan_inverse_singlemom)     free(    dz_plan_inverse_singlemom);
+  if (abs_dz_plan_forward_singlemom) free(abs_dz_plan_forward_singlemom);
 
   if (ikxLinked_h)         free(ikxLinked_h);
   if (ikyLinked_h)         free(ikyLinked_h);
 
-  if (ikxLinked)           cudaFreeHost(ikxLinked);
-  if (ikyLinked)           cudaFreeHost(ikyLinked);
-  if (G_linked)            cudaFreeHost(G_linked);
-  if (kzLinked)            cudaFreeHost(kzLinked);
+  if (ikxLinked)           free(ikxLinked);
+  if (ikyLinked)           free(ikyLinked);
+  if (G_linked)            free(G_linked);
+  if (kzLinked)            free(kzLinked);
 }
 
 void GradParallelLinked::dealias(MomentsG* G)

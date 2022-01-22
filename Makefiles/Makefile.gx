@@ -25,7 +25,7 @@ CUDAARCH=70
 CUTENSOR_INC = -I/usr/local/lib/libcutensor/include/
 CUTENSOR_LIB = -L/usr/local/lib/libcutensor/lib/11.0 -lcutensor -lcudart
 CUDA_LIB = -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver 
-NVCC_FLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true
+NVCCFLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

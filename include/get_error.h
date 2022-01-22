@@ -1,4 +1,5 @@
 #pragma once
+#include <helper_cuda.h>
 #include <assert.h>
 
 // Convenience function for checking CUDA runtime API results
@@ -20,7 +21,7 @@ template <typename T>
 inline T __checkCudaErrors__(T code, const char *func, const char *file, int line) 
 {
   if (code) {
-    fprintf(stderr, "CUDA error at %s:%d code=%d \"%s\" \n", file, line, (unsigned int)code, func);
+    fprintf(stderr, "CUDA error: %s (code=%d)  \"%s\" at %s:%d \n", cudaGetErrorString(code), (unsigned int)code, func, file, line);
     cudaDeviceReset();
     exit(EXIT_FAILURE);
   }

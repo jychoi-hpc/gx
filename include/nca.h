@@ -9,7 +9,7 @@ class nca {
 
   int    file;
   int    idx, time, ikx, iky, ns;
-  bool   write, write_v_time, xydata, scalar, xdata, dx, d2x;
+  bool   write, write_v_time, xydata, scalar, xdata, mdy, dy, dx, d2x;
   size_t start[5];
   size_t count[5];
   size_t time_start[6];

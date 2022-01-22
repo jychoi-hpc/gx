@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#include "gx_lib.h"
+#include "run_gx.h"
 #include "version.h"
 #include "helper_cuda.h"
 // #include "reservoir.h"
@@ -45,8 +45,8 @@ int main(int argc, char* argv[])
   int nnz = K * N;
   double *A_h;
   int * A_j;
-  cudaMallocHost((void**) &A_h, sizeof(double) * nnz);
-  cudaMallocHost((void**) &A_j, sizeof(int)    * nnz);
+  A_h = (double*) malloc(sizeof(double) * nnz);
+  A_j = (int*) malloc(sizeof(int) * nnz);
   
   std::random_device rd;         std::mt19937 gen(rd()); 
   std::uniform_real_distribution<double> unif( 0., radius*2./((double) K));
@@ -81,8 +81,8 @@ int main(int argc, char* argv[])
   }    
   CP_TO_GPU (R, A_h, sizeof(double) * N);
   
-  cudaFreeHost(A_h);
-  cudaFreeHost(A_j);
+  free(A_h);
+  free(A_j);
 
   Red *red;
   
@@ -143,15 +143,11 @@ int main(int argc, char* argv[])
    
   printf("Version: %s \t Compiled: %s \n", build_git_sha, build_git_time);
 
-  Parameters * pars         = nullptr;
-  pars = new Parameters();
-  pars->iproc = iproc;
+  Parameters * pars = nullptr;
+  pars = new Parameters(mpcom);
   pars->get_nml_vars(run_name);
   
-  Geometry    * geo         = nullptr;
-  Grids       * grids       = nullptr;
-  Diagnostics * diagnostics = nullptr;
-  //  HermiteTransform* herm;
+  Grids * grids = nullptr;
   
   DEBUGPRINT("Initializing grids...\n");
   grids = new Grids(pars);
@@ -160,7 +156,10 @@ int main(int argc, char* argv[])
   DEBUGPRINT("Grid dimensions: Nx=%d, Ny=%d, Nz=%d, Nl=%d, Nm=%d, Nspecies=%d\n",
 	     grids->Nx, grids->Ny, grids->Nz, grids->Nl, grids->Nm, grids->Nspecies);
 
-  if(iproc==0) {
+  Geometry    * geo         = nullptr;
+  Diagnostics * diagnostics = nullptr;
+
+  if (pars->gx) {
     int igeo = pars->igeo;
     DEBUGPRINT("Initializing geometry...\n");
     if(igeo==0) {
@@ -185,18 +184,22 @@ int main(int argc, char* argv[])
     }
 
     DEBUGPRINT("Initializing diagnostics...\n");
-    diagnostics = new Diagnostics(pars, grids, geo);
+    diagnostics = new Diagnostics_GK(pars, grids, geo);
     CUDA_DEBUG("Initializing diagnostics: %s \n");    
 
     //    DEBUGPRINT("Initializing Hermite transforms...\n");
     //    herm = new HermiteTransform(grids, 1); // batch size could ultimately be nspec
     //    CUDA_DEBUG("Initializing Hermite transforms: %s \n");    
   }
+  if (pars->krehm) {
+    geo = nullptr; // krehm does not require geometry
+    diagnostics = new Diagnostics_KREHM(pars, grids);
+  }
 
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
   
-  run_gx(pars, grids, geo, diagnostics);
+  run_gx(pars, grids, geo, diagnostics); 
 
   delete pars;
   delete grids;

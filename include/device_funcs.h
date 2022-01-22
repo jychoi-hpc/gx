@@ -149,8 +149,10 @@ __global__ void bracket(float* g_res,
 			const float* dg_dx, const float* dJ0phi_dy,
 			const float* dg_dy, const float* dJ0Phi_dx, float kxfac);
 
-__global__ void d2x (cuComplex *res, cuComplex *f, float *kx);
-__global__ void ddx (cuComplex *res, cuComplex *f, float *kx);
+__global__ void  d2x (cuComplex *res, cuComplex *f, float *kx);
+__global__ void  ddx (cuComplex *res, cuComplex *f, float *kx);
+__global__ void  ddy (cuComplex *res, cuComplex *f, float *ky);
+__global__ void mddy (cuComplex *res, cuComplex *f, float *ky);
 
 __global__ void castDoubleToFloat (const cuDoubleComplex *array_d, cuComplex *array_f, int size);
 
@@ -179,6 +181,7 @@ __global__ void Wphi_scale(float* p2, float alpha);
 __global__ void Wphi2_summand(float *p2, const cuComplex *phi, const float *volJac);
   
 __global__ void Wphi_summand(float* p2, const cuComplex* phi, const float* volJac, const float* kperp2, float rho2_s);
+__global__ void Wphi_summand_krehm(float* p2, const cuComplex* phi, const float* volJac, const float* kx, const float* ky, float rho_i);
   
 __global__ void heat_flux_summand(float* qflux, const cuComplex* phi, const cuComplex* g, const float* ky, 
 				  const float* flxJac, const float *kperp2, float rho2_s);
@@ -225,6 +228,11 @@ __global__ void qneut(cuComplex* Phi, const cuComplex* g, const float* kperp2, c
 
 __global__ void ampere(cuComplex* Apar, const cuComplex* gu, const float* kperp2, const float* rho2s,
 		       const float* as, float beta);
+
+__global__ void rhs_linear_krehm(const cuComplex* g, const cuComplex* phi, const cuComplex* apar, 
+			  const float nu_ei, const float rhos, const float de, cuComplex* rhs_par);
+__global__ void phiSolve_krehm (cuComplex *phi, cuComplex *G0, float* kx, float* ky, float rho_i);
+__global__ void aparSolve_krehm (cuComplex *apar, cuComplex *G1, float* kx, float* ky, float rho_s, float d_e);
 
 __global__ void real_space_density(cuComplex* nbar, const cuComplex* g, const float *kperp2,
 				   const float *rho2s, const float *nzs);

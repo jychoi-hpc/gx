@@ -1,11 +1,10 @@
 NETCDF_INC = -I/usr/local/netcdf/gcc/hdf5-1.10.6/4.7.3/include
-NETCDF_LIB = -L/usr/local/netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3/lib64 -lnetcdf -L/usr/local/hdf5/gcc/openmpi-4.0.4/1.10.6/lib64 -lhdf5
+NETCDF_LIB = -L/usr/local/netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3/lib64 -lnetcdf -lnetcdff -L/usr/local/hdf5/gcc/openmpi-4.0.4/1.10.6/lib64 -lhdf5
 #OMPI_DIR=/usr/local/openmpi/cuda-11.0/4.0.4/gcc/ppc64le/
 OMPI_DIR=/usr/local/openmpi/4.0.4/gcc/ppc64le/
 #OMPI_DIR=/usr/local/openmpi/cuda-11.0/4.0.4/nvhpc207/ppc64le/
 #CUTENSOR_LIB = -L/usr/lib64/libcutensor/10.2 -lcutensor -lcudart
 CUTENSOR_LIB = -L/usr/lib64/libcutensor/11.1 -lcutensor -lcudart
-NETCDF_LIB = -L/usr/local/netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3/lib64 -lnetcdf  
 
 GSL_LIB = -lgsl -lgslcblas -lm
 
@@ -15,8 +14,8 @@ CC=gcc
 
 
 NVCC      = nvcc
-CUDA_INC  = -I ${CUDA_DIR}/include
-CUDA_LIB  = -L ${CUDA_DIR}/lib64 -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp
+CUDA_INC  = -I ${CUDA_DIR}/include ${CUTENSOR_INC}
+CUDA_LIB  = -L ${CUDA_DIR}/lib64 -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp ${CUTENSOR_LIB} ${GSL_LIB}
 MPI_INC = -I ${OMPI_DIR}/include
 MPI_LIB= -L ${OMPI_DIR}/lib64 -lmpi 
 # NVCCFLAGS = -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math 

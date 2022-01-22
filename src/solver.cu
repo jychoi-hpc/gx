@@ -1,20 +1,16 @@
 #include "solver.h"
 #define GQN <<< dG, dB >>>
 
-Solver::Solver(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G) :
+//=======================================
+// Solver_GK
+// object for handling field solve in GK
+//=======================================
+Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G) :
   pars_(pars), grids_(grids), geo_(geo),
   tmp(nullptr), nbar(nullptr), phiavgdenom(nullptr)
 {
 
   if (pars_->ks) return;
-  if (pars_->vp) {
-    int nn1 = grids_->Nyc;        int nt1 = min(nn1, 512);     int nb1 = 1 + (nn1-1)/nt1;
-
-    dB = dim3(nt1, 1, 1);
-    dG = dim3(nb1, 1, 1);
-    
-    return;  
-  }
   
   size_t cgrid = sizeof(cuComplex)*grids_->NxNycNz;
   cudaMalloc((void**) &nbar, cgrid); zero(nbar);
@@ -50,14 +46,14 @@ Solver::Solver(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G) :
   dg = dim3(nb1, nb2, nb3);
 }
 
-Solver::~Solver() 
+Solver_GK::~Solver_GK() 
 {
   if (nbar)        cudaFree(nbar);
   if (tmp)         cudaFree(tmp);
   if (phiavgdenom) cudaFree(phiavgdenom);
 }
 
-void Solver::fieldSolve(MomentsG* G, Fields* fields)
+void Solver_GK::fieldSolve(MomentsG* G, Fields* fields)
 {
   if (pars_->ks) return;
   if (pars_->vp) {
@@ -94,9 +90,9 @@ void Solver::fieldSolve(MomentsG* G, Fields* fields)
   if(pars_->source_option==PHIEXT) add_source GQN (fields->phi, pars_->phi_ext);
 }
 
-void Solver::svar (cuComplex* f, int N)
+void Solver_GK::svar (cuComplex* f, int N)
 {
-  cuComplex* f_h;  cudaMallocHost((void**) &f_h, sizeof(cuComplex)*N);
+  cuComplex* f_h = (cuComplex*) malloc(sizeof(cuComplex)*N);
 
   for (int i=0; i<N; i++) { f_h[i].x=0.; f_h[i].y=0.; }
 
@@ -105,23 +101,109 @@ void Solver::svar (cuComplex* f, int N)
   for (int i=0; i<N; i++) printf("solver: var(%d) = (%e, %e) \n", i, f_h[i].x, f_h[i].y);
   printf("\n");
 
-  cudaFreeHost (f_h);
+  free (f_h);
 }
 
-void Solver::svar (float* f, int N)
+void Solver_GK::svar (float* f, int N)
 {
-  float* f_h;
-  cudaMallocHost((void**) &f_h, sizeof(float)*N);
+  float* f_h = (float*) malloc(sizeof(float)*N);
 
   CP_TO_CPU (f_h, f, N*sizeof(float));
 
   for (int i=0; i<N; i++) printf("solver: var(%d) = %e \n", i, f_h[i]);
   printf("\n");
   
-  cudaFreeHost (f_h);
+  free (f_h);
 }
 
-void Solver::zero (cuComplex* f)
+void Solver_GK::zero (cuComplex* f)
 {
   cudaMemset(f, 0., sizeof(cuComplex)*grids_->NxNycNz);
 }
+
+//==========================================
+// Solver_KREHM
+// object for handling field solve in KREHM
+//==========================================
+Solver_KREHM::Solver_KREHM(Parameters* pars, Grids* grids) :
+  pars_(pars), grids_(grids)
+{
+  int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
+  
+  nn1 = grids_->Nyc;        nt1 = min(nn1, 32 );   nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids_->Nx;         nt2 = min(nn2,  4 );   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = grids_->Nz;         nt3 = min(nn3,  4 );   nb3 = 1 + (nn3-1)/nt3;
+  
+  dB = dim3(nt1, nt2, nt3);
+  dG = dim3(nb1, nb2, nb3);
+}
+
+Solver_KREHM::~Solver_KREHM() 
+{
+  // nothing
+}
+
+void Solver_KREHM::fieldSolve(MomentsG* G, Fields* fields)
+{
+  phiSolve_krehm<<<dG, dB>>>(fields->phi, G->G(0), grids_->kx, grids_->ky, pars_->rho_i);
+  aparSolve_krehm<<<dG, dB>>>(fields->apar, G->G(1), grids_->kx, grids_->ky, pars_->rho_s, pars_->d_e);
+}
+
+//=======================================
+// Solver_VP
+// object for handling field solve in VP
+//=======================================
+Solver_VP::Solver_VP(Parameters* pars, Grids* grids) :
+  pars_(pars), grids_(grids)
+{
+
+  int nn1 = grids_->Nyc;        int nt1 = min(nn1, 512);     int nb1 = 1 + (nn1-1)/nt1;
+  
+  dB = dim3(nt1, 1, 1);
+  dG = dim3(nb1, 1, 1);
+  
+}
+
+Solver_VP::~Solver_VP() 
+{
+  // nothing
+}
+
+void Solver_VP::fieldSolve(MomentsG* G, Fields* fields)
+{
+  if (pars_->ks) return;
+
+  getPhi GQN (fields->phi, G->G(), grids_->ky);
+}
+
+void Solver_VP::svar (cuComplex* f, int N)
+{
+  cuComplex* f_h = (cuComplex*) malloc(sizeof(cuComplex)*N);
+
+  for (int i=0; i<N; i++) { f_h[i].x=0.; f_h[i].y=0.; }
+
+  CP_TO_CPU (f_h, f, N*sizeof(cuComplex));
+
+  for (int i=0; i<N; i++) printf("solver: var(%d) = (%e, %e) \n", i, f_h[i].x, f_h[i].y);
+  printf("\n");
+
+  free (f_h);
+}
+
+void Solver_VP::svar (float* f, int N)
+{
+  float* f_h = (float*) malloc(sizeof(float)*N);
+
+  CP_TO_CPU (f_h, f, N*sizeof(float));
+
+  for (int i=0; i<N; i++) printf("solver: var(%d) = %e \n", i, f_h[i]);
+  printf("\n");
+  
+  free (f_h);
+}
+
+void Solver_VP::zero (cuComplex* f)
+{
+  cudaMemset(f, 0., sizeof(cuComplex)*grids_->Nyc);
+}
+

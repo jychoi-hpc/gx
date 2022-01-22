@@ -2,7 +2,7 @@
 
 void getDeviceMemoryUsage();
 
-void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnostics)
+void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnostics)
 {
   double time = 0;
 
@@ -13,8 +13,9 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   Nonlinear * nonlinear = nullptr;
   Forcing   * forcing   = nullptr;
   
+  // set up moments and fields objects
   G         = new MomentsG (pars, grids);
-  solver    = new Solver   (pars, grids, geo, G);    
+  fields    = new Fields(pars, grids);               
   
   /////////////////////////////////
   //                             //
@@ -22,19 +23,31 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   //                             //
   /////////////////////////////////
   if (pars->gx) {
+    linear = new Linear_GK(pars, grids, geo);          
+    if (!pars->linear) nonlinear = new Nonlinear_GK(pars, grids, geo);    
 
-    linear = new Linear(pars, grids, geo);          
-    fields = new Fields(pars, grids);               
-    G      -> initialConditions(geo->z_h, &time);   
-    solver -> fieldSolve(G, fields);                
-    
-    if (!pars->linear) nonlinear = new Nonlinear(pars, grids, geo);    
+    solver = new Solver_GK(pars, grids, geo, G);    
 
     if (pars->forcing_init) {
       if (pars->forcing_type == "Kz")        forcing = new KzForcing(pars);        
       if (pars->forcing_type == "KzImpulse") forcing = new KzForcingImpulse(pars); 
       if (pars->forcing_type == "general")   forcing = new genForcing(pars);       
     }
+
+    // set up initial conditions
+    G      -> initialConditions(&time);   
+    solver -> fieldSolve(G, fields);                
+  }
+
+  if (pars->krehm) {
+    linear = new Linear_KREHM(pars, grids);          
+    if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
+
+    solver = new Solver_KREHM(pars, grids);
+
+    // set up initial conditions
+    G      -> initialConditions(&time);   
+    solver -> fieldSolve(G, fields);                
   }
 
   //////////////////////////////
@@ -43,11 +56,14 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   //                          //
   //////////////////////////////  
   if (pars->ks) {
-    linear    = new Linear(pars, grids);    
-    fields = new Fields(pars, grids);
+    linear    = new Linear_KS(pars, grids);    
+    if (!pars->linear) nonlinear = new Nonlinear_KS(pars, grids);
+
+    // no field solve for K-S
+
+    // set up initial conditions
     G -> initialConditions(&time);
     //    G -> qvar(grids->Naky);
-    if (!pars->linear) nonlinear = new Nonlinear(pars, grids);
   }    
 
   //////////////////////////////
@@ -56,12 +72,14 @@ void run_gx(Parameters *pars, Grids* grids, Geometry* geo, Diagnostics* diagnost
   //                          //
   //////////////////////////////  
   if (pars->vp) {
-    linear    = new Linear(pars, grids);    
-    fields = new Fields(pars, grids);
+    linear    = new Linear_VP(pars, grids);    
+    if (!pars->linear) nonlinear = new Nonlinear_VP(pars, grids);
+
+    solver = new Solver_VP(pars, grids);    
+
+    // set up initial conditions
     G -> initVP(&time);
     solver -> fieldSolve(G, fields);
-
-    if (!pars->linear) nonlinear = new Nonlinear(pars, grids, geo);
   }    
 
   Timestepper * timestep;
