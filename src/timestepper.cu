@@ -221,7 +221,6 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
   B1 = new MomentsG (pars_, grids_);
   B2 = new MomentsG (pars_, grids_);
   G1 = new MomentsG (pars_, grids_);
-  G2 = new MomentsG (pars_, grids_);
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -244,7 +243,6 @@ IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
   if (B1)    delete B1; 
   if (B2)    delete B2; 
   if (G1)    delete G1; 
-  if (G2)    delete G2; 
   if (grad_par) delete grad_par;
 }
 
@@ -270,14 +268,22 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   G1-> update_tprim(*t); 
   G2-> update_tprim(*t); 
   // end updates
+
+  q_ = 0.;
+  r_ = 1.;
+  s_ = 1./6.;
+  t_ = -1./3.;
+  u_ = 2./3.;
   
   // stage 1
   // compute A0 = F_explicit(G)
   explicit_terms(A0, G, f, true);
   // compute B0 = F_implicit(G)
   implicit_terms(B0, G, f);
-  // G1 = G + dt*A0 + dt*B0
-  G1->add_scaled(1., G, dt_, A0, dt_, B0);
+  // G1 = G + dt*A0 + q_*dt*B0
+  G1->add_scaled(1., G, dt_, A0, q_*dt_, B0);
+  // G1 = inv(I - r_*dt*F_implicit)*G1
+  invert_implicit_terms(G1, r_*dt_);
   solver_->fieldSolve(G1, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
@@ -286,18 +292,18 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   explicit_terms(A1, G1, f, false);
   // compute B1 = F_implicit(G1)
   implicit_terms(B1, G1, f);
-  // G1 = G + dt/4*A0 + dt/4*A1 + dt/6*B0 - dt/3*B1
-  G1->add_scaled(1., G, dt_/4., A0, dt_/4., A1, dt_/6., B0, -dt_/3., B1);
-  // G2 = inv(I - 2*dt/3*F_implicit)*G1
-  invert_implicit_terms(G2, G1);
-  solver_->fieldSolve(G2, f);         
+  // G1 = G + dt/4*A0 + dt/4*A1 + s_*dt*B0 + t_*dt*B1
+  G1->add_scaled(1., G, dt_/4., A0, dt_/4., A1, s_*dt_, B0, t_*dt_, B1);
+  // G1 = inv(I - u_*dt*F_implicit)*G1
+  invert_implicit_terms(G1, u_*dt_);
+  solver_->fieldSolve(G1, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   // stage 3
-  // compute A2 = F_explicit(G2)
-  explicit_terms(A2, G2, f, false);
-  // compute B2 = F_implicit(G2)
-  implicit_terms(B2, G2, f);
+  // compute A2 = F_explicit(G1)
+  explicit_terms(A2, G1, f, false);
+  // compute B2 = F_implicit(G1)
+  implicit_terms(B2, G1, f);
   // G = G + dt/6*A0 + dt/6*A1 + 2*dt/3*A2 + dt/6*B0 + dt/6*B1 + 2*dt/3*B2
   G->add_scaled(1., G, dt_/6., A0, dt_/6., A1, dt_/3., A2); 
   G->add_scaled(1., G, dt_/6., B0, dt_/6., B1, dt_/3., B2); 
