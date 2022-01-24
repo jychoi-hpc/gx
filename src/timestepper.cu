@@ -266,7 +266,6 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   // update the gradients if they are evolving
   G -> update_tprim(*t); 
   G1-> update_tprim(*t); 
-  G2-> update_tprim(*t); 
   // end updates
 
   q_ = 0.;
