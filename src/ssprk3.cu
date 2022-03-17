@@ -1,3 +1,4 @@
+#include "timestepper.h"
 
 // ======= SSP-RK3 =======
 SSPRK3::SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,

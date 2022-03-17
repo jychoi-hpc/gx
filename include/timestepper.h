@@ -113,6 +113,10 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   void advance(double* t, MomentsG* G, Fields* fields);
   double get_dt() {return dt_;};
 
+  void explicit_terms(MomentsG* G1, MomentsG* G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG* G1, MomentsG* G, Fields* f);
+  void invert_implicit_terms(MomentsG* G1, double rdt);
+
  private:
   void EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* GRhs, Fields* f, bool setdt);
 

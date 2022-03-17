@@ -1,9 +1,10 @@
+#include "timestepper.h"
 
 // ======= IMEX SSP-RK3 + DIRK =======
 IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
+  forcing_(forcing), dt_max(dt_in), dt_(dt_in)
 {
   
   // new objects for temporaries
@@ -49,7 +50,7 @@ void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG* G1, MomentsG* G, Fields* f)
   // TBI
 }
 
-void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG* G1, MomentsG* G)
+void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG* G1, double rdt)
 {
   // TBI
 }
@@ -61,11 +62,11 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   G1-> update_tprim(*t); 
   // end updates
 
-  q_ = 0.;
-  r_ = 1.;
-  s_ = 1./6.;
-  t_ = -1./3.;
-  u_ = 2./3.;
+  double q_ = 0.;
+  double r_ = 1.;
+  double s_ = 1./6.;
+  double t_ = -1./3.;
+  double u_ = 2./3.;
   
   // stage 1
   // compute A0 = F_explicit(G)
