@@ -83,11 +83,6 @@ class S_alpha_geo : public Geometry {
 
 };
 
-class Eik_geo : public Geometry {
- public:
-  Eik_geo();
-};
-
 class Gs2_geo : public Geometry {
  public:
   Gs2_geo();

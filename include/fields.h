@@ -12,16 +12,24 @@ class Fields {
   cuComplex * phi_h  ;
   cuComplex * apar   ;
   cuComplex * apar_h ;
+
+  cuComplex * ne ;
+  cuComplex * ue ;
+  cuComplex * Te ;
+  
+  cuComplex * ne_h ;
+  cuComplex * ue_h ;
+  cuComplex * Te_h ;
   
   void print_phi(void);
   void print_apar(void);
   void rescale(float * phi_max);
   
   inline void copyPhiFrom(Fields* source) {
-    cudaMemcpyAsync(phi, source->phi, size_, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(phi, source->phi, size_, cudaMemcpyDeviceToDevice);
   }
   inline void copyAparFrom(Fields* source) {
-    cudaMemcpyAsync(apar, source->apar, size_, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(apar, source->apar, size_, cudaMemcpyDeviceToDevice);
   }
   
 private:

@@ -26,6 +26,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   float * ups_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   float * aps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   float * qns_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  float * amps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   float * nu_ss_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   int   * typ_h = (int*) malloc(sizeof(int) * grids_->Nspecies );
   
@@ -41,6 +42,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
     ups_h[is] = pars_->species_h[is].uprim;
     aps_h[is] = pars_->species_h[is].as;
     qns_h[is] = pars_->species_h[is].qneut;
+    amps_h[is] = pars_->species_h[is].amp;
     nu_ss_h[is] = pars_->species_h[is].nu_ss;
     typ_h[is] = pars_->species_h[is].type;
   }    
@@ -53,6 +55,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   checkCuda(cudaMalloc( &aps,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &r2s,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &qns,   sizeof(float) * grids_->Nspecies ) );
+  checkCuda(cudaMalloc( &amps,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &tps,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &fps,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &ups,   sizeof(float) * grids_->Nspecies ) );
@@ -70,13 +73,14 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   CP_TO_GPU(ups, ups_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(aps, aps_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(qns, qns_h, sizeof(float)*grids_->Nspecies);
+  CP_TO_GPU(amps, amps_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(nu_ss, nu_ss_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(typ, typ_h, sizeof(int)  *grids_->Nspecies);
   
   free(vts_h);  free(tzs_h);  free(zts_h);  free(nts_h);
   free(nzs_h);  free(r2s_h);  free(tps_h);  free(fps_h);
   free(ups_h);  free(aps_h);  free(qns_h);  free(nu_ss_h);  
-  free(typ_h);
+  free(typ_h);  free(amps_h);
   
   dens_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
   upar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
@@ -162,6 +166,20 @@ MomentsG::~MomentsG() {
   free (qpar_ptr);
   free (qprp_ptr);
 
+  cudaFree(vts);
+  cudaFree(zts);
+  cudaFree(tzs);
+  cudaFree(nts);
+  cudaFree(nzs);
+  cudaFree(aps);
+  cudaFree(r2s);
+  cudaFree(qns);
+  cudaFree(amps);
+  cudaFree(tps);
+  cudaFree(fps);
+  cudaFree(ups);
+  cudaFree(nu_ss);
+  cudaFree(typ);
   if ( G_lm     ) cudaFree ( G_lm );
 }
 
@@ -270,10 +288,10 @@ void MomentsG::initialConditions(double* time) {
 	//    DEBUG_PRINT("fac = %f \n",fac);
 	for(int iz=0; iz<grids_->Nz; iz++) {
 	  int index = iky + grids_->Nyc*ikx + grids_->NxNyc*iz;
-	  init_h[index].x = pars_->init_amp*cos(pars_->kpar_init*z_h[iz]/pars_->Zp); //*fac;
-	  init_h[index].y = pars_->init_amp*cos(pars_->kpar_init*z_h[iz]/pars_->Zp); //*fac;
+	  init_h[index].x = pars_->init_amp; //*fac;
+	  init_h[index].y = 0.;
 	  //init_h[index].y = 0.; //init_amp;
-	      	    printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
+	      	    //printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
 	}
       }
     } else {
@@ -308,7 +326,7 @@ void MomentsG::initialConditions(double* time) {
 		init_h[index].x *= cos(pars_->kpar_init*z_h[k]/pars_->Zp);
 		init_h[index].y *= cos(pars_->kpar_init*z_h[k]/pars_->Zp);
 	      }
-	      	    printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
+	      	    //printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
 	    }
 	  }
 	  if (pars_->random_init) {

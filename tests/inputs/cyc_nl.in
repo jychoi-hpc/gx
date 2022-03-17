@@ -1,0 +1,105 @@
+
+ debug = false
+
+[Controls]
+ scheme = "sspx3"
+ closure_model = "none"
+ nonlinear_mode = true
+ cfl = 1.0
+ kpar_init = 0.0
+ init_field = "density"
+ init_single = false
+ init_amp = 1.0e-3
+ hypercollisions = true
+ nu_hyper_m = 0.5
+ p_hyper_m = 6
+ nu_hyper_l = 0.0
+ p_hyper_l = 4
+ 
+[Restart]
+ restart = false
+ restart_from_file = "none.nc"
+ save_for_restart = false
+ restart_to_file = "restart.nc"
+
+[Dimensions]
+ ntheta = 12
+ nperiod = 1
+ ny = 32
+ nx = 32
+
+ nhermite  = 6
+ nlaguerre = 4
+ nspecies = 1
+
+
+[Domain]
+ y0 = 20.0
+ x0 = 10.0 
+ boundary = "linked"
+
+[Time]
+ dt = 0.02
+ nstep  = 10000
+ nwrite = 100
+ navg = 5000
+
+[Geometry]
+ beta = 0.0
+ igeo = 0
+ eps = 0.18
+ shat = 0.8
+ Rmaj = 1.0
+ shift = 0.0
+ qinp = 1.4
+
+ slab = false
+ const_curv = false
+
+
+[Boltzmann]
+ add_Boltzmann_species = true
+ Boltzmann_type = "electrons"
+ tau_fac = 1.0
+
+[Diagnostics]
+
+fluxes = true
+omega  = false
+free_energy = true
+all_zonal_scalars = true
+all_zonal = true
+
+[Wspectra]
+species          = false
+hermite          = false
+laguerre         = false
+hermite_laguerre = false
+kx               = false
+ky               = false
+kxky             = false
+kperp            = false
+z                = false
+
+[Pspectra]
+species          = false
+kx               = false
+ky               = false
+kxky             = false
+kperp            = true
+
+
+# it is okay to have extra species data here; only the first nspecies elements of each item are used
+
+[species]
+ z     = [ 1.0,      -1.0     ]
+ mass  = [ 1.0,       2.7e-4  ]
+ dens  = [ 1.0,       1.0     ]
+ temp  = [ 1.0,       1.0     ]
+ tprim = [ 6.9,       0.0     ]
+ fprim = [ 2.2,       0.0     ]
+ uprim = [ 0.0,       0.0     ]
+ vnewk = [ 0.0,       0.0     ]
+ type  = [ "ion",  "electron" ]
+
+

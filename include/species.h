@@ -18,5 +18,6 @@ typedef struct {
   float nz;
   float qneut;
   float as;
+  float amp;
   int type;
 } specie;

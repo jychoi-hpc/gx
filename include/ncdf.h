@@ -42,6 +42,7 @@ class NetCDF_ids {
   void write_Akx   (float * P2, bool endrun = false);
   void write_Akxky (float * P2, bool endrun = false);
 
+  void write_P     (float * P,   bool endrun = false);
   void write_Q     (float * Q,   bool endrun = false);
   void write_omg   (cuComplex *W, bool endrun = false);
   void write_moment(nca *D, cuComplex *f, float* vol_fac);
@@ -57,7 +58,7 @@ class NetCDF_ids {
   void write_ks_data(nca *D, float *G);
   void write_Wtot();
   
-  nca *rh, *omg, *den, *wphi, *denk, *wphik, *den0, *wphi0, *qs; 
+  nca *rh, *omg, *den, *wphi, *denk, *wphik, *den0, *wphi0, *qs, *ps; 
   nca *Wm, *Wl, *Wlm, *Pzt, *pZt, *pzT, *Wtot;
   nca *Ps, *Pky, *Pkx, *Pkxky, *Pz, *Pkz;
   nca *Ws, *Wky, *Wkx, *Wkxky, *Wz, *Wkz;
@@ -68,6 +69,7 @@ class NetCDF_ids {
   nca *vEy,    *xyvEx,    *xyvEy,    *avg_zvE;
   nca *kxvEy,  *xykxvEy,  *avg_zkxvEy;
   //  nca *kyvE,   *xykyvE,   *avg_zkyvE;
+  nca *xyPhi; 
   nca *kden,   *xyden,    *avg_zkden;
   nca *kUpar,  *xyUpar,   *avg_zkUpar;
   nca *kTpar,  *xyTpar,   *avg_zkTpar;
@@ -76,7 +78,7 @@ class NetCDF_ids {
 
   nca *time, *z_time, *nz_time;
   nca *r_time; 
-  
+
   int nx, ny, nz, nkz, kx_dim, ky_dim, kx, ky, kz;
   int m_dim, l_dim, s_dim, y, y_dim, x, x_dim;
   int zy, zx, nzy, nzx;
@@ -98,6 +100,7 @@ class NetCDF_ids {
   int z_file, zx_dim, zy_dim, ztime_dim;
   int r_file, res_dim, rtime_dim; 
   int nz_file, nzx_dim, nzy_dim, nztime_dim;
+  int hegna;  // bb6126 - hegna test
   
   int v_z[1];            // dims for a scalar as a function of z
   int v_kz[1];           // dims for a scalar as a function of kz 
@@ -129,7 +132,7 @@ class NetCDF_ids {
   Red        * ph2     ;
   Red        * all_red ;
   
-  float *primary, *secondary, *tertiary;
+  float primary[1], secondary[1], tertiary[1];
   cuComplex * t_bar     ;
   cuComplex * amom      ;
   cuComplex * df        ;

@@ -32,6 +32,7 @@ Grids::Grids(Parameters* pars) :
   
   // kz is defined without the factor of gradpar
   
+  checkCuda(cudaGetLastError());
   checkCuda(cudaDeviceSynchronize());
 
   kx_outh   = (float*) malloc(sizeof(float) * Nakx       );

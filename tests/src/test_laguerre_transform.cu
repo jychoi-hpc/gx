@@ -3,7 +3,6 @@
 #include "device_test.h"
 #include "parameters.h"
 #include "grids.h"
-#include "cuda_constants.h"
 #include "get_error.h"
 
 class TestLaguerreTransform : public ::testing::Test {

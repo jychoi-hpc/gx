@@ -3,7 +3,8 @@
 
 Fields::Fields(Parameters* pars, Grids* grids) :
   size_(sizeof(cuComplex)*grids->NxNycNz), N(grids->NxNycNz), pars_(pars), grids_(grids),
-  phi(nullptr), phi_h(nullptr), apar(nullptr), apar_h(nullptr)
+  phi(nullptr), phi_h(nullptr), apar(nullptr), apar_h(nullptr),
+  ne(nullptr), ne_h(nullptr), ue(nullptr), ue_h(nullptr), Te(nullptr), Te_h(nullptr)
 {
   checkCuda(cudaMalloc((void**) &phi, size_));
 
@@ -15,13 +16,37 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   phi_h = (cuComplex*) malloc(size_);
   printf("Allocated a field array of size %.2f MB\n", size_/1024./1024.);
 
-  if (pars_->beta > 0. || pars_->krehm) {
     checkCuda(cudaMalloc((void**) &apar, size_));
     printf("Allocated a field array of size %.2f MB\n", size_/1024./1024.);
 
-    cudaMemset(apar, 0., size_); setval <<< nb, nt >>> (apar, zero, nn);
+    setval <<< nb, nt >>> (apar, zero, nn);
 
     apar_h = (cuComplex*) malloc(size_);
+
+  if (pars_->beta > 0. || pars_->krehm) {
+
+    if (!pars_->krehm) {
+      checkCuda(cudaMalloc((void**) &ne, size_));
+      printf("Allocated ne array of size %.2f MB\n", size_/1024./1024.);
+      
+      cudaMemset(ne, 0., size_); setval <<< nb, nt >>> (ne, zero, nn);
+      
+      ne_h = (cuComplex*) malloc(size_);
+      
+      checkCuda(cudaMalloc((void**) &ue, size_));
+      printf("Allocated ue array of size %.2f MB\n", size_/1024./1024.);
+      
+      cudaMemset(ue, 0., size_); setval <<< nb, nt >>> (ue, zero, nn);
+      
+      ue_h = (cuComplex*) malloc(size_);
+      
+      checkCuda(cudaMalloc((void**) &Te, size_));
+      printf("Allocated Te array of size %.2f MB\n", size_/1024./1024.);
+      
+      cudaMemset(Te, 0., size_); setval <<< nb, nt >>> (Te, zero, nn);
+      
+      Te_h = (cuComplex*) malloc(size_);
+    }
   }
 
 }
@@ -31,6 +56,15 @@ Fields::~Fields() {
   if (phi_h)   free(phi_h);
   if (apar)    cudaFree(apar);
   if (apar_h)  free(apar_h);
+
+  if (ne)      cudaFree(ne);
+  if (ue)      cudaFree(ue);
+  if (Te)      cudaFree(Te);
+
+  if (ne_h)    free(ne_h);
+  if (ue_h)    free(ue_h);
+  if (Te_h)    free(Te_h);
+  
 }
 
 void Fields::print_phi(void)
@@ -56,4 +90,5 @@ void Fields::rescale(float * phi_max) {
   dB = dim3(nt1, nt2, 1);
   dG = dim3(nb1, nb2, 1);
   rescale_kernel <<< dG, dB >>> (phi, phi_max, 1);
+  if(pars_->beta>0) rescale_kernel <<< dG, dB >>> (apar, phi_max, 1);
 }

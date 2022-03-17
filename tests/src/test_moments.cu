@@ -5,7 +5,6 @@
 #include "moments.h"
 #include "device_funcs.h"
 #include "diagnostics.h"
-#include "cuda_constants.h"
 
 class TestMomentsG : public ::testing::Test {
 

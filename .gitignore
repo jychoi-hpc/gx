@@ -1,5 +1,6 @@
 *.o
 *.swp
+*.swo
 *.a
 namelist_defaults.c
 system_config

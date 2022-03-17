@@ -366,6 +366,7 @@ int GradParallelLinked::get_nClasses(int *idxRight, int *idxLeft, int *linksR, i
       }
     }
   }
+
   /*
   for(int idx=0; idx<nakx; idx++) {
     for(int idy=0; idy<naky; idy++) {
@@ -421,7 +422,8 @@ int GradParallelLinked::get_nClasses(int *idxRight, int *idxLeft, int *linksR, i
       printf("linksR[%d,%d]= %d  ", idy, idx, linksR[idy + naky*idx]);
     }
     printf("\n");
-  } */
+  } 
+  */
   
   //now we set up class array
   //nClasses = # of classes  
@@ -444,6 +446,7 @@ int GradParallelLinked::get_nClasses(int *idxRight, int *idxLeft, int *linksR, i
     printf("\n");
   }
   */
+  
   //count how many unique values of n_k there are, which is the number of classes
   
   //sort...

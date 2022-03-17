@@ -132,19 +132,27 @@ int main(int argc, char* argv[])
   exit(1);
   */
 
-  char *run_name;
+  char run_name[100];
   if ( argc < 1) {
-    fprintf(stderr, "The correct usage is:\n gx <runname>\n");
+    fprintf(stderr, "The correct usage is:\n gx <runname>.in\n");
     exit(1);
   } else {    
-    run_name = argv[1];
+    // if input filename ends in .in, remove .in
+    if(strlen(argv[1]) > 3 && !strcmp(argv[1] + strlen(argv[1]) - 3, ".in")) {
+      strncpy(run_name, argv[1], strlen(argv[1])-3);
+      run_name[strlen(argv[1])-3] = '\0';
+    } else {
+      fprintf(stderr, "Argument for input filename must now include \".in\". Try:\n %s %s.in\n", argv[0], argv[1]);
+      exit(1);
+    }
+
     printf("Running %s \n",run_name);
   }
    
   printf("Version: %s \t Compiled: %s \n", build_git_sha, build_git_time);
 
   Parameters * pars = nullptr;
-  pars = new Parameters(mpcom);
+  pars = new Parameters(iproc);
   pars->get_nml_vars(run_name);
   
   Grids * grids = nullptr;
@@ -171,7 +179,7 @@ int main(int argc, char* argv[])
       printf("************************* \n \n \n");
       printf("Warning: may have assumed grho = 1 \n \n \n");
       printf("************************* \n");
-      CUDA_DEBUG("Initializing geometry from file: %s \n");
+      CUDA_DEBUG("Initializing geometry from eik file: %s \n");
     } 
     else if(igeo==2) {
       geo = new geo_nc(pars, grids);

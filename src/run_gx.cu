@@ -115,6 +115,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
       G -> reality(grids->Nl * grids->Nm * grids->Nspecies); 
       solver -> fieldSolve(G, fields);
     }
+
+    if (pars->save_for_restart && counter % pars->nsave == 0) G->restart_write(&time);
   }
 
   if (pars->save_for_restart) G->restart_write(&time);

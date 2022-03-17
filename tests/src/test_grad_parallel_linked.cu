@@ -5,7 +5,6 @@
 #include "grad_parallel.h"
 #include "moments.h"
 #include "diagnostics.h"
-#include "cuda_constants.h"
 #include "device_funcs.h"
 #include "diagnostics.h"
 

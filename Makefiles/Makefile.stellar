@@ -1,16 +1,17 @@
 # load these modules in your .bash_profile (or equivalent)
-# module load cudatoolkit/11.0
-# module load openmpi/cuda-11.0/gcc/4.0.4/64
-# module load netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3
-# module load hdf5/gcc/openmpi-4.0.4/1.10.6
-# module load gsl/1.15
+# module load intel/2021.1.2
+# module load openmpi/intel-2021.1/4.1.0
+# module load netcdf/intel-2021.1/hdf5-1.10.6/openmpi-4.1.0/4.7.4
+# module load hdf5/intel-2021.1/openmpi-4.1.0/1.10.6
+# module load cudatoolkit/11.4
+# module load gsl/2.6
 
 # paths to netcdf added as part of module load
 NETCDF_INC = 
 NETCDF_LIB = -lnetcdf -lnetcdff -lhdf5 
 
 # paths to openmpi
-OMPI_DIR = /usr/local/openmpi/cuda-11.0/4.0.4/gcc/ppc64le
+OMPI_DIR = ${MPI_HOME}
 MPI_INC = -I ${OMPI_DIR}/include
 MPI_LIB = -L ${OMPI_DIR}/lib64 -lmpi 
 
@@ -24,7 +25,7 @@ CUDA_LIB = -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp ${CU
 
 GSL_LIB = -lgsl -lgslcblas -lm
 
-CUDAARCH=70
+CUDAARCH=80
 CC=gcc
 
 NVCC      = nvcc

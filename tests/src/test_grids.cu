@@ -2,12 +2,13 @@
 #include "device_test.h"
 #include "parameters.h"
 #include "grids.h"
-#include "cuda_constants.h"
+#include "device_funcs.h"
 
 class TestGrids : public ::testing::Test {
 protected:
   virtual void SetUp() {
     Parameters* pars = new Parameters;
+    checkCuda(cudaGetLastError());
     pars->nx_in = 20;
     pars->ny_in = 48;
     pars->nz_in = 32;
@@ -19,6 +20,7 @@ protected:
     pars->y0 = 10.;
 
     grids = new Grids(pars);
+    checkCuda(cudaGetLastError());
   }
 
   virtual void TearDown() {
@@ -65,13 +67,13 @@ TEST_F(TestGrids, Ks_on_device) {
  } 
 }
 
-TEST_F(TestGrids, DeviceConstants) {
-  int Nx, Nyc, Nz;
-  cudaMemcpyFromSymbol(&Nx, nx, sizeof(int), 0, cudaMemcpyDeviceToHost);
-  cudaMemcpyFromSymbol(&Nyc, nyc, sizeof(int), 0, cudaMemcpyDeviceToHost);
-  cudaMemcpyFromSymbol(&Nz, nz, sizeof(int), 0, cudaMemcpyDeviceToHost);
-
-  EXPECT_EQ(Nx, 20);
-  EXPECT_EQ(Nyc, 25);
-  EXPECT_EQ(Nz, 32);
-}
+//TEST_F(TestGrids, DeviceConstants) {
+//  int Nx, Nyc, Nz;
+//  cudaMemcpyFromSymbol(&Nx, nx, sizeof(int), 0, cudaMemcpyDeviceToHost);
+//  cudaMemcpyFromSymbol(&Nyc, nyc, sizeof(int), 0, cudaMemcpyDeviceToHost);
+//  cudaMemcpyFromSymbol(&Nz, nz, sizeof(int), 0, cudaMemcpyDeviceToHost);
+//
+//  EXPECT_EQ(Nx, 20);
+//  EXPECT_EQ(Nyc, 25);
+//  EXPECT_EQ(Nz, 32);
+//}

@@ -12,7 +12,6 @@
 #define ERR(e) {printf("Error: %s. See file: %s, line %d\n", nc_strerror(e),__FILE__,__LINE__); exit(2);}
 
 #include "species.h"
-#include "trinity_interface.h"
 // #include <cufft.h>
 #include <string>
 #include <vector>
@@ -66,18 +65,18 @@ enum ASpectra {ASPECTRA_species,
 class Parameters {
 
  public:
-  Parameters(MPI_Comm mpcom);
+  Parameters(int iproc=0);
   ~Parameters(void);
   
   const int nw_spectra = 10; // should match # of elements in WSpectra
   const int np_spectra = 7;  // should match # of elements in PSpectra
   const int na_spectra = 7;  // should match # of elements in ASpectra
   void get_nml_vars(char* file);
-  void set_from_trinity(trin_parameters_struct *tpars);
+  void store_ncdf(int ncid);
 
   void init_species(specie* species);
 
-  int ncid, nczid, nzid, ncresid;
+  int nczid, nzid, ncresid, ncbid;
   int nc_geo, nc_time, nc_ks, nc_vp, nc_rst, nc_dom, nc_diag;
   int nc_expert, nc_resize, nc_con, nc_frc, nc_bz, nc_ml, nc_sp, nc_spec;
   int p_HB, p_hyper_l, p_hyper_m, irho, nwrite, navg, nsave, igeo, nreal;
@@ -141,6 +140,7 @@ class Parameters {
 
   bool write_xyvEx, write_xyvEy, write_xykxvEy, write_xyden, write_xyUpar;
   bool write_xyTpar, write_xyTperp, write_xyqpar;
+  bool write_xyPhi; 
 
   bool nonlinear_mode, linear, iso_shear, secondary, local_limit, hyper, HB_hyper;
   bool no_landau_damping, turn_off_gradients_test, slab, hypercollisions;
@@ -161,8 +161,9 @@ class Parameters {
   bool write_free_energy, diagnosing_moments, diagnosing_pzt;
   bool ostem_rname, new_varenna_fsa, qpar0_switch, qprp0_switch;
   bool zero_restart_avg, no_zderiv_covering, no_zderiv, zderiv_loop;
-  bool Reservoir, ResFakeData, ResWrite;
-  bool dealias_kz; 
+  bool Reservoir, ResFakeData, ResWrite, ResBatch;
+  bool dealias_kz;
+  bool hegna;  // bb6126 - hegna test
   //  bool tpar_omegad_corrections, tperp_omegad_corrections, qpar_gradpar_corrections ;
   //  bool qpar_bgrad_corrections, qperp_gradpar_corrections, qperp_bgrad_corrections ;
     

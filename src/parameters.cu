@@ -5,10 +5,10 @@
 #include "version.h"
 using namespace std;
 
-Parameters::Parameters(MPI_Comm mpcom) {
+Parameters::Parameters(int iproc_in) {
   initialized = false;
 
-  MPI_Comm_rank(mpcom, &iproc);
+  iproc = iproc_in;
 
   // some cuda parameters (not from input file)
   int dev; 
@@ -19,7 +19,7 @@ Parameters::Parameters(MPI_Comm mpcom) {
 Parameters::~Parameters() {
   cudaDeviceSynchronize();
   if(initialized) {
-    cudaFreeHost(species_h);
+    free(species_h);
   }
 }
 
@@ -39,13 +39,17 @@ void Parameters::get_nml_vars(char* filename)
   repeat = toml::find_or <bool> (nml, "repeat",  false);  
   debug  = toml::find_or <bool> (nml, "debug",   false);
 
+  char default_restart_filename[280];
+  strcpy(default_restart_filename, filename);
+  strcat(default_restart_filename, ".restart.nc");
+
   auto tnml = nml;
   if (nml.contains("Restart")) tnml = toml::find(nml, "Restart");
   
   restart           = toml::find_or <bool>   (tnml, "restart",                 false  );
   save_for_restart  = toml::find_or <bool>   (tnml, "save_for_restart",         true  );
-  restart_to_file   = toml::find_or <string> (tnml, "restart_to_file", "newsave.nc"   );  
-  restart_from_file = toml::find_or <string> (tnml, "restart_from_file", "oldsave.nc" );  
+  restart_to_file   = toml::find_or <string> (tnml, "restart_to_file", default_restart_filename);
+  restart_from_file = toml::find_or <string> (tnml, "restart_from_file", default_restart_filename);  
   scale             = toml::find_or <float>  (tnml, "scale",                      1.0 );
    
   tnml = nml;
@@ -66,12 +70,12 @@ void Parameters::get_nml_vars(char* filename)
   if (nml.contains("Domain")) tnml = toml::find(nml, "Domain");
 
   y0       = toml::find_or <float>       (tnml, "y0",          10.0  );
-  x0       = toml::find_or <float>       (tnml, "x0",          10.0  );
-  jtwist   = toml::find_or <int>         (tnml, "jtwist",        -1  );
-  Zp       = toml::find_or <int>         (tnml, "zp",             1  );
+  x0       = toml::find_or <float>       (tnml, "x0",          -1.0  );
+  jtwist   = toml::find_or <int>         (tnml, "jtwist",      -1    );
+  Zp       = toml::find_or <int>         (tnml, "zp",           1    );
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
   ExBshear = toml::find_or <bool>        (tnml, "ExBshear",    false );
-  g_exb    = toml::find_or <float>       (tnml, "g_exb",         0.0 );
+  g_exb    = toml::find_or <float>       (tnml, "g_exb",        0.0  );
   
   tnml = nml;  
   if (nml.contains("Time")) tnml = toml::find (nml, "Time");
@@ -80,7 +84,8 @@ void Parameters::get_nml_vars(char* filename)
   nstep   = toml::find_or <int>   (tnml, "nstep",   10000    );
   nwrite  = toml::find_or <int>   (tnml, "nwrite",   1000    );
   navg    = toml::find_or <int>   (tnml, "navg",       10    );
-  nsave   = toml::find_or <int>   (tnml, "nsave", 2000000    );
+  nsave   = toml::find_or <int>   (tnml, "nsave", (int) nstep/10 );
+  nsave = max(1, nsave);
 
   tnml = nml;
   if (nml.contains("Vlasov_Poisson")) tnml = toml::find (nml, "Vlasov_Poisson");
@@ -115,6 +120,34 @@ void Parameters::get_nml_vars(char* filename)
   rho_s = rho_i*sqrtf(zt/2);
 
   tnml = nml;
+  if (nml.contains("Expert")) tnml = toml::find (nml, "Expert");
+
+  i_share     = toml::find_or <int>    (tnml, "i_share",         8 );
+  nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
+  local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
+  init_single = toml::find_or <bool>   (tnml, "init_single", false );
+  ikx_single  = toml::find_or <int>    (tnml, "ikx_single",      0 );
+  iky_single  = toml::find_or <int>    (tnml, "iky_single",      1 );
+  ikx_fixed   = toml::find_or <int>    (tnml, "ikx_fixed",      -1 );
+  iky_fixed   = toml::find_or <int>    (tnml, "iky_fixed",      -1 );
+  eqfix       = toml::find_or <bool>   (tnml, "eqfix",       false );
+  secondary   = toml::find_or <bool>   (tnml, "secondary",   false );
+  phi_ext     = toml::find_or <float>  (tnml, "phi_ext",       0.0 );
+  source      = toml::find_or <string> (tnml, "source",  "default" );
+  tp_t0       = toml::find_or <float>  (tnml, "t0",           -1.0 );
+  tp_tf       = toml::find_or <float>  (tnml, "tf",           -1.0 );
+  tprim0      = toml::find_or <float>  (tnml, "tprim0",       -1.0 );
+  tprimf      = toml::find_or <float>  (tnml, "tprimf",       -1.0 );
+  hegna       = toml::find_or <bool>   (tnml, "hegna",       false );
+
+  if( hegna ){
+    printf("\nIn order to recover the Hegna model, setting nm=4, nl=2.\n");
+    printf("For consistency, vnewk values should be relatively high.\n");
+    nm_in = 4;
+    nl_in = 2;
+  }
+  
+  tnml = nml;
   if (nml.contains("Diagnostics")) tnml = toml::find (nml, "Diagnostics");
 
   fixed_amplitude   = toml::find_or <bool> (tnml, "fixed_amplitude", false);
@@ -124,7 +157,7 @@ void Parameters::get_nml_vars(char* filename)
   write_moms        = toml::find_or <bool> (tnml, "moms",        false );
   write_rh          = toml::find_or <bool> (tnml, "rh",          false );
   write_pzt         = toml::find_or <bool> (tnml, "pzt",         false );
-
+  
   write_all_avgz    = toml::find_or <bool> (tnml, "all_zonal_scalars", false);
 
   if (write_all_avgz) {
@@ -167,8 +200,9 @@ void Parameters::get_nml_vars(char* filename)
 
   if (write_all_xymom) {
     write_xyvEx = write_xyvEy = write_xykxvEy = write_xyTperp = write_xyTpar = true;
-    write_xyden = write_xyUpar = write_xyqpar = true;
+    write_xyPhi = write_xyden = write_xyUpar = write_xyqpar = true;
   } else {
+    write_xyPhi    = toml::find_or <bool> (tnml, "xyPhi",    false );
     write_xyvEx    = toml::find_or <bool> (tnml, "xyvEx",    false );
     write_xyvEy    = toml::find_or <bool> (tnml, "xyvEy",    false );
     write_xykxvEy  = toml::find_or <bool> (tnml, "xykxvEy",  false );
@@ -197,28 +231,8 @@ void Parameters::get_nml_vars(char* filename)
   write_kmom  = (write_kmom  || write_avg_zkqpar );
   
   write_xymom = (write_xyvEy || write_xykxvEy   || write_xyden      || write_xyUpar    ||  write_xyvEx);
-  write_xymom = (write_xymom || write_xyTpar    || write_xyTperp    || write_xyqpar);
+  write_xymom = (write_xymom || write_xyTpar    || write_xyTperp    || write_xyqpar    ||  write_xyPhi);
   
-  tnml = nml;
-  if (nml.contains("Expert")) tnml = toml::find (nml, "Expert");
-
-  i_share     = toml::find_or <int>    (tnml, "i_share",         8 );
-  nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
-  local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
-  init_single = toml::find_or <bool>   (tnml, "init_single", false );
-  ikx_single  = toml::find_or <int>    (tnml, "ikx_single",      0 );
-  iky_single  = toml::find_or <int>    (tnml, "iky_single",      1 );
-  ikx_fixed   = toml::find_or <int>    (tnml, "ikx_fixed",      -1 );
-  iky_fixed   = toml::find_or <int>    (tnml, "iky_fixed",      -1 );
-  eqfix       = toml::find_or <bool>   (tnml, "eqfix",       false );
-  secondary   = toml::find_or <bool>   (tnml, "secondary",   false );
-  phi_ext     = toml::find_or <float>  (tnml, "phi_ext",       0.0 );
-  source      = toml::find_or <string> (tnml, "source",  "default" );
-  tp_t0       = toml::find_or <float>  (tnml, "t0",           -1.0 );
-  tp_tf       = toml::find_or <float>  (tnml, "tf",           -1.0 );
-  tprim0      = toml::find_or <float>  (tnml, "tprim0",       -1.0 );
-  tprimf      = toml::find_or <float>  (tnml, "tprimf",       -1.0 );
-
   tnml = nml;
   if (nml.contains("Resize")) tnml = toml::find (nml, "Resize");
 
@@ -404,14 +418,21 @@ void Parameters::get_nml_vars(char* filename)
   shift       = toml::find_or <float> (tnml, "shift",    0.0 );
   eps         = toml::find_or <float> (tnml, "eps",    0.167 );
   qsf         = toml::find_or <float> (tnml, "qinp",     1.4 );
-  shat        = toml::find_or <float> (tnml, "shat",     0.8 );
   beta        = toml::find_or <float> (tnml, "beta",    -1.0 );
   zero_shat   = toml::find_or <bool>  (tnml, "zero_shat", false);
-
+  if (igeo==0) {
+    shat        = toml::find_or <float> (tnml, "shat",     0.8 );
+  } else {
+    shat        = toml::find <float> (tnml, "shat");
+    printf("Using the value of shat that appears in the .in file. \n");
+    printf("Be sure it is consistent with the value in the geometry file. \n");
+    printf("Using shat = %f \n",shat);
+  }
+  
   if (abs(shat) < 1.e-5) zero_shat = true;
   
   if (zero_shat) {
-    boundary = "periodic";
+    //    boundary = "periodic";
     printf("Using no magnetic shear because zero_shat = true \n");
   }
   
@@ -484,7 +505,6 @@ void Parameters::get_nml_vars(char* filename)
   for (int k=0; k<wspectra.size(); k++) ksize = max(ksize, wspectra[k]);
   for (int k=0; k<aspectra.size(); k++) ksize = max(ksize, aspectra[k]);
 
-
   tnml = nml;
   if (nml.contains("PZT")) tnml = toml::find (nml, "PZT");  
 
@@ -530,6 +550,7 @@ void Parameters::get_nml_vars(char* filename)
   add_noise = false;
   ResFakeData = false;
   ResWrite = false;
+  ResBatch = false;
   
   tnml = nml;
   if (nml.contains("Reservoir")) tnml = toml::find (nml, "Reservoir");  
@@ -546,20 +567,149 @@ void Parameters::get_nml_vars(char* filename)
   ResSigmaNoise      = toml::find_or <float> (tnml, "noise",           -1.0  );
   ResFakeData        = toml::find_or <bool>  (tnml, "fake_data",      false  );
   ResWrite           = toml::find_or <bool>  (tnml, "write",          false  );
+  ResBatch           = toml::find_or <bool>  (tnml, "batch",          false  );
   
   if (ResTrainingSteps == 0) ResTrainingSteps = nstep/nwrite;
   if (ResTrainingDelta == 0) ResTrainingDelta = nwrite;
   if (ResSigmaNoise > 0.) add_noise = true;
 
+  
+  if(nz_in != 1) {
+    int ntgrid = nz_in/2 + (nperiod-1)*nz_in; 
+    nz_in = 2*ntgrid; // force even
+  }
+  
+  Zp = 2*nperiod - 1; // BD This needs updating
+  
+  // BD  This is messy. Prefer to go back to original method
+  // before, jtwist_old assumed Zp=1
+  // now, redefining jtwist = jtwist_old*Zp
+
+  if (jtwist==0) {
+    // this is an error
+    printf("************************** \n");
+    printf("************************** \n");
+    printf("jtwist = 0 is not allowed! \n");
+    printf("************************** \n");
+    printf("************************** \n");
+  }
+
+  // set jtwist and x0
+  if (zero_shat) {
+    // for zero magnetic shear, jtwist is not used.
+    // just need to make sure x0 is set
+    // either take x0 from input file, or if it was not set
+    // (indicated by x0 = -1) then set it to y0 by default
+    if (x0 == -1) {
+      x0 = y0;
+    }
+    jtwist = 2*nx_in;
+  } else {
+    // if both jtwist and x0 were not set in input file
+    if (jtwist == -1 && x0 < 0.0) {
+      // set jtwist to 2pi*shat so that x0~y0
+      jtwist = (int) round(2*M_PI*shat*Zp);
+      x0 = y0 * jtwist/(2*M_PI*Zp*abs(shat));
+    } 
+    // if jtwist was set in input file but x0 was not
+    else if (x0 < 0.0) {
+      x0 = y0 * jtwist/(2*M_PI*Zp*abs(shat));
+    } 
+    // if x0 was set in input file 
+    else {
+      // compute jtwist that will give x0 ~ the input value
+      int jtwist_0 = (int) round(2*M_PI*abs(shat)*Zp/y0*x0);
+     
+      // if both jtwist and x0 were set in input file, make sure the input jtwist is consistent with the input x0,
+      // and print warning if not.
+      if (jtwist > 0) {
+        if (jtwist_0 != jtwist) {
+          printf("Warning: x0 and jtwist set inconsistently. Resetting jtwist = %d\n", jtwist_0);
+        }
+      }
+      jtwist = jtwist_0;
+      // this is the exact x0 value that corresponds to the integer jtwist we just computed
+      float x0_j = y0 * jtwist/(2*M_PI*Zp*abs(shat));
+      // reset x0 to be consistent with jtwist
+      x0 = x0_j;
+    }
+  }
+
+  //  if(strcmp(closure_model, "beer4+2")==0) {
+  closure_model_opt = Closure::none   ;
+  if( closure_model == "beer4+2") {
+    printf("\nUsing Beer 4+2 closure model. Overriding nm=4, nl=2\n\n");
+    nm_in = 4;
+    nl_in = 2;
+    closure_model_opt = Closure::beer42;
+  } else if (closure_model == "smith_perp") { closure_model_opt = Closure::smithperp;
+  } else if (closure_model == "smith_par")  { closure_model_opt = Closure::smithpar; 
+  }
+
+  if( boundary == "periodic") { boundary_option_periodic = true;
+  } else { boundary_option_periodic = false; }
+  
+  if     ( init_field == "density") { initf = inits::density; }
+  else if( init_field == "upar"   ) { initf = inits::upar   ; }
+  else if( init_field == "tpar"   ) { initf = inits::tpar   ; }
+  else if( init_field == "tperp"  ) { initf = inits::tperp  ; }
+  else if( init_field == "qpar"   ) { initf = inits::qpar   ; }
+  else if( init_field == "qperp"  ) { initf = inits::qperp  ; }
+  
+  if     ( stir_field == "density") { stirf = stirs::density; }
+  else if( stir_field == "upar"   ) { stirf = stirs::upar   ; }
+  else if( stir_field == "tpar"   ) { stirf = stirs::tpar   ; }
+  else if( stir_field == "tperp"  ) { stirf = stirs::tperp  ; }
+  else if( stir_field == "qpar"   ) { stirf = stirs::qpar   ; }
+  else if( stir_field == "qperp"  ) { stirf = stirs::qperp  ; }
+  else if( stir_field == "ppar"   ) { stirf = stirs::ppar   ; }
+  else if( stir_field == "pperp"  ) { stirf = stirs::pperp  ; }
+  
+  if (scheme == "sspx3") scheme_opt = Tmethod::sspx3;
+  if (scheme == "g3")    scheme_opt = Tmethod::g3;
+  if (scheme == "k10")   scheme_opt = Tmethod::k10;
+  if (scheme == "k2")    scheme_opt = Tmethod::k2;
+  if (scheme == "rk4")   scheme_opt = Tmethod::rk4;
+  if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
+  if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
+
+  if (eqfix && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
+    printf("\n");
+    printf("\n");
+    printf(ANSI_COLOR_MAGENTA);
+    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
+    printf(ANSI_COLOR_GREEN);
+    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
+    printf(ANSI_COLOR_RED);
+    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
+    printf(ANSI_COLOR_BLUE);
+    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
+    printf(ANSI_COLOR_RESET);    
+    printf("\n");
+    printf("\n");
+  }  
+  //  printf("scheme_opt = %d \n",scheme_opt);
+    
+  if( source == "phiext_full") {
+    source_option = PHIEXT;
+    printf("Running Rosenbluth-Hinton zonal flow calculation\n");
+  }
+
+  if(hypercollisions) printf("Using hypercollisions.\n");
+  if(hyper) printf("Using hyperdiffusion.\n");
+
+  if(debug) printf("nspec_in = %i \n",nspec_in);
+
+  nspec = nspec_in;
+  init_species(species_h);
+  initialized = true;
+  printf(ANSI_COLOR_RESET);    
+}
+
+void Parameters::store_ncdf(int ncid) {
   // open the netcdf4 file for this run
   // store all inputs for future reference
-
-  char strb[263];
-  strcpy(strb, run_name); 
-  strcat(strb, ".nc");
-
   int retval, idim, sdim, wdim, pdim, adim, nc_out, nc_inputs, nc_diss;
-  if (retval = nc_create(strb, NC_CLOBBER | NC_NETCDF4, &ncid)) ERR(retval);
   if (retval = nc_def_grp(ncid,      "Inputs",         &nc_inputs)) ERR(retval);
   if (retval = nc_def_grp(nc_inputs, "Domain",         &nc_dom))    ERR(retval);  
   if (retval = nc_def_grp(nc_inputs, "Time",           &nc_time))   ERR(retval);  
@@ -583,6 +733,7 @@ void Parameters::get_nml_vars(char* filename)
   if (retval = nc_def_grp(ncid,      "Zonal_x",        &nc_out))    ERR(retval);
   if (retval = nc_def_grp(ncid,      "Fluxes",         &nc_out))    ERR(retval);
 
+  char strb[263];
   if (ResWrite) {
     strcpy(strb, run_name);
     strcat(strb, "_ml.nc");
@@ -591,6 +742,16 @@ void Parameters::get_nml_vars(char* filename)
     if (retval = nc_def_dim (ncresid, "r",     ResQ*nx_in*ny_in*nz_in*nm_in*nl_in, &idim)) ERR(retval);
     if (retval = nc_def_dim (ncresid, "time",  NC_UNLIMITED, &idim)) ERR(retval);
     if (retval = nc_enddef (ncresid)) ERR(retval);
+  }
+
+  if (ResBatch) {
+    strcpy(strb, run_name);
+    strcat(strb, "_batch.nc");
+
+    if (retval = nc_create(strb, NC_CLOBBER | NC_NETCDF4, &ncbid)) ERR(retval);
+    if (retval = nc_def_dim (ncbid, "g", nx_in*ny_in*nz_in*nm_in*nl_in, &idim)) ERR(retval);
+    if (retval = nc_def_dim (ncbid, "time", NC_UNLIMITED, &idim)) ERR(retval);
+    if (retval = nc_enddef (ncbid)) ERR(retval);
   }
   
   if (write_xymom) {
@@ -690,6 +851,7 @@ void Parameters::get_nml_vars(char* filename)
   if (retval = nc_def_var (nc_ml, "SigmaNoise",     NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_ml, "FakeData",       NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_ml, "ResWrite",       NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_ml, "ResBatch",       NC_INT,   0, NULL, &ivar)) ERR(retval);
   
   if (retval = nc_def_var (nc_rst, "scale",            NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_rst, "restart",          NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -724,6 +886,7 @@ void Parameters::get_nml_vars(char* filename)
   if (retval = nc_def_var (nc_diag, "kTperp",          NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_diag, "all_non_zonal",   NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diag, "xyPhi" ,          NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xyvEx",           NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xyvEy",           NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "xykxvEy",         NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -804,6 +967,7 @@ void Parameters::get_nml_vars(char* filename)
   if (retval = nc_def_var (nc_expert, "tprimf",                NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_expert, "source_dum",            NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_put_att_text (nc_expert, ivar, "value", source.size(), source.c_str())) ERR(retval);
+  if (retval = nc_def_var (nc_expert, "hegna",                 NC_INT,   0, NULL, &ivar)) ERR(retval);  // bb6126 - hegna test
 
   // for boltzmann opts need attribute BD bug
 
@@ -892,6 +1056,7 @@ void Parameters::get_nml_vars(char* filename)
   put_real (nc_ml, "SigmaNoise"   , ResSigmaNoise     );
   putbool  (nc_ml, "FakeData"     , ResFakeData       );
   putbool  (nc_ml, "ResWrite"     , ResWrite          );
+  putbool  (nc_ml, "ResBatch"     , ResBatch          );
   
   putbool  (nc_bz, "all_kinetic",           all_kinetic           );
   putbool  (nc_bz, "add_Boltzmann_species", add_Boltzmann_species );
@@ -937,6 +1102,7 @@ void Parameters::get_nml_vars(char* filename)
   putbool  (nc_diag, "kqpar",        write_kqpar       );
 
   putbool  (nc_diag, "all_non_zonal", write_all_xymom  );
+  putbool  (nc_diag, "xyPhi",        write_xyPhi       );
   putbool  (nc_diag, "xyvEx",        write_xyvEx       );
   putbool  (nc_diag, "xyvEy",        write_xyvEy       );
   putbool  (nc_diag, "xykxvEy",      write_xykxvEy     );
@@ -972,6 +1138,7 @@ void Parameters::get_nml_vars(char* filename)
   putbool  (nc_expert, "eqfix",      eqfix      );
   putbool  (nc_expert, "init_single", init_single  );
   putbool  (nc_expert, "secondary",   secondary    );
+  putbool  (nc_expert, "hegna",       hegna        );
   put_real (nc_expert, "phi_ext",     phi_ext      );
   putint   (nc_expert, "ikx_single",  ikx_single   );
   putint   (nc_expert, "iky_single",  iky_single   );
@@ -1030,212 +1197,14 @@ void Parameters::get_nml_vars(char* filename)
   put_real (nc_geo, "beta",        beta       );
   putbool  (nc_geo, "zero_shat",   zero_shat  );
 
-  put_wspectra (nc_sp, wspectra); 
-  put_pspectra (nc_sp, pspectra); 
-  put_aspectra (nc_sp, aspectra); 
-  putspec (nc_spec, nspec_in, species_h);
-  
-  if(nz_in != 1) {
-    int ntgrid = nz_in/2 + (nperiod-1)*nz_in; 
-    nz_in = 2*ntgrid; // force even
-  }
-  
-  Zp = 2*nperiod - 1; // BD This needs updating
-  
-  // BD  This is messy. Prefer to go back to original method
-  // before, jtwist_old assumed Zp=1
-  // now, redefining jtwist = jtwist_old*Zp
-
-  if (jtwist==0) {
-    // this is an error
-    printf("************************** \n");
-    printf("************************** \n");
-    printf("jtwist = 0 is not allowed! \n");
-    printf("************************** \n");
-    printf("************************** \n");
-  }
-
-  // if jtwist = -1 in the input file
-  // set default jtwist to 2*pi*shat to get the x0 in the input file
-  
-  if (jtwist == -1) {
-    if (!zero_shat) {
-      jtwist = (int) round(2*M_PI*abs(shat)*Zp/y0*x0);  // Use Zp or 1 here?
-    } else {
-      // no need to do anything here. x0 is set from input file and jtwist should not be used anywhere
-    }
-    if (jtwist == 0) jtwist = 1;  // just to be safe
-  }   
-
-  // now set x0 to be consistent with jtwist. Two cases: ~ zero shear, and otherwise
-  if (!zero_shat) {
-    x0 = y0 * jtwist/(2*M_PI*Zp*abs(shat));
-    //    printf("x0 = %e, %d, %e \n",x0,Zp,shat);
-  }
-
   // record the values of jtwist and x0 used in runname.nc
   putint (nc_dom, "jtwist", jtwist);
   put_real (nc_dom, "x0", x0);
 
-  //  if(strcmp(closure_model, "beer4+2")==0) {
-  closure_model_opt = Closure::none   ;
-  if( closure_model == "beer4+2") {
-    printf("\nUsing Beer 4+2 closure model. Overriding nm=4, nl=2\n\n");
-    nm_in = 4;
-    nl_in = 2;
-    closure_model_opt = Closure::beer42;
-  } else if (closure_model == "smith_perp") { closure_model_opt = Closure::smithperp;
-  } else if (closure_model == "smith_par")  { closure_model_opt = Closure::smithpar; 
-  }
-
-  if( boundary == "periodic") { boundary_option_periodic = true;
-  } else { boundary_option_periodic = false; }
-  
-  if     ( init_field == "density") { initf = inits::density; }
-  else if( init_field == "upar"   ) { initf = inits::upar   ; }
-  else if( init_field == "tpar"   ) { initf = inits::tpar   ; }
-  else if( init_field == "tperp"  ) { initf = inits::tperp  ; }
-  else if( init_field == "qpar"   ) { initf = inits::qpar   ; }
-  else if( init_field == "qperp"  ) { initf = inits::qperp  ; }
-  
-  if     ( stir_field == "density") { stirf = stirs::density; }
-  else if( stir_field == "upar"   ) { stirf = stirs::upar   ; }
-  else if( stir_field == "tpar"   ) { stirf = stirs::tpar   ; }
-  else if( stir_field == "tperp"  ) { stirf = stirs::tperp  ; }
-  else if( stir_field == "qpar"   ) { stirf = stirs::qpar   ; }
-  else if( stir_field == "qperp"  ) { stirf = stirs::qperp  ; }
-  else if( stir_field == "ppar"   ) { stirf = stirs::ppar   ; }
-  else if( stir_field == "pperp"  ) { stirf = stirs::pperp  ; }
-  
-  if (scheme == "sspx3") scheme_opt = Tmethod::sspx3;
-  if (scheme == "g3")    scheme_opt = Tmethod::g3;
-  if (scheme == "k10")   scheme_opt = Tmethod::k10;
-  if (scheme == "k2")    scheme_opt = Tmethod::k2;
-  if (scheme == "rk4")   scheme_opt = Tmethod::rk4;
-  if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
-  if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
-  if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
-
-  if (eqfix && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
-    printf("\n");
-    printf("\n");
-    printf(ANSI_COLOR_MAGENTA);
-    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_GREEN);
-    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_RED);
-    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_BLUE);
-    printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_RESET);    
-    printf("\n");
-    printf("\n");
-  }  
-  //  printf("scheme_opt = %d \n",scheme_opt);
-    
-  if( source == "phiext_full") {
-    source_option = PHIEXT;
-    printf("Running Rosenbluth-Hinton zonal flow calculation\n");
-  }
-
-  if(hypercollisions) printf("Using hypercollisions.\n");
-  if(hyper) printf("Using hyperdiffusion.\n");
-
-  if(debug) printf("nspec_in = %i \n",nspec_in);
-
-  nspec = nspec_in;
-  init_species(species_h);
-
-  //// set max value of dt based on max CFL from streaming term
-  //dt = min(dt, 1/(sqrt(nm_in+1)*nz_in/Zp*vtmax));
-  //printf("\nSet dt_max = %g\n\n", dt);
-  //put_real (nc_time, "dt", dt);
-
-  initialized = true;
-  printf(ANSI_COLOR_RESET);    
-}
-
-void Parameters::set_from_trinity(trin_parameters_struct *tpars)
-{
-   equilibrium_type = tpars->equilibrium_type;
-   if(tpars->restart>0) restart = true;
-
-   if (tpars->nstep > nstep) {
-     printf("ERROR: nstep has been increased above the default value. nstep must be less than or equal to what is in the input file");
-     abort();
-   }
-   trinity_timestep = tpars->trinity_timestep;
-   trinity_iteration = tpars->trinity_iteration;
-   trinity_conv_count = tpars->trinity_conv_count;
-   nstep = tpars->nstep;
-   navg = tpars->navg;
-   end_time = tpars->end_time;
-  /*char eqfile[800];*/
-   irho = tpars->irho ;
-   rhoc = tpars->rhoc ;
-   eps = tpars->eps;
-   // NB NEED TO SET EPS IN TRINITY!!!
-   //eps = rhoc/rmaj;
-   bishop = tpars->bishop ;
-   nperiod = tpars->nperiod ;
-   nz_in = tpars->ntheta ;
-
- /* Miller parameters*/
-   rmaj = tpars->rgeo_local ;
-   r_geo = tpars->rgeo_lcfs ;
-   akappa  = tpars->akappa ;
-   akappri = tpars->akappri ;
-   tri = tpars->tri ;
-   tripri = tpars->tripri ;
-   shift = tpars->shift ;
-   qsf = tpars->qinp ;
-   shat = tpars->shat ;
-    // EGH These appear to be redundant
-   //asym = tpars->asym ;
-   //asympri = tpars->asympri ;
-
-  /* Other geometry parameters - Bishop/Greene & Chance*/
-   beta_prime_input = tpars->beta_prime_input ;
-   s_hat_input = tpars->s_hat_input ;
-
-  /*Flow shear*/
-   g_exb = tpars->g_exb ;
-
-  /* Species parameters... I think allowing 20 species should be enough!*/
-  int oldnSpecies = nspec;
-  nspec = tpars->ntspec ;
-
-  if (nspec!=oldnSpecies){
-          printf("oldnSpecies=%d,  nSpecies=%d\n", oldnSpecies, nspec);
-          printf("Number of species set in get_fluxes must equal number of species in gx input file\n");
-          exit(1);
-  }
-  if (debug) printf("nSpecies was set to %d\n", nspec);
-  for (int i=0;i<nspec;i++){
-           species_h[i].dens = tpars->dens[i] ;
-           species_h[i].temp = tpars->temp[i] ;
-           species_h[i].fprim = tpars->fprim[i] ;
-           species_h[i].tprim = tpars->tprim[i] ;
-           species_h[i].nu_ss = tpars->nu[i] ;
-  }
-  init_species(species_h);
-
-  //jtwist should never be < 0. If we set jtwist < 0 in the input file,
-  // this triggers the use of jtwist_square... i.e. jtwist is 
-  // set to what it needs to make the box square at the outboard midplane
-  if (jtwist < 0) {
-    int jtwist_square;
-    // determine value of jtwist needed to make X0~Y0
-    jtwist_square = (int) round(2*M_PI*abs(shat)*Zp);
-    if (jtwist_square == 0) jtwist_square = 1;
-    // as currently implemented, there is no way to manually set jtwist from input file
-    // there could be some switch here where we choose whether to use
-    // jtwist_in or jtwist_square
-    jtwist = jtwist_square*2;
-    //else use what is set in input file 
-  }
-  if(jtwist!=0 && abs(shat)>1.e-6) x0 = y0*jtwist/(2*M_PI*Zp*abs(shat));
-  //if(abs(shat)<1.e-6) x0 = y0;
+  put_wspectra (nc_sp, wspectra); 
+  put_pspectra (nc_sp, pspectra); 
+  put_aspectra (nc_sp, aspectra); 
+  putspec (nc_spec, nspec_in, species_h);
 }
 
 void Parameters::init_species(specie* species)
@@ -1250,15 +1219,18 @@ void Parameters::init_species(specie* species)
     species[s].nt   = species[s].dens * species[s].temp;
     species[s].qneut= species[s].dens * species[s].z * species[s].z / species[s].temp;
     species[s].nz   = species[s].dens * species[s].z;
-    species[s].as   = species[s].nz * species[s].vt;
+    species[s].as   = species[s].nz * species[s].vt * beta / 2.;
+    species[s].amp  = species[s].dens * species[s].z * species[s].z / species[s].mass * beta / 2;
     if (debug) {
       printf("species = %d \n",s);
       printf("mass, z, temp, dens = %f, %f, %f, %f \n",
 	     species[s].mass, species[s].z, species[s].temp, species[s].dens);
       printf("vt, tz, zt = %f, %f, %f \n",
 	     species[s].vt, species[s].tz, species[s].zt);
-      printf("rho2, nt, qneut, nz = %f, %f, %f, %f \n \n",
+      printf("rho2, nt, qneut, nz = %f, %f, %f, %f \n",
 	     species[s].rho2, species[s].nt, species[s].qneut, species[s].nz);
+      printf("as, amp = %f, %f \n\n", 
+             species[s].as, species[s].amp);
     }      
   }
 }

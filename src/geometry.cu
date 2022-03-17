@@ -270,19 +270,19 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) gbdrift_h[n] = (float) dtmp[n];
+  for (int n=0; n<N; n++) gbdrift_h[n] = (float) dtmp[n] / 4.0;
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) gbdrift0_h[n] = (float) dtmp[n];
+  for (int n=0; n<N; n++) gbdrift0_h[n] = (float) dtmp[n] / 4.0;
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) cvdrift_h[n] = (float) dtmp[n];
+  for (int n=0; n<N; n++) cvdrift_h[n] = (float) dtmp[n] / 4.0;
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) cvdrift0_h[n] = (float) dtmp[n];
+  for (int n=0; n<N; n++) cvdrift0_h[n] = (float) dtmp[n] / 4.0;
   
   free(dtmp);
 
@@ -303,12 +303,13 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   pars->shat = (float) stmp;
   shat = (float) stmp;
+  //  printf("geometry: shat = %f \n",shat);
   
   if (retval = nc_inq_varid(ncgeo, "Rmaj", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   pars->rmaj = (float) stmp;
 
-  if (retval = nc_inq_varid(ncgeo, "q", &id))        ERR(retval);
+  if (retval = nc_inq_varid(ncgeo, "q", &id))            ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   pars->qsf = (float) stmp;
 
@@ -425,6 +426,8 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       shat       = pars->shat;
       drhodpsi   = pars->drhodpsi;
       oldnperiod = pars->nperiod;
+
+      newNz = (2*pars->nperiod-1)*newNz;
       
       DEBUGPRINT("\n\nIN READ_GEO_INPUT:\nntgrid = %d, nperiod = %d, Nz = %d, rmaj = %f, shat = %f\n\n\n",
 		 ntgrid, pars->nperiod, newNz, pars->rmaj, pars->shat);

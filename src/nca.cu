@@ -4,7 +4,7 @@ nca::nca(int N, int Nwrite) :
   N_(N), Nwrite_(Nwrite)
 {
   data = nullptr;  cpu = nullptr;  tmp = nullptr; z_tmp = nullptr; tmp_d = nullptr;
-  write = false;
+  write = false;  
   write_v_time = false;
   xydata = false;
   xdata = false;
@@ -13,6 +13,7 @@ nca::nca(int N, int Nwrite) :
   dy  = false;
   dx  = false;
   d2x = false;
+  all = false; // true to keep the zonal component in xy plots
   adj = 1.0;
   time_start[0] = 0;
   time_start[1] = 0;

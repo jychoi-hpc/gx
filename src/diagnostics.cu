@@ -31,10 +31,13 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
   vEk         = nullptr;  phi_max     = nullptr;
   ry_h        = nullptr;  gy_h        = nullptr;  gy_d        = nullptr;
+  vol_fac = nullptr;
+  flux_fac = nullptr;
+  kvol_fac = nullptr;
 
   
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
-  fields_old = new      Fields(pars_, grids_);      cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
+  fields_old = new     Fields(pars_, grids_);       cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
 
   if (pars_->fixed_amplitude) cudaMalloc (&phi_max, sizeof(float) * nX * nY);
 
@@ -53,8 +56,6 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   float *flux_fac_h;
   flux_fac_h = (float*) malloc (sizeof(float) * nZ);
   cudaMalloc(&flux_fac, sizeof(float)*nZ);
-  // for (int i=0; i<grids_->Nz; i++) fluxDenom   += geo_->jacobian_h[i]*geo_->grho_h[i];
-  //  for (int i=0; i<grids_->Nz; i++) flux_fac_h[i]  = geo_->jacobian_h[i]*geo_->grho_h[i] / fluxDenom;
   for (int i=0; i<grids_->Nz; i++) fluxDenom   += geo_->jacobian_h[i]*geo_->grho_h[i];
   for (int i=0; i<grids_->Nz; i++) flux_fac_h[i]  = geo_->jacobian_h[i] / fluxDenom;
   CP_TO_GPU(flux_fac, flux_fac_h, sizeof(float)*nZ);
@@ -242,12 +243,24 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
       
       for(int is=0; is<grids_->Nspecies; is++) {
 	float rho2s = pars_->species_h[is].rho2;
+	float p_s = pars_->species_h[is].nt;
 	heat_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
-				 grids_->ky, flux_fac, geo_->kperp2, rho2s);
+				  grids_->ky, flux_fac, geo_->kperp2, rho2s, p_s);
       }
       id -> write_Q(P2s); 
     }      
 
+    if ( id -> ps -> write_v_time) {
+
+      for(int is=0; is<grids_->Nspecies; is++) {
+	float rho2s = pars_->species_h[is].rho2;
+	float n_s = pars_->species_h[is].dens;
+	part_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
+				  grids_->ky, flux_fac, geo_->kperp2, rho2s, n_s);
+      }
+      id -> write_P(P2s); 
+    }
+    
     if (pars_->diagnosing_kzspec) {
       grad_par->zft(G); // get G = G(kz)
       W_summand GALL (G2, G->G(), kvol_fac, G->nt());
@@ -357,6 +370,9 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
     id -> write_moment ( id -> avg_zkTperp, G->tprp_ptr[0], vol_fac);
     id -> write_moment ( id -> avg_zkqpar,  G->qpar_ptr[0], vol_fac);
 
+    // Plot f(x,y,z=0)
+    id -> write_moment ( id -> xyPhi,   fields->phi,    vol_fac);
+    
     // Plot the non-zonal components as functions of (x, y)
     id -> write_moment ( id -> xykxvEy, fields->phi,    vol_fac);
     id -> write_moment ( id -> xyvEy,   fields->phi,    vol_fac);
@@ -415,22 +431,6 @@ void Diagnostics_GK::finish(MomentsG* G, Fields* fields, double time)
       id -> write_nc(id -> time, time);
       id -> write_ks_data (id -> g_y, gy_d);
     }
-  }
-
-  id->close_nc_file();  fflush(NULL);
-}
-
-void Diagnostics_GK::copy_fluxes_to_trinity(trin_fluxes_struct *tfluxes)
-{
-  // these are placeholders for gx-computed quantities
-  float qflux = 0.;
-  float pflux = 0.;
-  float heat = 0.;
-
-  for(int s=0; s<grids_->Nspecies; s++) {
-    tfluxes->qflux[s] = qflux;
-    tfluxes->pflux[s] = pflux;
-    tfluxes->heat[s] = heat;
   }
 }
 
@@ -659,12 +659,6 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
 
   nw = pars_->nwrite;
 
-  if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
-    int nt = min(512, grids_->NxNyc) ;
-    growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
-    fields_old->copyPhiFrom(fields);
-  }
-
   if(counter%nw == 0) {
 
     fflush(NULL);
@@ -675,6 +669,9 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
     if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
     
     if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+      int nt = min(512, grids_->NxNyc) ;
+      growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt*nw, omg_d);
+      fields_old->copyPhiFrom(fields);
       print_omg(omg_d);  id -> write_omg(omg_d);
     }
 
@@ -701,7 +698,6 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
 
 void Diagnostics_KREHM::finish(MomentsG* G, Fields* fields, double time) 
 {
-  id->close_nc_file();  fflush(NULL);
 }
 
 void Diagnostics_KREHM::print_omg(cuComplex *W)

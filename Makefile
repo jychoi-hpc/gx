@@ -28,8 +28,8 @@ LD = $(NVCC)
 GEO_LIBS=${GS2}/geometry_c_interface.o 
 GS2_CUDA_FLAGS=-I ${GS2} ${GS2}/libgs2.a ${GS2}/libsimpledataio.a 
 
-CFLAGS= ${CUDA_INC} ${MPI_INC} ${CUTENSOR_INC}
-LDFLAGS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} ${CUTENSOR_LIB}
+CFLAGS= ${CUDA_INC} ${MPI_INC} 
+LDFLAGS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} 
 #NVCCFLAGS=-arch=sm_70 --compiler-options="-fPIC"
 
 #####################################
@@ -80,7 +80,7 @@ src/version.c:
 #######################################
 # Rules for building gx
 ####################################
-OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o timestepper.o diagnostics.o run_gx.o version.o trinity_interface.o
+OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o sspx2.o sspx3.o rk2.o rk4.o k10.o k2.o g3.o diagnostics.o run_gx.o version.o trinity_interface.o
 
 # main program
 gx: obj/main.o libgx.a 
@@ -97,7 +97,7 @@ all: gx libgx.a
 ########################
 
 clean: 
-	rm -rf obj/*.o *~ \#*
+	rm -rf obj/*.o *~ libgx.a \#*
 
 distclean: clean clean_tests
 	rm -rf $(TARGET)
