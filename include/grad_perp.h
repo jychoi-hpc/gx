@@ -12,7 +12,7 @@ class GradPerp {
   void dxC2R (cuComplex* G, float* dxG);
   void dyC2R (cuComplex* G, float* g);
   void C2R   (cuComplex* G, float* Gy);
-  void R2C   (float* G, cuComplex* res);
+  void R2C   (float* G, cuComplex* res, bool accumulate=true);
   void qvar  (cuComplex* G, int N);
   void qvar  (float* G, int N);
   

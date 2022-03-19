@@ -176,18 +176,19 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       // compute {G_m, phi}
       bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
-      grad_perp_G->R2C(dG, tmp_c);
       // NL_m += {G_m, phi}
-      add_scaled_singlemom_kernel GBK (G_res->Gm(m,s), 1., G_res->Gm(m,s), 1., tmp_c);
+      grad_perp_G->R2C(dG, G_res->Gm(m,s), true);
 
-      // compute {G_m, Apar}
-      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-      laguerre->transformToSpectral(g_res, dG);
-      grad_perp_G->R2C(dG, tmp_c);
-      // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
-      if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_res->Gm(m+1,s), 1., G_res->Gm(m+1,s), -vts*sqrtf(m+1), tmp_c);
-      // NL_{m-1} += -vt*sqrt(m)*{G_m, Apar}
-      if(m>0) add_scaled_singlemom_kernel GBK (G_res->Gm(m-1,s), 1., G_res->Gm(m-1,s), -vts*sqrtf(m), tmp_c);
+      if (pars_->beta > 0.) {
+        // compute {G_m, Apar}
+        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+        laguerre->transformToSpectral(g_res, dG);
+        grad_perp_G->R2C(dG, tmp_c, false);
+        // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
+        if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_res->Gm(m+1,s), 1., G_res->Gm(m+1,s), -vts*sqrtf(m+1), tmp_c);
+        // NL_{m-1} += -vt*sqrt(m)*{G_m, Apar}
+        if(m>0) add_scaled_singlemom_kernel GBK (G_res->Gm(m-1,s), 1., G_res->Gm(m-1,s), -vts*sqrtf(m), tmp_c);
+      }
     }
   }
 }

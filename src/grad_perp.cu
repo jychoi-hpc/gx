@@ -103,10 +103,14 @@ void GradPerp::C2R(cuComplex* G, float* Gy)
 }
 
 // An R2C that accumulates -- will be very useful
-void GradPerp::R2C(float* G, cuComplex* res)
+void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
 {
-  cufftExecR2C(gradperp_plan_R2C, G, tmp);
-  add_section <<< dG, dB >>> (res, tmp, mem_size_);
+  if (accumulate) {
+    cufftExecR2C(gradperp_plan_R2C, G, tmp);
+    add_section <<< dG, dB >>> (res, tmp, mem_size_);
+  } else {
+    cufftExecR2C(gradperp_plan_R2C, G, res);
+  }
 }
 
 
