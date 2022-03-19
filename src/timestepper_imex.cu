@@ -44,12 +44,12 @@ void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG* G1, MomentsG* G, Fields* f, bool
 {
   G1->set_zero();
   for (int s=0; s<grids_->Nspecies; s++) {
-    if(pars_->spec[s].type == 1) {
+    if(pars_->species_h[s].type == 1) {
       // compute explicit part of electron linear rhs
-      linear_->rhs_explicit(G, f, G1, s);
+      //linear_->rhs_explicit(G, f, G1, s);
     } else {
       // handle entire ion linear rhs explicitly
-      linear_->rhs(G, f, G1, s);
+      //linear_->rhs(G, f, G1, s);
     }
   }
 
