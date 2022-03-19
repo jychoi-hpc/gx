@@ -26,6 +26,7 @@ RungeKutta4::~RungeKutta4()
 
 void RungeKutta4::partial(MomentsG* G, MomentsG* Gt, Fields *f, MomentsG* Rhs, MomentsG *Gnew, double adt, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(Gt, f, Rhs);
   if (nonlinear_ != nullptr) {
     nonlinear_->nlps (Gt, f, Rhs);
@@ -58,6 +59,7 @@ void RungeKutta4::advance(double *t, MomentsG* G, Fields* f)
   // This update is just to improve readability
   GRhs->add_scaled(1., GRhs, dt_/3., GStar);
   
+  GRhs->set_zero();
   linear_->rhs(G_q1, f, GStar);
   if(nonlinear_ != nullptr) nonlinear_->nlps(G_q1, f, GStar);     
   

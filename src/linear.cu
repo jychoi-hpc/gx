@@ -143,11 +143,11 @@ Linear_GK::~Linear_GK()
   if (vol_fac)    cudaFree(vol_fac);
 }
 
+// note: this subroutine *accumulates into* GRhs. 
+// so if the linear terms are the first part of the timestep, 
+// might want to call GRhs->set_zero() prior to calling rhs.
 void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
-  // to be safe, start with zeros on RHS
-  GRhs->set_zero();
-  
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
@@ -207,9 +207,6 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 // break rhs into implicit terms (streaming and hypercollisions) and explicit terms
 void Linear_GK::rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
-  // to be safe, start with zeros on RHS
-  GRhs->set_zero();
-  
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
@@ -344,9 +341,6 @@ Linear_KREHM::~Linear_KREHM()
 
 void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
-  // to be safe, start with zeros on RHS
-  GRhs->set_zero();
-  
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
 

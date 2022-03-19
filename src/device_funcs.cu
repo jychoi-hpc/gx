@@ -2001,7 +2001,7 @@ __global__ void streaming_rhs(const cuComplex* g, const cuComplex* phi, const cu
       const float vt_ = vt[is];
       unsigned int globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m   + nm * is)));
       unsigned int mp1       = idy + nyc*( idx + nx*(idzl + nz*nl*(m+1 + nm * is)));
-      rhs_par[globalIdx] = -vt_ * sqrtf(m+1) * g[mp1] * gradpar;
+      rhs_par[globalIdx] = rhs_par[globalIdx] - vt_ * sqrtf(m+1) * g[mp1] * gradpar;
     }
         
     m = nm - 1;     // m = nm-1 case
@@ -2009,7 +2009,7 @@ __global__ void streaming_rhs(const cuComplex* g, const cuComplex* phi, const cu
       const float vt_ = vt[is];
       unsigned int globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m   + nm * is)));
       unsigned int mm1       = idy + nyc*( idx + nx*(idzl + nz*nl*(m-1 + nm * is)));
-      rhs_par[globalIdx] = -vt_ * sqrtf(m) * g[mm1]  * gradpar;
+      rhs_par[globalIdx] = rhs_par[globalIdx] - vt_ * sqrtf(m) * g[mm1]  * gradpar;
     }
     
     for (int m = 1; m < nm-1; m++) {
@@ -2019,7 +2019,7 @@ __global__ void streaming_rhs(const cuComplex* g, const cuComplex* phi, const cu
 	unsigned int mp1       = idy + nyc*( idx + nx*(idzl + nz*nl*(m+1 + nm * is)));
 	unsigned int mm1       = idy + nyc*( idx + nx*(idzl + nz*nl*(m-1 + nm * is)));
 	
-	rhs_par[globalIdx] = -vt_ * (sqrtf(m+1)*g[mp1] + sqrtf(m)*g[mm1]) * gradpar;
+	rhs_par[globalIdx] = rhs_par[globalIdx] - vt_ * (sqrtf(m+1)*g[mp1] + sqrtf(m)*g[mm1]) * gradpar;
       }
     }
 
@@ -2248,19 +2248,19 @@ __global__ void rhs_linear_krehm(const cuComplex* g, const cuComplex* phi, const
     int m = 0;       // m = 0 case
     unsigned int globalIdx = idy + nyc*( idx + nx*(idz + nz*(m  )));
     unsigned int mp1       = idy + nyc*( idx + nx*(idz + nz*(m+1)));
-    rhs_par[globalIdx] = -rhos_ov_de * sqrtf(m+1) * g[mp1];
+    rhs_par[globalIdx] = rhs_par[globalIdx] - rhos_ov_de * sqrtf(m+1) * g[mp1];
     
     m = nm - 1;     // m = nm-1 case
     globalIdx = idy + nyc*( idx + nx*(idz + nz*(m  )));
     unsigned int mm1       = idy + nyc*( idx + nx*(idz + nz*(m-1)));
-    rhs_par[globalIdx] = -rhos_ov_de * sqrtf(m) * g[mm1];
+    rhs_par[globalIdx] = rhs_par[globalIdx] - rhos_ov_de * sqrtf(m) * g[mm1];
     
     for (int m = 1; m < nm-1; m++) {
        globalIdx = idy + nyc*( idx + nx*(idz + nz*(m  )));	
        mp1       = idy + nyc*( idx + nx*(idz + nz*(m+1)));
        mm1       = idy + nyc*( idx + nx*(idz + nz*(m-1)));
        
-       rhs_par[globalIdx] = -rhos_ov_de * (sqrtf(m+1)*g[mp1] + sqrtf(m)*g[mm1]);
+       rhs_par[globalIdx] = rhs_par[globalIdx] - rhos_ov_de * (sqrtf(m+1)*g[mp1] + sqrtf(m)*g[mm1]);
        // collision term
        if(m!=2) rhs_par[globalIdx] = rhs_par[globalIdx] - nu_ei*m*g[globalIdx];
     }

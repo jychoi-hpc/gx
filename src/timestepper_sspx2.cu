@@ -22,6 +22,7 @@ SSPx2::~SSPx2()
 // ======== SSPx2  ==============
 void SSPx2::EulerStep(MomentsG* G1, MomentsG* G, MomentsG* GRhs, Fields* f, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(G, f, GRhs);
 
   if(nonlinear_ != nullptr) {

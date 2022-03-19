@@ -34,6 +34,7 @@ Ketcheson10::~Ketcheson10()
 
 void Ketcheson10::EulerStep(MomentsG* G_q1, MomentsG* GRhs, Fields* f, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(G_q1, f, GRhs);   if (pars_->dealias_kz) grad_par->dealias(GRhs);
   
   if(nonlinear_ != nullptr) {
@@ -68,6 +69,7 @@ void Ketcheson10::advance(double *t, MomentsG* G, Fields* f)
   
   for(int i=6; i<10; i++) EulerStep(G_q1, G, f, setdt);
   
+  G->set_zero();
   linear_->rhs(G_q1, f, G);
   if (pars_->dealias_kz) grad_par->dealias(G);
   

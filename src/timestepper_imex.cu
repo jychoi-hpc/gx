@@ -42,7 +42,22 @@ IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
 
 void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG* G1, MomentsG* G, Fields* f, bool setdt)
 {
-  // TBI
+  G1->set_zero();
+  for (int s=0; s<grids_->Nspecies; s++) {
+    if(pars_->spec[s].type == 1) {
+      // compute explicit part of electron linear rhs
+      linear_->rhs_explicit(G, f, G1, s);
+    } else {
+      // handle entire ion linear rhs explicitly
+      linear_->rhs(G, f, G1, s);
+    }
+  }
+
+  // compute nonlinear terms explicitly for all species
+  if(nonlinear_ != nullptr) {
+    nonlinear_->nlps(G, f, G1);
+    if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+  }
 }
 
 void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG* G1, MomentsG* G, Fields* f)

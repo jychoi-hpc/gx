@@ -198,6 +198,7 @@ SDCe::~SDCe()
 }
 void SDCe::full_rhs(MomentsG* G_q1, MomentsG* GRhs, Fields* f, MomentsG* GStar)
 {
+  GRhs->set_zero();
   linear_->rhs(G_q1, f, GRhs);
 
   if(nonlinear_ != nullptr) {

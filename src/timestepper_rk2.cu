@@ -22,6 +22,7 @@ RungeKutta2::~RungeKutta2()
 void RungeKutta2::EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* G, MomentsG* GRhs,
 			    Fields* f, double adt, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(G0, f, GRhs); 
   
   if(nonlinear_ != nullptr) {

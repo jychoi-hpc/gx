@@ -34,6 +34,7 @@ SSPRK3::~SSPRK3()
 
 void SSPRK3::EulerStep(MomentsG* G1, MomentsG* G, MomentsG* GRhs, Fields* f, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(G, f, GRhs);  if (pars_->dealias_kz) grad_par->dealias(GRhs);
 
   if(nonlinear_ != nullptr) {

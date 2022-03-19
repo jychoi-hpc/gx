@@ -24,6 +24,7 @@ K2::~K2()
 
 void K2::EulerStep(MomentsG* G_q1, MomentsG* GRhs, Fields* f, bool setdt)
 {  
+  GRhs->set_zero();
   linear_->rhs(G_q1, f, GRhs);
 
   if(nonlinear_ != nullptr) {
@@ -37,6 +38,7 @@ void K2::EulerStep(MomentsG* G_q1, MomentsG* GRhs, Fields* f, bool setdt)
 
 void K2::FinalStep(MomentsG* G_q1, MomentsG* G_q2, MomentsG* GRhs, Fields* f)
 {  
+  GRhs->set_zero();
   linear_->rhs(G_q1, f, GRhs);
   if(nonlinear_ != nullptr) nonlinear_->nlps(G_q1, f, GRhs);
 

@@ -20,6 +20,7 @@ G3::~G3()
 
 void G3::EulerStep(MomentsG* G_u, MomentsG* GRhs, Fields* f, bool setdt)
 {
+  GRhs->set_zero();
   linear_->rhs(G_u, f, GRhs);
 
   if(nonlinear_ != nullptr) {
