@@ -80,7 +80,7 @@ src/version.c:
 #######################################
 # Rules for building gx
 ####################################
-OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o timestepper_sspx2.o timestepper_sspx3.o timestepper_rk2.o timestepper_rk4.o timestepper_k10.o timestepper_k2.o timestepper_g3.o timestepper_ssprk3.o timestepper_imex.o diagnostics.o run_gx.o version.o trinity_interface.o
+OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk2.o ts_rk4.o ts_k10.o ts_k2.o ts_g3.o ts_ssprk3.o ts_imex.o diagnostics.o run_gx.o version.o trinity_interface.o
 
 # main program
 gx: obj/main.o libgx.a 
