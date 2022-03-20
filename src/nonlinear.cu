@@ -177,13 +177,13 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
       // NL_m += {G_m, phi}
-      grad_perp_G->R2C(dG, G_res->Gm(m,s), true);
+      grad_perp_G->R2C(dG, G_res->Gm(m,s), true); // this R2C has accumulate=true
 
       if (pars_->beta > 0.) {
         // compute {G_m, Apar}
         bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
         laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2C(dG, tmp_c, false);
+        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
         // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
         if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_res->Gm(m+1,s), 1., G_res->Gm(m+1,s), -vts*sqrtf(m+1), tmp_c);
         // NL_{m-1} += -vt*sqrt(m)*{G_m, Apar}
@@ -294,13 +294,12 @@ void Nonlinear_KREHM::nlps(MomentsG* G, Fields* f, MomentsG* G_nl)
 
     // compute {g_m, phi}
     bracket GBX (tmp_r, dg_dx, dphi_dy, dg_dy, dphi_dx, 1.);
-    grad_perp->R2C(tmp_r, tmp_c);
     // NL_m += {g_m, phi}
-    add_scaled_singlemom_kernel GBK (G_nl->Gm(m), 1., G_nl->Gm(m), 1., tmp_c);
+    grad_perp->R2C(tmp_r, G_nl->Gm(m), true); // this R2C has accumulate=true
 
     // compute {g_m, Apar}
     bracket GBX (tmp_r, dg_dx, dapar_dy, dg_dy, dapar_dx, 1.);
-    grad_perp->R2C(tmp_r, tmp_c);
+    grad_perp->R2C(tmp_r, tmp_c, false); // this R2C has accumulate=false
     // NL_{m+1} += -rho_s/d_e*sqrt(m+1)*{g_m, Apar}
     if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_nl->Gm(m+1), 1., G_nl->Gm(m+1), -rho_s/d_e*sqrtf(m+1), tmp_c);
     // NL_{m-1} += -rho_s/d_e*sqrt(m)*{g_m, Apar}
@@ -393,7 +392,7 @@ void Nonlinear_KS::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   grad_perp_G -> dyC2R(G->G(), dg_dy);
   grad_perp_G -> C2R(G->G(), Gy);
   nlks GBX (g_res, Gy, dg_dy);
-  grad_perp_G -> R2C(g_res, G_res->G());
+  grad_perp_G -> R2C(g_res, G_res->G(), true);
   
 }
 double Nonlinear_KS::cfl(Fields *f, double dt_max)
@@ -475,7 +474,7 @@ void Nonlinear_VP::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   grad_perp_G -> C2R(G->G(), Gy);
   grad_perp_phi -> dyC2R(f->phi, dphi_dy);
   nlvp GBX (g_res, Gy, dphi_dy);
-  grad_perp_G -> R2C(g_res, G_res->G());
+  grad_perp_G -> R2C(g_res, G_res->G(), true);
 }
 
 double Nonlinear_VP::cfl(Fields *f, double dt_max)
