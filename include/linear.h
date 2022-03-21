@@ -11,6 +11,8 @@ class Linear {
  public:
   virtual ~Linear() {};
   virtual void rhs(MomentsG* G, Fields* f, MomentsG* GRhs) = 0;
+  virtual void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs) {};
+  virtual void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs) {};
 };
 
 class Linear_GK : public Linear {
@@ -19,7 +21,8 @@ public:
   ~Linear_GK();
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs);
-  void rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs);
+  void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs);
+  void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs);
 
   //  int zderiv(MomentsG *G);
 

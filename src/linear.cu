@@ -143,20 +143,18 @@ Linear_GK::~Linear_GK()
   if (vol_fac)    cudaFree(vol_fac);
 }
 
-// note: this subroutine *accumulates into* GRhs. 
-// so if the linear terms are the first part of the timestep, 
-// might want to call GRhs->set_zero() prior to calling rhs.
-void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
+void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs) {
+  // Free-streaming requires parallel FFTs, so do that first
+  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+  grad_par->dz(GRhs);
+}
 
+void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
 			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, *(G->species));
 
-  // Free-streaming requires parallel FFTs, so do that first
-  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
-  grad_par->dz(GRhs);
-  
   // calculate most of the RHS
   cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, 12*1024*sizeof(cuComplex));    
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
@@ -200,6 +198,16 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());
+
+}
+
+// note: this subroutine *accumulates into* GRhs. 
+// so if the linear terms are the first part of the timestep, 
+// might want to call GRhs->set_zero() prior to calling rhs.
+void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
+
+  rhs_streaming(G, f, GRhs);
+  rhs_nonstreaming(G, f, GRhs);
 
 }
 
