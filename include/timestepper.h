@@ -84,11 +84,11 @@ class SSPRK3 : public Timestepper {
   SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~SSPRK3();
-  void advance(double* t, MomentsG* G, Fields* fields);
+  void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
 
  private:
-  void EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* GRhs, Fields* f, bool setdt);
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG* GRhs, Fields* f, bool setdt);
 
   const double dt_max;
  
@@ -99,8 +99,8 @@ class SSPRK3 : public Timestepper {
   Grids        * grids_     ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
-  MomentsG     * G1         ;
-  MomentsG     * G2         ;
+  MomentsG    ** G1         ;
+  MomentsG    ** G2         ;
   MomentsG     * GRhs       ;
   double dt_;
 };
@@ -110,15 +110,15 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~IMEX_SSPRK3_DIRK();
-  void advance(double* t, MomentsG* G, Fields* fields);
+  void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
 
-  void explicit_terms(MomentsG* G1, MomentsG* G, Fields* f, bool setdt);
-  void implicit_terms(MomentsG* G1, MomentsG* G, Fields* f);
-  void invert_implicit_terms(MomentsG* G1, double rdt);
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+  void invert_implicit_terms(MomentsG** G1, double rdt);
 
  private:
-  void EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* GRhs, Fields* f, bool setdt);
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
 
   const double dt_max;
  
@@ -129,14 +129,14 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   Grids        * grids_     ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
-  MomentsG     * G1         ;
-  MomentsG     * G2         ;
-  MomentsG     * A0         ;
-  MomentsG     * A1         ;
-  MomentsG     * A2         ;
-  MomentsG     * B0         ;
-  MomentsG     * B1         ;
-  MomentsG     * B2         ;
+  MomentsG    ** G1         ;
+  MomentsG    ** G2         ;
+  MomentsG    ** A0         ;
+  MomentsG    ** A1         ;
+  MomentsG    ** A2         ;
+  MomentsG    ** B0         ;
+  MomentsG    ** B1         ;
+  MomentsG    ** B2         ;
   double dt_;
 };
 

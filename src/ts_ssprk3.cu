@@ -9,8 +9,12 @@ SSPRK3::SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   
   // new objects for temporaries
   GRhs  = new MomentsG (pars_, grids_);
-  G1    = new MomentsG (pars_, grids_);
-  G2    = new MomentsG (pars_, grids_);
+  G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G1[is] = new MomentsG (pars_, grids_, is);
+    G2[is] = new MomentsG (pars_, grids_, is);
+  }
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -27,33 +31,36 @@ SSPRK3::SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 SSPRK3::~SSPRK3()
 {
   if (GRhs)  delete GRhs;
-  if (G1)    delete G1; 
-  if (G2)    delete G2; 
+  for(int is=0; is<grids_->Nspecies; is++) {
+    if (G1[is]) delete G1[is];
+    if (G2[is]) delete G2[is];
+  }
+  free(G1);
+  free(G2);
   if (grad_par) delete grad_par;
 }
 
-void SSPRK3::EulerStep(MomentsG* G1, MomentsG* G, MomentsG* GRhs, Fields* f, bool setdt)
+void SSPRK3::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bool setdt)
 {
-  GRhs->set_zero();
-  linear_->rhs(G, f, GRhs);  if (pars_->dealias_kz) grad_par->dealias(GRhs);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    GRhs->set_zero();
+    linear_->rhs(G[is], f, GRhs);  if (pars_->dealias_kz) grad_par->dealias(GRhs);
 
-  if(nonlinear_ != nullptr) {
-    nonlinear_->nlps(G, f, GRhs);
-    if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    if(nonlinear_ != nullptr) {
+      nonlinear_->nlps(G[is], f, GRhs);
+      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    }
+    if (pars_->dealias_kz) grad_par->dealias(GRhs);
+
+    if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
+    G1[is]->add_scaled(1., G[is], dt_, GRhs);
   }
-  if (pars_->dealias_kz) grad_par->dealias(GRhs);
-
-  if (pars_->eqfix) G1->copyFrom(G);   
-  G1->add_scaled(1., G, dt_, GRhs);
 }
 
-void SSPRK3::advance(double *t, MomentsG* G, Fields* f)
+void SSPRK3::advance(double *t, MomentsG** G, Fields* f)
 {
   // update the gradients if they are evolving
-  G -> update_tprim(*t); 
-  G1-> update_tprim(*t); 
-  G2-> update_tprim(*t); 
-  // end updates
+  pars_ -> update_tprim(*t); 
   
   // stage 1
   EulerStep (G1, G , GRhs, f, true);  
@@ -61,15 +68,19 @@ void SSPRK3::advance(double *t, MomentsG* G, Fields* f)
 
   // stage 2
   EulerStep (G2, G1, GRhs, f, false); 
-  G1->add_scaled(0.75, G, 0.25, G2);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G1[is]->add_scaled(0.75, G[is], 0.25, G2[is]);
+  }
   solver_->fieldSolve(G1, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   // stage 3
   EulerStep (G2, G1, GRhs, f, false);
-  G->add_scaled(1.0/3.0, G, 2.0/3.0, G2);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G[is]->add_scaled(1.0/3.0, G[is], 2.0/3.0, G2[is]);
   
-  if (forcing_ != nullptr) forcing_->stir(G);  
-  G->mask();
+    if (forcing_ != nullptr) forcing_->stir(G[is]);  
+    G[is]->mask();
+  }
   solver_->fieldSolve(G, f);          if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
   *t += dt_;

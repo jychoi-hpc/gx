@@ -8,13 +8,22 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
 {
   
   // new objects for temporaries
-  A0 = new MomentsG (pars_, grids_);
-  A1 = new MomentsG (pars_, grids_);
-  A2 = new MomentsG (pars_, grids_);
-  B0 = new MomentsG (pars_, grids_);
-  B1 = new MomentsG (pars_, grids_);
-  B2 = new MomentsG (pars_, grids_);
-  G1 = new MomentsG (pars_, grids_);
+  A0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  A1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  A2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  B0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  B1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  B2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    A0[is] = new MomentsG (pars_, grids_, is);
+    A1[is] = new MomentsG (pars_, grids_, is);
+    A2[is] = new MomentsG (pars_, grids_, is);
+    B0[is] = new MomentsG (pars_, grids_, is);
+    B1[is] = new MomentsG (pars_, grids_, is);
+    B2[is] = new MomentsG (pars_, grids_, is);
+    G1[is] = new MomentsG (pars_, grids_, is);
+  }
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -40,42 +49,40 @@ IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
   if (grad_par) delete grad_par;
 }
 
-void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG* G1, MomentsG* G, Fields* f, bool setdt)
+void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt)
 {
-  G1->set_zero();
-  for (int s=0; s<grids_->Nspecies; s++) {
-    if(pars_->species_h[s].type == 1) {
+  for (int is=0; is<grids_->Nspecies; is++) {
+    G1[is]->set_zero();
+    if(pars_->species_h[is].type == 1) {
       // compute explicit part of electron linear rhs
-      //linear_->rhs_explicit(G, f, G1, s);
+      //linear_->rhs_explicit(G[is], f, G1[is]);
     } else {
       // handle entire ion linear rhs explicitly
-      //linear_->rhs(G, f, G1, s);
+      linear_->rhs(G[is], f, G1[is]);
+    }
+
+    // compute nonlinear terms explicitly for all species
+    if(nonlinear_ != nullptr) {
+      nonlinear_->nlps(G[is], f, G1[is]);
+      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
   }
-
-  // compute nonlinear terms explicitly for all species
-  if(nonlinear_ != nullptr) {
-    nonlinear_->nlps(G, f, G1);
-    if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
-  }
 }
 
-void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG* G1, MomentsG* G, Fields* f)
+void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG** G1, MomentsG** G, Fields* f)
 {
   // TBI
 }
 
-void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG* G1, double rdt)
+void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG** G1, double rdt)
 {
   // TBI
 }
 
-void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
+void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
 {
   // update the gradients if they are evolving
-  G -> update_tprim(*t); 
-  G1-> update_tprim(*t); 
-  // end updates
+  pars_-> update_tprim(*t); 
 
   double q_ = 0.;
   double r_ = 1.;
@@ -89,7 +96,9 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   // compute B0 = F_implicit(G)
   implicit_terms(B0, G, f);
   // G1 = G + dt*A0 + q_*dt*B0
-  G1->add_scaled(1., G, dt_, A0, q_*dt_, B0);
+  for (int is=0; is<grids_->Nspecies; is++) {
+    G1[is]->add_scaled(1., G[is], dt_, A0[is], q_*dt_, B0[is]);
+  }
   // G1 = inv(I - r_*dt*F_implicit)*G1
   invert_implicit_terms(G1, r_*dt_);
   solver_->fieldSolve(G1, f);         
@@ -101,7 +110,9 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   // compute B1 = F_implicit(G1)
   implicit_terms(B1, G1, f);
   // G1 = G + dt/4*A0 + dt/4*A1 + s_*dt*B0 + t_*dt*B1
-  G1->add_scaled(1., G, dt_/4., A0, dt_/4., A1, s_*dt_, B0, t_*dt_, B1);
+  for (int is=0; is<grids_->Nspecies; is++) {
+    G1[is]->add_scaled(1., G[is], dt_/4., A0[is], dt_/4., A1[is], s_*dt_, B0[is], t_*dt_, B1[is]);
+  }
   // G1 = inv(I - u_*dt*F_implicit)*G1
   invert_implicit_terms(G1, u_*dt_);
   solver_->fieldSolve(G1, f);         
@@ -113,13 +124,17 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG* G, Fields* f)
   // compute B2 = F_implicit(G1)
   implicit_terms(B2, G1, f);
   // G = G + dt/6*A0 + dt/6*A1 + 2*dt/3*A2 + dt/6*B0 + dt/6*B1 + 2*dt/3*B2
-  G->add_scaled(1., G, dt_/6., A0, dt_/6., A1, dt_/3., A2); 
-  G->add_scaled(1., G, dt_/6., B0, dt_/6., B1, dt_/3., B2); 
+  for (int is=0; is<grids_->Nspecies; is++) {
+    G[is]->add_scaled(1., G[is], dt_/6., A0[is], dt_/6., A1[is], dt_/3., A2[is]); 
+    G[is]->add_scaled(1., G[is], dt_/6., B0[is], dt_/6., B1[is], dt_/3., B2[is]); 
+  }
   solver_->fieldSolve(G, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
-  if (forcing_ != nullptr) forcing_->stir(G);  
-  G->mask();
+  for (int is=0; is<grids_->Nspecies; is++) {
+    if (forcing_ != nullptr) forcing_->stir(G[is]);  
+    G[is]->mask();
+  }
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
