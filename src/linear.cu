@@ -5,7 +5,7 @@
 // object for handling linear terms in GK
 //=======================================
 Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
-  pars_(pars), grids_(grids), geo_(geo),
+  pars_(pars), grids_(grids), geo_(geo), 
   closures(nullptr), grad_par(nullptr)
 {
   ks = false;
@@ -69,7 +69,7 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   }
   
   // allocate conservation terms for collision operator
-  size_t size = sizeof(cuComplex)*grids_->NxNycNz*grids_->Nspecies;
+  size_t size = sizeof(cuComplex)*grids_->NxNycNz;
   cudaMalloc((void**) &upar_bar, size);
   cudaMalloc((void**) &uperp_bar, size);
   cudaMalloc((void**) &t_bar, size);
@@ -210,10 +210,10 @@ void Linear_GK::rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
-			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, G->zt(), G->r2(), G->vt());
+			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, *(G->species));
 
   // Free-streaming requires parallel FFTs, so do that first
-  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, G->r2(), geo_->gradpar, G->vt(), G->zt(), GRhs->G());
+  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
   grad_par->dz(GRhs);
   
   // calculate most of the RHS
@@ -221,8 +221,7 @@ void Linear_GK::rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs) {
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bgrad, 
-	 grids_->ky, G->vt(), G->zt(), G->tz(), G->nz(), G->as(), G->nu(), G->tp(), G->up(), G->fp(), G->r2(), G->ty(),
-	 GRhs->G(), pars_->hegna);  // bb6126 - hegna test
+	 grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->hegna);  // bb6126 - hegna test
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {
@@ -256,7 +255,7 @@ void Linear_GK::rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs) {
 								   pars_->nu_hyper_l,
 								   pars_->nu_hyper_m,
 								   pars_->p_hyper_l,
-								   pars_->p_hyper_m, G->vt(), GRhs->G());
+								   pars_->p_hyper_m, GRhs->G());
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());
@@ -360,7 +359,7 @@ void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 								   pars_->nu_hyper_l,
 								   pars_->nu_hyper_m,
 								   pars_->p_hyper_l,
-								   pars_->p_hyper_m, G->vt(), GRhs->G());
+								   pars_->p_hyper_m, GRhs->G());
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());

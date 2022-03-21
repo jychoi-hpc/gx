@@ -137,58 +137,54 @@ void Nonlinear_GK::qvar (float* G, int N)
 
 void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
 {
+  // BD  J0phiToGrid does not use a Laguerre transform. Implications?
+  // BD  If we use alternate forms for <J0> then that would need to be reflected here
+
+  //    printf("\n");
+  //    printf("Phi:\n");
+  //    qvar(f->phi, grids_->NxNycNz);
+
+  float rho2s = G->species->rho2;
+  float vts = G->species->vt;
+  J0phiToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s);
+
+  grad_perp_J0phi -> dxC2R(J0phi, dJ0phi_dx);
+  grad_perp_J0phi -> dyC2R(J0phi, dJ0phi_dy);
+
+  if (pars_->beta > 0.) {
+
+    J0phiToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s);
+    
+    grad_perp_J0phi -> dxC2R(J0apar, dJ0apar_dx);
+    grad_perp_J0phi -> dyC2R(J0apar, dJ0apar_dy);
+  }
   
-  for(int s=0; s<grids_->Nspecies; s++) {
-
-    // BD  J0phiToGrid does not use a Laguerre transform. Implications?
-    // BD  If we use alternate forms for <J0> then that would need to be reflected here
-
-    //    printf("\n");
-    //    printf("Phi:\n");
-    //    qvar(f->phi, grids_->NxNycNz);
-
-    float rho2s = pars_->species_h[s].rho2;    
-    float vts = pars_->species_h[s].vt;    
-    J0phiToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s);
-
-    grad_perp_J0phi -> dxC2R(J0phi, dJ0phi_dx);
-    grad_perp_J0phi -> dyC2R(J0phi, dJ0phi_dy);
+  // loop over m to save memory. also makes it easier to parallelize later...
+  // no extra computation: just no batching in m in FFTs and in the matrix multiplies
+    
+  for(int m=0; m<grids_->Nm; m++) {
+    
+    grad_perp_G -> dxC2R(G->Gm(m), dG);
+    laguerre    -> transformToGrid(dG, dg_dx);
+  
+    grad_perp_G -> dyC2R(G->Gm(m), dG);      
+    laguerre    -> transformToGrid(dG, dg_dy);
+       
+    // compute {G_m, phi}
+    bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
+    laguerre->transformToSpectral(g_res, dG);
+    // NL_m += {G_m, phi}
+    grad_perp_G->R2C(dG, G_res->Gm(m), true); // this R2C has accumulate=true
 
     if (pars_->beta > 0.) {
-
-      J0phiToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s);
-      
-      grad_perp_J0phi -> dxC2R(J0apar, dJ0apar_dx);
-      grad_perp_J0phi -> dyC2R(J0apar, dJ0apar_dy);
-    }
-    
-    // loop over m to save memory. also makes it easier to parallelize later...
-    // no extra computation: just no batching in m in FFTs and in the matrix multiplies
-      
-    for(int m=0; m<grids_->Nm; m++) {
-      
-      grad_perp_G -> dxC2R(G->Gm(m,s), dG);
-      laguerre    -> transformToGrid(dG, dg_dx);
-    
-      grad_perp_G -> dyC2R(G->Gm(m,s), dG);      
-      laguerre    -> transformToGrid(dG, dg_dy);
-         
-      // compute {G_m, phi}
-      bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
+      // compute {G_m, Apar}
+      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
-      // NL_m += {G_m, phi}
-      grad_perp_G->R2C(dG, G_res->Gm(m,s), true); // this R2C has accumulate=true
-
-      if (pars_->beta > 0.) {
-        // compute {G_m, Apar}
-        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-        laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
-        // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
-        if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_res->Gm(m+1,s), 1., G_res->Gm(m+1,s), -vts*sqrtf(m+1), tmp_c);
-        // NL_{m-1} += -vt*sqrt(m)*{G_m, Apar}
-        if(m>0) add_scaled_singlemom_kernel GBK (G_res->Gm(m-1,s), 1., G_res->Gm(m-1,s), -vts*sqrtf(m), tmp_c);
-      }
+      grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
+      // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
+      if(m+1 < grids_->Nm-1) add_scaled_singlemom_kernel GBK (G_res->Gm(m+1), 1., G_res->Gm(m+1), -vts*sqrtf(m+1), tmp_c);
+      // NL_{m-1} += -vt*sqrt(m)*{G_m, Apar}
+      if(m>0) add_scaled_singlemom_kernel GBK (G_res->Gm(m-1), 1., G_res->Gm(m-1), -vts*sqrtf(m), tmp_c);
     }
   }
 }

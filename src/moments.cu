@@ -4,117 +4,40 @@
 #include "moments.h"
 #define GALL <<< dG_all, dB_all >>>
 
-MomentsG::MomentsG(Parameters* pars, Grids* grids) : 
-  grids_(grids), pars_(pars)
+MomentsG::MomentsG(Parameters* pars, Grids* grids, int is) : 
+  grids_(grids), pars_(pars), species(is>=0? &(pars->species_h[is]) : nullptr)
 {
   G_lm       = nullptr;  dens_ptr   = nullptr;  upar_ptr   = nullptr;  tpar_ptr   = nullptr;
   tprp_ptr   = nullptr;  qpar_ptr   = nullptr;  qprp_ptr   = nullptr;
 
   size_t lhsize = grids_->size_G;
-  // printf("nspecies = %d and size_G = %d \n",grids_->Nspecies, (int) grids_->size_G);
   checkCuda(cudaMalloc((void**) &G_lm, lhsize)); 
   checkCuda(cudaMemset(G_lm, 0., lhsize));
-
-  float * vts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * tzs_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * zts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * nts_h = (float*) malloc(sizeof(float) * grids_->Nspecies );  
-  float * nzs_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * r2s_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * tps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * fps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * ups_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * aps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * qns_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * amps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  float * nu_ss_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
-  int   * typ_h = (int*) malloc(sizeof(int) * grids_->Nspecies );
   
-  for (int is=0; is<grids_->Nspecies; is++) {
-    vts_h[is] = pars_->species_h[is].vt;
-    tzs_h[is] = pars_->species_h[is].tz;
-    zts_h[is] = pars_->species_h[is].zt;
-    nts_h[is] = pars_->species_h[is].nt;
-    nzs_h[is] = pars_->species_h[is].nz;
-    r2s_h[is] = pars_->species_h[is].rho2; 
-    tps_h[is] = pars_->species_h[is].tprim;
-    fps_h[is] = pars_->species_h[is].fprim;     
-    ups_h[is] = pars_->species_h[is].uprim;
-    aps_h[is] = pars_->species_h[is].as;
-    qns_h[is] = pars_->species_h[is].qneut;
-    amps_h[is] = pars_->species_h[is].amp;
-    nu_ss_h[is] = pars_->species_h[is].nu_ss;
-    typ_h[is] = pars_->species_h[is].type;
-  }    
-
-  checkCuda(cudaMalloc( &vts,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &zts,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &tzs,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &nts,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &nzs,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &aps,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &r2s,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &qns,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &amps,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &tps,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &fps,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &ups,   sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &nu_ss, sizeof(float) * grids_->Nspecies ) );
-  checkCuda(cudaMalloc( &typ,   sizeof(int)   * grids_->Nspecies ) );
-
-  CP_TO_GPU(vts, vts_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(tzs, tzs_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(zts, zts_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(nts, nts_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(nzs, nzs_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(r2s, r2s_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(tps, tps_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(fps, fps_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(ups, ups_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(aps, aps_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(qns, qns_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(amps, amps_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(nu_ss, nu_ss_h, sizeof(float)*grids_->Nspecies);
-  CP_TO_GPU(typ, typ_h, sizeof(int)  *grids_->Nspecies);
-  
-  free(vts_h);  free(tzs_h);  free(zts_h);  free(nts_h);
-  free(nzs_h);  free(r2s_h);  free(tps_h);  free(fps_h);
-  free(ups_h);  free(aps_h);  free(qns_h);  free(nu_ss_h);  
-  free(typ_h);  free(amps_h);
-  
-  dens_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-  upar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-  tpar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-  tprp_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-  qpar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-  qprp_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
-
   printf("Allocated a G_lm array of size %.2f MB\n", lhsize/1024./1024.);
 
   int Nm = grids_->Nm;
   int Nl = grids_->Nl;
 
-  for(int s=0; s<grids->Nspecies; s++) {
-    // set up pointers for named moments that point to parts of G_lm
-    int l,m;
-    l = 0, m = 0; // density
-    if(l<Nl && m<Nm) dens_ptr[s] = G(l,m,s);
-    
-    l = 0, m = 1; // u_parallel
-    if(l<Nl && m<Nm) upar_ptr[s] = G(l,m,s);
-    
-    l = 0, m = 2; // T_parallel / sqrt(2)
-    if(l<Nl && m<Nm) tpar_ptr[s] = G(l,m,s);
-    
-    l = 0, m = 3; // q_parallel / sqrt(6)
-    if(l<Nl && m<Nm) qpar_ptr[s] = G(l,m,s);
-
-    l = 1, m = 0; // T_perp 
-    if(l<Nl && m<Nm) tprp_ptr[s] = G(l,m,s);
-    
-    l = 1, m = 1; // q_perp
-    if(l<Nl && m<Nm) qprp_ptr[s] = G(l,m,s);
-  }
+  // set up pointers for named moments that point to parts of G_lm
+  int l,m;
+  l = 0, m = 0; // density
+  if(l<Nl && m<Nm) dens_ptr = G(l,m);
+  
+  l = 0, m = 1; // u_parallel
+  if(l<Nl && m<Nm) upar_ptr = G(l,m);
+  
+  l = 0, m = 2; // T_parallel / sqrt(2)
+  if(l<Nl && m<Nm) tpar_ptr = G(l,m);
+  
+  l = 0, m = 3; // q_parallel / sqrt(6)
+  if(l<Nl && m<Nm) qpar_ptr = G(l,m);
+  
+  l = 1, m = 0; // T_perp 
+  if(l<Nl && m<Nm) tprp_ptr = G(l,m);
+  
+  l = 1, m = 1; // q_perp
+  if(l<Nl && m<Nm) qprp_ptr = G(l,m);
 
   int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
   
@@ -153,33 +76,13 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   
   nn1 = grids_->Nyc*grids_->Nx;                   nt1 = min(nn1, 32);    nb1 = (nn1-1)/nt1 + 1;
   nn2 = grids_->Nz;                               nt2 = min(nn2, 32);    nb2 = (nn2-1)/nt2 + 1;
-  nn3 = grids_->Nspecies*grids_->Nm*grids_->Nl;   nt3 = min(nn3,  1);    nb3 = (nn3-1)/nt3 + 1;
+  nn3 = grids_->Nm*grids_->Nl;   nt3 = min(nn3,  1);    nb3 = (nn3-1)/nt3 + 1;
   
   dB_all = dim3(nt1, nt2, nt3);
   dG_all = dim3(nb1, nb2, nb3);	 
 }
 
 MomentsG::~MomentsG() {
-  free (dens_ptr);
-  free (upar_ptr);
-  free (tpar_ptr);
-  free (qpar_ptr);
-  free (qprp_ptr);
-
-  cudaFree(vts);
-  cudaFree(zts);
-  cudaFree(tzs);
-  cudaFree(nts);
-  cudaFree(nzs);
-  cudaFree(aps);
-  cudaFree(r2s);
-  cudaFree(qns);
-  cudaFree(amps);
-  cudaFree(tps);
-  cudaFree(fps);
-  cudaFree(ups);
-  cudaFree(nu_ss);
-  cudaFree(typ);
   if ( G_lm     ) cudaFree ( G_lm );
 }
 
@@ -354,18 +257,16 @@ void MomentsG::initialConditions(double* time) {
   }
   
   // copy initial condition into device memory
-  for (int is=0; is<grids_->Nspecies; is++) {
-    switch (pars_->initf)
-      {
-      case inits::density : CP_TO_GPU(dens_ptr[is], init_h, momsize); break;
-      case inits::upar    : CP_TO_GPU(upar_ptr[is], init_h, momsize); break;
-      case inits::tpar    : CP_TO_GPU(tpar_ptr[is], init_h, momsize); break;
-      case inits::tperp   : CP_TO_GPU(tprp_ptr[is], init_h, momsize); break; 
-      case inits::qpar    : CP_TO_GPU(qpar_ptr[is], init_h, momsize); break;
-      case inits::qperp   : CP_TO_GPU(qprp_ptr[is], init_h, momsize); break;
-      }
-    checkCuda(cudaGetLastError());    
-  }
+  switch (pars_->initf)
+    {
+    case inits::density : CP_TO_GPU(dens_ptr, init_h, momsize); break;
+    case inits::upar    : CP_TO_GPU(upar_ptr, init_h, momsize); break;
+    case inits::tpar    : CP_TO_GPU(tpar_ptr, init_h, momsize); break;
+    case inits::tperp   : CP_TO_GPU(tprp_ptr, init_h, momsize); break; 
+    case inits::qpar    : CP_TO_GPU(qpar_ptr, init_h, momsize); break;
+    case inits::qperp   : CP_TO_GPU(qprp_ptr, init_h, momsize); break;
+    }
+  checkCuda(cudaGetLastError());    
   free(init_h);     
   // restart_read goes here, if restart == T
   // as in gs2, if restart_read is true, we want to *add* the restart values to anything
@@ -386,7 +287,7 @@ void MomentsG::getH(cuComplex* J0phi) {Hkernel GALL (G_lm, J0phi);}
 void MomentsG::getG(cuComplex* J0phi) {Gkernel GALL (G_lm, J0phi);}
 
 void MomentsG::rescale(float * phi_max) {
-  rescale_kernel GALL (G_lm, phi_max, grids_->Nspecies*grids_->Nm*grids_->Nl);
+  rescale_kernel GALL (G_lm, phi_max, grids_->Nm*grids_->Nl);
 }
 
 void MomentsG::add_scaled(double c1, MomentsG* G1,
@@ -457,7 +358,6 @@ void MomentsG::restart_write(double* time)
   int Naky = grids_->Naky;
   int Nyc  = grids_->Nyc;
   int Nz   = grids_->Nz;
-  int nspec = pars_->nspec;
   int Nm   = grids_->Nm;
   int Nl   = grids_->Nl;
 
@@ -483,26 +383,24 @@ void MomentsG::restart_write(double* time)
   if (retval = nc_def_dim(ncres, "Nky", Naky,  &id_Nky)) ERR(retval);
   if (retval = nc_def_dim(ncres, "Nl",  Nl,    &id_nl)) ERR(retval);
   if (retval = nc_def_dim(ncres, "Nm",  Nm,    &id_nh)) ERR(retval);
-  if (retval = nc_def_dim(ncres, "Ns",  nspec, &id_ns)) ERR(retval);
 
-  moments_out[0] = id_ns;  count[0] = nspec;
-  moments_out[1] = id_nh;  count[1] = Nm;
-  moments_out[2] = id_nl;  count[2] = Nl;
-  moments_out[3] = id_nz;  count[3] = Nz;  
-  moments_out[4] = id_Nkx; count[4] = Nakx;
-  moments_out[5] = id_Nky; count[5] = Naky;
-  moments_out[6] = id_ri;  count[6] = ri;
+  moments_out[0] = id_nh;  count[0] = Nm;
+  moments_out[1] = id_nl;  count[1] = Nl;
+  moments_out[2] = id_nz;  count[2] = Nz;  
+  moments_out[3] = id_Nkx; count[3] = Nakx;
+  moments_out[4] = id_Nky; count[4] = Naky;
+  moments_out[5] = id_ri;  count[5] = ri;
 
   start[0] = 0; start[1] = 0; start[2] = 0; start[3] = 0; start[4] = 0; start[5] = 0; start[6] = 0;
-  if (retval = nc_def_var(ncres, "G",    NC_FLOAT, 7, moments_out, &id_G)) ERR(retval);
+  if (retval = nc_def_var(ncres, "G",    NC_FLOAT, 6, moments_out, &id_G)) ERR(retval);
   if (retval = nc_def_var(ncres, "time", NC_DOUBLE, 0, 0, &id_time)) ERR(retval);
   if (retval = nc_enddef(ncres)) ERR(retval);
 
   if (retval = nc_put_var(ncres, id_time, time)) ERR(retval);
   
   unsigned int itot, jtot;
-  jtot = Nx   * Nyc  * Nz * Nm * Nl * nspec;
-  itot = Nakx * Naky * Nz * Nm * Nl * nspec;
+  jtot = Nx   * Nyc  * Nz * Nm * Nl;
+  itot = Nakx * Naky * Nz * Nm * Nl;
   G_h = (cuComplex*) malloc(sizeof(cuComplex) * jtot); 
   G_out = (float*) malloc(sizeof(float) * itot * 2);
 
@@ -511,29 +409,27 @@ void MomentsG::restart_write(double* time)
   
   CP_TO_CPU(G_h, G_lm, sizeof(cuComplex)*jtot);
   
-  for (int is=0; is < nspec; is++) {
-    for (int m=0; m < Nm; m++) {
-      for (int l=0; l < Nl; l++) {
-	for (int k=0; k < Nz; k++) {	  
-	  for (int i=0; i < 1 + (Nx-1)/3; i++) {
-	    for (int j=0; j < Naky; j++) {
-	      unsigned int index     = j + Nyc *(i + Nx  *(k + Nz*(l + Nl*(m + Nm*is))));
-	      unsigned int index_out = j + Naky*(i + Nakx*(k + Nz*(l + Nl*(m + Nm*is))));
-	      G_out[2*index_out]   = G_h[index].x; 
-	      G_out[2*index_out+1] = G_h[index].y;
-	    }
-	  }
-	  
-	  for (int i=2*Nx/3+1; i < Nx; i++) {
-	    for (int j=0; j < Naky; j++) {
-	      int it = i-2*Nx/3+(Nx-1)/3; // not very clear, depends on arcane integer math rules
-	      unsigned int index     = j + Nyc *(i  + Nx  *(k + Nz*(l + Nl*(m + Nm*is))));
-	      unsigned int index_out = j + Naky*(it + Nakx*(k + Nz*(l + Nl*(m + Nm*is))));
-	      G_out[2*index_out]   = G_h[index].x;
-	      G_out[2*index_out+1] = G_h[index].y;
-	    }
-	  }
-	}
+  for (int m=0; m < Nm; m++) {
+    for (int l=0; l < Nl; l++) {
+      for (int k=0; k < Nz; k++) {	  
+        for (int i=0; i < 1 + (Nx-1)/3; i++) {
+          for (int j=0; j < Naky; j++) {
+            unsigned int index     = j + Nyc *(i + Nx  *(k + Nz*(l + Nl*m)));
+            unsigned int index_out = j + Naky*(i + Nakx*(k + Nz*(l + Nl*m)));
+            G_out[2*index_out]   = G_h[index].x; 
+            G_out[2*index_out+1] = G_h[index].y;
+          }
+        }
+        
+        for (int i=2*Nx/3+1; i < Nx; i++) {
+          for (int j=0; j < Naky; j++) {
+            int it = i-2*Nx/3+(Nx-1)/3; // not very clear, depends on arcane integer math rules
+            unsigned int index     = j + Nyc *(i  + Nx  *(k + Nz*(l + Nl*m)));
+            unsigned int index_out = j + Naky*(it + Nakx*(k + Nz*(l + Nl*m)));
+            G_out[2*index_out]   = G_h[index].x;
+            G_out[2*index_out+1] = G_h[index].y;
+          }
+        }
       }
     }
   }
@@ -564,7 +460,6 @@ void MomentsG::restart_read(double* time)
   int Ny   = grids_->Ny;
   int Nyc  = grids_->Nyc;
   int Nz   = grids_->Nz;
-  int nspec = pars_->nspec;
   int Nm   = grids_->Nm;
   int Nl   = grids_->Nl;
   
@@ -585,16 +480,9 @@ void MomentsG::restart_read(double* time)
   if (retval = nc_inq_dimid(ncres, "Nz",   &id_nz))   ERR(retval);
   if (retval = nc_inq_dimid(ncres, "Nl",   &id_nl))   ERR(retval);
   if (retval = nc_inq_dimid(ncres, "Nm",   &id_nh))   ERR(retval);
-  if (retval = nc_inq_dimid(ncres, "Ns",   &id_ns))   ERR(retval);
   if (retval = nc_inq_varid(ncres, "G",    &id_G))    ERR(retval);
   if (retval = nc_inq_varid(ncres, "time", &id_time)) ERR(retval);
   
-  if (retval = nc_inq_dim(ncres, id_ns, stra, &ldum))  ERR(retval);
-  if (nspec-pars_->ns_add != (int) ldum) {
-    printf("Cannot restart because of nspec mismatch: %d \t %zu \n", nspec, ldum);
-    exit (1);
-  }
-
   if (retval = nc_inq_dim(ncres, id_nh, stra, &ldum))  ERR(retval);
   if (Nm-pars_->nm_add != (int) ldum) {
     printf("Cannot restart because of Nm mismatch: %d \t %zu \n", Nm, ldum);
@@ -626,18 +514,17 @@ void MomentsG::restart_read(double* time)
   }
   
   unsigned int itot;
-  //  itot = Nakx * Naky * Nz * Nm * Nl * nspec;
-  itot = Nx * Nyc * Nz * Nm * Nl * nspec;
+  //  itot = Nakx * Naky * Nz * Nm * Nl;
+  itot = Nx * Nyc * Nz * Nm * Nl;
 
-  unsigned int iitot = Nakx * Naky * Nz * Nm * Nl * nspec;
+  unsigned int iitot = Nakx * Naky * Nz * Nm * Nl;
   if (pars_->domain_change) {
     int old_Nakx = 1 + 2 * ((Nx/pars_->nx_mult - 1)/3);
     int old_Naky = 1 +     ((Ny/pars_->ny_mult - 1)/3);
     int old_Nz = Nz/pars_->ntheta_mult;
     int old_Nl = Nl - pars_->nl_add;
     int old_Nm = Nm - pars_->nm_add;
-    int old_ns = nspec - pars_->ns_add;
-    iitot = old_Nakx * old_Naky * old_Nz * old_Nm * old_Nl * old_ns;
+    iitot = old_Nakx * old_Naky * old_Nz * old_Nm * old_Nl;
   }
   G_hold = (cuComplex*) malloc(lhsize);
   G_h = (cuComplex*) malloc(lhsize);
@@ -655,30 +542,28 @@ void MomentsG::restart_read(double* time)
   scale = pars_->scale;
 
   if (!pars_->domain_change) {
-    for (int is=0; is < nspec; is++) {
-      for (int m=0; m < Nm; m++) {
-	for (int l=0; l < Nl; l++) {
-	  for (int k=0; k < Nz; k++) {
-	    for (int i=0; i < 1 + (Nx-1)/3; i++) {
-	      for (int j=0; j < Naky; j++) {
-		unsigned int index    = j + Nyc *(i + Nx  *(k + Nz*(l + Nl*(m + Nm*is))));
-		unsigned int index_in = j + Naky*(i + Nakx*(k + Nz*(l + Nl*(m + Nm*is))));
-		G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
-		G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
-	      }
-	    }
-	    
-	    for (int i=2*Nx/3+1; i < Nx; i++) {
-	      for (int j=0; j < Naky; j++) {
-		int it = i-2*Nx/3+(Nx-1)/3; // not very clear, depends on arcane integer math rules
-		unsigned int index    = j + Nyc *(i  + Nx  *(k + Nz*(l + Nl*(m + Nm*is))));
-		unsigned int index_in = j + Naky*(it + Nakx*(k + Nz*(l + Nl*(m + Nm*is))));
-		G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
-		G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
-	      }
-	    }
-	  }
-	}
+    for (int m=0; m < Nm; m++) {
+      for (int l=0; l < Nl; l++) {
+        for (int k=0; k < Nz; k++) {
+          for (int i=0; i < 1 + (Nx-1)/3; i++) {
+            for (int j=0; j < Naky; j++) {
+      	unsigned int index    = j + Nyc *(i + Nx  *(k + Nz*(l + Nl*m)));
+      	unsigned int index_in = j + Naky*(i + Nakx*(k + Nz*(l + Nl*m)));
+      	G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
+      	G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
+            }
+          }
+          
+          for (int i=2*Nx/3+1; i < Nx; i++) {
+            for (int j=0; j < Naky; j++) {
+      	int it = i-2*Nx/3+(Nx-1)/3; // not very clear, depends on arcane integer math rules
+      	unsigned int index    = j + Nyc *(i  + Nx  *(k + Nz*(l + Nl*m)));
+      	unsigned int index_in = j + Naky*(it + Nakx*(k + Nz*(l + Nl*m)));
+      	G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
+      	G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
+            }
+          }
+        }
       }
     }
   } else {
@@ -688,59 +573,56 @@ void MomentsG::restart_read(double* time)
     int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
     int old_Nm = Nm - pars_->nm_add;
     int old_Nl = Nl - pars_->nl_add;
-    int old_ns = nspec - pars_->ns_add;
     
-    for (int is=0; is < min(old_ns, nspec); is++) {
-      for (int m=0; m < min(old_Nm, Nm); m++) {
-	for (int l=0; l < min(old_Nl, Nl); l++) {
-	  for (int k=0; k < Nz; k++) {
-	    
-	    for (int i=0; i < 1 + old_Nakx/2; i++) {
-	      ii = i * pars_->x0_mult;
-	      if (ii < 1 + Nakx/2) {
-		
-		for (int j=0; j < old_Naky; j++) {
-		  jj = j * pars_->y0_mult;
-		  if (jj < Naky) {
-		    
-		    unsigned int index    = jj +     Nyc *(ii +     Nx  *(k + Nz*(l +     Nl*(m +     Nm*is))));
-		    unsigned int index_in = j  + old_Naky*(i  + old_Nakx*(k + Nz*(l + old_Nl*(m + old_Nm*is))));
-		    
-		    G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
-		    G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
-		    
-		  }
-		}
-	      }
-	    }
-	    
-	    for (int i=2*old_Nx/3+1; i < old_Nx; i++) {
-	      ii =(i-old_Nx) * pars_->x0_mult + Nx;
-	      if ((i-old_Nx) * pars_->x0_mult + 1 + Nakx/2 > 0) {
-		
-		for (int j=0; j < old_Naky; j++) {
-		  jj = j * pars_->y0_mult;
-		  if (jj < Naky) {
-		    
-		    int it = i-2*old_Nx/3+(old_Nx-1)/3; // not very clear, depends on arcane integer math rules
-		    
-		    unsigned int index    = jj +     Nyc *(ii +     Nx  *(k + Nz*(l +     Nl*(m +     Nm*is))));
-		    unsigned int index_in = j  + old_Naky*(it + old_Nakx*(k + Nz*(l + old_Nl*(m + old_Nm*is))));
-		    G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
-		    G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+    for (int m=0; m < min(old_Nm, Nm); m++) {
+      for (int l=0; l < min(old_Nl, Nl); l++) {
+        for (int k=0; k < Nz; k++) {
+          
+          for (int i=0; i < 1 + old_Nakx/2; i++) {
+            ii = i * pars_->x0_mult;
+            if (ii < 1 + Nakx/2) {
+      	
+      	for (int j=0; j < old_Naky; j++) {
+      	  jj = j * pars_->y0_mult;
+      	  if (jj < Naky) {
+      	    
+      	    unsigned int index    = jj +     Nyc *(ii +     Nx  *(k + Nz*(l +     Nl*m)));
+      	    unsigned int index_in = j  + old_Naky*(i  + old_Nakx*(k + Nz*(l + old_Nl*m)));
+      	    
+      	    G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
+      	    G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
+      	    
+      	  }
+      	}
+            }
+          }
+          
+          for (int i=2*old_Nx/3+1; i < old_Nx; i++) {
+            ii =(i-old_Nx) * pars_->x0_mult + Nx;
+            if ((i-old_Nx) * pars_->x0_mult + 1 + Nakx/2 > 0) {
+      	
+      	for (int j=0; j < old_Naky; j++) {
+      	  jj = j * pars_->y0_mult;
+      	  if (jj < Naky) {
+      	    
+      	    int it = i-2*old_Nx/3+(old_Nx-1)/3; // not very clear, depends on arcane integer math rules
+      	    
+      	    unsigned int index    = jj +     Nyc *(ii +     Nx  *(k + Nz*(l +     Nl*m)));
+      	    unsigned int index_in = j  + old_Naky*(it + old_Nakx*(k + Nz*(l + old_Nl*m)));
+      	    G_h[index].x = scale * G_in[2*index_in]   + G_hold[index].x;
+      	    G_h[index].y = scale * G_in[2*index_in+1] + G_hold[index].y;
+      	  }
+      	}
+            }
+          }
+        }
       }
     }
   }
   free(G_in);
   free(G_hold);
   
-  unsigned int jtot = Nx * Nyc * Nz * Nm * Nl * nspec;
+  unsigned int jtot = Nx * Nyc * Nz * Nm * Nl;
   CP_TO_GPU(G_lm, G_h, sizeof(cuComplex)*jtot);
   
   free(G_h);
@@ -764,35 +646,3 @@ void MomentsG::qvar(int N)
   free (G_h);
 }
 
-void MomentsG::update_tprim(double time) {
-
-  // this is a proof-of-principle hack. typically nothing will happen here
-  
-  // for one species (or the first species in the species list):
-  // adjust tprim according to the function 
-  // if t < t0:
-  // tprim = tprim_0
-  // if t > t0: 
-  //    if (t < tf) tprim = tprim_0 + (tprim_0 - tprim_f)/(t0-tf)*(t-t0)
-  //    else tprim = tprim_f
-
-  if (pars_->tp_t0 > -0.5) {
-    if (time < (double) pars_->tp_t0) {
-      float tp = pars_->tprim0;
-      CP_TO_GPU (tps, &tp, sizeof(float));
-    } else {
-      if (time < (double) pars_->tp_tf) {
-	float tfac = (float) time;
-	float tprim0 = pars_->tprim0;
-	float tprimf = pars_->tprimf;
-	float t0 = pars_->tp_t0;
-	float tf = pars_->tp_tf;
-	float tp = tprim0 + (tprim0-tprimf)/(t0-tf)*(tfac-t0);
-	CP_TO_GPU (tps, &tp, sizeof(float));
-      } else {
-	float tp = pars_->tprimf;
-	CP_TO_GPU (tps, &tp, sizeof(float));
-      }
-    }
-  }
-}

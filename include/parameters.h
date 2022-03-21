@@ -75,6 +75,7 @@ class Parameters {
   void store_ncdf(int ncid);
 
   void init_species(specie* species);
+  void update_tprim(double time);
 
   int nczid, nzid, ncresid, ncbid;
   int nc_geo, nc_time, nc_ks, nc_vp, nc_rst, nc_dom, nc_diag;

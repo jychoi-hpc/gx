@@ -2,6 +2,7 @@
 #include "cufft.h"
 #include "cufftXt.h"
 #include "precision_types.h"
+#include "species.h"
 
 __device__ unsigned int get_id1(void);
 __device__ unsigned int get_id2(void);
@@ -157,10 +158,10 @@ __global__ void mddy (cuComplex *res, cuComplex *f, float *ky);
 __global__ void castDoubleToFloat (const cuDoubleComplex *array_d, cuComplex *array_f, int size);
 
 __global__ void beer_toroidal_closures(const cuComplex* g, cuComplex* gRhs,
-				       const float* omegad, const cuComplex* nu, const float* tz);
+				       const float* omegad, const cuComplex* nu, const float tz);
 
 __global__ void smith_perp_toroidal_closures(const cuComplex* g, cuComplex* gRhs,
-					     const float* omegad, const cuComplex* Aclos, int q, const float* tz);
+					     const float* omegad, const cuComplex* Aclos, int q, const float tz);
 
 __global__ void stirring_kernel(const cuComplex force, cuComplex *moments, int forcing_index);
 
@@ -168,7 +169,7 @@ __global__ void xytranspose(float *in, float *out);
 __global__ void yzavg(float *vE, float *vEavg, float *vol_fac);
 __global__ void fieldlineaverage(cuComplex *favg, cuComplex *df, const cuComplex *f, const float *volJac);
 
-__global__ void W_summand(float *G2, const cuComplex* g, const float* volJac, const float* nt);
+__global__ void W_summand(float *G2, const cuComplex* g, const float* volJac, const float nt);
 
 __global__ void vol_summand(float *rmom, const cuComplex* f, const cuComplex* g, const float* volJac);
 
@@ -226,39 +227,38 @@ extern __managed__ cufftCallbackStoreC i_kz_1d_callbackPtr;
 extern __managed__ cufftCallbackStoreC abs_kz_callbackPtr;
 
 __global__ void kInit(float* kx, float* ky, float* kz, int* kzm, float* kzp, const float X0, const float Y0, const int Zp, bool dealias_kz);  
-__global__ void qneut(cuComplex* Phi, const cuComplex* g, const float* kperp2, const float* rho2s,
-		      const float* qn, const float* nzs);
+__global__ void qneut(cuComplex* Phi, const cuComplex* nbar, const float* denom);
 
-__global__ void ampere(cuComplex* Apar, const cuComplex* gu, const float* kperp2, const float* rho2s,
-		       const float* as, const float* amps, const float beta);
+__global__ void ampere(cuComplex* Apar, cuComplex* jbar, float* denom);
 
 __global__ void rhs_linear_krehm(const cuComplex* g, const cuComplex* phi, const cuComplex* apar, 
 			  const float nu_ei, const float rhos, const float de, cuComplex* rhs_par);
 __global__ void phiSolve_krehm (cuComplex *phi, cuComplex *G0, float* kx, float* ky, float rho_i);
 __global__ void aparSolve_krehm (cuComplex *apar, cuComplex *G1, float* kx, float* ky, float rho_s, float d_e);
 
-__global__ void real_space_density(cuComplex* nbar, const cuComplex* g, const float *kperp2,
-				   const float *rho2s, const float *nzs);
+__global__ void real_space_density(cuComplex* nbar, const cuComplex* g, const float *kperp2, const specie sp);
+
+__global__ void real_space_current(cuComplex* jbar, const cuComplex* g, const float *kperp2, const specie sp);
+
+__global__ void sum_qneutDenom(float* denom, const float* kperp2, const specie sp);
+__global__ void sum_ampereDenom(float* denom, const float* kperp2, const specie sp, bool first);
 
 //__global__ void qneut_fieldlineaveraged(cuComplex *Phi, const cuComplex *nbar, const float *PhiAvgDenom, 
 //					const float *kperp2, const float *jacobian,
 //					const specie *species, const float ti_ov_te, float *work);
 
 __global__ void qneutAdiab_part1(cuComplex* PhiAvgNum_tmp, const cuComplex* nbar,
-				 const float* kperp2, const float* jacobian,
-				 const float* rho2s, const float* qns, float tau_fac);
+				 const float* jacobian, const float* qneutDenom, float tau_fac);
 
 __global__ void qneutAdiab_part2(cuComplex* Phi, const cuComplex* PhiAvgNum_tmp, const cuComplex* nbar,
-				 const float* PhiAvgDenom, const float* kperp2, 
-				 const float* rho2s, const float* qns, float tau_fac);
+				 const float* PhiAvgDenom, const float* qneutDenom, float tau_fac);
 
-__global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* kperp2, const float* jacobian,
-				 const float* rho2s, const float* qns, float tau_fac);
+__global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* jacobian,
+				 const float* qneutDenom, float tau_fac);
 
 __global__ void add_source(cuComplex* f, const float source);
 
-__global__ void qneutAdiab(cuComplex* Phi, const cuComplex* nbar,
-			   const float* kperp2, const float* rho2s, const float* qns, float tau_fac);
+__global__ void qneutAdiab(cuComplex* Phi, const cuComplex* nbar, const float* qneutDenom, float tau_fac);
 
 __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked, int nLinks, int nChains,
 			   const int* ikx, const int* iky, int nMoms);
@@ -284,30 +284,28 @@ __global__ void nlks(float *res, const float *Gy, const float *dG);
 __global__ void nlks1(float *res, const float *Gy);
 __global__ void nlks2(cuComplex *res, const float *ky);
 __global__ void rhs_ks (const cuComplex *G, cuComplex *GRhs, float *ky, float eps_ks);
-__global__ void streaming_rhs (const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const float* kperp2, const float* rho2s, 
-			       const float gradpar, const float* vt, const float* zt, cuComplex* rhs_par);
+__global__ void streaming_rhs(const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const float* kperp2, 
+			      const float gradpar, const specie sp, cuComplex* rhs_par);
 
-__global__ void rhs_linear(const cuComplex *g, const cuComplex* phi, const cuComplex* apar,
+__global__ void rhs_linear(const cuComplex* g, const cuComplex* phi, const cuComplex* apar,
 			   const cuComplex* upar_bar, const cuComplex* uperp_bar, const cuComplex* t_bar,
-			   const float* b, const float* cv_d, const float* gb_d, const float* bgrad,
-			   const float* ky, const float* vt, const float* zt, const float* tz, const float* nz, const float* as,
-			   const float* nu_ss, const float* tprim, const float* uprim, const float* fprim, 
-			   const float* rho2s, const int* typs, cuComplex* rhs, bool hegna);  // bb6126 - hegna test
+			   const float* kperp2, const float* cv_d, const float* gb_d, const float* bgrad,
+			   const float* ky, const specie sp, const specie sp_i, cuComplex* rhs, bool hegna);  // bb6126 - hegna test
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);
 __global__ void HB_hyper (const cuComplex* G, const float* s01, const float* s10, const float* s11,
 			  const float* kx, const float* ky, const float D_HB, const int p_HB, cuComplex* RHS);
 
-__global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar,
-				   cuComplex* t_bar, const cuComplex* G, const cuComplex* phi, const cuComplex* apar,
-				   const float *b, const float *zt, const float *rho2s, const float *vt);
+__global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
+				   const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const float *kperp2,
+				   const specie sp);
 
 __global__ void hyperdiff(const cuComplex* g, const float* kx, const float* ky,
 			  float nu_hyper, float D_hyper, cuComplex* rhs);
 
 __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, const float nu_hyper_m,
-				const int p_hyper_l, const int p_hyper_m, const float* vt, cuComplex* rhs);
+				const int p_hyper_l, const int p_hyper_m, cuComplex* rhs);
 
 
 

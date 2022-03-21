@@ -12,9 +12,9 @@
 class Diagnostics {
  public:
   virtual ~Diagnostics() {};
-  virtual bool loop(MomentsG* G, Fields* fields, double dt, int counter, double time) = 0 ;
-  virtual void finish(MomentsG* G, Fields* fields, double time) = 0;  
-  //virtual void write_init(MomentsG* G, Fields* f) = 0;
+  virtual bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) = 0 ;
+  virtual void finish(MomentsG** G, Fields* fields, double time) = 0;  
+  //virtual void write_init(MomentsG** G, Fields* f) = 0;
 };
 
 class Diagnostics_GK : public Diagnostics {
@@ -22,12 +22,13 @@ class Diagnostics_GK : public Diagnostics {
   Diagnostics_GK(Parameters *pars, Grids *grids, Geometry *geo);
   ~Diagnostics_GK();
 
-  bool loop(MomentsG* G, Fields* fields, double dt, int counter, double time) ;
-  void finish(MomentsG* G, Fields* fields, double time);  
-  //void write_init(MomentsG* G, Fields* f);
+  bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) ;
+  void finish(MomentsG** G, Fields* fields, double time);  
+  //void write_init(MomentsG** G, Fields* f);
 
 private:
   float* P2(int s=0) {return &P2s[grids_->NxNycNz*s];}
+  float* G2(int s=0) {return &G2s[grids_->NxNycNz*s];}
 
   int ndiag; 
   int ikx_local, iky_local, iz_local;
@@ -52,7 +53,7 @@ private:
   NetCDF_ids   * id            ;
   Reservoir    * rc            ;
   
-  float        * G2            ;
+  float        * G2s            ;
   float        * P2s           ;
   float        * Phi2          ;
   float        * val           ;
@@ -74,7 +75,7 @@ private:
   void print_growth_rates_to_screen (cuComplex *w);
 
   void write_Wtot  (float   Wh, bool endrun);
-  //  void pzt(MomentsG* G, Fields* f);
+  //  void pzt(MomentsG** G, Fields* f);
 
   char stopfilename_[2000];
 };
@@ -84,12 +85,13 @@ class Diagnostics_KREHM : public Diagnostics {
   Diagnostics_KREHM(Parameters *pars, Grids *grids);
   ~Diagnostics_KREHM();
 
-  bool loop(MomentsG* G, Fields* fields, double dt, int counter, double time) ;
-  void finish(MomentsG* G, Fields* fields, double time);  
-  //void write_init(MomentsG* G, Fields* f);
+  bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) ;
+  void finish(MomentsG** G, Fields* fields, double time);  
+  //void write_init(MomentsG** G, Fields* f);
 
 private:
   float* P2(int s=0) {return &P2s[grids_->NxNycNz*s];}
+  float* G2(int s=0) {return &G2s[grids_->NxNycNz*s];}
 
   int ndiag; 
   int ikx_local, iky_local, iz_local;
@@ -114,7 +116,7 @@ private:
   NetCDF_ids   * id            ;
   Reservoir    * rc            ;
   
-  float        * G2            ;
+  float        * G2s           ;
   float        * P2s           ;
   float        * Phi2          ;
   float        * val           ;
@@ -136,7 +138,7 @@ private:
   void print_growth_rates_to_screen (cuComplex *w);
 
   void write_Wtot  (float   Wh, bool endrun);
-  //  void pzt(MomentsG* G, Fields* f);
+  //  void pzt(MomentsG** G, Fields* f);
 
   char stopfilename_[2000];
 };

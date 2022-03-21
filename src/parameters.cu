@@ -1375,5 +1375,33 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, st))  ERR(retval);
 }
 
+void Parameters::update_tprim(double time) {
 
+  // this is a proof-of-principle hack. typically nothing will happen here
+  
+  // for one species (or the first species in the species list):
+  // adjust tprim according to the function 
+  // if t < t0:
+  // tprim = tprim_0
+  // if t > t0: 
+  //    if (t < tf) tprim = tprim_0 + (tprim_0 - tprim_f)/(t0-tf)*(t-t0)
+  //    else tprim = tprim_f
+
+  if (tp_t0 > -0.5) {
+    if (time < (double) tp_t0) {
+      species_h[0].tprim = tprim0;
+    } else {
+      if (time < (double) tp_tf) {
+	float tfac = (float) time;
+	float tprim0 = tprim0;
+	float tprimf = tprimf;
+	float t0 = tp_t0;
+	float tf = tp_tf;
+	species_h[0].tprim = tprim0 + (tprim0-tprimf)/(t0-tf)*(tfac-t0);
+      } else {
+        species_h[0].tprim = tprimf;
+      }
+    }
+  }
+}
 

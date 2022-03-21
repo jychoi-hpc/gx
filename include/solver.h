@@ -11,19 +11,20 @@
 class Solver {
  public:
   virtual ~Solver() {};
-  virtual void fieldSolve(MomentsG* G, Fields* fields) = 0;
+  virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
 };
 
 class Solver_GK : public Solver {
  public:
-  Solver_GK(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G);
+  Solver_GK(Parameters* pars, Grids* grids, Geometry* geo);
   ~Solver_GK();
   
-  void fieldSolve(MomentsG* G, Fields* fields);
+  void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
   
   cuComplex * nbar ;
+  cuComplex * jbar ;
 
 private:
 
@@ -32,6 +33,8 @@ private:
   dim3 dG, dB, dg, db;
 
   float * phiavgdenom ;
+  float * qneutDenom;
+  float * ampereDenom;
   cuComplex * tmp ;
 
   // local private copies
@@ -45,7 +48,7 @@ class Solver_KREHM : public Solver {
   Solver_KREHM(Parameters* pars, Grids* grids);
   ~Solver_KREHM();
   
-  void fieldSolve(MomentsG* G, Fields* fields);
+  void fieldSolve(MomentsG** G, Fields* fields);
   
   cuComplex * nbar ;
 
@@ -66,7 +69,7 @@ class Solver_VP : public Solver {
   Solver_VP(Parameters* pars, Grids* grids);
   ~Solver_VP();
   
-  void fieldSolve(MomentsG* G, Fields* fields);
+  void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
   

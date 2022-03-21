@@ -9,43 +9,53 @@ RungeKutta2::RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 {
   // new objects for temporaries
   GRhs  = new MomentsG (pars, grids);
-  G1    = new MomentsG (pars, grids);
+  G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G1[is] = new MomentsG (pars, grids, is);
+  }
 }
 
 RungeKutta2::~RungeKutta2()
 {
   if (GRhs)  delete GRhs;
-  if (G1)    delete G1;
+  for(int is=0; is<grids_->Nspecies; is++) {
+    if (G1[is])    delete G1[is];
+  }
+  free(G1);
 }
 
 // ======== rk2  ==============
-void RungeKutta2::EulerStep(MomentsG* G1, MomentsG* G0, MomentsG* G, MomentsG* GRhs,
+void RungeKutta2::EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** G, MomentsG* GRhs,
 			    Fields* f, double adt, bool setdt)
 {
-  GRhs->set_zero();
-  linear_->rhs(G0, f, GRhs); 
+  for(int is=0; is<grids_->Nspecies; is++) {
+    GRhs->set_zero();
+    linear_->rhs(G0[is], f, GRhs); 
   
-  if(nonlinear_ != nullptr) {
-    nonlinear_->nlps(G0, f, GRhs);
-    if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    if(nonlinear_ != nullptr) {
+      nonlinear_->nlps(G0[is], f, GRhs);
+      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    }
+
+    if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
+
+    G1[is]->add_scaled(1., G[is], adt*dt_, GRhs); 
   }
-
-  if (pars_->eqfix) G1->copyFrom(G);   
-  G1->add_scaled(1., G, adt*dt_, GRhs); 
-
 }
 
-void RungeKutta2::advance(double *t, MomentsG* G, Fields* f)
+void RungeKutta2::advance(double *t, MomentsG** G, Fields* f)
 {
   // update the gradients if they are evolving
-  G -> update_tprim(*t); 
-  G1-> update_tprim(*t); 
-  // end updates
+  pars_->update_tprim(*t);
 
   EulerStep (G1, G, G, GRhs, f, 0.5, true);    solver_->fieldSolve(G1, f);
   EulerStep (G, G1, G, GRhs, f, 1.0, false);   
 
-  if (forcing_ != nullptr) forcing_->stir(G);  
+  if (forcing_ != nullptr) {
+    for(int is=0; is<grids_->Nspecies; is++) {
+      forcing_->stir(G[is]);  
+    }
+  }
    
   solver_->fieldSolve(G, f);
 
