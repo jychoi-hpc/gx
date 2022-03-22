@@ -41,6 +41,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
 
     // set up initial conditions
     for(int is=0; is<grids->Nspecies; is++) {
+      if(pars->init_electrons_only && pars->species_h[is].type!=1) continue;
       G[is] -> initialConditions(&time);   
     }
     solver -> fieldSolve(G, fields);                

@@ -307,6 +307,7 @@ void Parameters::get_nml_vars(char* filename)
   HB_hyper   = toml::find_or <bool>   (tnml, "HB_hyper",      false );
   hypercollisions = toml::find_or <bool> (tnml, "hypercollisions", false);
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
+  init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
   if (random_init) kpar_init = 0.0; 
   
   if (write_omega && fixed_amplitude) {
@@ -922,6 +923,7 @@ void Parameters::store_ncdf(int ncid) {
   if (retval = nc_def_var (nc_con, "collisions",            NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_con, "init_field_dum",        NC_INT,   0, NULL, &ivar)) ERR(retval);  
   if (retval = nc_put_att_text (nc_con, ivar, "value", init_field.size(), init_field.c_str())) ERR(retval);
+  if (retval = nc_def_var (nc_con, "init_electrons_only",   NC_INT,   0, NULL, &ivar)) ERR(retval);  
 
   if (retval = nc_def_var (nc_con, "kpar_init",             NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_con, "random_init",            NC_INT,   0, NULL, &ivar)) ERR(retval);
