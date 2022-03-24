@@ -184,8 +184,8 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
   implicit_terms(B2, G1, f);
   // G = G + dt/6*A0 + dt/6*A1 + 2*dt/3*A2 + dt/6*B0 + dt/6*B1 + 2*dt/3*B2
   for (int is=0; is<grids_->Nspecies; is++) {
-    G[is]->add_scaled(1., G[is], dt_/6., A0[is], dt_/6., A1[is], dt_/3., A2[is]); 
-    G[is]->add_scaled(1., G[is], dt_/6., B0[is], dt_/6., B1[is], dt_/3., B2[is]); 
+    G[is]->add_scaled(1., G[is], dt_/6., A0[is], dt_/6., A1[is], 2.*dt_/3., A2[is]); 
+    G[is]->add_scaled(1., G[is], dt_/6., B0[is], dt_/6., B1[is], 2.*dt_/3., B2[is]); 
   }
   solver_->fieldSolve(G, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
