@@ -12,6 +12,7 @@ class Solver {
  public:
   virtual ~Solver() {};
   virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
+  virtual float* getQneutDenom() {return nullptr;};
 };
 
 class Solver_GK : public Solver {
@@ -22,6 +23,7 @@ class Solver_GK : public Solver {
   void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
+  float* getQneutDenom() {return qneutDenom;};
   
   cuComplex * nbar ;
   cuComplex * jbar ;

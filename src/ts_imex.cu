@@ -32,8 +32,6 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
     }
   }
 
-  f1 = new Fields(pars_, grids_);
-
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
@@ -44,12 +42,12 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
     grad_par = new GradParallelLinked(grids_, pars_->jtwist);
   }
   
-  int nxkyz = grids_->NxNycNz;
-  int nbx = min(32, nxkyz);   
-  int ngx = 1 + (nxkyz-1)/nbx;
-
-  dB = dim3(nbx, 1, 1);
-  dG = dim3(ngx, 1, 1);
+  int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
+  int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
+  int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
+  
+  dB = dim3(nt1, nt2, nt3);
+  dG = dim3(nb1, nb2, nb3);
 }
 
 IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
@@ -95,8 +93,25 @@ void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG** G1, double rdt)
+void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG** G1, Fields* f, double sdt)
 {
+  // FFT Phi_i
+  grad_par->zft(f->phi, f->phi);
+  // FFT G_e
+  grad_par->zft(G1[ielectron]);
+
+  double sdtvt = sdt*vte;
+  // tridiag from numerical recipes
+  if(pars_->local_limit) {
+//    tridiag_streaming_local<<<dG, dB>>>(G1[ielectron]->Gl(0))
+  } else if (pars_->boundary_option_periodic) {
+    tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), f->phi, grids_->kzp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
+  } else {
+    tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), f->phi, grids_->kzp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
+//    tridiag_streaming_linked<<<dG, dB>>>(G1[ielectron]->Gl(0))
+  }
+
+  grad_par->zft_inverse(G1[ielectron]);
 }
 
 void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
@@ -104,16 +119,22 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
   // update the gradients if they are evolving
   pars_-> update_tprim(*t); 
 
-  double q_ = 0.;
-  double r_ = 1.;
-  double s_ = 1./6.;
-  double t_ = -1./3.;
-  double u_ = 2./3.;
+  //double q_ = 0.;
+  //double r_ = 1.;
+  //double s_ = 1./6.;
+  //double t_ = -1./3.;
+  //double u_ = 2./3.;
+
+  double q_ = (3. - sqrtf(3.))/6.;
+  double r_ = (3. + sqrtf(3.))/6.;
+  double s_ = (3. - sqrtf(3.))/24.;
+  double t_ = -(1. + sqrtf(3.))/8.;
+  double u_ = r_;
   
   // stage 1
-  // compute A0 = F_explicit(G)
+  // compute A0 = A(G)
   explicit_terms(A0, G, f, true);
-  // compute B0 = F_implicit(G)
+  // compute B0 = B(G)
   implicit_terms(B0, G, f);
   // G1_i = G_i + dt*A0_i + q_*dt*B0_i
   for (int is=0; is<grids_->Nspecies; is++) {
@@ -123,16 +144,12 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->add_scaled(1., G[is], dt_, A0[is], q_*dt_, B0[is]);
     }
   }
-  // compute Phi_i
+  // compute Phi_i (with G1_e=0)
   solver_->fieldSolve(G1, f);         
   // G1_e = G_e + dt*A0_e + q_*dt*B0_e
   G1[ielectron]->add_scaled(1., G[ielectron], dt_, A0[ielectron], q_*dt_, B0[ielectron]);
-  // compute grad_par Phi_i
-  grad_par->dz(f->phi, f1->phi);
-  // G_01e = G01_e - r_*dt*vte*zte*grad_par(Phi_i)
-  add_scaled_singlemom_kernel <<<dG, dB>>> (G1[ielectron]->G(0,1), 1., G1[ielectron]->G(0,1), -r_*dt_*vte*zte, f1->phi);
-  // G1 = inv(I - r_*dt*F_implicit)*G1
-  invert_implicit_terms(G1, r_*dt_);
+  // G1_e = inv(I - r_*dt*B)*G1_e
+  invert_implicit_terms(G1, f, r_*dt_);
   solver_->fieldSolve(G1, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
@@ -141,12 +158,21 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
   explicit_terms(A1, G1, f, false);
   // compute B1 = F_implicit(G1)
   implicit_terms(B1, G1, f);
-  // G1 = G + dt/4*A0 + dt/4*A1 + s_*dt*B0 + t_*dt*B1
+  // G1_i = G_i + dt/4*A0_i + dt/4*A1_i + s_*dt*B0_i + t_*dt*B1_i
   for (int is=0; is<grids_->Nspecies; is++) {
-    G1[is]->add_scaled(1., G[is], dt_/4., A0[is], dt_/4., A1[is], s_*dt_, B0[is], t_*dt_, B1[is]);
+    if(is == ielectron) { // electrons
+      G1[is]->set_zero();
+    } else {
+      G1[is]->add_scaled(1., G[is], dt_/4., A0[is], dt_/4., A1[is], s_*dt_, B0[is], t_*dt_, B1[is]);
+    }
   }
+  // compute Phi_i (with G1_e=0)
+  solver_->fieldSolve(G1, f);         
+  // G1_e = G_e + dt/4*A0_e + dt/4*A1_e + s_*dt*B0_e + t_*dt*B1_e
+  G1[ielectron]->add_scaled(1., G[ielectron], dt_/4., A0[ielectron], dt_/4., A1[ielectron], 
+		            s_*dt_, B0[ielectron], t_*dt_, B1[ielectron]);
   // G1 = inv(I - u_*dt*F_implicit)*G1
-  invert_implicit_terms(G1, u_*dt_);
+  invert_implicit_terms(G1, f, u_*dt_);
   solver_->fieldSolve(G1, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 

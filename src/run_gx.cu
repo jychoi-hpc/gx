@@ -101,6 +101,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+    case Tmethod::imex : timestep = new IMEX_SSPRK3_DIRK (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     }
 
   getDeviceMemoryUsage();

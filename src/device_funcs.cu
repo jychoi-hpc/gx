@@ -2199,6 +2199,69 @@ __global__ void rhs_linear(const cuComplex* g, const cuComplex* phi, const cuCom
   } // idxyz < NxNycNz
 }
 
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+
+    float Q = 0.0f;
+    for(int iz=0; iz<nz; iz++) {
+      // compute z avg of qneutDenom so that the z dependence does not break things in k space
+      Q += qneutDenom[idxy + nxnyc*iz];
+    }
+    // the actual coefficient needed is Z^2*n/T/<qneutDenom>
+    Q = sp.nz*sp.zt*nz/Q;
+
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*sqrtf(idm);  
+      // a[m]
+      cuComplex am = sdtvt*ikz*sqrtf(idm);
+
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      if(idm==1 && idz==idzl) {
+        am = am + sdtvt*ikz*Q;
+	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
+      }
+            
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+    }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+  }
+}
+
 __global__ void rhs_linear_krehm(const cuComplex* g, const cuComplex* phi, const cuComplex* apar, 
 			  const float nu_ei, const float rhos, const float de, cuComplex* rhs_par)
 {
