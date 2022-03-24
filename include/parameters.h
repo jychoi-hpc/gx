@@ -152,7 +152,7 @@ class Parameters {
   bool new_varenna, new_catto, nlpm, dorland_nlpm, dorland_nlpm_phase, ExBshear;
   bool nlpm_kxdep, nlpm_nlps, nlpm_cutoff_avg, nlpm_zonal_kx1_only, smagorinsky;
   bool debug, init_single, boundary_option_periodic, forcing_init, no_fields; 
-  bool init_electrons_only;
+  bool init_electrons_only, drift_kinetic_electrons;
   bool nlpm_test, new_nlpm, hammett_nlpm_interference, nlpm_abs_sgn, nlpm_hilbert;
   bool low_b, low_b_all, higher_order_moments, nlpm_zonal_only, nlpm_vol_avg;
   bool no_nonlin_flr, no_nonlin_cross_terms, no_nonlin_dens_cross_term;

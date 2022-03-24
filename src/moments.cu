@@ -5,7 +5,7 @@
 #define GALL <<< dG_all, dB_all >>>
 
 MomentsG::MomentsG(Parameters* pars, Grids* grids, int is) : 
-  grids_(grids), pars_(pars), species(is>=0? &(pars->species_h[is]) : nullptr)
+  grids_(grids), pars_(pars), is_(is), species(is>=0? &(pars->species_h[is]) : nullptr)
 {
   G_lm       = nullptr;  dens_ptr   = nullptr;  upar_ptr   = nullptr;  tpar_ptr   = nullptr;
   tprp_ptr   = nullptr;  qpar_ptr   = nullptr;  qprp_ptr   = nullptr;
@@ -198,7 +198,7 @@ void MomentsG::initialConditions(double* time) {
 	}
       }
     } else {
-      srand(22);
+      srand(22+is_);
       float samp;
       int idx;
       //      printf("Hacking the initial condition! \n");

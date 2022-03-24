@@ -308,6 +308,7 @@ void Parameters::get_nml_vars(char* filename)
   hypercollisions = toml::find_or <bool> (tnml, "hypercollisions", false);
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
+  drift_kinetic_electrons = toml::find_or <bool> (tnml, "drift_kinetic_electrons",     false);
   if (random_init) kpar_init = 0.0; 
   
   if (write_omega && fixed_amplitude) {
@@ -926,6 +927,7 @@ void Parameters::store_ncdf(int ncid) {
   if (retval = nc_def_var (nc_con, "init_field_dum",        NC_INT,   0, NULL, &ivar)) ERR(retval);  
   if (retval = nc_put_att_text (nc_con, ivar, "value", init_field.size(), init_field.c_str())) ERR(retval);
   if (retval = nc_def_var (nc_con, "init_electrons_only",   NC_INT,   0, NULL, &ivar)) ERR(retval);  
+  if (retval = nc_def_var (nc_con, "drift_kinetic_electrons",   NC_INT,   0, NULL, &ivar)) ERR(retval);  
 
   if (retval = nc_def_var (nc_con, "kpar_init",             NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_con, "random_init",            NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1220,6 +1222,7 @@ void Parameters::init_species(specie* species)
     species[s].tz   = species[s].temp / species[s].z;
     species[s].zt   = species[s].z / species[s].temp;
     species[s].rho2 = species[s].temp * species[s].mass / (species[s].z * species[s].z);
+    if(species[s].type==1 && drift_kinetic_electrons) species[s].rho2 = 0.;
     species[s].nt   = species[s].dens * species[s].temp;
     species[s].qneut= species[s].dens * species[s].z * species[s].z / species[s].temp;
     species[s].nz   = species[s].dens * species[s].z;
