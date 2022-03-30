@@ -21,6 +21,7 @@ Grids::Grids(Parameters* pars) :
   NycNz    ( Nyc * Nz          ),
   Nmoms    ( Nm * Nl           ),
   size_G( sizeof(cuComplex) * NxNycNz * Nmoms), 
+  Zp(pars->Zp),
   pars_(pars)
 {
   ky              = nullptr;  kx              = nullptr;  kz              = nullptr;

@@ -105,23 +105,19 @@ class SSPRK3 : public Timestepper {
   double dt_;
 };
 
-class IMEX_SSPRK3_DIRK : public Timestepper {
+class IMEX_3stage : public Timestepper {
  public:
-  IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
-  ~IMEX_SSPRK3_DIRK();
+  ~IMEX_3stage();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
 
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, Fields* f, double rdt);
+  void invert_implicit_terms(MomentsG* G1, Fields* f, double rdt);
 
  private:
-  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
-
-  const double dt_max;
- 
   Linear       * linear_    ;
   Nonlinear    * nonlinear_ ;
   Solver       * solver_    ;
@@ -130,13 +126,55 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG    ** G1         ;
-  MomentsG    ** A0         ;
   MomentsG    ** A1         ;
   MomentsG    ** A2         ;
-  MomentsG    ** B0         ;
+  MomentsG    ** A3         ;
   MomentsG    ** B1         ;
   MomentsG    ** B2         ;
+  MomentsG    ** B3         ;
   Fields       * f1         ;
+  const double dt_max;
+ 
+  double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  dim3 dG, dB;
+};
+
+class IMEX_4stage : public Timestepper {
+ public:
+  IMEX_4stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~IMEX_4stage();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt() {return dt_;};
+
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+  void invert_implicit_terms(MomentsG* G1, Fields* f, double rdt);
+
+ private:
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG    ** G1         ;
+  MomentsG    ** A1         ;
+  MomentsG    ** A2         ;
+  MomentsG    ** A3         ;
+  MomentsG    ** A4         ;
+  MomentsG    ** B1         ;
+  MomentsG    ** B2         ;
+  MomentsG    ** B3         ;
+  MomentsG    ** B4         ;
+  Fields       * f1         ;
+  const double dt_max;
+  int nstage;
+ 
   double dt_;
   int ielectron;
   double vte;

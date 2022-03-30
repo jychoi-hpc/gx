@@ -113,6 +113,7 @@ class GradParallelLocal : public GradParallel {
   Grids * grids_ ;
 
   dim3 dG, dB;
+  float kpar;
 };
 
 class GradParallel1D {

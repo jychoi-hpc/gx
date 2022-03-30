@@ -150,8 +150,8 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
     grho_h[k] = 1;
 
     if(pars->const_curv) {
-      cvdrift_h[k] = 1./(2.*rmaj);
-      gbdrift_h[k] = 1./(2.*rmaj);
+      cvdrift_h[k] = 1./(4.*rmaj);
+      gbdrift_h[k] = 1./(4.*rmaj);
       cvdrift0_h[k] = 0.;
       gbdrift0_h[k] = 0.;
     }

@@ -150,11 +150,12 @@ GradParallelLocal::GradParallelLocal(Grids* grids) :
 {
   dB = 512;
   dG = 1 + (grids_->NxNycNz-1)/dB.x;
+  kpar = 1./((float) grids_->Zp);
 }
 
 void GradParallelLocal::dz(MomentsG *G)
 {
-  G->scale(make_cuComplex(0.,1.));
+  G->scale(make_cuComplex(0.,kpar));
 }
 
 void GradParallelLocal::zft(MomentsG *G) {return;}
@@ -166,11 +167,11 @@ void GradParallelLocal::zft_inverse(MomentsG *G) {return;}
 
 // single moment
 void GradParallelLocal::dz(cuComplex* mom, cuComplex* res) {
-  scale_singlemom_kernel GGP (res, mom, make_cuComplex(0.,1.));
+  scale_singlemom_kernel GGP (res, mom, make_cuComplex(0.,kpar));
 }
 // single moment
 void GradParallelLocal::abs_dz(cuComplex* mom, cuComplex* res) {
-  scale_singlemom_kernel GGP (res, mom, make_cuComplex(1.,0.));
+  scale_singlemom_kernel GGP (res, mom, make_cuComplex(kpar,0.));
 }
 
 GradParallel1D::GradParallel1D(Grids* grids) :

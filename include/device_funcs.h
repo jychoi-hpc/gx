@@ -293,6 +293,7 @@ __global__ void rhs_linear(const cuComplex* g, const cuComplex* phi, const cuCom
 			   const float* ky, const specie sp, const specie sp_i, cuComplex* rhs, bool hegna);  // bb6126 - hegna test
 
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt);
+__global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const float kz, const float* qneutDenom, const specie sp, const double sdtvt);
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);
