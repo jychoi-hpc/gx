@@ -4,6 +4,7 @@ nca::nca(int N, int Nwrite) :
   N_(N), Nwrite_(Nwrite)
 {
   data = nullptr;  cpu = nullptr;  tmp = nullptr; z_tmp = nullptr; tmp_d = nullptr;
+  avg = false;
   write = false;  
   write_v_time = false;
   xydata = false;

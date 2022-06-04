@@ -145,8 +145,8 @@ void HermiteTransform::initTransforms2(double* toGrid_h, double* toSpectral_h, d
   gsl_matrix_memcpy(toSpectral, toGrid);
   gsl_permutation *p = gsl_permutation_alloc(M);
   int s;
-  gsl_linalg_LU_decomp(toSpectral, p, &s);
-  gsl_linalg_LU_invx(toSpectral, p);
+  //  gsl_linalg_LU_decomp(toSpectral, p, &s);
+  //  gsl_linalg_LU_invx(toSpectral, p);
 
   gsl_matrix *halfHermiteCoeff = gsl_matrix_alloc(M, M);
   gsl_matrix_set_zero(halfHermiteCoeff);

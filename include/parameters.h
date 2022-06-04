@@ -108,7 +108,7 @@ class Parameters {
   float x0, y0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;
   float forcing_amp, me_ov_mi, nu_ei, nu_hyper, D_hyper;
   float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m;
-  float D_HB, w_osc;
+  float D_HB, w_osc, qtau, qt0;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
   float avail_cpu_time, margin_cpu_time;
@@ -158,7 +158,7 @@ class Parameters {
   bool no_nonlin_flr, no_nonlin_cross_terms, no_nonlin_dens_cross_term;
   bool zero_order_nonlin_flr_only, no_zonal_nlpm, diagnosing_kzspec;
   bool write_l_spectrum, write_h_spectrum, write_lh_spectrum, repeat;
-  bool new_style;
+  bool new_style, write_avg_fluxes;
   bool write_phi_kpar, write_moms, write_fluxes, diagnosing_spectra;
   bool write_free_energy, diagnosing_moments, diagnosing_pzt;
   bool ostem_rname, new_varenna_fsa, qpar0_switch, qprp0_switch;

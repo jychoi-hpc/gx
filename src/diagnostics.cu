@@ -31,9 +31,9 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
   vEk         = nullptr;  phi_max     = nullptr;
   ry_h        = nullptr;  gy_h        = nullptr;  gy_d        = nullptr;
-  vol_fac = nullptr;
-  flux_fac = nullptr;
-  kvol_fac = nullptr;
+  vol_fac     = nullptr;
+  flux_fac    = nullptr;
+  kvol_fac    = nullptr;
 
   
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
@@ -247,7 +247,7 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 	heat_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
 				  grids_->ky, flux_fac, geo_->kperp2, rho2s, p_s);
       }
-      id -> write_Q(P2s); 
+      id -> write_Q(P2s, (float) time); 
     }      
 
     if ( id -> ps -> write_v_time) {

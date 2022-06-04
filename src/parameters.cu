@@ -157,6 +157,11 @@ void Parameters::get_nml_vars(char* filename)
   write_moms        = toml::find_or <bool> (tnml, "moms",        false );
   write_rh          = toml::find_or <bool> (tnml, "rh",          false );
   write_pzt         = toml::find_or <bool> (tnml, "pzt",         false );
+  write_avg_fluxes  = toml::find_or <bool> (tnml, "avg_fluxes",  false );
+  if (!write_fluxes) write_avg_fluxes = false;
+
+  qtau              = toml::find_or <float>(tnml, "tau_avg",     50.0  );
+  qt0               = toml::find_or <float>(tnml, "start_avg",    0.0  );
   
   write_all_avgz    = toml::find_or <bool> (tnml, "all_zonal_scalars", false);
 
@@ -818,7 +823,10 @@ void Parameters::store_ncdf(int ncid) {
   if (retval = nc_def_var (nc_diag, "fixed_amp",       NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "omega",           NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "fluxes",          NC_INT,   0, NULL, &ivar)) ERR(retval);
-
+  if (retval = nc_def_var (nc_diag, "avg_fluxes",      NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diag, "tau_avg",         NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diag, "start_avg",       NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
+  
   if (retval = nc_def_var (nc_diag, "all_zonal_scalars", NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "avg_zvE",         NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "avg_zkxvEy",      NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1078,17 +1086,21 @@ void Parameters::store_ncdf(int ncid) {
   putbool  (nc_diag, "fixed_amp",   fixed_amplitude    );
   putbool  (nc_diag, "free_energy", write_free_energy  );
   putbool  (nc_diag, "fluxes",      write_fluxes       );
+  putbool  (nc_diag, "avg_fluxes",  write_avg_fluxes   );
   putbool  (nc_diag, "moms",        write_moms         );
   putbool  (nc_diag, "rh",          write_rh           );
   putbool  (nc_diag, "pzt",         write_pzt          );
   putbool  (nc_diag, "phi",         write_phi          );
   putbool  (nc_diag, "phi_kpar",    write_phi_kpar     );
-
-  putint   (nc_expert, "nreal",   nreal);
-  putint   (nc_expert, "i_share", i_share);
+  put_real (nc_diag, "tau_avg",     qtau               );
+  put_real (nc_diag, "start_avg",   qt0                );
+  
+  putint   (nc_expert, "nreal",      nreal      );
+  putint   (nc_expert, "i_share",    i_share    );
   putint   (nc_expert, "ikx_fixed",  ikx_fixed  );
   putint   (nc_expert, "iky_fixed",  iky_fixed  );
   putbool  (nc_expert, "eqfix",      eqfix      );
+  
   putbool  (nc_expert, "init_single", init_single  );
   putbool  (nc_expert, "secondary",   secondary    );
   putbool  (nc_expert, "hegna",       hegna        );
@@ -1141,11 +1153,11 @@ void Parameters::store_ncdf(int ncid) {
   put_real (nc_geo, "drhodpsi",    drhodpsi   );
   put_real (nc_geo, "kxfac",       kxfac      );
   if (igeo == 0) {
-    put_real (nc_geo, "Rmaj",        rmaj       );
-    put_real (nc_geo, "shift",       shift      );
-    put_real (nc_geo, "eps",         eps        );
-    put_real (nc_geo, "q",           qsf        );
-    put_real (nc_geo, "shat",        shat       );
+    put_real (nc_geo, "Rmaj",      rmaj       );
+    put_real (nc_geo, "shift",     shift      );
+    put_real (nc_geo, "eps",       eps        );
+    put_real (nc_geo, "q",         qsf        );
+    put_real (nc_geo, "shat",      shat       );
   }
   put_real (nc_geo, "beta",        beta       );
   putbool  (nc_geo, "zero_shat",   zero_shat  );

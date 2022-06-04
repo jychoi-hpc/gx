@@ -52,18 +52,19 @@ Fields::Fields(Parameters* pars, Grids* grids) :
 }
 
 Fields::~Fields() {
-  if (phi)     cudaFree(phi);
-  if (phi_h)   free(phi_h);
-  if (apar)    cudaFree(apar);
-  if (apar_h)  free(apar_h);
+  if ( phi    ) cudaFree( phi  );
+  if ( apar   ) cudaFree( apar );
+  
+  if ( phi_h  ) free( phi_h  );
+  if ( apar_h ) free( apar_h );
 
-  if (ne)      cudaFree(ne);
-  if (ue)      cudaFree(ue);
-  if (Te)      cudaFree(Te);
+  if ( ne )     cudaFree( ne );
+  if ( ue )     cudaFree( ue );
+  if ( Te )     cudaFree( Te );
 
-  if (ne_h)    free(ne_h);
-  if (ue_h)    free(ue_h);
-  if (Te_h)    free(Te_h);
+  if ( ne_h )   free( ne_h );
+  if ( ue_h )   free( ue_h );
+  if ( Te_h )   free( Te_h );
   
 }
 

@@ -12,10 +12,10 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   red(nullptr), laguerre(nullptr), grad_perp_G(nullptr), grad_perp_J0phi(nullptr), grad_perp_phi(nullptr)
 {
 
-  tmp_c       = nullptr;  dG          = nullptr;  dg_dx       = nullptr;  dg_dy       = nullptr;  val1        = nullptr;
-  Gy          = nullptr;  dJ0phi_dx   = nullptr;  dJ0phi_dy   = nullptr;  dJ0apar_dx = nullptr;
-  dJ0apar_dy = nullptr;  dphi        = nullptr;  g_res       = nullptr;  
-  J0phi       = nullptr;  J0apar     = nullptr;  dphi_dy     = nullptr;
+  tmp_c       = nullptr;  dG          = nullptr;  dg_dx       = nullptr;  dg_dy       = nullptr;  val1 = nullptr;
+  Gy          = nullptr;  dJ0phi_dx   = nullptr;  dJ0phi_dy   = nullptr;  dJ0apar_dx  = nullptr;
+  dJ0apar_dy  = nullptr;  dphi        = nullptr;  g_res       = nullptr;  
+  J0phi       = nullptr;  J0apar      = nullptr;  dphi_dy     = nullptr;
 
   if (grids_ -> Nl < 2) {
     printf("\n");
@@ -97,12 +97,12 @@ Nonlinear_GK::~Nonlinear_GK()
   if ( Gy          ) cudaFree ( Gy          );
   if ( dJ0phi_dx   ) cudaFree ( dJ0phi_dx   );
   if ( dJ0phi_dy   ) cudaFree ( dJ0phi_dy   );
-  if ( dJ0apar_dx ) cudaFree ( dJ0apar_dx );
-  if ( dJ0apar_dy ) cudaFree ( dJ0apar_dy );
+  if ( dJ0apar_dx  ) cudaFree ( dJ0apar_dx  );
+  if ( dJ0apar_dy  ) cudaFree ( dJ0apar_dy  );
   if ( dphi        ) cudaFree ( dphi        );
   if ( g_res       ) cudaFree ( g_res       );
   if ( J0phi       ) cudaFree ( J0phi       );
-  if ( J0apar     ) cudaFree ( J0apar     );
+  if ( J0apar      ) cudaFree ( J0apar      );
 }
 
 void Nonlinear_GK::qvar (cuComplex* G, int N)
@@ -265,16 +265,16 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
 Nonlinear_KREHM::~Nonlinear_KREHM() 
 {
   if ( grad_perp ) delete grad_perp;
-  if ( dg_dx ) cudaFree ( dg_dx );
-  if ( dg_dy ) cudaFree ( dg_dy );
-  if ( tmp_r ) cudaFree ( tmp_r );
-  if ( tmp_c ) cudaFree ( tmp_c );
-  if ( dphi_dx ) cudaFree ( dphi_dx );
-  if ( dphi_dy ) cudaFree ( dphi_dy );
-  if ( dapar_dx ) cudaFree ( dapar_dx );
-  if ( dapar_dy ) cudaFree ( dapar_dy );
-  if ( val1 ) cudaFree ( val1 ); 
-  if ( red ) delete red;
+  if ( dg_dx     ) cudaFree ( dg_dx );
+  if ( dg_dy     ) cudaFree ( dg_dy );
+  if ( tmp_r     ) cudaFree ( tmp_r );
+  if ( tmp_c     ) cudaFree ( tmp_c );
+  if ( dphi_dx   ) cudaFree ( dphi_dx );
+  if ( dphi_dy   ) cudaFree ( dphi_dy );
+  if ( dapar_dx  ) cudaFree ( dapar_dx );
+  if ( dapar_dy  ) cudaFree ( dapar_dy );
+  if ( val1      ) cudaFree ( val1 ); 
+  if ( red       ) delete red;
 }
 
 void Nonlinear_KREHM::nlps(MomentsG* G, Fields* f, MomentsG* G_nl)

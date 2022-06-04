@@ -1566,14 +1566,14 @@ __global__ void ampere(cuComplex* Apar,
         
     float denom = kperp2[idxyz];
     for (int is=0 ; is < nspecies; is++) {
-      const float b_s = kperp2[idxyz] * rho2s[is];
-      const float j_ = as[is]; // as = n_s*z_s*vt_s*beta_ref/2
-      const float amp_ = amps[is]; // amps = n_s*z_s^2/m_s*beta_ref/2
+      const float b_s  = kperp2[idxyz] * rho2s[is];
+      const float j_   = as[is];     // as = n_s * z_s  * vt_s * beta_ref / 2
+      const float amp_ = amps[is]; // amps = n_s * z_s^2 / m_s * beta_ref / 2
       float g0_s = 0.;
       for (int l=0; l < nl; l++) {
-	unsigned int m = 1; // only m=1 components needed here
+	unsigned int m  = 1; // only m=1 components needed here
 	unsigned int ig = idxyz + nx*nyc*nz*(l + nl*(m + nm*is));
-	const float Jl = Jflr(l, b_s);
+	const float Jl  = Jflr(l, b_s);
 	jpar = jpar + j_ * Jl * g[ig];
 	g0_s += Jl*Jl;
       }

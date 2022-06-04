@@ -13,7 +13,8 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
 {
 
   amom = nullptr;
-  df          = nullptr;  favg        = nullptr;
+  df   = nullptr;
+  favg = nullptr;
 
   if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) {
     float dum = 1.0;
@@ -1598,8 +1599,31 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
     qs -> time_count[1] = grids_->Nspecies;
 
     all_red = new Species_Reduce(nR, nS);  cudaDeviceSynchronize();  CUDA_DEBUG("Reductions: %s \n");
+    qavg = 0.; // calculate exponential moving average
+    var_avg = 0.; // running estimate of the variance 
   } else {
     qs = new nca(0); 
+  }
+
+  if (pars_->write_avg_fluxes ) {
+    qsa = new nca(nS); 
+    qsa -> write_v_time = true; 
+  
+    qsa -> time_dims[0] = time_dim;
+    qsa -> time_dims[1] = s_dim;
+
+    qsa -> time_start[0] = 1; // no running average on the first evaluation
+    
+    qsa -> file = nc_flux;
+    if (retval = nc_def_var(nc_flux, "qflux_avg", NC_FLOAT, 2, qsa -> time_dims, &qsa -> time)) ERR(retval);
+
+    qsa -> time_count[1] = grids_->Nspecies;
+
+    all_red = new Species_Reduce(nR, nS);  cudaDeviceSynchronize();  CUDA_DEBUG("Reductions: %s \n");
+    qavg = 0.; // calculate exponential moving average
+    var_avg = 0.; // running estimate of the variance 
+  } else {
+    qsa = new nca(0); 
   }
 
   ////////////////////////////
@@ -2236,7 +2260,7 @@ void NetCDF_ids::write_As(float *P2, bool endrun)
   }
 }
 
-void NetCDF_ids::write_Q (float* Q, bool endrun)
+void NetCDF_ids::write_Q (float* Q, float time, bool endrun)
 {
   if (qs -> write_v_time) {
     all_red->Sum(Q, qs->data);                   CP_TO_CPU (qs->cpu, qs->data, sizeof(float)*grids_->Nspecies);
@@ -2244,6 +2268,19 @@ void NetCDF_ids::write_Q (float* Q, bool endrun)
 
     printf("Heat flux = ");
     for (int is=0; is<grids_->Nspecies; is++) printf ("%e \t ",qs->cpu[is]);
+
+    if (pars_->write_avg_fluxes && time > pars_->qt0) {
+      float arg = (time - qtold) / pars_->qtau;
+      qtold = time;
+      float wgt = expf(-arg);
+      float delta = qs->cpu[0] - qavg; 
+      var_avg = wgt * (var_avg + (1.0-wgt) * delta * delta);		       
+      qavg = qavg * wgt + qs->cpu[0] * (1.-wgt);
+      qsa->cpu[0] = qavg;  // only one species for now
+      write_nc(qsa, endrun);
+      printf("avg = %e var = %e ",qavg,var_avg);
+
+    }
   }
 }
 
