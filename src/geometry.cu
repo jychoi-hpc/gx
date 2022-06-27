@@ -1,4 +1,4 @@
-#include "geometry.h"
+#include "geometry.h" 
 #define GGEO <<< dimGrid, dimBlock >>>
 
 #include <fstream>
