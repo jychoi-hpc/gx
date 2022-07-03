@@ -161,7 +161,7 @@ void Parameters::get_nml_vars(char* filename)
   if (!write_fluxes) write_avg_fluxes = false;
 
   qtau              = toml::find_or <float>(tnml, "tau_avg",     50.0  );
-  qt0               = toml::find_or <float>(tnml, "start_avg",    0.0  );
+  //  ntau              = toml::find_or <int>(tnml, "ntau",             1  );
   
   write_all_avgz    = toml::find_or <bool> (tnml, "all_zonal_scalars", false);
 
@@ -1093,7 +1093,6 @@ void Parameters::store_ncdf(int ncid) {
   putbool  (nc_diag, "phi",         write_phi          );
   putbool  (nc_diag, "phi_kpar",    write_phi_kpar     );
   put_real (nc_diag, "tau_avg",     qtau               );
-  put_real (nc_diag, "start_avg",   qt0                );
   
   putint   (nc_expert, "nreal",      nreal      );
   putint   (nc_expert, "i_share",    i_share    );

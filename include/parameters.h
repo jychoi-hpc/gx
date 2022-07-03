@@ -108,7 +108,7 @@ class Parameters {
   float x0, y0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;
   float forcing_amp, me_ov_mi, nu_ei, nu_hyper, D_hyper;
   float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m;
-  float D_HB, w_osc, qtau, qt0;
+  float D_HB, w_osc, qtau;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
   float avail_cpu_time, margin_cpu_time;
