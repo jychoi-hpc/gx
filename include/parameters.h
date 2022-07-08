@@ -75,7 +75,7 @@ class Parameters {
   void store_ncdf(int ncid);
 
   void init_species(specie* species);
-  void set_jtwist_x0(float shat);
+  void set_jtwist_x0(float shat, bool nonTwist); // JMH
 
   int nczid, nzid, ncresid, ncbid;
   int nc_geo, nc_time, nc_ks, nc_vp, nc_rst, nc_dom, nc_diag;
@@ -135,6 +135,7 @@ class Parameters {
   bool vp, vp_closure;
   bool write_all_kmom, write_kmom, write_xymom, write_all_xymom, write_avgz, write_all_avgz;
   bool zero_shat;
+  bool nonTwist; //JMH
   
   bool write_avg_zvE, write_avg_zkxvEy, write_avg_zkden, write_avg_zkUpar;
   bool write_avg_zkTpar, write_avg_zkTperp, write_avg_zkqpar;

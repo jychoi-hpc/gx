@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <cmath> //JMH
+
 
 Geometry::Geometry() {
 
@@ -547,9 +549,20 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
 
   // set jtwist and x0, now that we know the final value of shat from geometry
-  pars->set_jtwist_x0(shat);
+  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH
   // initialize k and coordinate arrays
   grids->init_ks_and_coords();
+
+  // initialize operator arrays
+
+  // initialize m0(ky, z) and deltaKx(ky, z), then correct kperp2 and omegad for non-twisting flux tube
+  // if (nonTwist) { //JMH
+	  // init_m0(m0, pars->x0, grids->Nx, grids->Nz, grids->Zp, grids->ky, gds21, gds22, shat);
+	  // init_deltaKx(deltaKx, m0, grids->ky, shat, gds21, gds22);
+          // init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21,gds22, bmagInv, shat, deltaKx) // JMH
+          // init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat // JMH
+
+  }	
   // initialize operator arrays
   init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
   init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);

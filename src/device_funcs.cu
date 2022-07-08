@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "device_funcs.h"
+#include <cmath> // JMH
 
 __device__ __constant__ int nx, ny, nyc, nz, nspecies, nm, nl, nj, zp, ikx_fixed, iky_fixed;
 
@@ -770,6 +771,20 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
   }
 }
 
+__global__ void init_m0(float* m0, const float* x0, const float* ky, const float* gds21, const float* gds22, const float* shat) // JMH
+{
+	unsigned int idy = get_id1();
+	unsigned int idz = get_id2();
+
+	float delta = 0.01313; //arbitrary constant to make sure it never has to round(0.5)
+
+	if ((idy < nyc) && (idz < nz)) {
+		unsigned int idyz = idy + nyc*idz; 
+		m0[idyz] = round(x0 / (2 * M_PI) * ky[idy] * shat * ( (1 - delta) * gds21[idz] / gds22[idz] + delta * gds21[idz+1] / gds22[idz+1]
+	}
+		
+
+}
 // note: kperp2 = kperp**2 / B**2
 __global__ void init_kperp2(float* kperp2, const float* kx, const float* ky,
 			    const float* gds2, const float* gds21, const float* gds22,
