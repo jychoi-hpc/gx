@@ -771,16 +771,17 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
   }
 }
 
-__global__ void init_m0(float* m0, const float* x0, const float* ky, const float* gds21, const float* gds22, const float* shat) // JMH
+__global__ void init_m0(int* m0, const float* x0, const float* ky, const float* gds21, const float* gds22, const float* shat) // JMH
 {
 	unsigned int idy = get_id1();
 	unsigned int idz = get_id2();
 
 	float delta = 0.01313; //arbitrary constant to make sure it never has to round(0.5)
+	// x0 = Lx/(2*pi)
 
-	if ((idy < nyc) && (idz < nz)) {
+	if ((idy < nyc) && (idz < nz - 1)) { // should be idz < nz, but just making sure it compiles until i fix extrapolation
 		unsigned int idyz = idy + nyc*idz; 
-		m0[idyz] = round(x0 / (2 * M_PI) * ky[idy] * shat * ( (1 - delta) * gds21[idz] / gds22[idz] + delta * gds21[idz+1] / gds22[idz+1]
+		m0[idyz] = round(x0 * ky[idy] * shat * ( (1 - delta) * gds21[idz] / gds22[idz] + delta * gds21[idz+1] / gds22[idz+1] //need to extrapolate so it doesn't give error
 	}
 		
 

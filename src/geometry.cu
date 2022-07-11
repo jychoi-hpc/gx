@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include <cmath> //JMH
+
 
 
 Geometry::Geometry() {
@@ -31,6 +31,7 @@ Geometry::Geometry() {
   // operator arrays
   kperp2       = nullptr;  omegad     = nullptr;  cv_d       = nullptr;   gb_d      = nullptr;
   kperp2_h     = nullptr; 
+  m0 = nullptr; //JMH
 
 }
 
@@ -68,6 +69,7 @@ Geometry::~Geometry() {
     if (omegad) cudaFree(omegad);
     if (cv_d)   cudaFree(cv_d);
     if (gb_d)   cudaFree(gb_d);
+    if (m0)     cudaFree(m0); //JMH
   }
 }
 
@@ -538,13 +540,17 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMalloc ((void**) &omegad, sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &cv_d,   sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &gb_d,   sizeof(float)*grids->NxNycNz);
+  if (pars->nonTwist) { //JMH
+	  cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); //m0 is array of integers, doesn't need float
+  }
   checkCuda  (cudaGetLastError());
 
   cudaMemset (kperp2, 0., sizeof(float)*grids->NxNycNz);
   cudaMemset (omegad, 0., sizeof(float)*grids->NxNycNz);
   cudaMemset (cv_d,   0., sizeof(float)*grids->NxNycNz);
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);
-  
+  if (pars->nonTwist) { //JMH
+	  cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
   dim3 dimBlock (32, 4, 4);
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
 
@@ -556,8 +562,12 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   // initialize operator arrays
 
   // initialize m0(ky, z) and deltaKx(ky, z), then correct kperp2 and omegad for non-twisting flux tube
-  // if (nonTwist) { //JMH
-	  // init_m0(m0, pars->x0, grids->Nx, grids->Nz, grids->Zp, grids->ky, gds21, gds22, shat);
+  if (pars->nonTwist) { //JMH
+	  dim3 dimBlock_ntft (32,4);
+	  dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.z);
+	  init_m0 <<< dimBlock_ntft, dimGrid_ntft >>> (m0, pars->x0, grids->ky, gds21, gds22, shat);
+	  printf("I don't suck at coding");
+
 	  // init_deltaKx(deltaKx, m0, grids->ky, shat, gds21, gds22);
           // init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21,gds22, bmagInv, shat, deltaKx) // JMH
           // init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat // JMH
