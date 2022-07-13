@@ -69,7 +69,9 @@ class Geometry {
   float * cv_d ;
   float * gb_d ; 
   float * kperp2_h ;
-  
+  int * m0; // JMH
+  float * deltaKx; //JMH
+
   void initializeOperatorArrays(Parameters* pars, Grids* grids);
   void calculate_bgrad(Grids* grids); // MFM
 

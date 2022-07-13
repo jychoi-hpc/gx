@@ -771,21 +771,77 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
   }
 }
 
-__global__ void init_m0(int* m0, const float* x0, const float* ky, const float* gds21, const float* gds22, const float* shat) // JMH
+ __global__ void init_m0(int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat, const float kxfac) // JMH
 {
-	unsigned int idy = get_id1();
-	unsigned int idz = get_id2();
+  unsigned int idy = get_id1();
+  unsigned int idz = get_id2();
 
-	float delta = 0.01313; //arbitrary constant to make sure it never has to round(0.5)
-	// x0 = Lx/(2*pi)
+  float delta = 0.01313; //arbitrary constant to make sure it never has to round(0.5)
+  // x0 = Lx/(2*pi)
 
-	if ((idy < nyc) && (idz < nz - 1)) { // should be idz < nz, but just making sure it compiles until i fix extrapolation
-		unsigned int idyz = idy + nyc*idz; 
-		m0[idyz] = round(x0 * ky[idy] * shat * ( (1 - delta) * gds21[idz] / gds22[idz] + delta * gds21[idz+1] / gds22[idz+1] //need to extrapolate so it doesn't give error
-	}
+  if ((idy < nyc) && (idz < nz)) { 
+
+    unsigned int idyz = idy + nyc*idz; 
+    
+    // this term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
+
+    // 2*pi*zp terms use global shear to extrapolate to z + delta_z at edge of domain, see (B.10) in Ball 2020
+    // floor and mod functions act as essentially an if statement for exrapolation conditions
+
+
+    //m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz] / gds22[idz] ) + delta * (gds21[(idz+1)] / gds22[(idz+1)] )));
+
+   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] + 2 * M_PI * zp* kxfac * shat * floorf(idz/nz)) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] + 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
+  }
 		
 
 }
+
+__global__ void init_deltaKx(float* deltaKx, const int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat)
+{
+  unsigned int idy = get_id1();
+  unsigned int idz = get_id2();
+
+  if ((idy < nyc) && (idz < nz)) {
+    unsigned int idyz = idy + nyc*idz;
+    deltaKx[idyz] = ky[idy] * shat * gds21[idz] / gds22[idz] - m0[idyz] / x0;
+  }
+}
+
+__global__ void init_kperp2_ntft(float* kperp2, const float* kx, const float* ky, const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, float shat, const float* deltaKx)  //JMH
+{
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+
+  float shatInv = 1./shat;
+
+  if (unmasked(idx,idy) && idz<nz) {
+    unsigned int idxyz = idy + nyc*(idx + nx*idz);
+    unsigned int idyz = idy + nyc*idz;
+
+    kperp2[idxyz] = ( pow(ky[idy] , 2) * (gds2[idz] - pow(gds21[idz], 2) / gds22[idz]) + pow(kx[idx] + deltaKx[idyz], 2) * gds22[idz] * pow(shatInv, 2) ) * pow(bmagInv[idz], 2);
+  }
+}
+
+__global__ void init_omegad_ntft(float* omegad, float* cv_d, float* gb_d, const float* kx, const float* ky, const float* cv, const float* gb, const float* cv0, const float* gb0, float shat, const int* m0, const float x0) //JMH
+{
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+
+  float shatInv = 1./shat;
+
+  if ( unmasked(idx, idy) && idz < nz) {
+    unsigned int idxyz = idy + nyc*(idx + nx*idz);
+    unsigned int idyz = idy + nyc*idz;
+    cv_d[idxyz] = ky[idy] * cv[idz] + shatInv * (kx[idx] - m0[idyz] / x0) * cv0[idz] ;     
+    gb_d[idxyz] = ky[idy] * gb[idz] + shatInv * (kx[idx] - m0[idyz] / x0) * gb0[idz] ;
+    omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
+  }
+
+}
+		
 // note: kperp2 = kperp**2 / B**2
 __global__ void init_kperp2(float* kperp2, const float* kx, const float* ky,
 			    const float* gds2, const float* gds21, const float* gds22,
@@ -2592,13 +2648,6 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
 // and then this would be a multiplication element-wise
 //
 // or should we just recalculate J'' on the fly every time? There are factorials and exponentials. Probably not?
-// Let's store it. So there should be a kernel to build J'' in the constructor of Linear.
-// Then the job for a given timestep would be to build the summand sqrt(b(s)) J'' H
-// and then perform a tensor reduction
-//
-// upar_bar(ky, kx, z, s) = sum Jflr(ky, kx, z, l, b(s)) * g(ky, kx, z, l, 1, s)
-// which is again a reduction over l. Build the summand, do a tensor reduction.
-// 
 // tpar_bar works exactly like upar_bar.
 // tperp_bar works like uperp, except now we work with
 // J''' == l J(l-1) * 2l J(l) + (l+1) J(l+1)

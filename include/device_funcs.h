@@ -189,7 +189,20 @@ __global__ void heat_flux_summand(float* qflux, const cuComplex* phi, const cuCo
 __global__ void part_flux_summand(float* pflux, const cuComplex* phi, const cuComplex* g, const float* ky, 
 				  const float* flxJac, const float *kperp2, float rho2_s, float n_s);
 
-__global__ void init_m0(int* m0, const float* x0, const float* ky, const float* gds21, const float* gds22, const float* shat) //JMH
+__global__ void init_m0(int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat, const float kxfac); //JMH
+
+__global__ void init_deltaKx(float* deltaKx, const int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat); //JMH
+
+
+__global__ void init_kperp2_ntft(float* kperp2, const float* kx, const float* ky, 
+				 const float* gds2, const float* gds21, const float* gds22, 
+				 const float* bmagInv, float shat, const float* deltaKx);  //JMH
+
+
+__global__ void init_omegad_ntft(float* omegad, float* cv_d, float* gb_d, const float* kx, const float* ky,
+			         const float* cv, const float* gb, const float* cv0, const float* gb0,
+				 float shat, const int* m0, const float x0); //JMH
+
 
 __global__ void init_kperp2(float* kperp2, const float* kx, const float* ky,
 			    const float* gds2, const float* gds21, const float* gds22,

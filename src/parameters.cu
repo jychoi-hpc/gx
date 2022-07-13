@@ -77,9 +77,9 @@ void Parameters::get_nml_vars(char* filename)
   jtwist   = toml::find_or <int>         (tnml, "jtwist",      -1    );
   Zp       = toml::find_or <int>         (tnml, "zp",           2*nperiod-1    );
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
+  nonTwist = toml::find_or <bool>   (tnml, "nonTwist",   false ); // JMH, will only use NTFT if specified  as true
   bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
   float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
-  bool nonTwist = toml::find_or <bool>   (tnml, "nonTwist",     false ); // JMH
 
 
   tnml = nml;
@@ -701,7 +701,7 @@ void Parameters::get_nml_vars(char* filename)
     source_option = PHIEXT;
     printf("Running Rosenbluth-Hinton zonal flow calculation\n");
   }
-
+  
   if(hypercollisions) printf("Using hypercollisions.\n");
   if(hyper) printf("Using hyperdiffusion.\n");
 
@@ -844,8 +844,8 @@ void Parameters::store_ncdf(int ncid) {
   if (retval = nc_def_var (nc_dom, "zp",            NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "jtwist",        NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "boundary_dum",  NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_dom, "nonTwist",      NC_INT,   0, NULL, &ivar)) ERR(retval); // JMH
   if (retval = nc_put_att_text (nc_dom, ivar, "value", boundary.size(), boundary.c_str())) ERR(retval);
+  if (retval = nc_def_var (nc_dom, "nonTwist",      NC_INT,   0, NULL, &ivar)) ERR(retval); // JMH
 
   if (retval = nc_def_var (nc_ml, "Use_reservoir",  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_ml, "Q",              NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1386,7 +1386,7 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, st))  ERR(retval);
 }
 
-void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // bool nonTwist? // JMH
+void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // JMH
 {
   printf("set_jtwist_x0: shat_in = %f\n", shat_in);
   if (jtwist==0) {
@@ -1455,7 +1455,8 @@ void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // bool nonTwist? /
 
   if (zero_shat || nonTwist) { // || nonTwist // JMH
     boundary_option_periodic = true;
-    printf("Using no magnetic shear because zero_shat = true. Setting boundary_option='periodic' \n"); // add in if statement with similar statement using NTFT so setting boundary option = periodic? // JMH
+    if (nonTwist) printf("Using non-twisting flux tube. Setting boundary_option = 'periodic' \n");
+    else printf("Using no magnetic shear because zero_shat = true. Setting boundary_option='periodic' \n");
   }
   printf("jtwist = %d, x0 = %f\n", jtwist, x0);
 }

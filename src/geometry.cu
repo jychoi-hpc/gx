@@ -31,7 +31,7 @@ Geometry::Geometry() {
   // operator arrays
   kperp2       = nullptr;  omegad     = nullptr;  cv_d       = nullptr;   gb_d      = nullptr;
   kperp2_h     = nullptr; 
-  m0 = nullptr; //JMH
+  m0 = nullptr; deltaKx = nullptr; // JMH
 
 }
 
@@ -70,6 +70,7 @@ Geometry::~Geometry() {
     if (cv_d)   cudaFree(cv_d);
     if (gb_d)   cudaFree(gb_d);
     if (m0)     cudaFree(m0); //JMH
+    if (deltaKx) cudaFree(deltaKx); // JMH
   }
 }
 
@@ -541,7 +542,8 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMalloc ((void**) &cv_d,   sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &gb_d,   sizeof(float)*grids->NxNycNz);
   if (pars->nonTwist) { //JMH
-	  cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); //m0 is array of integers, doesn't need float
+    cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); //m0 is array of integers, doesn't need float
+    cudaMalloc ((void**) &deltaKx, sizeof(float)*grids->NycNz);
   }
   checkCuda  (cudaGetLastError());
 
@@ -550,33 +552,47 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMemset (cv_d,   0., sizeof(float)*grids->NxNycNz);
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);
   if (pars->nonTwist) { //JMH
-	  cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
+    cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
+    cudaMemset (m0, 0., sizeof(float)*grids->NycNz);
+  }
   dim3 dimBlock (32, 4, 4);
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
 
   // set jtwist and x0, now that we know the final value of shat from geometry
-  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH
+  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH, nonTwist needed for periodic boundary condition
   // initialize k and coordinate arrays
   grids->init_ks_and_coords();
 
-  // initialize operator arrays
-
   // initialize m0(ky, z) and deltaKx(ky, z), then correct kperp2 and omegad for non-twisting flux tube
   if (pars->nonTwist) { //JMH
-	  dim3 dimBlock_ntft (32,4);
-	  dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.z);
-	  init_m0 <<< dimBlock_ntft, dimGrid_ntft >>> (m0, pars->x0, grids->ky, gds21, gds22, shat);
-	  printf("I don't suck at coding");
+    // is this best way to initialize kernel with varying ky,z?
+    dim3 dimBlock_ntft (32,4); 
+    dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.z);
 
-	  // init_deltaKx(deltaKx, m0, grids->ky, shat, gds21, gds22);
-          // init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21,gds22, bmagInv, shat, deltaKx) // JMH
-          // init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat // JMH
+    // creates m0[ky, z] grid that for offsetting mode numbers throughout rest of code, (44),(B.10) in Ball 2020
+    init_m0 <<< dimBlock_ntft, dimGrid_ntft >>> (m0, pars->x0, grids->ky, gds21, gds22, shat, pars->kxfac);
+    // for (int j = 0; j<grids->Nyc; j++) {
+//	    for (int k=0; k<grids->Nz; k++) {
+//		    printf("%f ", m0[j + grids->Nyc * k]);
+//	    }
+//	    printf("\n");
+  //  }
+    
+    //creates deltaKx[ky, z] for offsetting wavenumbers throughout rest of code, (B.2) in Ball 2020
+    init_deltaKx <<<dimBlock_ntft, dimGrid_ntft >>> (deltaKx, m0, pars->x0, grids->ky, gds21, gds22, shat); 
+    
+    // redefine kperp2 according to ntft grids, (B.5) in Ball 2020
+    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat, deltaKx); 
+    
+    // redefine omegad according to ntft grids
+    init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat, m0, pars->x0); 
 
   }	
-  // initialize operator arrays
+  // initialize operator arrays for conventional flux tube
+  else {
   init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
   init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
-
+  }
   /*
   kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);
   CP_TO_GPU (kperp2_h,    kperp2, sizeof(float)*grids->NxNycNz);
