@@ -294,7 +294,7 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G, int nLin
 __device__ void zfts_Linked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void i_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void abs_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
-__global__ void init_kzLinked(float* kz, int nLinks, bool dealias);
+__global__ void init_kzLinked(float* kz, int nLinks, bool dealias, bool nonTwist); //added nonTwist // JMH
 
 extern __managed__ cufftCallbackStoreC zfts_Linked_callbackPtr;
 extern __managed__ cufftCallbackStoreC i_kzLinked_callbackPtr;

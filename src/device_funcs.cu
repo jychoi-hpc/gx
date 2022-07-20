@@ -783,17 +783,17 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
 
     unsigned int idyz = idy + nyc*idz; 
     
-    // this term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
 
     // 2*pi*zp terms use global shear to extrapolate to z + delta_z at edge of domain, see (B.10) in Ball 2020
     // floor and mod functions act as essentially an if statement for exrapolation conditions
+    // the last term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
+    
+   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] + 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] + 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
 
-
-    //m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz] / gds22[idz] ) + delta * (gds21[(idz+1)] / gds22[(idz+1)] )));
-
-   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] + 2 * M_PI * zp* kxfac * shat * floorf(idz/nz)) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] + 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
+   printf("m0[%f, %d] = %d:: %d mod %d = %d:: floorf(%d/%d) = %f:: floorf(%d+1/%d) = %f:: gds21/gds22 = %f:: zp = %d:: m0_44 = %f \n", ky[idy], idz, m0[idyz], idz, nz, idz%nz, idz, nz, floorf(idz/(1.0*nz)), idz, nz, floorf((idz+1)/(1.0*nz)), gds21[idz%nz] / gds22[idz%nz], zp, x0 * ky[idy] * shat * gds21[idz] / gds22[idz] );
+    
   }
-		
+  		
 
 }
 
@@ -2019,19 +2019,42 @@ __device__ void abs_kzLinked(void *dataOut, size_t offset, cufftComplex element,
   ((cuComplex*)dataOut)[offset] = abs(kz[idz])*element*normalization;
 }
 
-__global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
+__global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTwist) // slightly modified for NTFT // JMH
 {
-  int nzL = nz*nLinks;
-  for (int i=0; i < nzL; i++) {
-    if (i < nzL/2+1) {
-      kz[i] = (float) i/(zp*nLinks);
-    } else {
-      kz[i] = (float) (i-nzL)/(zp*nLinks);
+  int nzL;
+   
+
+  if (nonTwist) { // this does the same thing as the conventional, but is modified slightly because of the different meaning of nLinks
+    
+    nzL = nLinks; // accounting for nLinks representing # grid points, not 2pi segments
+    
+    for (int i=0; i < nzL; i++) {
+      if (i < nzL/2+1) {
+        kz[i] = (float) i/(zp*nLinks/nz); // nLinks/nz will be non-integer, but kz is a float so it shouldn't matter
+      } else {
+        kz[i] = (float) (i-nzL)/(zp*nLinks/nz);
+      }
+      if (dealias_kz) {
+        if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
+      }
     }
-    if (dealias_kz) {
-      if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
+    
+  } 
+  else {
+    nzL = nz*nLinks;
+    
+    for (int i=0; i < nzL; i++) {
+      if (i < nzL/2+1) {
+        kz[i] = (float) i/(zp*nLinks);
+      } else {
+        kz[i] = (float) (i-nzL)/(zp*nLinks);
+      }
+      if (dealias_kz) {
+        if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
+      }
     }
   }
+
 }
 
 __managed__ cufftCallbackStoreC  zfts_Linked_callbackPtr = zfts_Linked;

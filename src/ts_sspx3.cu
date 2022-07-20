@@ -15,9 +15,9 @@ The notes in the PDF above are from math student Federico Pasqualotto.
 
 // ======= SSPx3 =======
 SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr), G3(nullptr)
+	     Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in) :
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars), geo_(geo),
+  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr), G3(nullptr) // added geometry for m0 array // JMH
 {
   
   // new objects for temporaries
@@ -33,7 +33,7 @@ SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     grad_par = new GradParallelPeriodic(grids_);
   }
   else {
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0);
   }
   
 }

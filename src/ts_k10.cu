@@ -11,8 +11,8 @@
 
 // ============= K10,4 ============
 Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
+			 Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in) :
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), geo_(geo),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in), G_q1(nullptr), G_q2(nullptr)
 {
   // new objects for temporaries
@@ -21,7 +21,7 @@ Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 
   if (pars_->local_limit)                     { grad_par = new GradParallelLocal(grids_);
   } else if (pars_->boundary_option_periodic) { grad_par = new GradParallelPeriodic(grids_);
-  } else {                                      grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+  } else {                                      grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0);
   }
 }
 

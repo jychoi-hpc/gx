@@ -1453,10 +1453,20 @@ void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // JMH
     }
   }
 
-  if (zero_shat || nonTwist) { // || nonTwist // JMH
+  if (zero_shat) { 
     boundary_option_periodic = true;
-    if (nonTwist) printf("Using non-twisting flux tube. Setting boundary_option = 'periodic' \n");
-    else printf("Using no magnetic shear because zero_shat = true. Setting boundary_option='periodic' \n");
+    printf("Using no magnetic shear because zero_shat = true. Setting boundary_option='periodic' \n");
+  }
+  if (nonTwist) {
+    if (!zero_shat) {
+      // this is to make sure that it uses the ntft parallel derivative in the linked file
+      boundary_option_periodic = false;
+      local_limit = false; 
+      printf("Using non-twisting flux tube. \n");
+    } else {
+      boundary_option_periodic = true;
+      printf("Using no magnetic shear because zero_shat = true and non-twisting flux tube. Setting boundary_option = 'periodic' \n"); // is this even allowed? NTFT with shat = 0 is conentional right? check this
+    }
   }
   printf("jtwist = %d, x0 = %f\n", jtwist, x0);
 }

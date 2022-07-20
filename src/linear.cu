@@ -29,7 +29,7 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   }
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0);
   }
 
   switch (pars_->closure_model_opt)
@@ -226,7 +226,7 @@ Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids) :
   }
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0);
   }
  
   switch (pars_->closure_model_opt)

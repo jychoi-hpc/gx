@@ -3,7 +3,7 @@
 #include "get_error.h"
 #define GCHAINS <<< dG[c], dB[c] >>>
 
-GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
+GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, int *m0) // JMH
  : grids_(grids)
 {
   nLinks       = nullptr;  nChains      = nullptr;
@@ -11,6 +11,8 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
   ikxLinked    = nullptr;  ikyLinked    = nullptr;
   kzLinked     = nullptr;  G_linked     = nullptr;
   dG           = nullptr;  dB           = nullptr;
+  mode_nums    = nullptr;  mode_size    = nullptr; //JMH
+  mode_size_ref= nullptr; // JMH
  
   zft_plan_forward           = nullptr;
   zft_plan_inverse           = nullptr;
@@ -28,32 +30,67 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
 
   int naky = grids_->Naky;
   int nakx = grids_->Nakx;
+  int nz = grids_->Nz; // JMH
+  int nx = grids_->Nx; // JMH
 
-  int idxRight[naky*nakx];
-  int idxLeft[naky*nakx];
+  if (nonTwist) { // JMH
+     //initialize grids
+    int mode_nums[naky*nakx*nz] = {0}; //array thst lists what mode a point is part of
+    int mode = {0}; //counter for number of modes
+    
+    mode = get_mode_nums_ntft(mode_nums, nz, naky, nakx, jtwist, m0, grids->Nyc);
+  
+    int mode_size[mode] = {0}; // this will be sorted, used for nLinks/nChains
+    int mode_size_ref[mode] = {0}; //this won't be sorted, used for filling kx/ky grids
 
-  int linksR[naky*nakx];
-  int linksL[naky*nakx];
+    for(int counter=0; counter<mode; counter++) {  // initialize mode_size arrays to 1s
+      mode_size[counter] = 1;
+      mode_size_ref[counter] = 1;
+    }
 
-  int n_k[naky*nakx];
+    nClasses = get_nClasses_ntft(mode_size, mode_size_ref, mode_nums, naky, nakx, nz, mode);
 
-  nClasses = get_nClasses(idxRight, idxLeft, linksR, linksL, n_k, naky, nakx, jtwist);
+    nChains = (int*) malloc(sizeof(int)*nClasses);
+    nLinks = (int*) malloc(sizeof(int)*nClasses); //this is number of grid points, not 2pi segments
 
-  nLinks   = (int*) malloc(sizeof(int)*nClasses);
-  nChains  = (int*) malloc(sizeof(int)*nClasses);
+    get_nChains_nLinks_ntft(mode_size, nLinks, nChains, nClasses, nakx, naky, mode);
 
-  get_nLinks_nChains(nLinks, nChains, n_k, nClasses, naky, nakx);
+    ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses);
+    ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);
 
-  ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses);
-  ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);
 
-  for(int c=0; c<nClasses; c++) {
-    ikxLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
-    ikyLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
+    for(int c=0; c<nClasses; c++) {
+      ikxLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
+      ikyLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
+    }
+
+    kFill_ntft(nClasses, nChains, nLinks, ikyLinked_h, ikxLinked_h, naky, nakx, jtwist, nz, mode, mode_size_ref, mode_nums, nx); 
   }
+  else { // conventional flux tube, nothing changed // JMH
+    int idxRight[naky*nakx];
+    int idxLeft[naky*nakx];
 
-  kFill(nClasses, nChains, nLinks, ikyLinked_h, ikxLinked_h, linksL, linksR, idxRight, naky, nakx);
+    int linksR[naky*nakx];
+    int linksL[naky*nakx];
 
+    int n_k[naky*nakx];
+  
+    nClasses = get_nClasses(idxRight, idxLeft, linksR, linksL, n_k, naky, nakx, jtwist);
+    
+    nLinks   = (int*) malloc(sizeof(int)*nClasses);
+    nChains  = (int*) malloc(sizeof(int)*nClasses);
+    get_nLinks_nChains(nLinks, nChains, n_k, nClasses, naky, nakx);
+    
+    ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses);
+    ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);
+
+    for(int c=0; c<nClasses; c++) {
+      ikxLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
+      ikyLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
+    }
+
+    kFill(nClasses, nChains, nLinks, ikyLinked_h, ikxLinked_h, linksL, linksR, idxRight, naky, nakx);
+  }
   dG = (dim3*) malloc(sizeof(dim3)*nClasses);
   dB = (dim3*) malloc(sizeof(dim3)*nClasses);
 
@@ -74,12 +111,20 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
   ikyLinked = (int**) malloc(sizeof(int*)*nClasses);
   G_linked = (cuComplex**) malloc(sizeof(cuComplex*)*nClasses);
   kzLinked = (float**) malloc(sizeof(float*)*nClasses);
+  
+  // for NTFT, nLinks[c] is number of grid points per chain, so we don't need to multiply by Nz
+  // changed all grids->Nz to nz below to not have to add larger if statement // JMH
+  if (nonTwist) {
+    nz = 1;
+  }
 
   //  printf("nClasses = %d\n", nClasses);
   for(int c=0; c<nClasses; c++) {
     //    printf("\tClass %d: nChains = %d, nLinks = %d\n", c, nChains[c], nLinks[c]);
 
     // allocate and copy into device memory
+    
+
     int nLC = nLinks[c]*nChains[c];
     cudaMalloc ((void**) &ikxLinked[c],      sizeof(int)*nLC);
     cudaMalloc ((void**) &ikyLinked[c],      sizeof(int)*nLC);
@@ -87,13 +132,13 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
     CP_TO_GPU(ikxLinked[c], ikxLinked_h[c], sizeof(int)*nLC);
     CP_TO_GPU(ikyLinked[c], ikyLinked_h[c], sizeof(int)*nLC);
 
-    size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*grids_->Nz;
+    size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*nz;
 
     checkCuda(cudaMalloc((void**) &G_linked[c], sLClmz));
     cudaMemset(G_linked[c], 0., sLClmz);
 
-    cudaMalloc((void**) &kzLinked[c], sizeof(float)*grids_->Nz*nLinks[c]);
-    cudaMemset(kzLinked[c], 0.,       sizeof(float)*grids_->Nz*nLinks[c]);
+    cudaMalloc((void**) &kzLinked[c], sizeof(float)*nz*nLinks[c]);
+    cudaMemset(kzLinked[c], 0.,       sizeof(float)*nz*nLinks[c]);
 
     // set up transforms
     cufftCreate(    &zft_plan_forward[c]);
@@ -108,7 +153,7 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
 
     cufftCreate(&abs_dz_plan_forward_singlemom[c]);
 
-    int size = nLinks[c]*grids_->Nz;
+    int size = nLinks[c]*nz;
     size_t workSize;
     int nClm = nChains[c]*grids_->Nl*grids_->Nm; 
     cufftMakePlanMany(zft_plan_forward[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nClm, &workSize);
@@ -127,11 +172,11 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist)
                       nChains[c], &workSize);
 
     // initialize kzLinked
-    init_kzLinked <<<1,1>>> (kzLinked[c], nLinks[c], false);
+    init_kzLinked <<<1,1>>> (kzLinked[c], nLinks[c], false, nonTwist); // added nonTwist // JMH
 
     int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
 
-    nn1 = grids_->Nz;                   nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1;
+    nn1 = nz;                           nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1;
     nn2 = nLinks[c]*nChains[c];         nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; 
     nn3 = grids_->Nmoms;                nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
     
@@ -621,5 +666,160 @@ void GradParallelLinked::clear_callbacks()
     checkCuda(cudaGetLastError());
   }
 }
-          
+
+int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int nakx, int jtwist, int *m0, int nyc) // JMH
+{
+  // this function assigns every grid point in the 3D array mode_nums to a corresponding NTFT ballooning mode
+  // also identifies total number of ballooning modes "mode"
+
+  int idz_prime, idx_constant, idx_prime; 
+
+  
+  // fill order depends on jtwist sign, starts either bottom left or bottom right
+  
+  for(int idy=0; idy<naky; idy++) {
+    for(int idx=0; idx<nakx; idx++) {
+      if (jtwist<0) { //positive sloping lines, start in bottom left
+        for(int idz=0; idz<nz; idz++) {
+          if (mode_nums[idy + naky * (idx + nakx * idz)] == 0) { //if you find a grid point not assigned to a mode
+	    mode++; // increment the mode number
+  	    idz_prime = idz;
+	    idx_constant = idx + m0[idy + nyc * idz_prime]; //i_constant -> m+m0 constant -> Kx constant
+	    while(idx_constant - m0[idy + nyc * idz_prime] < nakx) { // while kx < kx_allowed
+		idx_prime = idx_constant - m0[idy+ nyc * idz_prime];
+	        mode_nums[idy + naky * (idx_prime + nakx * idz_prime)] = mode; //is there a fastest way to index the data?
+	        if (idz_prime == nz - 1) { // if at end of row
+		  idx_constant = idx_constant - jtwist * idy; // shift upwards by ky*jtwist
+		  idz_prime = 0; // restart at left hand side and continue
+		} else { 
+		  idz_prime++;
+		}
+	    }
+	  }
+	}
+      }
+      else { // jtwist > 0, negative sloping lines, start in bottom right
+        for(int idz=nz-1; idz>=0; idz--) {
+          if (mode_nums[idy + naky * (idx + nakx * idz)] == 0) { //if you find a grid point not assigned to a mode
+	    mode++; // increment the mode number
+  	    idz_prime = idz;
+	    idx_constant = idx + m0[idy + nyc * idz_prime]; //i_constant -> m+m0 constant -> Kx constant
+	    while(idx_constant - m0[idy + nyc * idz_prime] < nakx) { // while kx < kx_allowed
+		idx_prime = idx_constant - m0[idy+ nyc * idz_prime];
+	        mode_nums[idy + naky * (idx_prime + nakx * idz)] = mode;
+	        if (idz_prime == 0) { // if at end of row
+		  idx_constant = idx_constant + jtwist * idy; // shift upwards by ky*jtwist
+		  idz_prime = nz-1; // restart at right hand side and repeat the process
+		} else { 
+		  idz_prime--;
+		}
+	    }
+	  }
+	}
+      }
+    }
+  }
+  return mode;
+}
+
+int GradParallelLinked::get_nClasses_ntft(int *mode_size, int *mode_size_ref, int *mode_nums, int naky, int nakx, int nz, int mode)
+{ // JMH
+  
+  // this uses the data from the get mode nums function to identify the number of classes
+  // loop through grid and count how many grid points in each ballooning mode
+  for(int idy=0; idy<naky; idy++) {
+    for(int idx=nakx; idx<0; idx--) {
+       for(int idz=0; idz<nz; idz++) {
+	 // add one to the mode length corresponding to that grid point, this is analagous to n_k
+	 mode_size[mode_nums[idy + naky * (idx + nakx * idz)]]++;
+       	 mode_size_ref[mode_nums[idy + naky * (idx + nakx * idz)]]++; //should be identical arrays
+       }
+    }
+  }
+
+  qsort(mode_size, mode, sizeof(int), compare); //sort mode_size into increasing order
+
+  // count how many different classes
+  int nClasses = 1;
+  for(int k=0; k<mode-1; k++){
+    if(mode_size[k] != mode_size[k+1]) {
+      nClasses++;
+    }
+  }
+  return nClasses;
+}
+
+void GradParallelLinked::get_nChains_nLinks_ntft(int *mode_size, int *nLinks, int *nChains, int nClasses, int nakx, int naky, int mode) // JMH
+{
+  // this function fills nLinks and nChains arrays for each class (where a class represents a ballooning mode of different size)
+  // nLinks[c] = number of GRID POINTS (not 2pi segments) in a ballooning mode of class c
+  // nChains[c] = number of ballooning modes with length nLinks[c] in class c
+
+  for(int c=0; c<nClasses; c++) {
+    nChains[c] = 1;
+    nLinks[c] = 0;
+  }
+
+  int c=0;
+  for(int k=1; k<mode; k++) {
+    if(mode_size[k] == mode_size[k-1]) {
+      nChains[c]++;
+    } else {
+      //note that here, nLinks[c] represents # of grid points, not segments
+      nLinks[c] = mode_size[k-1]; 
+      c++;
+    }
+  }
+  nLinks[nClasses-1] = mode_size[mode-1];
+}
+
+void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int **ikyNTFT, int **ikxNTFT, int naky, int nakx, int jtwist, int nz, int mode, int *mode_size_ref, int *mode_nums, int nx) // JMH
+{
+ 
+  // this function fills the ky and kx index arrays corresponding to each class c
+  // again, fill order depends on sign of jtwist
+ 
+  int nshift = nx-nakx;
+  int n,p, idx0, idy, idx, idz;
+
+  for(int ic=0; ic<nClasses; ic++) {
+    n = -1; //keeps track of number of chains with same nLinks for indexing purposes
+    for(int i=0; i<mode; i++) { 
+      //check if the # of grid points at that class index is = to the # of grid points of the mode
+      if (nLinks[ic] == mode_size_ref[i]) {
+	n++; //chain number index
+	p=0; //grid point nuumber index
+        for(idy=0; idy<naky; idy++) {
+	  for(idx=0; idx<nakx; idx++) {
+	    if (idx < (nakx + 1)/2) {
+	      idx0 = idx;
+	    } else {
+	      idx0 = idx + nshift;
+	    }
+	    if (jtwist<0) { //positive sloping lines, start in bottom left
+              for(idz=0; idz<nz; idz++) {
+	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i) {
+		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0; //I think this definitely needs to be nonsequential
+	          ikyNTFT[ic][p + nLinks[ic] * n] = idy;
+		  p++;
+		}
+	      }
+	    }
+	    else { //if jtwist > 0, negative sloping lines, start in bottom right	    
+              for(idz=nz-1; idz<0; idz--) {
+	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i) {
+		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0; //I think this definitely needs to be nonsequential
+	          ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
+		  p++;
+		}
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
+
 
