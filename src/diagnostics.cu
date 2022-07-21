@@ -79,7 +79,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
       grad_par = new GradParallelPeriodic(grids_);
     }
     else {
-      grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0);
+      grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
     }
   }
   // need if (pars_->write_flux || "diagnosing potential) {

@@ -70,6 +70,7 @@ class Geometry {
   float * gb_d ; 
   float * kperp2_h ;
   int * m0; // JMH
+  int * m0_h; 
   float * deltaKx; //JMH
 
   void initializeOperatorArrays(Parameters* pars, Grids* grids);

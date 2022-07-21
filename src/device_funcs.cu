@@ -789,9 +789,9 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
     // the last term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
     
    m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] + 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] + 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
-
-   printf("m0[%f, %d] = %d:: %d mod %d = %d:: floorf(%d/%d) = %f:: floorf(%d+1/%d) = %f:: gds21/gds22 = %f:: zp = %d:: m0_44 = %f \n", ky[idy], idz, m0[idyz], idz, nz, idz%nz, idz, nz, floorf(idz/(1.0*nz)), idz, nz, floorf((idz+1)/(1.0*nz)), gds21[idz%nz] / gds22[idz%nz], zp, x0 * ky[idy] * shat * gds21[idz] / gds22[idz] );
-    
+  
+  //printf("m0(%d, %d) = m0(%d) =  %d \n", idy, idz, idyz, m0[idyz]); 
+     
   }
   		
 
