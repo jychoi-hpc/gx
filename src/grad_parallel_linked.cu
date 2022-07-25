@@ -33,8 +33,6 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
   int nz = grids_->Nz; // JMH
   int nx = grids_->Nx; // JMH
   
-  printf("check 1 \n");
-
   if (nonTwist) { // JMH
      //initialize grids
     int mode_nums[naky*nakx*nz] = {0}; //array thst lists what mode a point is part of
@@ -44,19 +42,13 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
   
     int mode_size[mode] = {0}; // this will be sorted, used for nLinks/nChains
     int mode_size_ref[mode] = {0}; //this won't be sorted, used for filling kx/ky grids
-    printf("check 2 \n");
-
-    for(int counter=0; counter<mode; counter++) {  // initialize mode_size arrays to 1s
-      mode_size[counter] = 1;
-      mode_size_ref[counter] = 1;
-    }
-
     nClasses = get_nClasses_ntft(mode_size, mode_size_ref, mode_nums, naky, nakx, nz, mode);
-
+    
     nChains = (int*) malloc(sizeof(int)*nClasses);
     nLinks = (int*) malloc(sizeof(int)*nClasses); //this is number of grid points, not 2pi segments
 
     get_nChains_nLinks_ntft(mode_size, nLinks, nChains, nClasses, nakx, naky, mode);
+    printf("check 4 \n");
 
     ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses);
     ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);
@@ -126,7 +118,6 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
     //    printf("\tClass %d: nChains = %d, nLinks = %d\n", c, nChains[c], nLinks[c]);
 
     // allocate and copy into device memory
-    
 
     int nLC = nLinks[c]*nChains[c];
     cudaMalloc ((void**) &ikxLinked[c],      sizeof(int)*nLC);
@@ -674,39 +665,40 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
 {
   // this function assigns every grid point in the 3D array mode_nums to a corresponding NTFT ballooning mode
   // also identifies total number of ballooning modes "mode"
+  // for jtwist > 0, we start search for new modes in bottom left, but piece together modes 
+  // from right to left
 
-  int idz_prime, idx_constant, idx_prime; 
+  int idz_prime, idx_constant, idx_prime, idz_temp; 
   int mode = 0;
   
   // fill order depends on jtwist sign, starts either bottom left or bottom right
   printf("naky = %d, nakx = %d, nyc = %d, nz = %d \n", naky, nakx, nyc, nz);
   for(int idy=0; idy<naky; idy++) { // add in an if statement to distinguish whether 
-    printf("idy = %d \n", idy);
     if (ky[idy] < 1e-10) { // special case for zonal mode
       for(int idx=0; idx<nakx; idx++) {
 	 mode++;
 	 for (int idz=0; idz<nz; idz++) {
-	    mode_nums[naky * (idx + nakx * idz)] = mode;
+	    mode_nums[idy + naky * (idx + nakx * idz)] = mode;
 	 }
       }
     } else {
     for(int idx=0; idx<nakx; idx++) {
-      printf("idx = %d \n", idx);
-      if (jtwist>0) { //positive sloping lines, start in bottom left // need to ask about this
-        for(int idz=0; idz<nz; idz++) {
-          printf("idz = %d \n", idz);
+      if (jtwist<0) { //positive sloping lines, start in bottom right
+        for(int idz=nz-1; idz>=0; idz--) {
           if (mode_nums[idy + naky * (idx + nakx * idz)] == 0) { //if you find a grid point not assigned to a mode
+	    
+            // once new mode is found, need to start assembling at farthest left point 
+            idz_temp = idz;
+	    while (m0[idy + nyc * idz_temp] == m0[idy + nyc * ((idz_temp - 1) % nz)] && idz_temp >= 0 ) {
+	      idz_temp--;
+	    }
+	    
 	    mode++; // increment the mode number
-	    printf("mode = %d \n", mode);
   	    idz_prime = idz;
-	    printf("m0(%d, %d) = %d \n", idy, idz_prime, m0[idy + nyc *idz_prime]);
 	    idx_constant = idx + m0[idy + nyc * idz_prime]; //i_constant -> m+m0 constant -> Kx constant
-	    printf("idx_constant = %d \n", idx_constant);
 	    while(idx_constant - m0[idy + nyc * idz_prime] < nakx) { // while kx < kx_allowed
 		idx_prime = idx_constant - m0[idy+ nyc * idz_prime];
-		printf("idx_prime = %d \n", idx_prime);
 	        mode_nums[idy + naky * (idx_prime + nakx * idz_prime)] = mode; //is there a fastest way to index the data?
-		printf("idz_prime = %d \n", idz_prime);
 	        if (idz_prime == nz - 1) { // if at end of row
 		  idx_constant = idx_constant + jtwist * idy; // shift upwards by ky*jtwist
 		  idz_prime = 0; // restart at left hand side and continue
@@ -717,21 +709,25 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
 	  }
 	}
       }
-      else { // jtwist < 0, negative sloping lines, start in bottom right
-        for(int idz=nz-1; idz>=0; idz--) {
-          printf("idz = %d \n", idz);
+      else if (jtwist>0) { // start in bottom left
+        for(int idz=0; idz<nz; idz++) {
           if (mode_nums[idy + naky * (idx + nakx * idz)] == 0) { //if you find a grid point not assigned to a mode
-	    mode++; // increment the mode number
-  	    idz_prime = idz;
-	    printf("mode = %d \n", mode);
+	    
+	    // once new mode is found, need to start assembling at farthest right point 
+            idz_temp = idz;
+	    while (m0[idy + nyc * idz_temp] == m0[idy + nyc * ((idz_temp + 1) % nz)] && idz_temp < nz ) {
+	      idz_temp++;
+	    }
+	    
+	    mode++; // increment the mode number once you find start of mode
+  	    idz_prime = idz_temp; 
 	    idx_constant = idx + m0[idy + nyc * idz_prime]; //i_constant -> m+m0 constant -> Kx constant
-	    while(idx_constant - m0[idy + nyc * idz_prime] < nakx) { // while kx < kx_allowed
+	    while(idx_constant - m0[idy + nyc * idz_prime] < nakx) {
 		idx_prime = idx_constant - m0[idy+ nyc * idz_prime];
-	        mode_nums[idy + naky * (idx_prime + nakx * idz)] = mode;
-	        if (idz_prime == 0) { // if at end of row
-		  idx_constant = idx_constant + jtwist * idy; // shift upwards by ky*jtwist
-		  printf("idx_prime = %d \n", idx_prime);
-		  idz_prime = nz-1; // restart at right hand side and repeat the process
+	        mode_nums[idy + naky * (idx_prime + nakx * idz_prime)] = mode;
+	        if (idz_prime == 0) { // if at end of row, shift upwards and restart from right
+		  idx_constant = idx_constant + jtwist * idy;
+		  idz_prime = nz-1;
 		} else { 
 		  idz_prime--;
 		}
@@ -742,22 +738,26 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
     }
     }
   }
+  printf("number of modes = %d \n", mode);
   return mode;
 }
 
 int GradParallelLinked::get_nClasses_ntft(int *mode_size, int *mode_size_ref, int *mode_nums, int naky, int nakx, int nz, int mode)
 { // JMH
-  
+ 	
   // this uses the data from the get mode nums function to identify the number of classes
   // loop through grid and count how many grid points in each ballooning mode
   for(int idy=0; idy<naky; idy++) {
-    for(int idx=nakx; idx<0; idx--) {
+    for(int idx=nakx-1; idx>=0; idx--) {
        for(int idz=0; idz<nz; idz++) {
 	 // add one to the mode length corresponding to that grid point, this is analagous to n_k
-	 mode_size[mode_nums[idy + naky * (idx + nakx * idz)]]++;
-       	 mode_size_ref[mode_nums[idy + naky * (idx + nakx * idz)]]++; //should be identical arrays
+	 mode_size[mode_nums[idy + naky * (idx + nakx * idz)]-1]++;
+       	 mode_size_ref[mode_nums[idy + naky * (idx + nakx * idz)]-1]++; //should be identical arrays
+	 printf("%d ", mode_nums[idy + naky * (idx + nakx * idz)]); 
        }
+       printf("\n");
     }
+    printf(" \n\n\n\n");
   }
 
   qsort(mode_size, mode, sizeof(int), compare); //sort mode_size into increasing order
@@ -769,6 +769,7 @@ int GradParallelLinked::get_nClasses_ntft(int *mode_size, int *mode_size_ref, in
       nClasses++;
     }
   }
+  printf("nClasses = %d \n", nClasses);
   return nClasses;
 }
 
@@ -790,10 +791,13 @@ void GradParallelLinked::get_nChains_nLinks_ntft(int *mode_size, int *nLinks, in
     } else {
       //note that here, nLinks[c] represents # of grid points, not segments
       nLinks[c] = mode_size[k-1]; 
+      printf("nLinks(%d) = %d, nChains(%d) = %d \n", c, nLinks[c], c, nChains[c]);
       c++;
     }
   }
   nLinks[nClasses-1] = mode_size[mode-1];
+
+  printf("nLinks(%d) = %d, nChains(%d) = %d \n", nClasses-1, nLinks[nClasses-1], nClasses-1, nChains[nClasses-1]);
 }
 
 void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int **ikyNTFT, int **ikxNTFT, int naky, int nakx, int jtwist, int nz, int mode, int *mode_size_ref, int *mode_nums, int nx) // JMH
@@ -811,28 +815,31 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
       //check if the # of grid points at that class index is = to the # of grid points of the mode
       if (nLinks[ic] == mode_size_ref[i]) {
 	n++; //chain number index
-	p=0; //grid point nuumber index
+	p=0; //grid point number index
+	printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
         for(idy=0; idy<naky; idy++) {
 	  for(idx=0; idx<nakx; idx++) {
-	    if (idx < (nakx + 1)/2) {
-	      idx0 = idx;
+	    if (idx >= (nakx - 1)/2) { // transform idx to ikx (nonsequential)
+	      idx0 = idx - nshift;
 	    } else {
-	      idx0 = idx + nshift;
+	      idx0 = idx + nakx;
 	    }
 	    if (jtwist<0) { //positive sloping lines, start in bottom left
               for(idz=0; idz<nz; idz++) {
-	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i) {
-		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0; //I think this definitely needs to be nonsequential
+	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
+		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0; //I think thi`s definitely needs to be nonsequential
 	          ikyNTFT[ic][p + nLinks[ic] * n] = idy;
+		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
 		  p++;
 		}
 	      }
 	    }
-	    else { //if jtwist > 0, negative sloping lines, start in bottom right	    
-              for(idz=nz-1; idz<0; idz--) {
-	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i) {
-		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0; //I think this definitely needs to be nonsequential
+	    else { //if jtwist > 0, negative sloping lines, start in bottom right
+              for(idz=nz-1; idz>=0; idz--) {
+	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
+		  ikxNTFT[ic][p + nLinks[ic] * n] = idx0;
 	          ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
+		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
 		  p++;
 		}
 	      }
