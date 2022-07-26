@@ -788,7 +788,7 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
     // floor and mod functions act as essentially an if statement for exrapolation conditions
     // the last term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
     
-   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] + 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] + 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
+   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] - 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] - 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
   
   //printf("m0(%d, %d) = m0(%d) =  %d \n", idy, idz, idyz, m0[idyz]); 
      
@@ -2062,31 +2062,86 @@ __managed__ cufftCallbackStoreC   i_kzLinked_callbackPtr = i_kzLinked;
 __managed__ cufftCallbackStoreC abs_kzLinked_callbackPtr = abs_kzLinked;
 
 __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
-			   int nLinks, int nChains, const int* ikx, const int* iky, int nMoms)
+			   int nLinks, int nChains, const int* ikx, const int* iky, int nMoms) // JMH
 {
-  unsigned int idz  = get_id1();
-  unsigned int idk  = get_id2();
-  unsigned int idlm = get_id3();
+  unsigned int idp, idn, idk, idlm;
+  int ikx_ntft, idz, idpn;
 
-  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
-    unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
-    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
-    // NRM: seems hopeless to make these accesses coalesced. how bad is it?
-    G_linked[idlink] = G[globalIdx];
+  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+    
+    idp  = get_id1(); // NTFT grid point number in link
+    idn  = get_id2(); // NTFT chain number in class
+    idlm = get_id3();
+
+    if (idp < nLinks && idn < nChains && idlm < nMoms) {
+
+      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
+      // nakx = 1 + 2 * (nx - 1) / 3 
+      idpn = idp + nLinks * idn;
+      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      
+      unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
+      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+      
+      //printf("idk = %d, ikx_ntft = %d, idz = %d \n", idpn, ikx_ntft, idz);
+      G_linked[idlink] = G_linked[globalIdx];
+    }
+  }
+  else {
+
+    idz  = get_id1();
+    idk  = get_id2();
+    idlm = get_id3();
+
+    if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
+      unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
+      unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+      // NRM: seems hopeless to make these accesses coalesced. how bad is it?
+      G_linked[idlink] = G[globalIdx];
+    }
   }
 }
 
 __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
 			       int nLinks, int nChains, const int* ikx, const int* iky, int nMoms)
 {
-  unsigned int idz = get_id1();
-  unsigned int idk = get_id2();
-  unsigned int idlm = get_id3();
 
-  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
-    unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
-    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
-    G[globalIdx] = G_linked[idlink];
+  unsigned int idp, idn, idk, idlm;
+  int ikx_ntft, idz, idpn;
+
+  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+    
+    idp  = get_id1(); // NTFT grid point number in link
+    idn  = get_id2(); // NTFT chain number in class
+    idlm = get_id3();
+
+    if (idp < nLinks && idn < nChains && idlm < nMoms) {
+      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+
+      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
+      // nakx = 1 + 2 * (nx - 1) / 3 
+      idpn = idp + nLinks * idn;
+      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
+      
+      //printf("idk = %d, ikx_ntft = %d, idz = %d \n", idpn, ikx_ntft, idz);
+      G[globalIdx] = G_linked[idlink];
+    }
+  }
+  else {
+
+    idz  = get_id1();
+    idk  = get_id2();
+    idlm = get_id3();
+
+    if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
+      unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
+      unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+      // NRM: seems hopeless to make these accesses coalesced. how bad is it?
+      G[globalIdx] = G_linked[idlink];
+    }
   }
 }
 
