@@ -93,7 +93,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt); break; // added geo // JMH
     }
-
+  
   getDeviceMemoryUsage();
   
   //  if (pars->write_moms) diagnostics -> write_init(G, fields);

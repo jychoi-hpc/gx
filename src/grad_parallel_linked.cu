@@ -1,7 +1,4 @@
 #include "grad_parallel.h"
-
-
-
 #include <stdlib.h>
 #include "get_error.h"
 #define GCHAINS <<< dG[c], dB[c] >>>
@@ -14,8 +11,8 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
   ikxLinked    = nullptr;  ikyLinked    = nullptr;
   kzLinked     = nullptr;  G_linked     = nullptr;
   dG           = nullptr;  dB           = nullptr;
-  mode_nums    = nullptr;  mode_size    = nullptr; //JMH
-  mode_size_ref= nullptr; // JMH
+  //mode_nums    = nullptr;  mode_size    = nullptr; //JMH
+  //mode_size_ref= nullptr; // JMH
  
   zft_plan_forward           = nullptr;
   zft_plan_inverse           = nullptr;
@@ -38,11 +35,16 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
   
   if (nonTwist) { // JMH
      //initialize grids
+    //mode_nums = (int*) malloc(sizeof(int)*naky*nakx*nz);
+
     int mode_nums[naky*nakx*nz] = {0}; //array that lists what mode a point is part of
-    int mode = {0}; //counter for number of modes
+    //int mode; //counter for number of modes
     
     mode = get_mode_nums_ntft(mode_nums, nz, naky, nakx, jtwist, m0_h, grids_->Nyc, grids_->ky_h);
-  
+    printf("check check check \n");
+    printf("mode = %d \n", mode); 
+    //mode_size = (int*) calloc(mode, sizeof(int));
+    //mode_size_ref = (int*) calloc(mode, sizeof(int));
     int mode_size[mode] = {0}; // this will be sorted, used for nLinks/nChains
     int mode_size_ref[mode] = {0}; //this won't be sorted, used for filling kx/ky grids
     nClasses = get_nClasses_ntft(mode_size, mode_size_ref, mode_nums, naky, nakx, nz, mode);
@@ -62,7 +64,8 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
       ikyLinked_h[c] = (int*) malloc(sizeof(int)*nLinks[c]*nChains[c]);
     }
 
-    kFill_ntft(nClasses, nChains, nLinks, ikyLinked_h, ikxLinked_h, naky, nakx, jtwist, nz, mode, mode_size_ref, mode_nums, nx); 
+    kFill_ntft(nClasses, nChains, nLinks, ikyLinked_h, ikxLinked_h, naky, nakx, jtwist, nz, mode, mode_size_ref, mode_nums, nx);
+    
   }
   else { // conventional flux tube, nothing changed // JMH
     int idxRight[naky*nakx];
@@ -125,7 +128,7 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
     int nLC = nLinks[c]*nChains[c];
     cudaMalloc ((void**) &ikxLinked[c],      sizeof(int)*nLC);
     cudaMalloc ((void**) &ikyLinked[c],      sizeof(int)*nLC);
-    
+    printf("check check \n"); 
     printf("nLinks[%d] = %d, nChains = %d \n", c, nLinks[c], nChains[c]); // JMH
 
     CP_TO_GPU(ikxLinked[c], ikxLinked_h[c], sizeof(int)*nLC);
@@ -196,10 +199,14 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
 
 GradParallelLinked::~GradParallelLinked()
 {
-  if (nLinks)  free(nLinks);
-  if (nChains) free(nChains);
-  if (dB)      free(dB);
-  if (dG)      free(dG);
+  if (nLinks)        free(nLinks);
+  if (nChains)       free(nChains);
+  if (dB)            free(dB);
+  if (dG)            free(dG);
+  //if (mode_nums)     free(mode_nums); //JMH
+  //if (mode_size)     free(mode_size); // JMH
+  //if (mode_size_ref) free(mode_size_ref); //JMH
+
 
   for(int c=0; c<nClasses; c++) {
 
@@ -266,7 +273,6 @@ void GradParallelLinked::zft(MomentsG* G)
       cudaFree(ifac);
       */				       
       linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-
       cufftExecC2C (zft_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
 
       linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
@@ -333,6 +339,7 @@ void GradParallelLinked::dz(MomentsG* G)
       // each "class" has a different number of links in the chains, and a different number of chains.
       linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
 
+      ("I copied chains \n");
       cufftExecC2C (dz_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
       cufftExecC2C (dz_plan_inverse[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
 
@@ -743,7 +750,7 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
     }
     }
   }
-//  printf("number of modes = %d \n", mode);
+  printf("number of modes = %d \n", mode);
   return mode;
 }
 
@@ -851,7 +858,7 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
 		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nakx * idz); 
 	          ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
-//		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
+		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
 		  p++;
 		}
 	      }

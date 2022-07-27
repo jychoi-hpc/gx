@@ -21,6 +21,7 @@ SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 {
   
   // new objects for temporaries
+  printf("I am in sspx3 \n");
   GRhs  = new MomentsG (pars_, grids_);
   G1    = new MomentsG (pars_, grids_);
   G2    = new MomentsG (pars_, grids_);
@@ -33,9 +34,10 @@ SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     grad_par = new GradParallelPeriodic(grids_);
   }
   else {
+    printf("sspx3 check \n");
     grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
   }
-  
+ printf("I escaped the new GradPar statement \n"); // JMH 
 }
 
 SSPx3::~SSPx3()

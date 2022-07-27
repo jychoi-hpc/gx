@@ -63,6 +63,7 @@ Geometry::~Geometry() {
   if (cvdrift0_h)  free(cvdrift0_h);	
   if (grho_h)      free(grho_h);	
   if (jacobian_h)  free(jacobian_h);	
+  if (m0_h)        free(m0_h); // JMH
 
   if(operator_arrays_allocated_) {
     if (kperp2) cudaFree(kperp2);
@@ -578,8 +579,8 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
     init_deltaKx <<<dimGrid_ntft, dimBlock_ntft >>> (deltaKx, m0, pars->x0, grids->ky, gds21, gds22, shat); 
     
     // redefine kperp2 according to ntft grids, (B.5) in Ball 2020
-    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat, deltaKx); 
-    
+    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat, deltaKx);  
+ 
     // redefine omegad according to ntft grids
     init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat, m0, pars->x0); 
 
@@ -589,7 +590,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
   init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
   }
-  /*
+  /* 
   kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);
   CP_TO_GPU (kperp2_h,    kperp2, sizeof(float)*grids->NxNycNz);
 

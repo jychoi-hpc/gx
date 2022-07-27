@@ -36,10 +36,10 @@ CC=gcc
 NVCC      = nvcc
 NVCCFLAGS = -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math 
 
-ifeq ($(debug),on)
-  NVCCFLAGS += -g -G 
-else
-  NVCCFLAGS += -O3
-endif
+#ifeq ($(debug),on)
+NVCCFLAGS += -g -G 
+#else
+#  NVCCFLAGS += -O3
+#endif
 
 

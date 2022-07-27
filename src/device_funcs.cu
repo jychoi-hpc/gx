@@ -2084,8 +2084,8 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
       
-      //printf("idk = %d, ikx_ntft = %d, idz = %d \n", idpn, ikx_ntft, idz);
-      G_linked[idlink] = G_linked[globalIdx];
+      G_linked[idlink] = G[globalIdx];
+      
     }
   }
   else {
@@ -2147,44 +2147,97 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
 
 __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, float* kperp2, float* zt, float* vt, float* rho2,
 			       int nLinks, int nChains, const int* ikx, const int* iky, int nMoms,
-			       cuComplex* GRhs)
+			       cuComplex* GRhs)  // added nonTwist portion // JMH
 {
-  unsigned int idz = get_id1();
-  unsigned int idk = get_id2();
-  unsigned int idlm = get_id3();
 
-  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
-    unsigned int idzl = idz + nz*(idk % nLinks);
-    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
-    unsigned int idxyz = iky[idk] + nyc*(ikx[idk] + nx*idz);
+  unsigned int idp, idn, idk, idlm;
+  int ikx_ntft, idz, idpn;
 
-    float nu = 0.;
-    // width = width of damping region in number of grid points 
-    // set damping region width to 1/8 of extended domain (on either side)
-    int width = nz*nLinks/8;  
-    float L = 2*M_PI*zp*nLinks/8;
-    float vmax = sqrtf(2*nm); // estimate of max vpar on grid
-    if (idzl <= width ) {
-      float x = ((float) idzl)/width;
-      nu = 1 - 2*x*x/(1+x*x*x*x);
-    } else if (idzl >= nz*nLinks-width) {
-      float x = ((float) nz*nLinks-idzl)/width;
-      nu = 1 - 2*x*x/(1+x*x*x*x);
+  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+    
+    idp  = get_id1(); // NTFT grid point number in link
+    idn  = get_id2(); // NTFT chain number in class
+    idlm = get_id3();
+
+    if (idp < nLinks && idn < nChains && idlm < nMoms) {
+      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
+      // nakx = 1 + 2 * (nx - 1) / 3 
+      idpn = idp + nLinks * idn;
+      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      // note: I think idzl(conventional) = idp(NTFT) = grid point number in chain and idk is similar to idpn but idpn has a value for every z
+      unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
+      unsigned int idxyz = iky[idpn] + nyc*(ikx_ntft + nx*idz);
+
+      float nu = 0.;
+      // width = width of damping region in number of grid points 
+      // set damping region width to 1/8 of extended domain (on either side)
+      int width = nLinks/8;  
+      float L = 2*M_PI*zp*nLinks/(8*nz); 
+      float vmax = sqrtf(2*nm); // estimate of max vpar on grid
+      if (idp <= width ) {
+        float x = ((float) idp)/width;
+        nu = 1 - 2*x*x/(1+x*x*x*x);
+      } else if (idp >= nLinks-width) {
+        float x = ((float) nLinks-idp)/width;
+        nu = 1 - 2*x*x/(1+x*x*x*x);
+      }
+      // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
+      if(iky[idpn]>0) {
+	unsigned int idl = idlm % nl; 
+        unsigned int idm = idlm / nl;
+        const float kperp2_ = kperp2[idxyz];
+        const float zt_ = *zt;
+        const float vt_ = *vt;
+        const float rho2_ = *rho2;
+        const float b_ = kperp2_ * rho2_;
+        // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
+        cuComplex H_ = G[globalIdx];
+        if(idm==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz];
+        if(idm==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
+        GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
+      }
     }
-    // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
-    if(iky[idk]>0) {
-      unsigned int idl = idlm % nl;
-      unsigned int idm = idlm / nl;
-      const float kperp2_ = kperp2[idxyz];
-      const float zt_ = *zt;
-      const float vt_ = *vt;
-      const float rho2_ = *rho2;
-      const float b_ = kperp2_ * rho2_;
-      // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
-      cuComplex H_ = G[globalIdx];
-      if(idm==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz];
-      if(idm==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
-      GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
+  }
+  else {
+
+    idz  = get_id1();
+    idk  = get_id2();
+    idlm = get_id3();
+
+    if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
+      unsigned int idzl = idz + nz*(idk % nLinks);
+      unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+      unsigned int idxyz = iky[idk] + nyc*(ikx[idk] + nx*idz);
+
+      float nu = 0.;
+      // width = width of damping region in number of grid points 
+      // set damping region width to 1/8 of extended domain (on either side)
+      int width = nz*nLinks/8;  
+      float L = 2*M_PI*zp*nLinks/8;
+      float vmax = sqrtf(2*nm); // estimate of max vpar on grid
+      if (idzl <= width ) {
+        float x = ((float) idzl)/width;
+        nu = 1 - 2*x*x/(1+x*x*x*x);
+      } else if (idzl >= nz*nLinks-width) {
+        float x = ((float) nz*nLinks-idzl)/width;
+        nu = 1 - 2*x*x/(1+x*x*x*x);
+      }
+      // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
+      if(iky[idk]>0) {
+        unsigned int idl = idlm % nl;
+        unsigned int idm = idlm / nl;
+        const float kperp2_ = kperp2[idxyz];
+        const float zt_ = *zt;
+        const float vt_ = *vt;
+        const float rho2_ = *rho2;
+        const float b_ = kperp2_ * rho2_;
+        // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
+        cuComplex H_ = G[globalIdx];
+        if(idm==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz];
+        if(idm==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
+        GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
+      }
     }
   }
 }
@@ -2287,8 +2340,8 @@ __global__ void streaming_rhs(const cuComplex* g, const cuComplex* phi, const cu
     for (int is = 0; is < nspecies; is++) {
       const float vt_ = vt[is];
       const float zt_ = zt[is]; 
-      const float b_s = rho2s[is] * kperp2[idxyz];
-      
+      const float b_s = rho2s[is] * kperp2[idxyz]; 
+    
       m = 1;          // m = 1 has Phi term
       if (nm > 1) {
         unsigned int globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m + nm * is)));

@@ -21,7 +21,6 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G)
   if (!pars_->all_kinetic && (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) && !pars_->no_fields) {     
     cudaMalloc(&phiavgdenom,    sizeof(float)*grids_->Nx);
     cudaMemset(phiavgdenom, 0., sizeof(float)*grids_->Nx);    
-    
     int threads, blocks;
     threads = min(grids_->Nx, 128);
     blocks = 1 + (grids_->Nx-1)/threads;
@@ -71,8 +70,7 @@ void Solver_GK::fieldSolve(MomentsG* G, Fields* fields)
     if (em) ampere GQN (fields->apar, G->G(), geo_->kperp2, geo_->bmag, G->r2(), G->as(), G->amp(), pars_->beta);
 
   } else {
-
-    zero(nbar);
+zero(nbar);
     real_space_density GQN (nbar, G->G(), geo_->kperp2, G->r2(), G->nz());
 
     // In these routines there is inefficiency because multiple threads

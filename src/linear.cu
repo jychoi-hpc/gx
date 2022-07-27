@@ -29,6 +29,7 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   }
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
+    printf("linear check \n");
     grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
   }
 
@@ -151,8 +152,8 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
-			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, G->zt(), G->r2(), G->vt());
-
+			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, G->zt(), G->r2(), G->vt());  
+  
   // Free-streaming requires parallel FFTs, so do that first
   streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, G->r2(), geo_->gradpar, G->vt(), G->zt(), GRhs->G());
   grad_par->dz(GRhs);
