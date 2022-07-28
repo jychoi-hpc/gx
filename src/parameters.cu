@@ -1465,7 +1465,7 @@ void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // JMH
       printf("Using non-twisting flux tube. \n");
     } else {
       boundary_option_periodic = true;
-      printf("Using no magnetic shear because zero_shat = true and non-twisting flux tube. Setting boundary_option = 'periodic' \n"); // is this even allowed? NTFT with shat = 0 is conentional right? check this
+      printf("Using zero_shat = true and non-twisting flux tube. Check for input errors. \n"); // is this even allowed? NTFT with shat = 0 is conentional right? check this
     }
   }
   printf("jtwist = %d, x0 = %f\n", jtwist, x0);

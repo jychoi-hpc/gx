@@ -2002,6 +2002,20 @@ __device__ void i_kzLinked(void *dataOut, size_t offset, cufftComplex element, v
   ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
 }
 
+__device__ void i_kzLinkedNTFT(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr) // JMH
+{
+  // kz[1] = nz/(zp * nLinks)
+  float *kz = (float*) kzData;
+  //printf("kz[1] = %f \n", kz[1]);
+  int nLinks = (int) lrintf(nz/(zp*kz[1]));
+  //printf("nLinks = %d \n", nLinks);
+  unsigned int idz = offset % (nLinks);
+  cuComplex Ikz = make_cuComplex(0., kz[idz]);
+  float normalization = (float) 1./(nLinks); // nLinks is number of grid points already
+  ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
+}
+
+
 __device__ void zfts_Linked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
 {
   float *kz  = (float*) kzData;
@@ -2025,18 +2039,18 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
    
 
   if (nonTwist) { // this does the same thing as the conventional, but is modified slightly because of the different meaning of nLinks
-    
+
     nzL = nLinks; // accounting for nLinks representing # grid points, not 2pi segments
-    
     for (int i=0; i < nzL; i++) {
       if (i < nzL/2+1) {
-        kz[i] = (float) i/(zp*nLinks/nz); // nLinks/nz will be non-integer, but kz is a float so it shouldn't matter
+        kz[i] = (float) i*nz/(zp*nLinks); // nLinks/nz will be non-integer, but kz is a float so it shouldn't matter
       } else {
-        kz[i] = (float) (i-nzL)/(zp*nLinks/nz);
+        kz[i] = (float) nz*(i-nzL)/(zp*nLinks);
       }
       if (dealias_kz) {
         if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
       }
+      printf("kz[%d] = %f \n", i, kz[i]);
     }
     
   } 
@@ -2059,6 +2073,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
 
 __managed__ cufftCallbackStoreC  zfts_Linked_callbackPtr = zfts_Linked;
 __managed__ cufftCallbackStoreC   i_kzLinked_callbackPtr = i_kzLinked;
+__managed__ cufftCallbackStoreC   i_kzLinkedNTFT_callbackPtr = i_kzLinkedNTFT;  // JMH
 __managed__ cufftCallbackStoreC abs_kzLinked_callbackPtr = abs_kzLinked;
 
 __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
@@ -2068,7 +2083,6 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
   int ikx_ntft, idz, idpn;
 
   if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
-    
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
@@ -2099,6 +2113,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
       // NRM: seems hopeless to make these accesses coalesced. how bad is it?
       G_linked[idlink] = G[globalIdx];
+      //printf("G[%d].x/y = %f and %f \n", globalIdx, G[globalIdx].x, G[globalIdx].y);
     }
   }
 }
@@ -2111,7 +2126,7 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
   int ikx_ntft, idz, idpn;
 
   if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
-    
+    printf("I am in LinkedCopyBack \n");  
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();

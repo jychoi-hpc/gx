@@ -103,10 +103,11 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
   bool bvar; 
   bvar = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
-  
+
+  printf("%b \n", bvar); // JMH
   while(counter<pars->nstep) {
     counter++;
-
+    
     timestep -> advance(&time, G, fields);
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     if (checkstop) break;

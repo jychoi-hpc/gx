@@ -29,7 +29,6 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   }
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
-    printf("linear check \n");
     grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
   }
 

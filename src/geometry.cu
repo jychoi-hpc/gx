@@ -554,7 +554,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);
   if (pars->nonTwist) { //JMH
     cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
-    cudaMemset (m0, 0., sizeof(float)*grids->NycNz);
+    cudaMemset (deltaKx, 0., sizeof(float)*grids->NycNz);
   }
   dim3 dimBlock (32, 4, 4);
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
