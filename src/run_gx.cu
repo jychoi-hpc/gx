@@ -104,7 +104,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   bool bvar; 
   bvar = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
 
-  printf("%b \n", bvar); // JMH
   while(counter<pars->nstep) {
     counter++;
     

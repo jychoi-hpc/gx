@@ -2006,13 +2006,16 @@ __device__ void i_kzLinkedNTFT(void *dataOut, size_t offset, cufftComplex elemen
 {
   // kz[1] = nz/(zp * nLinks)
   float *kz = (float*) kzData;
-  //printf("kz[1] = %f \n", kz[1]);
   int nLinks = (int) lrintf(nz/(zp*kz[1]));
-  //printf("nLinks = %d \n", nLinks);
-  unsigned int idz = offset % (nLinks);
-  cuComplex Ikz = make_cuComplex(0., kz[idz]);
-  float normalization = (float) 1./(nLinks); // nLinks is number of grid points already
-  ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
+  if (nLinks == -1) {  // if the link has only one chain
+    ((cuComplex*)dataOut)[offset] = make_cuComplex(0., 0.);
+  }
+  else {
+    unsigned int idz = offset % (nLinks);
+    cuComplex Ikz = make_cuComplex(0., kz[idz]);
+    float normalization = (float) 1./(nLinks); // nLinks is number of grid points already
+    ((cuComplex*)dataOut)[offset] = Ikz*element*normalization;
+  }
 }
 
 
@@ -2050,7 +2053,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
       if (dealias_kz) {
         if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
       }
-      printf("kz[%d] = %f \n", i, kz[i]);
+      //printf("kz[%d] = %f \n", i, kz[i]);
     }
     
   } 
@@ -2097,7 +2100,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
-      
+      if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms);  
       G_linked[idlink] = G[globalIdx];
       
     }
@@ -2126,7 +2129,7 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
   int ikx_ntft, idz, idpn;
 
   if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
-    printf("I am in LinkedCopyBack \n");  
+    
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();

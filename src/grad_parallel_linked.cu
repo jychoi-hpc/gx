@@ -41,8 +41,6 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
     //int mode; //counter for number of modes
     
     mode = get_mode_nums_ntft(mode_nums, nz, naky, nakx, jtwist, m0_h, grids_->Nyc, grids_->ky_h);
-    printf("check check check \n");
-    printf("mode = %d \n", mode); 
     //mode_size = (int*) calloc(mode, sizeof(int));
     //mode_size_ref = (int*) calloc(mode, sizeof(int));
     int mode_size[mode] = {0}; // this will be sorted, used for nLinks/nChains
@@ -172,10 +170,7 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
 
     // initialize kzLinked
     init_kzLinked <<<1,1>>> (kzLinked[c], nLinks[c], false, nonTwist); // added nonTwist // JMH
-    for (int i=0; i<nLinks[c]; i++) {
-	    printf("kz[%d]= %f \n", i, kzLinked[c][i]);
-    }
-
+     
     int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
 
     nn1 = (nonTwist) ? nLinks[c] : nz;  		    nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1; //JMH
@@ -336,12 +331,16 @@ void GradParallelLinked::dz(MomentsG* G)
   for (int is=0; is < grids_->Nspecies; is++) {
     for(int c=0; c<nClasses; c++) {
       // each "class" has a different number of links in the chains, and a different number of chains.
-      linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+     linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
 
-      cufftExecC2C (dz_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
-      cufftExecC2C (dz_plan_inverse[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
+     cufftExecC2C (dz_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
       
-      linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+      //cudaDeviceSynchronize();
+      //checkCudaErrors(cudaGetLastError());
+      
+     cufftExecC2C (dz_plan_inverse[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
+      
+     linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     }
   }
 }
@@ -356,8 +355,6 @@ void GradParallelLinked::dz(cuComplex* m, cuComplex* res)
     linkedCopy GCHAINS (m, G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], nMoms);
 
     cufftExecC2C(dz_plan_forward_singlemom[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
-    cudaDeviceSynchronize();
-    checkCudaErrors(cudaGetLastError());
     cufftExecC2C(dz_plan_inverse_singlemom[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
 
     linkedCopyBack GCHAINS (G_linked[c], res, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], nMoms);
