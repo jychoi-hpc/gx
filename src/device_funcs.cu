@@ -2007,7 +2007,7 @@ __device__ void i_kzLinkedNTFT(void *dataOut, size_t offset, cufftComplex elemen
   // kz[1] = nz/(zp * nLinks)
   float *kz = (float*) kzData;
   int nLinks = (int) lrintf(nz/(zp*kz[1]));
-  if (nLinks == -1) {  // if the link has only one chain
+  if (nLinks <= 2) {  // if the link has only one chain
     ((cuComplex*)dataOut)[offset] = make_cuComplex(0., 0.);
   }
   else {
