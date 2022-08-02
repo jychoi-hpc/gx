@@ -2095,12 +2095,12 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
       idpn = idp + nLinks * idn;
-      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
-      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / nx; // / (1 + 2 * (nx - 1) / 3);
       
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
-      if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms);  
+      if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
       G_linked[idlink] = G[globalIdx];
       
     }

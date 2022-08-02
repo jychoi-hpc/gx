@@ -834,7 +834,7 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
       if (nLinks[ic] == mode_size_ref[i]) {
 	n++; //chain number index
 	p=0; //grid point number index
-//	printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
+	printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
         for(idy=0; idy<naky; idy++) {
 	  if (jtwist<0) { //positive sloping lines, start in bottom left
 	    for(idx=0; idx<nakx; idx++) {
@@ -845,15 +845,16 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	      }
               for(idz=0; idz<nz; idz++) {
 	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
-		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nakx * idz); // this stores both ikx and idz, negative so it can be distinguished from conventional, 1 is added to make sure it is < 0 and not 0 (might not be needed?)  
+		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nx * idz); // this stores both ikx and idz, negative so it can be distinguished from conventional, 1 is added to make sure it is < 0 and not 0 (might not be needed?)  
 	          ikyNTFT[ic][p + nLinks[ic] * n] = idy;
-//		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
+		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
 		  p++;
 		}
 	      }
 	    }
 	  }
-	  else { //if jtwist > 0, negative sloping lines, start in bottom right
+	  else { //if jtwist > 0, negative sloping lines, start in top left
+	    printf("top left start \n");
 	    for(idx=nakx-1; idx>=0; idx--) {
 	      if (idx >= (nakx - 1)/2) { // transform idx to ikx (nonsequential)
 	        idx0 = idx - nshift;
@@ -862,9 +863,9 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	      }
               for(idz=0; idz<nz; idz++) {
 	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
-		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nakx * idz); 
+		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nx * idz); 
 	          ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
-//		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d \n", ic, p + nLinks[ic] * n, idx0, ic, p + nLinks[ic] * n, idy);
+		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
 		  p++;
 		}
 	      }
