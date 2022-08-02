@@ -77,6 +77,13 @@ void Parameters::get_nml_vars(char* filename)
   jtwist   = toml::find_or <int>         (tnml, "jtwist",      -1    );
   Zp       = toml::find_or <int>         (tnml, "zp",           2*nperiod-1    );
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
+  grid_option = toml::find_or <std::string> (tnml, "grid_option", "box" ); // JFP grid_option is box or range. Box is Fourier, range is ballooning
+  theta0_min = toml::find_or <float>     (tnml, "theta0_min",  0.0  ); // JFP for now, specify theta0 range, not kx range.
+  theta0_max = toml::find_or <float>     (tnml, "theta0_min",  0.0  ); // JFP
+  aky_min = toml::find_or <float>     (tnml, "aky_min",  0.0     ); // JFP if aky_min ! = 0, this is our test we are using range.
+  aky_max = toml::find_or <float>     (tnml, "aky_max",  aky_min ); // JFP for now, assume aky_min == aky_max
+  //akx_min = toml::find_or <float>     (tnml, "akx_min",  0.0  ); // JFP
+  //akx_max = toml::find_or <float>     (tnml, "akx_max",  0.0  ); // JFP
   bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
   float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
 

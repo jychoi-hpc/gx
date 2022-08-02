@@ -1521,15 +1521,41 @@ __global__ void kInit(float* kx, float* ky, float* kz, int* kzm, float* kzp, con
 {
   int id = threadIdx.x + blockIdx.x*blockDim.x;
 
+  //if (aky_min!=0) { // JFP range
+  //    ky[id] = (float) (id+1)*aky_min; if (false) printf("ky[%d] = %f \t ",id, ky[id]);
+  //}
+  //else{
   if (id < nyc) {
     ky[id] = (float) id/Y0; if (false) printf("ky[%d] = %f \t ",id, ky[id]);
   }
-  if (id < nx/2+1) {
+  //}
+
+  // For now with range, assume that nky == 1, preserve kx ordering
+  if (aky_min!=0) { // JFP range
+    if (id == 0){
+      ky[0] = aky_min
+      if (shat > zero) {
+        akx_min = theta0_min * shat * ky[0]
+        akx_max = theta0_max * shat * ky[0]
+      }
+      else {
+        akx_min = theta0_max * shat * ky[0]
+        akx_max = theta0_min * shat * ky[0]
+      }
+      dkx = (float) (akx_max - akx_min) / (nkx - 1)
+    }
+    if (id < nx/2+1) { 
+      kx[id] = (float) id*dkx; if (false) printf("kx[%d] = %f \t ",id, kx[id]);
+    } else if (id < nx) {
+      kx[id] = (float) (id - nx)*dkx; if (false) printf("kx[%d] = %f \t ", id, kx[id]);
+    }
+  }
+  else if (id < nx/2+1) {
     kx[id] = (float) id/X0; if (false) printf("kx[%d] = %f \t ",id, kx[id]);
   } else if (id < nx) {
     kx[id] = (float) (id - nx)/X0; if (false) printf("kx[%d] = %f \t ", id, kx[id]);
   }
-  if (id < (nz/2+1)) {
+  else if (id < (nz/2+1)) {
     kz[id] = (float) id/Zp; if (false) printf("kz[%d] = %f \n ", id, kz[id]);
   } else if (id < nz) {
     kz[id] = (float) (id - nz)/Zp; if (false) printf("kz[%d] = %f \n ", id, kz[id]);
