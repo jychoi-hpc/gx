@@ -925,12 +925,14 @@ __global__ void growthRates(const cuComplex *phi, const cuComplex *phiOld, doubl
     if (unmasked(idx, idy)) {
       if (abs(phi[idxy+J*IG].x)!=0 && abs(phi[idxy+J*IG].y)!=0) {
 	cuComplex ratio = phi[ idxy + J*IG ] / phiOld[ idxy + J*IG ];
-	
+        printf("phi[%d].x is %f and phi[%d].y is %f and phiOld.x is %f and phiOld.y is %f \n", idxy + J *IG,	phi[idxy+J*IG].x, idxy + J*IG, phi[idxy+J*IG].y, phiOld[idxy + J*IG].x, phiOld[idxy + J*IG].y);
 	cuComplex logr;
 	logr.x = (float) log(cuCabsf(ratio));
 	logr.y = (float) atan2(ratio.y,ratio.x);
 	omega[idxy] = logr*i_dt;
+	printf("omega[%d, %d].x = %f, omega.y = %f \n", idx, idy, omega[idxy].x, omega[idxy].y); 
       } else {
+	printf("zero phi at idx = %d, idy = %d \n", idx, idy);
 	omega[idxy].x = 1./0.;
 	omega[idxy].y = 1./0.;
       }
@@ -2085,23 +2087,28 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
   unsigned int idp, idn, idk, idlm;
   int ikx_ntft, idz, idpn;
 
-  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+  if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
+   
+    // changed nLinks -> 1 for different nns
 
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
-
+ //   if (idp < 1 && idn < nLinks*nChains && idlm < nMoms) {
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
       idpn = idp + nLinks * idn;
       ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 
       idz = -(ikx[idpn] + 1 + ikx_ntft) / nx; // / (1 + 2 * (nx - 1) / 3);
       
-      unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
-      if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
+      unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
+      
+      //if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
+      
       G_linked[idlink] = G[globalIdx];
+      printf("iky = %d, ikx = %d, idz = %d globalIdx = %d,, Glinked[%d].x = %f Glinked.y = %f \n", iky[idpn], ikx_ntft, idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
       
     }
   }
@@ -2116,7 +2123,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
       // NRM: seems hopeless to make these accesses coalesced. how bad is it?
       G_linked[idlink] = G[globalIdx];
-      //printf("G[%d].x/y = %f and %f \n", globalIdx, G[globalIdx].x, G[globalIdx].y);
+      printf("iky = %d, ikx = %d, idz = %d, globalIdx = %d, Glinked[%d].x = %f Glinked.y = %f \n", iky[idk], ikx[idk], idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
     }
   }
 }
@@ -2128,20 +2135,21 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
   unsigned int idp, idn, idk, idlm;
   int ikx_ntft, idz, idpn;
 
-  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+  if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
     
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
 
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
-      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
 
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
       idpn = idp + nLinks * idn;
       ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
       idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      
+      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       
       //printf("idk = %d, ikx_ntft = %d, idz = %d \n", idpn, ikx_ntft, idz);
@@ -2171,16 +2179,16 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
   unsigned int idp, idn, idk, idlm;
   int ikx_ntft, idz, idpn;
 
-  if (ikx[1] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
+  if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
     
     idp  = get_id1(); // NTFT grid point number in link
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
 
-    if (idp < nLinks && idn < nChains && idlm < nMoms) {
+    if (idp < 1 && idn < nLinks * nChains && idlm < nMoms) {
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
-      idpn = idp + nLinks * idn;
+      idpn = idp + 1 * idn;
       ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
       idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
       // note: I think idzl(conventional) = idp(NTFT) = grid point number in chain and idk is similar to idpn but idpn has a value for every z

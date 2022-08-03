@@ -128,6 +128,10 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
 
     CP_TO_GPU(ikxLinked[c], ikxLinked_h[c], sizeof(int)*nLC);
     CP_TO_GPU(ikyLinked[c], ikyLinked_h[c], sizeof(int)*nLC);
+    
+    for(int i=0; i<nLinks[c]*nChains[c]; i++) { // JMH
+      printf("ikxLinked[%d][%d] = %d \n", c, i, ikxLinked_h[c][i]); 
+    }
 
     size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*nz;
 
@@ -173,10 +177,11 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
      
     int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
 
-    nn1 = (nonTwist) ? nLinks[c] : nz;  		    nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1; //JMH
-    nn2 = (nonTwist) ? nChains[c] : nLinks[c]*nChains[c];   nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; //JMH
-    nn3 = grids_->Nmoms;                		    nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
-    
+    nn1 = (nonTwist) ? nLinks[c] : nz;                    nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1; //JMH
+    nn2 = (nonTwist) ? nChains[c] : nLinks[c]*nChains[c]; nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; //JMH
+    nn3 = grids_->Nmoms;                		                                      nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
+   
+    printf("nn1 = %d, nn2 = %d, nn3 = %d \n", nn1, nn2, nn3); // JMH
     dB[c] = dim3(nt1, nt2, nt3);
     dG[c] = dim3(nb1, nb2, nb3);
     //    dB[c] = dim3(32,4,4);
@@ -570,7 +575,7 @@ void fill(int *ky, int *kx, int idy, int idx, int *idxRight,
     idx0=idx;
   else
     idx0=idx+nshift;
-  
+
   ky[p+nLinks*n] = idy;              
   kx[p+nLinks*n] = idx0;
   int idxR=idx;
@@ -599,7 +604,7 @@ void GradParallelLinked::kFill(int nClasses, int *nChains, int *nLinks,
       for(int idx=0; idx<nakx; idx++) {
         kt2ki(idy, idx, &c, &p, linksL, linksR, nClasses, nLinks, naky);
      	if(c==ic) {	  
-	  if(p==0) {	 
+	  if(p==0) {
 	    fill(ky[c], kx[c], idy, idx, idxRight, c, p, n, naky, nakx, nshift, nLinks[c]);
 	    
 	    n++;
@@ -736,7 +741,9 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
 	    while (m0[idy + nyc * idz_temp] == m0[idy + nyc * ((idz_temp + 1) % nz)] && idz_temp < nz ) {
 	      idz_temp++;
 	    }
-	    
+	    if (idz_temp == nz) {
+	      idz_temp = nz - 1;
+	    } 
 	    mode++; // increment the mode number once you find start of mode
   	    idz_prime = idz_temp; 
 	    idx_constant = idx + m0[idy + nyc * idz_prime]; //i_constant -> m+m0 constant -> Kx constant
@@ -771,11 +778,11 @@ int GradParallelLinked::get_nClasses_ntft(int *mode_size, int *mode_size_ref, in
 	 // add one to the mode length corresponding to that grid point, this is analagous to n_k
 	 mode_size[mode_nums[idy + naky * (idx + nakx * idz)]-1]++;
        	 mode_size_ref[mode_nums[idy + naky * (idx + nakx * idz)]-1]++; //should be identical arrays
-//	 printf("%d ", mode_nums[idy + naky * (idx + nakx * idz)]); 
+	 printf("%d ", mode_nums[idy + naky * (idx + nakx * idz)]); 
        }
-//       printf("\n");
+       printf("\n");
     }
-//    printf(" \n\n\n\n");
+    printf(" \n\n\n\n");
   }
 
   qsort(mode_size, mode, sizeof(int), compare); //sort mode_size into increasing order
@@ -847,14 +854,13 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
 		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nx * idz); // this stores both ikx and idz, negative so it can be distinguished from conventional, 1 is added to make sure it is < 0 and not 0 (might not be needed?)  
 	          ikyNTFT[ic][p + nLinks[ic] * n] = idy;
-		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
+		  //printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
 		  p++;
 		}
 	      }
 	    }
 	  }
 	  else { //if jtwist > 0, negative sloping lines, start in top left
-	    printf("top left start \n");
 	    for(idx=nakx-1; idx>=0; idx--) {
 	      if (idx >= (nakx - 1)/2) { // transform idx to ikx (nonsequential)
 	        idx0 = idx - nshift;
@@ -865,7 +871,7 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	        if (mode_nums[idy + naky * (idx + nakx * idz)] == i+1) {
 		  neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nx * idz); 
 	          ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
-		  printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
+		 // printf("ikxNTFT[%d][%d] = %d; ikyNTFT[%d][%d] = %d idx0 = %d, idz = %d \n", ic, p + nLinks[ic] * n, neg_ikxdzNTFT[ic][p+nLinks[ic] * n], ic, p + nLinks[ic] * n, idy, idx0, idz);
 		  p++;
 		}
 	      }
