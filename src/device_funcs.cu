@@ -2094,15 +2094,18 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
    
     // changed nLinks -> 1 for different nns
 
-    if (idp < nLinks && idn < nChains && idlm < nMoms) {
- //   if (idp < 1 && idn < nLinks*nChains && idlm < nMoms) {
+ //   if (idp < nLinks && idn < nChains && idlm < nMoms) {
+    if (idp < 1 && idn < nLinks*nChains && idlm < nMoms) {
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
-      idpn = idp + nLinks * idn;
+      
+//    idpn = idp + nLinks * idn;
+      idpn = idp + 1 * idn;
       ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 
       idz = -(ikx[idpn] + 1 + ikx_ntft) / nx; // / (1 + 2 * (nx - 1) / 3);
       
-      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+      //unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+      unsigned int idlink = idp + 1 * (idn + nLinks * nChains * idlm);
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       
       //if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
@@ -2141,15 +2144,19 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
 
-    if (idp < nLinks && idn < nChains && idlm < nMoms) {
+ //   if (idp < nLinks && idn < nChains && idlm < nMoms) {
+    if (idp < 1 && idn < nLinks * nChains && idlm < nMoms) {
 
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
-      idpn = idp + nLinks * idn;
+      
+      //idpn = idp + nLinks * idn;
+      idpn = idp + 1 * idn;
       ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
       idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
       
-      unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+      //unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
+      unsigned int idlink = idp + 1 * (idn + nLinks * nChains * idlm);
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       
       //printf("idk = %d, ikx_ntft = %d, idz = %d \n", idpn, ikx_ntft, idz);
@@ -2200,6 +2207,7 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
       // set damping region width to 1/8 of extended domain (on either side)
       int width = nLinks/8;  
       float L = 2*M_PI*zp*nLinks/(8*nz); 
+      printf("width = %d, L = %f \n", width, L); // JMH
       float vmax = sqrtf(2*nm); // estimate of max vpar on grid
       if (idp <= width ) {
         float x = ((float) idp)/width;
@@ -2241,6 +2249,7 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
       // set damping region width to 1/8 of extended domain (on either side)
       int width = nz*nLinks/8;  
       float L = 2*M_PI*zp*nLinks/8;
+      printf("width = %d, L = %f \n", width, L); // JMH
       float vmax = sqrtf(2*nm); // estimate of max vpar on grid
       if (idzl <= width ) {
         float x = ((float) idzl)/width;
