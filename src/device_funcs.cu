@@ -925,14 +925,14 @@ __global__ void growthRates(const cuComplex *phi, const cuComplex *phiOld, doubl
     if (unmasked(idx, idy)) {
       if (abs(phi[idxy+J*IG].x)!=0 && abs(phi[idxy+J*IG].y)!=0) {
 	cuComplex ratio = phi[ idxy + J*IG ] / phiOld[ idxy + J*IG ];
-        printf("phi[%d].x is %f and phi[%d].y is %f and phiOld.x is %f and phiOld.y is %f \n", idxy + J *IG,	phi[idxy+J*IG].x, idxy + J*IG, phi[idxy+J*IG].y, phiOld[idxy + J*IG].x, phiOld[idxy + J*IG].y);
+        //printf("phi[%d].x is %f and phi[%d].y is %f and phiOld.x is %f and phiOld.y is %f \n", idxy + J *IG,	phi[idxy+J*IG].x, idxy + J*IG, phi[idxy+J*IG].y, phiOld[idxy + J*IG].x, phiOld[idxy + J*IG].y); // JMH
 	cuComplex logr;
 	logr.x = (float) log(cuCabsf(ratio));
 	logr.y = (float) atan2(ratio.y,ratio.x);
 	omega[idxy] = logr*i_dt;
-	printf("omega[%d, %d].x = %f, omega.y = %f \n", idx, idy, omega[idxy].x, omega[idxy].y); 
+	//printf("omega[%d, %d].x = %f, omega.y = %f \n", idx, idy, omega[idxy].x, omega[idxy].y);  // JMH
       } else {
-	printf("zero phi at idx = %d, idy = %d \n", idx, idy);
+	//printf("zero phi at idx = %d, idy = %d \n", idx, idy); // JMH
 	omega[idxy].x = 1./0.;
 	omega[idxy].y = 1./0.;
       }
@@ -2111,7 +2111,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       //if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
       
       G_linked[idlink] = G[globalIdx];
-      printf("iky = %d, ikx = %d, idz = %d globalIdx = %d,, Glinked[%d].x = %f Glinked.y = %f \n", iky[idpn], ikx_ntft, idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
+      //printf("iky = %d, ikx = %d, idz = %d globalIdx = %d,, Glinked[%d].x = %f Glinked.y = %f \n", iky[idpn], ikx_ntft, idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
       
     }
   }
@@ -2126,7 +2126,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
       // NRM: seems hopeless to make these accesses coalesced. how bad is it?
       G_linked[idlink] = G[globalIdx];
-      printf("iky = %d, ikx = %d, idz = %d, globalIdx = %d, Glinked[%d].x = %f Glinked.y = %f \n", iky[idk], ikx[idk], idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
+      //printf("iky = %d, ikx = %d, idz = %d, globalIdx = %d, Glinked[%d].x = %f Glinked.y = %f \n", iky[idk], ikx[idk], idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
     }
   }
 }
@@ -2152,8 +2152,8 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
       
       //idpn = idp + nLinks * idn;
       idpn = idp + 1 * idn;
-      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
-      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / nx; // / (1 + 2 * (nx - 1) / 3);
       
       //unsigned int idlink = idp + nLinks * (idn + nChains * idlm);
       unsigned int idlink = idp + 1 * (idn + nLinks * nChains * idlm);
@@ -2196,9 +2196,12 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
       idpn = idp + 1 * idn;
-      ikx_ntft = (-ikx[idpn]-1) % (1 + 2 * (nx - 1) / 3); 
-      idz = -(ikx[idpn] + 1 + ikx_ntft) / (1 + 2 * (nx - 1) / 3);
+      ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 
+      idz = -(ikx[idpn] + 1 + ikx_ntft) / nx; // / (1 + 2 * (nx - 1) / 3);
+      
       // note: I think idzl(conventional) = idp(NTFT) = grid point number in chain and idk is similar to idpn but idpn has a value for every z
+      unsigned int idzl =  idn % nLinks; // this is position within each chain, 0->nLinks-1
+      //printf("idz = %d, idn = %d, nLinks = %d, idzl = %d \n", idz, idn, nLinks, idzl); // JMH
       unsigned int globalIdx = iky[idpn] + nyc*(ikx_ntft + nx * (idz + nz * idlm));
       unsigned int idxyz = iky[idpn] + nyc*(ikx_ntft + nx*idz);
 
@@ -2207,14 +2210,16 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
       // set damping region width to 1/8 of extended domain (on either side)
       int width = nLinks/8;  
       float L = 2*M_PI*zp*nLinks/(8*nz); 
-      printf("width = %d, L = %f \n", width, L); // JMH
+      //printf("width = %d, L = %f \n", width, L); // JMH
       float vmax = sqrtf(2*nm); // estimate of max vpar on grid
-      if (idp <= width ) {
-        float x = ((float) idp)/width;
+      if (idzl <= width ) {
+        float x = ((float) idzl)/width;
         nu = 1 - 2*x*x/(1+x*x*x*x);
-      } else if (idp >= nLinks-width) {
-        float x = ((float) nLinks-idp)/width;
+        //printf("idzl = %d , x = %f, nu = %f \n", idzl, x, nu);
+      } else if (idzl >= nLinks-width) {
+        float x = ((float) nLinks-idzl)/width;
         nu = 1 - 2*x*x/(1+x*x*x*x);
+        //printf("idzl = %d , x = %f, nu = %f \n", idzl, x, nu);
       }
       // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
       if(iky[idpn]>0) {
@@ -2230,6 +2235,7 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
         if(idm==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz];
         if(idm==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
         GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
+	//printf("GRHs[%d].x/y = %f and %f \n", globalIdx, GRhs[globalIdx].x, GRhs[globalIdx].y);
       }
     }
   }
@@ -2241,6 +2247,7 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
 
     if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
       unsigned int idzl = idz + nz*(idk % nLinks);
+      //printf("idz = %d, idk = %d, nLinks = %d, idzl = %d \n", idz, idk, nLinks, idzl); // JMH
       unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
       unsigned int idxyz = iky[idk] + nyc*(ikx[idk] + nx*idz);
 
@@ -2249,14 +2256,16 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
       // set damping region width to 1/8 of extended domain (on either side)
       int width = nz*nLinks/8;  
       float L = 2*M_PI*zp*nLinks/8;
-      printf("width = %d, L = %f \n", width, L); // JMH
+      //printf("width = %d, L = %f \n", width, L); // JMH
       float vmax = sqrtf(2*nm); // estimate of max vpar on grid
       if (idzl <= width ) {
         float x = ((float) idzl)/width;
         nu = 1 - 2*x*x/(1+x*x*x*x);
+        //printf("idzl = %d , x = %f, nu = %f \n", idzl, x, nu);
       } else if (idzl >= nz*nLinks-width) {
         float x = ((float) nz*nLinks-idzl)/width;
         nu = 1 - 2*x*x/(1+x*x*x*x);
+        //printf("idzl = %d , x = %f, nu = %f \n", idzl, x, nu);
       }
       // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
       if(iky[idk]>0) {
@@ -2272,6 +2281,7 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
         if(idm==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz];
         if(idm==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
         GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
+	//printf("GRHs[%d].x/y = %f and %f \n", globalIdx, GRhs[globalIdx].x, GRhs[globalIdx].y);
       }
     }
   }
