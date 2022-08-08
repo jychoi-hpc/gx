@@ -177,8 +177,13 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
      
     int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
 
-    nn1 = (nonTwist) ? nLinks[c] : nz;                    nn1 = nz; nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1; //JMH
-    nn2 = (nonTwist) ? nChains[c] : nLinks[c]*nChains[c]; nn2 = nLinks[c]*nChains[c]; nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; //JMH
+    nn1 = (nonTwist) ? nLinks[c] : nz;                    //nn1 = nz; 
+    
+    nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1; //JMH
+    nn2 = (nonTwist) ? nChains[c] : nLinks[c]*nChains[c]; //nn2 = nLinks[c]*nChains[c]; 
+    
+    nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; //JMH
+    
     nn3 = grids_->Nmoms;                		                                      nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
    
     printf("nn1 = %d, nn2 = %d, nn3 = %d \n", nn1, nn2, nn3); // JMH
