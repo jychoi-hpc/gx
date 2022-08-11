@@ -804,7 +804,7 @@ __global__ void init_deltaKx(float* deltaKx, const int* m0, const float x0, cons
 
   if ((idy < nyc) && (idz < nz)) {
     unsigned int idyz = idy + nyc*idz;
-    deltaKx[idyz] = ky[idy] * shat * gds21[idz] / gds22[idz] - m0[idyz] / x0;
+    deltaKx[idyz] = ky[idy] * shat * gds21[idz] / gds22[idz] + m0[idyz] / x0;
   }
 }
 
@@ -835,8 +835,8 @@ __global__ void init_omegad_ntft(float* omegad, float* cv_d, float* gb_d, const 
   if ( unmasked(idx, idy) && idz < nz) {
     unsigned int idxyz = idy + nyc*(idx + nx*idz);
     unsigned int idyz = idy + nyc*idz;
-    cv_d[idxyz] = ky[idy] * cv[idz] + shatInv * (kx[idx] - m0[idyz] / x0) * cv0[idz] ;     
-    gb_d[idxyz] = ky[idy] * gb[idz] + shatInv * (kx[idx] - m0[idyz] / x0) * gb0[idz] ;
+    cv_d[idxyz] = ky[idy] * cv[idz] + shatInv * (kx[idx] + m0[idyz] / x0) * cv0[idz] ;     
+    gb_d[idxyz] = ky[idy] * gb[idz] + shatInv * (kx[idx] + m0[idyz] / x0) * gb0[idz] ;
     omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
   }
 
@@ -2055,7 +2055,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
       if (dealias_kz) {
         if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
       }
-      printf("kz[%d] = %f \n", i, kz[i]);
+      //printf("kz[%d] = %f \n", i, kz[i]);
     }
     
   } 
@@ -2097,7 +2097,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
 
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
 //    if (idp < 1 && idn < nLinks*nChains && idlm < nMoms) {
-      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
+      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nx * idz)
       // nakx = 1 + 2 * (nx - 1) / 3 
       
       idpn = idp + nLinks * idn;
@@ -2112,7 +2112,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       //if (globalIdx > (nyc * nx * nz *nMoms)) printf("global idx out of bounds ikx_ntft = %d, idz = %d, iky = %d , globalidx = %d, nyc*nx*nz*idlm = %d; idpn = %d = %d + %d * %d \n", ikx_ntft, idz, iky[idpn], globalIdx, nyc*nx*nz*nMoms, idpn, idp, nLinks, idn);  
       
       G_linked[idlink] = G[globalIdx];
-      if (iky[idpn] > 0) printf("iky = %d, ikx = %d, idz = %d globalIdx = %d,, Glinked[%d].x = %f Glinked.y = %f \n", iky[idpn], ikx_ntft, idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
+      //if (iky[idpn] > 0 && idlm % nl == 1 && idlm / nl == 1 ) printf("%d,  %d,  %d,  %d,  %f,  %f\n", ikx_ntft, idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink].y);
       
     }
   }
@@ -2127,7 +2127,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
       unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
       // NRM: seems hopeless to make these accesses coalesced. how bad is it?
       G_linked[idlink] = G[globalIdx];
-      if (iky[idpn] > 0) printf("iky = %d, ikx = %d, idz = %d, globalIdx = %d, Glinked[%d].x = %f Glinked.y = %f \n", iky[idk], ikx[idk], idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink]);
+      //if (iky[idk] > 0 && idlm % nl == 1 && idlm / nl == 1 ) printf("%d,  %d,  %d,  %d,  %f,  %f\n", ikx[idk], idz, globalIdx, idlink, G_linked[idlink].x, G_linked[idlink].y);
     }
   }
 }

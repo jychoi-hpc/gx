@@ -124,14 +124,14 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
     int nLC = nLinks[c]*nChains[c];
     cudaMalloc ((void**) &ikxLinked[c],      sizeof(int)*nLC);
     cudaMalloc ((void**) &ikyLinked[c],      sizeof(int)*nLC);
-    printf("nLinks[%d] = %d, nChains = %d \n", c, nLinks[c], nChains[c]); // JMH
+    //printf("nLinks[%d] = %d, nChains = %d \n", c, nLinks[c], nChains[c]); // JMH
 
     CP_TO_GPU(ikxLinked[c], ikxLinked_h[c], sizeof(int)*nLC);
     CP_TO_GPU(ikyLinked[c], ikyLinked_h[c], sizeof(int)*nLC);
     
-    for(int i=0; i<nLinks[c]*nChains[c]; i++) { // JMH
-      printf("ikxLinked[%d][%d] = %d \n", c, i, ikxLinked_h[c][i]); 
-    }
+    //for(int i=0; i<nLinks[c]*nChains[c]; i++) { // JMH
+    //  printf("ikxLinked[%d][%d] = %d \n", c, i, ikxLinked_h[c][i]); 
+    //}
 
     size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*nz;
 
@@ -768,7 +768,7 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
     }
     }
   }
-  printf("number of modes = %d \n", mode);
+  //printf("number of modes = %d \n", mode);
   return mode;
 }
 
@@ -846,7 +846,7 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
       if (nLinks[ic] == mode_size_ref[i]) {
 	n++; //chain number index
 	p=0; //grid point number index
-	printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
+	//printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
         for(idy=0; idy<naky; idy++) {
 	  if (jtwist<0) { //positive sloping lines, start in bottom left
 	    for(idx=0; idx<nakx; idx++) {
