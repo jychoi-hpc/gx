@@ -770,8 +770,16 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
     omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
   }
 }
+ __global__ void init_ftwist(float* ftwist, const float* gds21, const float* gds22, float shat) // JMH
+{
+  unsigned int idz = get_id1();
 
- __global__ void init_m0(int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat, const float kxfac) // JMH
+  if (idz < nz) {
+    ftwist[idz] = shat * gds21[idz] / gds22[idz]; //this can be changed depending on how you want to account for twist
+  }
+}
+
+ __global__ void init_m0(int* m0, const float x0, const float* ky, const float* ftwist, float shat, const float kxfac) // JMH
 {
   unsigned int idy = get_id1();
   unsigned int idz = get_id2();
@@ -783,32 +791,30 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
 
     unsigned int idyz = idy + nyc*idz; 
     
-
     // 2*pi*zp terms use global shear to extrapolate to z + delta_z at edge of domain, see (B.10) in Ball 2020
     // floor and mod functions act as essentially an if statement for exrapolation conditions
     // the last term makes sure that m0(ky, z=0) is 0, essentially a correction to the delta correction in the case of large ky
     
-   m0[idyz] = -round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[idz%nz] / gds22[idz%nz] - 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (gds21[(idz+1)%nz] / gds22[(idz+1)%nz] - 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * shat * ( (1 - delta) * (gds21[(nz/2)] / gds22[(nz/2)]) + delta * ( gds21[nz/2+1] / gds22[nz/2+1] )));
+   m0[idyz] = -round(x0 * ky[idy] * ( (1 - delta) * (ftwist[idz%nz] - 2 * M_PI * zp* kxfac * shat * floorf(idz/(1.0*nz))) + delta * (ftwist[(idz+1)%nz] - 2 * M_PI * zp * kxfac * shat * floorf((idz+1)/(1.0*nz))))) + round(x0 * ky[idy] * ( (1 - delta) * ftwist[(nz/2)] + delta * ftwist[nz/2+1]));
   
-  //printf("m0(%d, %d) = m0(%d) =  %d \n", idy, idz, idyz, m0[idyz]); 
-     
+  //printf("m0(%d, %d) = m0(%d) =  %d \n", idy, idz, idyz, m0[idyz]);  
   }
   		
 
 }
 
-__global__ void init_deltaKx(float* deltaKx, const int* m0, const float x0, const float* ky, const float* gds21, const float* gds22, float shat)
+__global__ void init_deltaKx(float* deltaKx, const int* m0, const float x0, const float* ky, const float* ftwist)
 {
   unsigned int idy = get_id1();
   unsigned int idz = get_id2();
 
   if ((idy < nyc) && (idz < nz)) {
     unsigned int idyz = idy + nyc*idz;
-    deltaKx[idyz] = ky[idy] * shat * gds21[idz] / gds22[idz] + m0[idyz] / x0;
+    deltaKx[idyz] = ky[idy] * ftwist[idz] + m0[idyz] / x0;
   }
 }
 
-__global__ void init_kperp2_ntft(float* kperp2, const float* kx, const float* ky, const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, float shat, const float* deltaKx)  //JMH
+__global__ void init_kperp2_ntft(float* kperp2, const float* kx, const float* ky, const float* gds2, const float* gds21, const float* gds22, const float* ftwist, const float* bmagInv, float shat, const float* deltaKx)  //JMH
 {
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
@@ -820,7 +826,7 @@ __global__ void init_kperp2_ntft(float* kperp2, const float* kx, const float* ky
     unsigned int idxyz = idy + nyc*(idx + nx*idz);
     unsigned int idyz = idy + nyc*idz;
 
-    kperp2[idxyz] = ( pow(ky[idy] , 2) * (gds2[idz] - pow(gds21[idz], 2) / gds22[idz]) + pow(kx[idx] + deltaKx[idyz], 2) * gds22[idz] * pow(shatInv, 2) ) * pow(bmagInv[idz], 2);
+    kperp2[idxyz] = ( pow(ky[idy] , 2) * (gds2[idz] - 2 * ftwist[idz] * gds21[idz] * shatInv + pow(ftwist[idz], 2) * gds22[idz] * pow(shatInv, 2)) + pow(kx[idx] + deltaKx[idyz], 2) * gds22[idz] * pow(shatInv, 2) ) * pow(bmagInv[idz], 2);
   }
 }
 
@@ -2089,7 +2095,7 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
   int ikx_ntft, idz, idpn;
 
   if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
-    idp  = get_id1(); // NTFT grid point number in link
+    idp  = get_id1(); // NTFT grid point number in chain
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
    
@@ -2098,7 +2104,6 @@ __global__ void linkedCopy(const cuComplex* G, cuComplex* G_linked,
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
 //    if (idp < 1 && idn < nLinks*nChains && idlm < nMoms) {
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nx * idz)
-      // nakx = 1 + 2 * (nx - 1) / 3 
       
       idpn = idp + nLinks * idn;
 //    idpn = idp + 1 * idn;
@@ -2141,15 +2146,14 @@ __global__ void linkedCopyBack(const cuComplex* G_linked, cuComplex* G,
 
   if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
     
-    idp  = get_id1(); // NTFT grid point number in link
+    idp  = get_id1(); // NTFT grid point number in chain
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
 
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
 //    if (idp < 1 && idn < nLinks * nChains && idlm < nMoms) {
 
-      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
-      // nakx = 1 + 2 * (nx - 1) / 3 
+      // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nx * idz)
       
       idpn = idp + nLinks * idn;
 //      idpn = idp + 1 * idn;
@@ -2189,14 +2193,13 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, f
 
   if (ikx[0] < 0) { // because we set this negative for NTFT, this is essentially if (nonTwist)
     
-    idp  = get_id1(); // NTFT grid point number in link
+    idp  = get_id1(); // NTFT grid point number in chain
     idn  = get_id2(); // NTFT chain number in class
     idlm = get_id3();
 
 //    if (idp < 1 && idn < nLinks * nChains && idlm < nMoms) {
     if (idp < nLinks && idn < nChains && idlm < nMoms) {
       // pull out ikx and idz indices - ikx = -( 1 + ikx_ntft + nakx * idz)
-      // nakx = 1 + 2 * (nx - 1) / 3 
 //      idpn = idp + 1 * idn;
       idpn = idp + nLinks * idn;
       ikx_ntft = (-ikx[idpn]-1) % nx; //(1 + 2 * (nx - 1) / 3); 

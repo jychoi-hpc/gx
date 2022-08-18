@@ -31,7 +31,7 @@ Geometry::Geometry() {
   // operator arrays
   kperp2       = nullptr;  omegad     = nullptr;  cv_d       = nullptr;   gb_d      = nullptr;
   kperp2_h     = nullptr; 
-  m0           = nullptr; deltaKx     = nullptr;  m0_h       = nullptr; // JMH
+  m0           = nullptr; deltaKx     = nullptr;  m0_h       = nullptr;   ftwist    = nullptr; // JMH
 
 }
 
@@ -72,6 +72,7 @@ Geometry::~Geometry() {
     if (gb_d)   cudaFree(gb_d);
     if (m0)     cudaFree(m0); //JMH
     if (deltaKx) cudaFree(deltaKx); // JMH
+    if (ftwist) cudaFree(ftwist); // JMH
   }
 }
 
@@ -543,7 +544,8 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMalloc ((void**) &cv_d,   sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &gb_d,   sizeof(float)*grids->NxNycNz);
   if (pars->nonTwist) { //JMH
-    cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); //m0 is array of integers, doesn't need float
+    cudaMalloc ((void**) &ftwist, sizeof(float)*grids->Nz);
+    cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); 
     cudaMalloc ((void**) &deltaKx, sizeof(float)*grids->NycNz);
   }
   checkCuda  (cudaGetLastError());
@@ -553,6 +555,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMemset (cv_d,   0., sizeof(float)*grids->NxNycNz);
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);
   if (pars->nonTwist) { //JMH
+    cudaMemset (ftwist, 0., sizeof(float)*grids->Nz);
     cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
     cudaMemset (deltaKx, 0., sizeof(float)*grids->NycNz);
   }
@@ -569,18 +572,18 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
     // is this best way to initialize kernel with varying ky,z?
     dim3 dimBlock_ntft (32,4); 
     dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.z);
-
+    
+    init_ftwist <<< (1 + (grids->Nz-1)/dimBlock.z), 32 >>> (ftwist, gds21, gds22, shat);
     // creates m0[ky, z] grid that for offsetting mode numbers throughout rest of code, (44),(B.10) in Ball 2020
-    init_m0 <<< dimGrid_ntft, dimBlock_ntft >>> (m0, pars->x0, grids->ky, gds21, gds22, shat, pars->kxfac);
+    init_m0 <<< dimGrid_ntft, dimBlock_ntft >>> (m0, pars->x0, grids->ky, ftwist, shat, pars->kxfac);
     m0_h = (int*) malloc(sizeof(float)*grids->NycNz);
     CP_TO_GPU (m0_h, m0, sizeof(float)*grids->NycNz);
           
     //creates deltaKx[ky, z] for offsetting wavenumbers throughout rest of code, (B.2) in Ball 2020
-    init_deltaKx <<<dimGrid_ntft, dimBlock_ntft >>> (deltaKx, m0, pars->x0, grids->ky, gds21, gds22, shat); 
+    init_deltaKx <<<dimGrid_ntft, dimBlock_ntft >>> (deltaKx, m0, pars->x0, grids->ky, ftwist); 
     
     // redefine kperp2 according to ntft grids, (B.5) in Ball 2020
-    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat, deltaKx);  
- 
+    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, ftwist, bmagInv, shat, deltaKx);   
     // redefine omegad according to ntft grids
     init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat, m0, pars->x0); 
 
