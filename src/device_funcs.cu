@@ -2061,7 +2061,6 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
       if (dealias_kz) {
         if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
       }
-      //printf("kz[%d] = %f \n", i, kz[i]);
     }
     
   } 
@@ -2077,7 +2076,6 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz, bool nonTw
       if (dealias_kz) {
         if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
       }
-      printf("kz[%d] = %f \n", i, kz[i]);
     }
   }
 

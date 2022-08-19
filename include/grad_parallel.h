@@ -84,7 +84,7 @@ class GradParallelLinked : public GradParallel {
   int get_mode_nums_ntft(int *mode_nums, int nz, int naky, int nakx, int jtwist, int *m0, int nyc, float *ky);
   int get_nClasses_ntft(int *mode_size, int *mode_size_ref, int *mode_nums, int naky, int nakx, int nz, int mode);
   void get_nChains_nLinks_ntft(int *mode_size, int *nLinks, int *nChains, int nClasses, int nakx, int naky, int mode);
-  void kFill_ntft(int nClasses, int *nChains, int *nLinks, int **ikyNTFT, int **neg_ikxdzNTFT, int naky, int nakx, int jtwist, int nz, int mode, int *mode_size_ref, int *mode_nums, int nx);
+  void kFill_ntft(int nClasses, int *nChains, int *nLinks, int **ikyNTFT, int **neg_ikxdzNTFT, int naky, int nakx, int jtwist, int nz, int mode, int *mode_size_ref, int *mode_nums, int nx, int *m0, int nyc);
   
   int nClasses;
   int * nLinks  ;
