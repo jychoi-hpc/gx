@@ -563,7 +563,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
 
   // set jtwist and x0, now that we know the final value of shat from geometry
-  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH, nonTwist needed for periodic boundary condition
+  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH
   // initialize k and coordinate arrays
   grids->init_ks_and_coords();
 
@@ -590,8 +590,8 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   }	
   // initialize operator arrays for conventional flux tube
   else {
-  init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
-  init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
+    init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
+    init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
   }
   /* 
   kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);

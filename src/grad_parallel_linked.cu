@@ -35,14 +35,11 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
   
   if (nonTwist) { // JMH
      //initialize grids
-    //mode_nums = (int*) malloc(sizeof(int)*naky*nakx*nz);
 
     int mode_nums[naky*nakx*nz] = {0}; //array that lists what mode a point is part of
     //int mode; //counter for number of modes
     
     mode = get_mode_nums_ntft(mode_nums, nz, naky, nakx, jtwist, m0_h, grids_->Nyc, grids_->ky_h);
-    //mode_size = (int*) calloc(mode, sizeof(int));
-    //mode_size_ref = (int*) calloc(mode, sizeof(int));
     int mode_size[mode] = {0}; // this will be sorted, used for nLinks/nChains
     int mode_size_ref[mode] = {0}; //this won't be sorted, used for filling kx/ky grids
     nClasses = get_nClasses_ntft(mode_size, mode_size_ref, mode_nums, naky, nakx, nz, mode);
@@ -52,7 +49,7 @@ GradParallelLinked::GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, 
 
     get_nChains_nLinks_ntft(mode_size, nLinks, nChains, nClasses, nakx, naky, mode);
 
-    // note that ikxLinked for NTFT will be negative and stores both ikx and idz via combined index
+    // ikxLinked for NTFT will be negative and stores both ikx and idz via combined index
     ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses); 
     ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);
 
@@ -689,7 +686,7 @@ int GradParallelLinked::get_mode_nums_ntft(int *mode_nums, int nz, int naky, int
   int idz_prime, idx_constant, idx_prime, idz_start; 
   int mode = 0;
   
-  for(int idy=0; idy<naky; idy++) { // add in an if statement to distinguish whether 
+  for(int idy=0; idy<naky; idy++) { 
     if (ky[idy] < 1e-10) { // special case for zonal mode
       for(int idx=0; idx<nakx; idx++) {
 	 mode++;
@@ -762,7 +759,6 @@ int GradParallelLinked::get_nClasses_ntft(int *mode_size, int *mode_size_ref, in
       nClasses++;
     }
   }
-//  printf("nClasses = %d \n", nClasses);
   return nClasses;
 }
 
@@ -790,7 +786,6 @@ void GradParallelLinked::get_nChains_nLinks_ntft(int *mode_size, int *nLinks, in
   }
   nLinks[nClasses-1] = mode_size[mode-1];
 
-//  printf("nLinks(%d) = %d, nChains(%d) = %d \n", nClasses-1, nLinks[nClasses-1], nClasses-1, nChains[nClasses-1]);
 }
 
 void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int **ikyNTFT, int **neg_ikxdzNTFT, int naky, int nakx, int jtwist, int nz, int mode, int *mode_size_ref, int *mode_nums, int nx, int* m0, int nyc) // JMH
@@ -811,7 +806,6 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
       if (nLinks[ic] == mode_size_ref[i]) {
 	n++; //chain number index
 	p=0; //grid point number in chain index
-	//printf("nLinks[%d] = %d; mode_num = %d \n", ic, nLinks[ic], i+1);
         for(int idy=0; idy<naky; idy++) {
           if (idy == 0) { // special case for zonal mode, I thinkk idy = 0 is always zonal
             for(int idx=0; idx<nakx; idx++) {
@@ -854,8 +848,6 @@ void GradParallelLinked::kFill_ntft(int nClasses, int *nChains, int *nLinks, int
 	        }  else {
 	          idx0 = idx_prime + nakx;
 	        }
-		//printf("mode = %d \n", i+1);
-		//printf("idx0 = %d, idz = %d\n", idx0, idz_prime);
 	        neg_ikxdzNTFT[ic][p + nLinks[ic] * n] = -(1 + idx0 + nx * idz_prime); 
 	        ikyNTFT[ic][p+ nLinks[ic] * n] = idy;
 	        p++;

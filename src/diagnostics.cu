@@ -29,7 +29,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   favg        = nullptr;  df          = nullptr;  val         = nullptr;  
   G2          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
-  vEk         = nullptr;  phi_max     = nullptr;  //tmp_phi_h   = nullptr; // JFP hacking
+  vEk         = nullptr;  phi_max     = nullptr; 
   ry_h        = nullptr;  gy_h        = nullptr;  gy_d        = nullptr;
   vol_fac = nullptr;
   flux_fac = nullptr;
@@ -100,7 +100,6 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   if (id -> omg -> write_v_time) {
     cudaMalloc     (    &omg_d,   sizeof(cuComplex) * nX * nY);//     cudaMemset (omg_d, 0., sizeof(cuComplex) * nX * nY);
     tmp_omg_h = (cuComplex*) malloc (sizeof(cuComplex) * nX * nY);
-    //tmp_phi_h = (cuComplex*) malloc (sizeof(cuComplex) * nX * nY); // JFP hacking
     int nn = nX*nY; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;  cuComplex zero = make_cuComplex(0.,0.);
     setval <<< nb, nt >>> (omg_d, zero, nn);
   }  
@@ -200,7 +199,6 @@ Diagnostics_GK::~Diagnostics_GK()
   if (kvol_fac)   cudaFree  ( kvol_fac  );
   if (val)        free  ( val       );
   if (tmp_omg_h)  free  ( tmp_omg_h );
-  //if (tmp_phi_h)  free  ( tmp_phi_h ); // JFP hacking
   if (gy_h)       free  ( gy_h      );
   if (ry_h)       free  ( ry_h      );
 }
@@ -235,8 +233,7 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
     if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
     
     if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
-      print_omg(omg_d);  id -> write_omg(omg_d); // JFP hacking...
-      //print_omg(omg_d, fields->phi);  id -> write_omg(omg_d); // JFP hacking...
+      print_omg(omg_d);  id -> write_omg(omg_d);
     }
 
     if ( id -> qs -> write_v_time) printf("%s: Step %d: Time = %f \t", pars_->run_name, counter, time);          // To screen
@@ -438,8 +435,7 @@ void Diagnostics_GK::finish(MomentsG* G, Fields* fields, double time)
   }
 }
 
-void Diagnostics_GK::print_omg(cuComplex *W) // JFP hacking
-//void Diagnostics_GK::print_omg(cuComplex *W, cuComplex *WW) // JFP hacking
+void Diagnostics_GK::print_omg(cuComplex *W)
 {
   CP_TO_CPU (tmp_omg_h, W, sizeof(cuComplex)*grids_->NxNyc);
   //CP_TO_CPU (tmp_phi_h, WW, sizeof(cuComplex)*grids_->NxNyc);
@@ -489,7 +485,6 @@ bool Diagnostics_GK::checkstop()
 }
 
 void Diagnostics_GK::print_growth_rates_to_screen(cuComplex* w)
-//void Diagnostics_GK::print_growth_rates_to_screen(cuComplex* w, cuComplex* ww) // JFP
 {
   int Nx = grids_->Nx;
   int Naky = grids_->Naky;
@@ -514,28 +509,6 @@ void Diagnostics_GK::print_growth_rates_to_screen(cuComplex* w)
     }
     if (Nx>1) printf("\n");
   }
-/*
-  printf("ky\tkx\t\tphiRe\t\tphiIm\n"); // JFP hacking
-
-  for(int j=0; j<Naky; j++) {
-    for(int i= 1 + 2*Nx/3; i<Nx; i++) {
-      int index = j + Nyc*i;
-      printf("%.4f\t%.4f\t\t%.6f\t%.6f",  grids_->ky_h[j], grids_->kx_h[i], ww[index].x, ww[index].y);
-      printf("\n");
-    }
-    for(int i=0; i < 1 + (Nx-1)/3; i++) {
-      int index = j + Nyc*i;
-      if(index!=0) {
-        printf("%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], ww[index].x, ww[index].y);
-        printf("\n");
-      } else {
-        printf("%.4f\t%.4f\n", grids_->ky_h[j], grids_->kx_h[i]);
-      }
-    }
-    if (Nx>1) printf("\n");
-  }
-*/
-
 }
 
 

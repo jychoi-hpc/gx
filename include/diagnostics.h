@@ -58,7 +58,6 @@ private:
   float        * val           ;
   cuComplex    * omg_d         ;
   cuComplex    * tmp_omg_h     ;
-//  cuComplex    * tmp_phi_h     ; // JFP hacking
   cuComplex    * t_bar         ;
   cuComplex    * favg          ;
   cuComplex    * df            ;
@@ -69,12 +68,10 @@ private:
   float *gy_d, *gy_h;
   double *ry_h;
   
-  //void print_omg (cuComplex *W, cuComplex *WW); //JFP
   void print_omg (cuComplex *W);
   void get_rh    (Fields* f);
   //  void reduce2z  (float* fk, cuComplex* f);
-  //void print_growth_rates_to_screen (cuComplex *w, cuComplex *ww); // JFP
-  void print_growth_rates_to_screen (cuComplex *w); // JFP
+  void print_growth_rates_to_screen (cuComplex *w);
 
   void write_Wtot  (float   Wh, bool endrun);
   //  void pzt(MomentsG* G, Fields* f);
