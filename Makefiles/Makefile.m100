@@ -23,16 +23,17 @@ NETCDF_LIB = -L${NETCDF_HOME}/lib -lnetcdf -lhdf5
 
 # paths to openmpi
 OMPI_DIR = ${MPI_ROOT}
+#OMPI_DIR = /cineca/prod/opt/compilers/hpc-sdk/2021/binary/Linux_ppc64le/2021/comm_libs/mpi
 MPI_INC = -I ${OMPI_DIR}/include
-MPI_LIB = -L ${OMPI_DIR}/lib -lmpi_ibm 
+MPI_LIB = -L ${OMPI_DIR}/lib -lmpi_ibm# -lmpi_cxx 
 
 # paths to cutensor (already in path)
-CUTENSOR_INC = 
-CUTENSOR_LIB = -lcutensor -lcudart
+CUTENSOR_INC = -I${CUTENSOR_INCLUDE}
+#CUTENSOR_LIB = ${CUTENSOR_LIB} -lcutensor -lcudart
 
 # paths to cuda added as part of module load
 CUDA_INC = ${CUTENSOR_INC}
-CUDA_LIB = -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp ${CUTENSOR_LIB}
+CUDA_LIB = -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -L${CUTENSOR_LIB} -lcutensor -lcudart
 
 GSL_INC = -I ${GSL_INCLUDE}
 GSL_LIB = -L ${GSL_ROOT_DIR}/lib -lgsl -lgslcblas -lm

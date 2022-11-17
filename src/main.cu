@@ -16,11 +16,16 @@ int main(int argc, char* argv[])
 {
 
   //  feenableexcept(FE_INVALID | FE_OVERFLOW);
-
-  MPI_Init(&argc, &argv);
-  MPI_Comm mpcom = MPI_COMM_WORLD;
-  int iproc;
-  MPI_Comm_rank(mpcom, &iproc);
+  int initialized, finalized;
+  int iproc=0;
+  MPI_Initialized(&initialized);
+  if (!initialized && argc<3){
+    MPI_Init(&argc, &argv);
+    MPI_Comm mpcom = MPI_COMM_WORLD;
+  //}
+    int iproc;
+    MPI_Comm_rank(mpcom, &iproc);
+  }
   
   int devid = 0; // This should be determined (optionally) on the command line
   checkCuda(cudaSetDevice(devid));
@@ -193,7 +198,9 @@ int main(int argc, char* argv[])
   delete grids;
   delete geo;
   delete diagnostics;
-
-  MPI_Finalize();
+  
+  //MPI_Finalized(&finalized);
+  //if (!finalized)
+  //  MPI_Finalize();
   cudaDeviceReset();
 }
