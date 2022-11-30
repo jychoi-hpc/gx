@@ -2,6 +2,7 @@
 # Remember to tweak this if you move this file.
 GTEST_DIR = googletest/googletest
 GX_DIR = ..
+GX_LIB = ${GX_DIR}/libgx.a
 
 #######################################
 # Include system-dependent make variables
@@ -22,11 +23,12 @@ include $(GX_DIR)/Makefiles/Makefile.$(GK_SYSTEM)
 ## Setup Compiler Flags
 ###########################
 
+CXX = g++
 CC = $(NVCC)
 LD = $(NVCC)
 
 # Flags passed to nvcc compiler.
-CFLAGS= ${CUDA_INC} ${MPI_INC} ${CUTENSOR_INC}
+CFLAGS= ${CUDA_INC} ${MPI_INC} ${NETCDF_INC} ${CUTENSOR_INC}
 LDFLAGS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} ${CUTENSOR_LIB}
 
 # Flags passed to the preprocessor.
@@ -36,7 +38,7 @@ GTEST_FLAGS += -isystem $(GTEST_DIR)/include
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-UNIT_TESTS = test_main test_grids test_moments test_geometry # test_trinity_interface test_grad_parallel_periodic test_grad_parallel_linked test_moments test_laguerre_transform test_grad_perp
+UNIT_TESTS = test_main test_grids test_moments test_laguerre_transform test_grad_perp # test_geometry test_trinity_interface test_grad_parallel_periodic test_grad_parallel_linked test_moments test_laguerre_transform test_grad_perp
 REGRESSION_TESTS = #test_cyclone_linear_beer
 TESTS = $(UNIT_TESTS) $(REGRESSION_TESTS)
 
@@ -95,13 +97,13 @@ obj/test_%.o: test_%.cu
 obj/device_test.o: device_test.cu
 	$(NVCC) -dc -o $@ $< $(CFLAGS) $(NVCCFLAGS) $(GTEST_FLAGS)
 
-test_%: obj/test_%.o obj/gtest_main.a $(GX_OBJS) obj/device_test.o
+test_%: obj/test_%.o obj/gtest_main.a ${GX_LIB} obj/device_test.o
 	$(NVCC) -o $@ $^ $(CFLAGS) $(NVCCFLAGS) $(LDFLAGS) 
 
-unit_tests: $(addprefix obj/, $(UNIT_TESTS:=.o)) obj/gtest_main.a $(GX_OBJS) obj/device_test.o
-	$(NVCC) -o $@ $^ $(CFLAGS) $(NVCCFLAGS) $(LDFLAGS) 
+unit_tests: $(addprefix obj/, $(UNIT_TESTS:=.o)) obj/gtest_main.a ${GX_LIB} obj/device_test.o
+	$(NVCC) -o $@ $^ $(CFLAGS) $(NVCCFLAGS) $(LDFLAGS)
 
-regression_tests: $(addprefix obj/, $(REGRESSION_TESTS:=.o)) obj/gtest_main.a $(GX_OBJS) obj/device_test.o
+regression_tests: $(addprefix obj/, $(REGRESSION_TESTS:=.o)) obj/gtest_main.a ${GX_LIB} obj/device_test.o
 	$(NVCC) -o $@ $^ $(CFLAGS) $(NVCCFLAGS) $(LDFLAGS) 
 
 test_each: $(TESTS)

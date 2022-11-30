@@ -14,17 +14,17 @@ protected:
     pars = new Parameters;
     pars->nx_in = 32;
     pars->ny_in = 32;
-    pars->nz_in = 32;
+    pars->nz_in = 1;
     pars->nperiod = 1;
     pars->nspec_in = 1;
     pars->nm_in = 1;
-    pars->nl_in = 4;
+    pars->nl_in = 1;
     pars->Zp = 1.;
     pars->x0 = 10.;
     pars->y0 = 10.;
 
     grids = new Grids(pars);
-    grad_perp = new GradPerp(grids, grids->Nz*grids->Nl);
+    grad_perp = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl);
   }
 
   virtual void TearDown() {
@@ -73,7 +73,7 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
   }
   cudaMemcpy(init, init_h, sizeof(float)*grids->NxNyNz*grids->Nl, cudaMemcpyHostToDevice);
           
-  grad_perp->R2C(init, comp);
+  grad_perp->R2C(init, comp, false);
   grad_perp->dxC2R(comp, dx);
   grad_perp->dyC2R(comp, dy);
 
