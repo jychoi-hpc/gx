@@ -4,16 +4,19 @@
 GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   : grids_(grids), batch_size_(batch_size), mem_size_(mem_size), tmp(nullptr)
 {
-  //cufftCreate(&gradperp_plan_R2C);
-  //cufftCreate(&gradperp_plan_C2R);
-  //cufftCreate(&gradperp_plan_dxC2R);
-  //cufftCreate(&gradperp_plan_dyC2R);
+  // 2D
+  cufftCreate(&gradperp_plan_R2C);
+  cufftCreate(&gradperp_plan_C2R);
+  cufftCreate(&gradperp_plan_dxC2R);
+  cufftCreate(&gradperp_plan_dyC2R);
 
+  // 1D
   cufftCreate(&gradperp_plan_R2Cx);
   cufftCreate(&gradperp_plan_C2Rx);
   cufftCreate(&gradperp_plan_dxC2Rx);
   cufftCreate(&gradperp_plan_dyC2Rx);
 
+  // 1D
   cufftCreate(&gradperp_plan_R2Cy);
   cufftCreate(&gradperp_plan_C2Ry);
   cufftCreate(&gradperp_plan_dxC2Ry);
@@ -32,9 +35,12 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   dG = dim3(nblocks,  1, 1);
   
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
+
+  // 1D
   int NLPSfftdimx = grids->Nx;
   int NLPSfftdimy = grids->Nyc; // Nyc or Ny?
  
+  // 1D
   // kx FFT
   int istridex = grids->Nx;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
                                       // = distance between (kx=1,ky) and (kx=2,ky) = Nx
@@ -43,6 +49,7 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   int ostridex = grids->Nx;           // same, for output arrays.
   int odistx = grids->Nx;
 
+  // 1D
   // ky FFT
   int istridey = 1;                   // distance between two successive input elements in innermost dimension (the FFT dimension?)
                                       // = distance between (kx,ky=1) and (kx,ky=2) = 1
@@ -51,42 +58,51 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   int ostridey = 1;                   // same, for output arrays.
   int odisty = grids->Nx;
 
+  // Arguments for cufftMakePlanMany
   //cufftMakePlanMany(gradperp_plan_C2R, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
 
   size_t workSize;
-  //cufftMakePlanMany(gradperp_plan_C2R,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  
+  // 2D
+  cufftMakePlanMany(gradperp_plan_C2R,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_R2C,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dxC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dyC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+
+  // 1D
   cufftMakePlanMany(gradperp_plan_C2Rx,    1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize); // is input data size still Nx,Ny, not Nx?
   cufftMakePlanMany(gradperp_plan_C2Ry,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
-
-  //cufftMakePlanMany(gradperp_plan_R2C,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_R2Cx,    1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_R2C, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_R2Cy,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_R2C, batch_size_, &workSize);
-
-  //cufftMakePlanMany(gradperp_plan_dxC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dxC2Rx,  1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dxC2Ry,  1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
-
-  //cufftMakePlanMany(gradperp_plan_dyC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dyC2Rx,  1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dyC2Ry,  1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
 
   cudaDeviceSynchronize();
 
-  //cufftXtSetCallback(gradperp_plan_dxC2R, (void**) &i_kx_callbackPtr, 
-  //                   CUFFT_CB_LD_COMPLEX, 
-  //                  (void**)&grids_->kx);
+  // 2D
+  cufftXtSetCallback(gradperp_plan_dxC2R, (void**) &i_kx_callbackPtr, 
+                     CUFFT_CB_LD_COMPLEX, 
+                    (void**)&grids_->kx);
 
+  cufftXtSetCallback(gradperp_plan_dyC2R, (void**) &i_ky_callbackPtr, 
+                     CUFFT_CB_LD_COMPLEX, 
+                     (void**)&grids_->ky);
+
+  cufftXtSetCallback(gradperp_plan_R2C,   (void**) &mask_and_scale_callbackPtr, 
+                     CUFFT_CB_ST_COMPLEX, 
+                     NULL);
+
+
+  // 1D
   cufftXtSetCallback(gradperp_plan_dxC2Rx, (void**) &i_kx_callbackPtr, // (cufftHandle plan, void **callbackRoutine, cufftXtCallbackType type, void **callerInfo)
                      CUFFT_CB_LD_COMPLEX,
                      (void**)&grids_->kx);
 
-  cufftXtSetCallback(gradperp_plan_dxC2Ry, (void**) &i_kx_callbackPtr, // (cufftHandle plan, void **callbackRoutine, cufftXtCallbackType type, void **callerInfo)
+  cufftXtSetCallback(gradperp_plan_dxC2Ry, (void**) &i_kx_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
                      (void**)&grids_->kx);
-
-  //cufftXtSetCallback(gradperp_plan_dyC2R, (void**) &i_ky_callbackPtr, 
-  //                   CUFFT_CB_LD_COMPLEX, 
-  //                   (void**)&grids_->ky);
 
   cufftXtSetCallback(gradperp_plan_dyC2Rx, (void**) &i_ky_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
@@ -95,10 +111,6 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   cufftXtSetCallback(gradperp_plan_dyC2Ry, (void**) &i_ky_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
                      (void**)&grids_->ky);
-
-  //cufftXtSetCallback(gradperp_plan_R2C,   (void**) &mask_and_scale_callbackPtr, 
-  //                   CUFFT_CB_ST_COMPLEX, 
-  //                   NULL);
 
   cufftXtSetCallback(gradperp_plan_R2Cx,   (void**) &mask_and_scale_callbackPtr,
                      CUFFT_CB_ST_COMPLEX,
@@ -114,10 +126,12 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
 GradPerp::~GradPerp()
 {
   if (tmp)      cudaFree (tmp);
-  //cufftDestroy ( gradperp_plan_R2C    );
-  //cufftDestroy ( gradperp_plan_C2R    );
-  //cufftDestroy ( gradperp_plan_dxC2R  );
-  //cufftDestroy ( gradperp_plan_dyC2R  );
+  // 2D
+  cufftDestroy ( gradperp_plan_R2C    );
+  cufftDestroy ( gradperp_plan_C2R    );
+  cufftDestroy ( gradperp_plan_dxC2R  );
+  cufftDestroy ( gradperp_plan_dyC2R  );
+  // 1D
   cufftDestroy ( gradperp_plan_R2Cx    );
   cufftDestroy ( gradperp_plan_C2Rx    );
   cufftDestroy ( gradperp_plan_dxC2Rx  );
@@ -130,20 +144,21 @@ GradPerp::~GradPerp()
 
 // Out-of-place 2D transforms in cufft now overwrite the input data. 
 
+// 2D
 void GradPerp::dxC2R(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG);
 }
 
-// new
+// 1D
 void GradPerp::dxC2Rx(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2Rx, tmp, dxG);
 }
 
-// new
+// 1D
 void GradPerp::dxC2Ry(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
@@ -189,14 +204,14 @@ void GradPerp::dyC2R(cuComplex* G, float* dyG)
   cufftExecC2R(gradperp_plan_dyC2R, tmp, dyG);
 }
 
-// new
+// 1D
 void GradPerp::dyC2Rx(cuComplex* G, float* dyG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
   cufftExecC2R(gradperp_plan_dyC2Rx, tmp, dyG);
 }
 
-// new
+// 1D
 void GradPerp::dyC2Ry(cuComplex* G, float* dyG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
@@ -209,22 +224,22 @@ void GradPerp::C2R(cuComplex* G, float* Gy)
   cufftExecC2R(gradperp_plan_C2R, tmp, Gy);
 }
 
-// new
+// 1D
 void GradPerp::C2Rx(cuComplex* G, float* Gy)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
   cufftExecC2R(gradperp_plan_C2Rx, tmp, Gy);
 }
 
-// new
+// 1D
 void GradPerp::C2Ry(cuComplex* G, float* Gy)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
   cufftExecC2R(gradperp_plan_C2Ry, tmp, Gy);
 }
 
-
 // An R2C that accumulates -- will be very useful
+// 2D
 void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
 {
   if (accumulate) {
@@ -235,7 +250,7 @@ void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
   }
 }
 
-// new
+// 1D
 void GradPerp::R2Cx(float* G, cuComplex* res, bool accumulate)
 {
   if (accumulate) {
@@ -246,7 +261,7 @@ void GradPerp::R2Cx(float* G, cuComplex* res, bool accumulate)
   }
 }
 
-// new
+// 1D
 void GradPerp::R2Cy(float* G, cuComplex* res, bool accumulate)
 {
   if (accumulate) {

@@ -28,15 +28,39 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
   
-  nBatch = grids_->Nz*grids_->Nl; 
-  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
-  
-  nBatch = grids_->Nz*grids_->Nj; 
-  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
+  // 2D 
+  if (pars_->fftperp=="2D"){
 
-  nBatch = grids_->Nz;
-  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    nBatch = grids_->Nz*grids_->Nl; 
+    grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
   
+    nBatch = grids_->Nz*grids_->Nj; 
+    grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
+
+    nBatch = grids_->Nz;
+    grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+  }
+
+  // 1D
+  if (pars_->fftperp=="1D"){
+
+    nBatch = grids_->Nz*grids_->Nl;
+    //grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
+    grad_perp_Gx =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
+    grad_perp_Gy =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
+
+    nBatch = grids_->Nz*grids_->Nj;
+    //grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
+    grad_perp_J0fx = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
+    grad_perp_J0fy = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
+
+    nBatch = grids_->Nz;
+    //grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    grad_perp_fx =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    grad_perp_fy =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+  }
+
+
   checkCuda(cudaMalloc(&tmp_c,    sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
   checkCuda(cudaMalloc(&dG,    sizeof(float)*grids_->NxNyNz*grids_->Nl));
   checkCuda(cudaMalloc(&dg_dx, sizeof(float)*grids_->NxNyNz*grids_->Nj));
@@ -175,6 +199,7 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   for(int m=grids_->m_lo; m<grids_->m_up; m++) {
     int m_local = m - grids_->m_lo;
     
+
     grad_perp_G -> dxC2R(G->Gm(m_local), dG);
     laguerre    -> transformToGrid(dG, dg_dx);
   
