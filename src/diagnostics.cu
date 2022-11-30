@@ -407,7 +407,14 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     nc_sync(id->file);
   }
   if (pars_->Reservoir && counter%pars_->ResTrainingDelta == 0) {
-    grad_perp->C2R(G[0]->G(), gy_d);
+    if (pars_->fftperp=="2D"){
+      grad_perp->C2R(G[0]->G(), gy_d);
+    }
+    if (pars_->fftperp=="1D"){
+      grad_perp->C2Rx(G[0]->G(), gy_d);
+      grad_perp->C2Ry(G[0]->G(), gy_d);
+    }
+
     if (pars_->ResFakeData) {
       rc->fake_data(gy_d);
       id -> write_ks_data( id -> g_y, gy_d);
@@ -435,7 +442,15 @@ void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time)
       rc->fake_data(gy_d);
     } else {
       for(int is=0; is<grids_->Nspecies; is++) {
-        grad_perp -> C2R (G[is]->G(), gy_d);
+
+        if (pars_->fftperp=="2D"){
+          grad_perp -> C2R (G[is]->G(), gy_d);
+        }
+
+        if (pars_->fftperp=="1D"){
+          grad_perp -> C2Rx (G[is]->G(), gy_d);
+          grad_perp -> C2Ry (G[is]->G(), gy_d);
+        }
       }
     }
     double *gy_double;

@@ -2507,7 +2507,18 @@ void NetCDF_ids::write_moment(nca *D, cuComplex *f, float* vol_fac) {
 void NetCDF_ids::write_ks_data(nca *D, cuComplex *G) {
   if (!D->write_v_time) return;
 
-  grad_perp->C2R(G, D->data);
+  if (pars_->fftperp=="2D"){
+
+    grad_perp->C2R(G, D->data);
+  }
+
+  if (pars_->fftperp=="1D"){
+
+    grad_perp->C2Rx(G, D->data);
+    grad_perp->C2Ry(G, D->data);
+  }
+  
+
   CP_TO_CPU (D->cpu, D->data, sizeof(float)*D->N_);
   write_nc(D);
 }
