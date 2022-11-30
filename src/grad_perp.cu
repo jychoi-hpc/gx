@@ -34,30 +34,49 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
   int NLPSfftdimx = grids->Nx;
   int NLPSfftdimy = grids->Ny;
+ 
+  // kx FFT
+  int istridex = grids->Ny;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
+                                      // = distance between (ky,kx=1) and (ky,kx=2) = Ny
+  int idistx = 1;             // distance between the first element of two consecutive signals in a batch of the input data
+                                      // = distance between (ky=2,kx=1) and (ky=1,kx=1) = 1
+  int ostridex = grids->Ny;                    // same, for output arrays.
+  int odistx = 1;
+
+
+  // ky FFT
+  int istridey = 1;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
+                                      // = distance between (ky=1,kx) and (ky=2,kx) = 1
+  int idisty = 1;             // distance between the first element of two consecutive signals in a batch of the input data
+                                      // = distance between (ky=2,kx=1) and (ky=1,kx=1) = 1
+  int ostridey = 1;                    // same, for output arrays.
+  int odisty = 1;
+
+
+  //cufftMakePlanMany(gradperp_plan_C2R, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
 
   size_t workSize;
   //cufftMakePlanMany(gradperp_plan_C2R,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_C2Rx,    1, NLPSfftdimx, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize); // is input data size still Nx,Ny, not Nx?
-  cufftMakePlanMany(gradperp_plan_C2Ry,    1, NLPSfftdimy, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_C2Rx,    1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize); // is input data size still Nx,Ny, not Nx?
+  cufftMakePlanMany(gradperp_plan_C2Ry,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
 
   //cufftMakePlanMany(gradperp_plan_R2C,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_R2Cx,    1, NLPSfftdimx, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_R2Cy,    1, NLPSfftdimy, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_R2Cx,    1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_R2C, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_R2Cy,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_R2C, batch_size_, &workSize);
 
   //cufftMakePlanMany(gradperp_plan_dxC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_dxC2Rx,  1, NLPSfftdimx, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_dxC2Ry,  1, NLPSfftdimy, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dxC2Rx,  1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dxC2Ry,  1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
 
   //cufftMakePlanMany(gradperp_plan_dyC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_dyC2Rx,  1, NLPSfftdimx, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_dyC2Ry,  1, NLPSfftdimy, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dyC2Rx,  1, NLPSfftdimx, NULL, istridex, idistx, NULL, ostridex, odistx, CUFFT_C2R, batch_size_, &workSize);
+  cufftMakePlanMany(gradperp_plan_dyC2Ry,  1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
 
   cudaDeviceSynchronize();
 
-
   //cufftXtSetCallback(gradperp_plan_dxC2R, (void**) &i_kx_callbackPtr, 
   //                   CUFFT_CB_LD_COMPLEX, 
-  //                  (void**)&grids_->kx); // I don't understand why we have pointers to kx here. Keep for now in 1D.
+  //                  (void**)&grids_->kx);
 
   cufftXtSetCallback(gradperp_plan_dxC2Rx, (void**) &i_kx_callbackPtr, // (cufftHandle plan, void **callbackRoutine, cufftXtCallbackType type, void **callerInfo)
                      CUFFT_CB_LD_COMPLEX,
@@ -109,7 +128,6 @@ GradPerp::~GradPerp()
   cufftDestroy ( gradperp_plan_C2Ry    );
   cufftDestroy ( gradperp_plan_dxC2Ry  );
   cufftDestroy ( gradperp_plan_dyC2Ry  );
-
 }
 
 // Out-of-place 2D transforms in cufft now overwrite the input data. 
@@ -120,10 +138,15 @@ GradPerp::~GradPerp()
 //  cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG);
 //}
 
-void GradPerp::dxC2R(cuComplex* G, float* dxG)
+void GradPerp::dxC2Rx(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2Rx, tmp, dxG);
+}
+
+void GradPerp::dxC2Ry(cuComplex* G, float* dxG)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2Ry, tmp, dxG);
 }
 
