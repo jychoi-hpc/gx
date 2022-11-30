@@ -33,25 +33,23 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
   int NLPSfftdimx = grids->Nx;
-  int NLPSfftdimy = grids->Ny;
+  int NLPSfftdimy = grids->Nyc; // Nyc or Ny?
  
   // kx FFT
-  int istridex = grids->Ny;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
-                                      // = distance between (ky,kx=1) and (ky,kx=2) = Ny
-  int idistx = 1;             // distance between the first element of two consecutive signals in a batch of the input data
-                                      // = distance between (ky=2,kx=1) and (ky=1,kx=1) = 1
-  int ostridex = grids->Ny;                    // same, for output arrays.
-  int odistx = 1;
-
+  int istridex = grids->Nx;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
+                                      // = distance between (kx=1,ky) and (kx=2,ky) = Nx
+  int idistx = grids->Nx;             // distance between the first element of two consecutive signals in a batch of the input data
+                                      // = distance between (kx=1,ky=1) and (kx=2,ky=1) = Nx
+  int ostridex = grids->Nx;           // same, for output arrays.
+  int odistx = grids->Nx;
 
   // ky FFT
-  int istridey = 1;           // distance between two successive input elements in innermost dimension (the FFT dimension?)
-                                      // = distance between (ky=1,kx) and (ky=2,kx) = 1
-  int idisty = 1;             // distance between the first element of two consecutive signals in a batch of the input data
-                                      // = distance between (ky=2,kx=1) and (ky=1,kx=1) = 1
-  int ostridey = 1;                    // same, for output arrays.
-  int odisty = 1;
-
+  int istridey = 1;                   // distance between two successive input elements in innermost dimension (the FFT dimension?)
+                                      // = distance between (kx,ky=1) and (kx,ky=2) = 1
+  int idisty = grids->Nx;             // distance between the first element of two consecutive signals in a batch of the input data
+                                      // = distance between (kx=1,ky=1) and (kx=2,ky=1) = Nx
+  int ostridey = 1;                   // same, for output arrays.
+  int odisty = grids->Nx;
 
   //cufftMakePlanMany(gradperp_plan_C2R, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
 
@@ -132,25 +130,27 @@ GradPerp::~GradPerp()
 
 // Out-of-place 2D transforms in cufft now overwrite the input data. 
 
-//void GradPerp::dxC2R(cuComplex* G, float* dxG)
-//{
-//  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
-//  cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG);
-//}
+void GradPerp::dxC2R(cuComplex* G, float* dxG)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
+  cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG);
+}
 
+// new
 void GradPerp::dxC2Rx(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2Rx, tmp, dxG);
 }
 
+// new
 void GradPerp::dxC2Ry(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
   cufftExecC2R(gradperp_plan_dxC2Ry, tmp, dxG);
 }
 
-
+// 2D
 void GradPerp::qvar (cuComplex* G, int N)
 {
   cuComplex* G_h;
@@ -166,6 +166,7 @@ void GradPerp::qvar (cuComplex* G, int N)
   free (G_h);
 }
 
+// 2D
 void GradPerp::qvar (float* G, int N)
 {
   float* G_h;
@@ -181,16 +182,24 @@ void GradPerp::qvar (float* G, int N)
   free (G_h);
 }
 
-//void GradPerp::dyC2R(cuComplex* G, float* dyG)
-//{
-//  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
-//  cufftExecC2R(gradperp_plan_dyC2R, tmp, dyG);
-//}
-
+// 2D
 void GradPerp::dyC2R(cuComplex* G, float* dyG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
+  cufftExecC2R(gradperp_plan_dyC2R, tmp, dyG);
+}
+
+// new
+void GradPerp::dyC2Rx(cuComplex* G, float* dyG)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
   cufftExecC2R(gradperp_plan_dyC2Rx, tmp, dyG);
+}
+
+// new
+void GradPerp::dyC2Ry(cuComplex* G, float* dyG)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
   cufftExecC2R(gradperp_plan_dyC2Ry, tmp, dyG);
 }
 
@@ -200,27 +209,51 @@ void GradPerp::C2R(cuComplex* G, float* Gy)
   cufftExecC2R(gradperp_plan_C2R, tmp, Gy);
 }
 
-// An R2C that accumulates -- will be very useful
-//void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
-//{
-//  if (accumulate) {
-//    cufftExecR2C(gradperp_plan_R2C, G, tmp);
-//    add_section <<< dG, dB >>> (res, tmp, mem_size_);
-//  } else {
-//    cufftExecR2C(gradperp_plan_R2C, G, res);
-//  }
-//}
+// new
+void GradPerp::C2Rx(cuComplex* G, float* Gy)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
+  cufftExecC2R(gradperp_plan_C2Rx, tmp, Gy);
+}
 
+// new
+void GradPerp::C2Ry(cuComplex* G, float* Gy)
+{
+  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
+  cufftExecC2R(gradperp_plan_C2Ry, tmp, Gy);
+}
+
+
+// An R2C that accumulates -- will be very useful
 void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
 {
   if (accumulate) {
-    cufftExecR2C(gradperp_plan_R2Cx, G, tmp);
-    cufftExecR2C(gradperp_plan_R2Cy, G, tmp);
+    cufftExecR2C(gradperp_plan_R2C, G, tmp);
     add_section <<< dG, dB >>> (res, tmp, mem_size_);
   } else {
-    cufftExecR2C(gradperp_plan_R2Cx, G, res);
-    cufftExecR2C(gradperp_plan_R2Cy, G, res);
+    cufftExecR2C(gradperp_plan_R2C, G, res);
   }
 }
 
+// new
+void GradPerp::R2Cx(float* G, cuComplex* res, bool accumulate)
+{
+  if (accumulate) {
+    cufftExecR2C(gradperp_plan_R2Cx, G, tmp);
+    add_section <<< dG, dB >>> (res, tmp, mem_size_);
+  } else {
+    cufftExecR2C(gradperp_plan_R2Cx, G, res);
+  }
+}
+
+// new
+void GradPerp::R2Cy(float* G, cuComplex* res, bool accumulate)
+{
+  if (accumulate) {
+    cufftExecR2C(gradperp_plan_R2Cy, G, tmp);
+    add_section <<< dG, dB >>> (res, tmp, mem_size_);
+  } else {
+    cufftExecR2C(gradperp_plan_R2Cy, G, res);
+  }
+}
 
