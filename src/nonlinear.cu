@@ -28,38 +28,14 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
   
-  // 2D 
-  if (pars_->fftperp=="2D"){
-
-    nBatch = grids_->Nz*grids_->Nl; 
-    grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
+  nBatch = grids_->Nz*grids_->Nl; 
+  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
   
-    nBatch = grids_->Nz*grids_->Nj; 
-    grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
+  nBatch = grids_->Nz*grids_->Nj; 
+  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
 
-    nBatch = grids_->Nz;
-    grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
-  }
-
-  // 1D
-  if (pars_->fftperp=="1D"){
-
-    nBatch = grids_->Nz*grids_->Nl;
-    grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
-    //grad_perp_Gx =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
-    //grad_perp_Gy =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl);
-
-    nBatch = grids_->Nz*grids_->Nj;
-    grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
-    //grad_perp_J0fx = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
-    //grad_perp_J0fy = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj);
-
-    nBatch = grids_->Nz;
-    grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
-    //grad_perp_fx =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
-    //grad_perp_fy =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
-  }
-
+  nBatch = grids_->Nz;
+  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
 
   checkCuda(cudaMalloc(&tmp_c,    sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
   checkCuda(cudaMalloc(&dG,    sizeof(float)*grids_->NxNyNz*grids_->Nl));
@@ -337,7 +313,6 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
         laguerre->transformToSpectral(g_res, dG);
         grad_perp_G->R2Cx(dG, tmp_c, false); // this R2C has accumulate=false
         grad_perp_G->R2Cy(dG, tmp_c, false); // this R2C has accumulate=false
-
       }
 
 

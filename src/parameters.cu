@@ -703,6 +703,10 @@ void Parameters::get_nml_vars(char* filename)
   if( boundary == "periodic") { boundary_option_periodic = true;
   } else { boundary_option_periodic = false; }
   
+  // Moose
+  if( fftperp == "1D") { fftperp_dim = 1;
+  } else { fftperp_dim = 2; } 
+
   if     ( init_field == "density") { initf = inits::density; }
   else if( init_field == "upar"   ) { initf = inits::upar   ; }
   else if( init_field == "tpar"   ) { initf = inits::tpar   ; }
