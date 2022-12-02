@@ -181,13 +181,6 @@ void GradPerp::C2R(cuComplex* G, float* Gy)
   cufftExecC2R(gradperp_plan_C2R, tmp, Gy);
 }
 
-// 1D
-void GradPerp::C2Ry(cuComplex* G, float* Gy)
-{
-  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
-  cufftExecC2R(gradperp_plan_C2Ry, tmp, Gy);
-}
-
 // An R2C that accumulates -- will be very useful
 // 2D
 void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
@@ -199,15 +192,3 @@ void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
     cufftExecR2C(gradperp_plan_R2C, G, res);
   }
 }
-
-// 1D
-void GradPerp::R2Cy(float* G, cuComplex* res, bool accumulate)
-{
-  if (accumulate) {
-    cufftExecR2C(gradperp_plan_R2Cy, G, tmp);
-    add_section <<< dG, dB >>> (res, tmp, mem_size_);
-  } else {
-    cufftExecR2C(gradperp_plan_R2Cy, G, res);
-  }
-}
-

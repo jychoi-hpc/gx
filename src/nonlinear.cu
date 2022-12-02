@@ -205,28 +205,13 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   for(int m=grids_->m_lo; m<grids_->m_up; m++) {
     int m_local = m - grids_->m_lo;
     
-    // 1D 
-    if (pars_->fftperp=="2D"){
-
-      grad_perp_G -> dxC2R(G->Gm(m_local), dG);
-      laguerre    -> transformToGrid(dG, dg_dx);
+    grad_perp_G -> dxC2R(G->Gm(m_local), dG);
+    if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+    laguerre    -> transformToGrid(dG, dg_dx);
   
-      grad_perp_G -> dyC2R(G->Gm(m_local), dG);      
-      laguerre    -> transformToGrid(dG, dg_dy);
-    }
-
-    // 1D 
-    if (pars_->fftperp=="1D"){
-
-      grad_perp_G -> dxC2R(G->Gm(m_local), dG);
-      grad_perp_G -> phase_mult(dG);
-      laguerre    -> transformToGrid(dG, dg_dx);
-    
-      grad_perp_G -> dyC2R(G->Gm(m_local), dG); 
-      grad_perp_G -> phase_mult(dG);
-      laguerre    -> transformToGrid(dG, dg_dy);
-    } 
-
+    grad_perp_G -> dyC2R(G->Gm(m_local), dG);      
+    if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+    laguerre    -> transformToGrid(dG, dg_dy);
 
     // compute {G_m, phi}
     bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
@@ -235,33 +220,12 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     // NL_m += {G_m, phi}
     grad_perp_G->R2C(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
 
-
-    // 1D 
-    if (pars_->fftperp=="1D"){
-      
-      // NL_m += {G_m, phi}
-      grad_perp_G->R2Cx(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
-      grad_perp_G->R2Cy(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
-    }
-
-
     if (pars_->fapar > 0.) {
       // compute {G_m, Apar}
       bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
 
-      // 2D 
-      if (pars_->fftperp=="2D"){
-
-        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
-      }
-
-      // 1D 
-      if (pars_->fftperp=="1D"){
-
-        grad_perp_G->R2Cx(dG, tmp_c, false); // this R2C has accumulate=false
-        grad_perp_G->R2Cy(dG, tmp_c, false); // this R2C has accumulate=false
-      }
+      grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
       if(m+1 < pars_->nm_in) add_scaled_singlemom_kernel GBK (G_res->Gm(m_local+1), 1., G_res->Gm(m_local+1), -vts*sqrtf(m+1), tmp_c);
@@ -279,38 +243,17 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     int m_local = m - grids_->m_lo;
     if(m>0) {
 
-      // 2D 
-      if (pars_->fftperp=="2D"){
 
-        grad_perp_G -> dxC2R(G->Gm(m_local-1), dG);
-        laguerre    -> transformToGrid(dG, dg_dx);
+      grad_perp_G -> dxC2R(G->Gm(m_local-1), dG);
+      if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+      laguerre    -> transformToGrid(dG, dg_dx);
   
-        grad_perp_G -> dyC2R(G->Gm(m_local-1), dG);      
-        laguerre    -> transformToGrid(dG, dg_dy);
-        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-        laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
-      }
-
-
-      // 1D 
-      if (pars_->fftperp=="1D"){
-
-        grad_perp_G -> dxC2Rx(G->Gm(m_local-1), dG);
-        grad_perp_G -> dxC2Ry(G->Gm(m_local-1), dG);
-
-        laguerre    -> transformToGrid(dG, dg_dx);
-  
-        grad_perp_G -> dyC2Rx(G->Gm(m_local-1), dG);
-        grad_perp_G -> dyC2Ry(G->Gm(m_local-1), dG);
-
-        laguerre    -> transformToGrid(dG, dg_dy);
-        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-        laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2Cx(dG, tmp_c, false); // this R2C has accumulate=false
-        grad_perp_G->R2Cy(dG, tmp_c, false); // this R2C has accumulate=false
-      }
-
+      grad_perp_G -> dyC2R(G->Gm(m_local-1), dG);      
+      if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+      laguerre    -> transformToGrid(dG, dg_dy);
+      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+      laguerre->transformToSpectral(g_res, dG);
+      grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m} += -vt*sqrt(m)*{G_{m-1}, Apar}
       add_scaled_singlemom_kernel GBK (G_res->Gm(m_local), 1., G_res->Gm(m_local), -vts*sqrtf(m), tmp_c);
@@ -321,38 +264,17 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     m_local = m - grids_->m_lo;
     if(m<pars_->nm_in-1) {
 
-      // 2D 
-      if (pars_->fftperp=="2D"){
 
-        grad_perp_G -> dxC2R(G->Gm(m_local+1), dG);
-        laguerre    -> transformToGrid(dG, dg_dx);
+      grad_perp_G -> dxC2R(G->Gm(m_local+1), dG);
+      if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+      laguerre    -> transformToGrid(dG, dg_dx);
   
-        grad_perp_G -> dyC2R(G->Gm(m_local+1), dG);      
-        laguerre    -> transformToGrid(dG, dg_dy);
-        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-        laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
-      }
-
-
-      // 1D
-      if (pars_->fftperp=="1D"){
-
-        grad_perp_G -> dxC2Rx(G->Gm(m_local+1), dG);
-        grad_perp_G -> dxC2Ry(G->Gm(m_local+1), dG);
-
-        laguerre    -> transformToGrid(dG, dg_dx);
-
-        grad_perp_G -> dyC2Rx(G->Gm(m_local+1), dG);
-        grad_perp_G -> dyC2Ry(G->Gm(m_local+1), dG);
-
-        laguerre    -> transformToGrid(dG, dg_dy);
-        bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
-        laguerre->transformToSpectral(g_res, dG);
-        grad_perp_G->R2Cx(dG, tmp_c, false); // this R2C has accumulate=false
-        grad_perp_G->R2Cy(dG, tmp_c, false); // this R2C has accumulate=false
-      } 
-
+      grad_perp_G -> dyC2R(G->Gm(m_local+1), dG);      
+      if (pars_->fftperp=="1D") grad_perp_G -> phase_mult(dG); // 1D
+      laguerre    -> transformToGrid(dG, dg_dy);
+      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+      laguerre->transformToSpectral(g_res, dG);
+      grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m} += -vt*sqrt(m+1)*{G_{m+1}, Apar}
       add_scaled_singlemom_kernel GBK (G_res->Gm(m_local), 1., G_res->Gm(m_local), -vts*sqrtf(m+1), tmp_c);
@@ -367,19 +289,8 @@ double Nonlinear_GK::cfl(Fields *f, double dt_max)
   abs GBX (dphi, grids_->NxNyNz);
   if(pars_->fapar > 0.0) {
 
-    // 2D
-    if (pars_->fftperp=="2D"){
-
-      grad_perp_f -> dxC2R(f->apar, dapar); 
-    }
-
-    // 1D
-    if (pars_->fftperp=="1D"){
-
-      grad_perp_f -> dxC2Rx(f->apar, dapar);
-      grad_perp_f -> dxC2Ry(f->apar, dapar);
-    }
-
+    grad_perp_f -> dxC2R(f->apar, dapar); 
+    if (pars_->fftperp=="1D") grad_perp_f -> phase_mult(dapar); // 1D
 
     abs GBX (dapar, grids_->NxNyNz);
     add_scaled_singlemom_kernel GBX (dphi, 1., dphi, vpmax, dapar);
@@ -387,34 +298,14 @@ double Nonlinear_GK::cfl(Fields *f, double dt_max)
   red->Max(dphi, val1); 
   CP_TO_CPU(vmax_y, val1, sizeof(float));
 
-  // 2D
-  if (pars_->fftperp=="2D"){
-
-    grad_perp_f -> dyC2R(f->phi, dphi);  
-  }
-
-  // 1D
-  if (pars_->fftperp=="1D"){
-
-    grad_perp_f -> dyC2Rx(f->phi, dphi);
-    grad_perp_f -> dyC2Ry(f->phi, dphi);
-  }
+  grad_perp_f -> dyC2R(f->phi, dphi);  
+  if (pars_->fftperp=="1D") grad_perp_f -> phase_mult(dphi); // 1D
 
   abs GBX (dphi, grids_->NxNyNz);
   if(pars_->fapar > 0.0) {
 
-    // 2D
-    if (pars_->fftperp=="2D"){
-
-      grad_perp_f -> dyC2R(f->apar, dapar); 
-    }
-
-    // 1D
-    if (pars_->fftperp=="1D"){
-
-      grad_perp_f -> dyC2Rx(f->apar, dapar);
-      grad_perp_f -> dyC2Ry(f->apar, dapar);
-    }
+    grad_perp_f -> dyC2R(f->apar, dapar); 
+    if (pars_->fftperp=="1D") grad_perp_f -> phase_mult(dapar); // 1D
 
     abs GBX (dapar, grids_->NxNyNz);
     add_scaled_singlemom_kernel GBX (dphi, 1., dphi, vpmax, dapar);
