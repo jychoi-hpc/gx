@@ -11,8 +11,8 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   cufftCreate(&gradperp_plan_dyC2R);
 
   // 1D y+ky transforms
-  cufftCreate(&gradperp_plan_R2Cy); // used for phi(x,y) ---> phi(x,ky).
-  cufftCreate(&gradperp_plan_C2Ry); // used for phi(x,ky) ---> phi(x,y) with phase factor. 
+  cufftCreate(&gradperp_plan_R2Cy); // used for phi(x,y) ---> phi(x,ky). F_ky.
+  cufftCreate(&gradperp_plan_C2Ry); // used for phi(x,ky) ---> phi(x,y) with phase factor in callback. F_ky^-1.
 
   // Use MakePlanMany to enable callbacks
   // Order of Nx, Ny is correct here
@@ -27,8 +27,8 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   dB = dim3(nthreads, 1, 1);
   dG = dim3(nblocks,  1, 1);
   
+  // 2D
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
-
   // 1D
   int NLPSfftdimy = grids->Nyc; // Nyc or Ny?
   // ky FFT
@@ -40,7 +40,7 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   int odisty = grids->Nyc;
 
   // Arguments for cufftMakePlanMany
-  //cufftMakePlanMany(gradperp_plan_C2R, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
+  //cufftMakePlanMany(plan_name, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
 
   size_t workSize;
   
@@ -54,7 +54,7 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   cufftMakePlanMany(gradperp_plan_C2Ry,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_R2Cy,    1, NLPSfftdimy, NULL, istridey, idisty, NULL, ostridey, odisty, CUFFT_R2C, batch_size_, &workSize);
 
-  // Marker for adding cufftXtMakePlanMany in future for bp16.
+  // Marker for adding cufftXtMakePlanMany in future when BF16 is supported.
 
   cudaDeviceSynchronize();
 
@@ -72,16 +72,15 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
                      NULL);
 
   // 1D
-  // Use for a(x,ky) --> a(x,y)
-  cufftXtSetCallback(gradperp_plan_C2Ry, (void**) &mask_and_scale_callbackPtr,
-                     CUFFT_CB_ST_COMPLEX,
-                     NULL);
-
-  // Use for a(x,y) --> a(x,ky), then multiply to give phasefac*a(x,ky)
-  // Our callback that multiplies by the phase factor.
-  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &phasefac_callbackPtr,
+  // Use for a(x,ky) --> a(x,y), where multiplication by phasefac*a(x,ky) in callback.
+  cufftXtSetCallback(gradperp_plan_C2Ry, (void**) &phasefac_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
-                     (void**)&phasefac); // how to set up this phase factor?
+                     NULL); // how to set up this phase factor?
+
+  // Use for a(x,y) --> a(x,ky).
+  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &mask_and_scale_callbackPtr,
+                     CUFFT_CB_ST_COMPLEX,
+                     (void**)&phasefac);
 
   // We don't need d/dy for the ky, since ky multiplication still only occurs with the 2D transforms.
 
@@ -102,13 +101,15 @@ GradPerp::~GradPerp()
 }
 
 // phase_mult allows for multiplying by phase factor.
-// a(x,y) [ky FFT] ---> a(x,ky) [MULTIPLY] ---> b(x,ky) = a(x,ky)*phase_factor(ky) [y FFT] ---> b(x,y)
-// This is useful because it avoids FFTs in x, which are unfavorable b/c bf16 not supported with striding arrays. We want bf16!
+// Steps:
+// 1) gradperp_plan_R2Cy: a(x,y) [ky FFT] ---> a(x,ky) 
+// 2) gradperp_plan_C2Ry: [CALLBACK MULTIPLY] ---> b(x,ky) = a(x,ky)*phase_factor(ky) [y FFT] ---> b(x,y)
+// This is useful because it avoids FFTs in x, which are unfavorable b/c bf16 not supported with striding arrays. We want bf16 once implemented.
 // 1D
 void GradPerp::phase_mult(cuComplex* G, float* dxG, cuComplex* phase)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
-  cufftExecR2C(gradperp_plan_R2Cy, tmp2, dxG); // Step 1:  a(x,y) [ky FFT] ---> a(x,ky) [MULTIPLY] ---> b(x,ky). This has a callback to multiply by the phase factor.
+  cufftExecR2C(gradperp_plan_R2Cy, tmp2, dxG); // Step 1:  a(x,y) [ky FFT] ---> a(x,ky)
   cufftExecR2C(gradperp_plan_C2Ry, tmp2, dxG); // Step 2:  b(x,ky) = a(x,ky)*phase_factor(ky) [y FFT] ---> b(x,y)
 }
 

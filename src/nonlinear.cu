@@ -158,41 +158,34 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
   }
 
-  // 2D
-  if (pars_->fftperp=="2D"){
+  // k --> real space.
+  grad_perp_J0f -> dxC2R(J0phi, dJ0phi_dx); // with kx callback.
+  grad_perp_J0f -> dyC2R(J0phi, dJ0phi_dy); // with ky callback.
 
-    grad_perp_J0f -> dxC2R(J0phi, dJ0phi_dx);
-    grad_perp_J0f -> dyC2R(J0phi, dJ0phi_dy);
-  }
-
+  // Phase factor.
   // 1D
   if (pars_->fftperp=="1D"){
-
-    grad_perp_J0f -> dxC2Rx(J0phi, dJ0phi_dx);
-    grad_perp_J0f -> dxC2Ry(J0phi, dJ0phi_dx);
-    grad_perp_J0f -> dyC2Rx(J0phi, dJ0phi_dy);
-    grad_perp_J0f -> dyC2Ry(J0phi, dJ0phi_dy);
+  
+    // y --> ky, then phase_fac ky --> y.
+    grad_perp_J0f -> phase_mult(J0phi, dJ0phi_dy);
   }
-
 
   if (pars_->fapar > 0.) {
 
     J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
     
-    // 2D
-    if (pars_->fftperp=="2D"){
+    // k --> real space.
+    grad_perp_J0f -> dxC2R(J0apar, dJ0apar_dx);
+    grad_perp_J0f -> dyC2R(J0apar, dJ0apar_dy);
 
-      grad_perp_J0f -> dxC2R(J0apar, dJ0apar_dx);
-      grad_perp_J0f -> dyC2R(J0apar, dJ0apar_dy);
-    }
-
+    // Phase factor.
     // 1D
     if (pars_->fftperp=="1D"){
+  
+      // y --> ky, then phase_fac ky --> y.
+      grad_perp_J0f -> phase_mult(J0apar, dJ0apar_dy);
+    } 
 
-      grad_perp_J0f -> dxC2Rx(J0apar, dJ0apar_dx);
-      grad_perp_J0f -> dxC2Ry(J0apar, dJ0apar_dx);
-      grad_perp_J0f -> dyC2Rx(J0apar, dJ0apar_dy);
-      grad_perp_J0f -> dyC2Ry(J0apar, dJ0apar_dy);
     }
 
   }
