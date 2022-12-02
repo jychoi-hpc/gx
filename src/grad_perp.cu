@@ -30,14 +30,19 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   // 2D
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
   // 1D
-  int NLPSfftdimy = grids->Nyc; // Nyc or Ny?
+  int NLPSfftdimy = grids->Nyc; // size of y
+  int NLPSfftdimky = grids->Ny; // size of ky
   // ky FFT
   int istridey = 1;                   // distance between two successive input elements in innermost dimension (the FFT dimension?)
                                       // = distance between (kx,ky=1) and (kx,ky=2) = 1
-  int idisty = grids->Nyc;             // distance between the first element of two consecutive signals in a batch of the input data
+  int idistky = grids->Nyc;             // distance between the first element of two consecutive signals in a batch of the input data
                                       // = distance between (kx=1,ky=1) and (kx=2,ky=1) = Nyc
+
+  int idisty = grids->Ny;             // distance between the first element of two consecutive signals in a batch of the input data
+                                      // = distance between (kx=1,y=1) and (kx=2,y=1) = Ny
   int ostridey = 1;                   // same, for output arrays.
-  int odisty = grids->Nyc;
+  int odistky = grids->Nyc;
+  int odisty = grids->Ny;
 
   // Arguments for cufftMakePlanMany
   //cufftMakePlanMany(plan_name, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
@@ -73,14 +78,14 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
 
   // 1D
   // Use for a(x,ky) --> a(x,y), where multiplication by phasefac*a(x,ky) in callback.
-  cufftXtSetCallback(gradperp_plan_C2Ry, (void**) &phasefac_callbackPtr,
+  cufftXtSetCallback(gradperp_plan_C2Ry, (void**) &phasefac_callbackPtr, // to set up phasefac_callbackPtr
                      CUFFT_CB_LD_COMPLEX,
-                     NULL); // how to set up this phase factor?
+                     (void**)&phasefac); // how to set up this phase factor?
 
   // Use for a(x,y) --> a(x,ky).
   cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &mask_and_scale_callbackPtr,
                      CUFFT_CB_ST_COMPLEX,
-                     (void**)&phasefac);
+                     NULL);
 
   // We don't need d/dy for the ky, since ky multiplication still only occurs with the 2D transforms.
 
@@ -102,15 +107,23 @@ GradPerp::~GradPerp()
 
 // phase_mult allows for multiplying by phase factor.
 // Steps:
-// 1) gradperp_plan_R2Cy: a(x,y) [ky FFT] ---> a(x,ky) 
-// 2) gradperp_plan_C2Ry: [CALLBACK MULTIPLY] ---> b(x,ky) = a(x,ky)*phase_factor(ky) [y FFT] ---> b(x,y)
+// 1) gradperp_plan_R2Cy: G(x,y) [ky FFT] ---> G(x,ky) 
+// 2) gradperp_plan_C2Ry: [CALLBACK MULTIPLY] ---> G_phase(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G_phase(x,y)
 // This is useful because it avoids FFTs in x, which are unfavorable b/c bf16 not supported with striding arrays. We want bf16 once implemented.
 // 1D
-void GradPerp::phase_mult(cuComplex* G, float* dxG, cuComplex* phase)
+void GradPerp::phase_mult(float* G)
 {
-  CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
-  cufftExecR2C(gradperp_plan_R2Cy, tmp2, dxG); // Step 1:  a(x,y) [ky FFT] ---> a(x,ky)
-  cufftExecR2C(gradperp_plan_C2Ry, tmp2, dxG); // Step 2:  b(x,ky) = a(x,ky)*phase_factor(ky) [y FFT] ---> b(x,y)
+  cuComplex G_ky; // intermediate quantity G(x,ky)
+
+  // Step 1:  G(x,y) [ky FFT] ---> G(x,ky)
+  CP_ON_GPU (tmp2, G, sizeof(cuComplex)*mem_size_);;
+  // G is input data, G_ky is output.
+  cufftExecR2C(gradperp_plan_R2Cy, tmp2, G_ky);
+
+  // Step 2:  G(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G(x,y), now with phase.
+  CP_ON_GPU (tmp2, G_ky, sizeof(cuComplex)*mem_size_);;
+  // G_ky is input data, G is output.
+  cufftExecC2R(gradperp_plan_C2Ry, tmp2, G);
 }
 
 // Out-of-place 2D transforms in cufft now overwrite the input data. 

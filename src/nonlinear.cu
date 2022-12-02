@@ -17,6 +17,9 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dJ0apar_dy = nullptr;  dphi       = nullptr;  g_res       = nullptr;  
   J0phi      = nullptr;  J0apar     = nullptr;  dphi_dy     = nullptr;
 
+  // JFP: to keep these or not?
+  dJ0phi_dx_phase = nullptr;  dJ0phi_dy_phase = nullptr; dJ0apar_dx_phase = nullptr;  dJ0apar_dy_phase = nullptr;
+
   if (grids_ -> Nl < 2) {
     printf("\n");
     printf("Cannot do a nonlinear run with nlaguerre < 2\n");
@@ -159,15 +162,18 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   }
 
   // k --> real space.
-  grad_perp_J0f -> dxC2R(J0phi, dJ0phi_dx); // with kx callback.
-  grad_perp_J0f -> dyC2R(J0phi, dJ0phi_dy); // with ky callback.
+  grad_perp_J0f -> dxC2R(J0phi, dJ0phi_dx); // F-1 [iky J0 phi] with kx callback. J0phi is input data, dJ0phi_dx is output.
+  grad_perp_J0f -> dyC2R(J0phi, dJ0phi_dy); // F-1 [ikx J0 phi] with ky callback.
 
   // Phase factor.
   // 1D
   if (pars_->fftperp=="1D"){
   
     // y --> ky, then phase_fac ky --> y.
-    grad_perp_J0f -> phase_mult(J0phi, dJ0phi_dy);
+    //grad_perp_J0f -> phase_mult(dJ0phi_dx, dJ0phi_dx_phase); // dJ0phi_dx_phase new quantity with phase multiplication.
+    //grad_perp_J0f -> phase_mult(dJ0phi_dy, dJ0phi_dy_phase);
+    grad_perp_J0f -> phase_mult(dJ0phi_dx); // JFP: keep dJ0phi_dx variable same name.
+    grad_perp_J0f -> phase_mult(dJ0phi_dy);
   }
 
   if (pars_->fapar > 0.) {
@@ -183,7 +189,10 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     if (pars_->fftperp=="1D"){
   
       // y --> ky, then phase_fac ky --> y.
-      grad_perp_J0f -> phase_mult(J0apar, dJ0apar_dy);
+      //grad_perp_J0f -> phase_mult(dJ0apar_dx, dJ0apar_dx_phase);
+      //grad_perp_J0f -> phase_mult(dJ0apar_dy, dJ0apar_dy_phase);
+      grad_perp_J0f -> phase_mult(dJ0apar_dx);
+      grad_perp_J0f -> phase_mult(dJ0apar_dy);
     } 
 
     }
@@ -196,7 +205,7 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   for(int m=grids_->m_lo; m<grids_->m_up; m++) {
     int m_local = m - grids_->m_lo;
     
-    // 2D 
+    // 1D 
     if (pars_->fftperp=="2D"){
 
       grad_perp_G -> dxC2R(G->Gm(m_local), dG);
@@ -205,18 +214,16 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       grad_perp_G -> dyC2R(G->Gm(m_local), dG);      
       laguerre    -> transformToGrid(dG, dg_dy);
     }
-       
+
     // 1D 
     if (pars_->fftperp=="1D"){
 
-      grad_perp_G -> dxC2Rx(G->Gm(m_local), dG); // Doing kx FFT first?
-      grad_perp_G -> dxC2Ry(G->Gm(m_local), dG);
-
+      grad_perp_G -> dxC2R(G->Gm(m_local), dG);
+      grad_perp_G -> phase_mult(dG);
       laguerre    -> transformToGrid(dG, dg_dx);
-
-      grad_perp_G -> dyC2Rx(G->Gm(m_local), dG);
-      grad_perp_G -> dyC2Ry(G->Gm(m_local), dG);
-
+    
+      grad_perp_G -> dyC2R(G->Gm(m_local), dG); 
+      grad_perp_G -> phase_mult(dG);
       laguerre    -> transformToGrid(dG, dg_dy);
     } 
 
@@ -225,12 +232,8 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
     laguerre->transformToSpectral(g_res, dG);
 
-    // 2D 
-    if (pars_->fftperp=="2D"){
-
-      // NL_m += {G_m, phi}
-      grad_perp_G->R2C(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
-    }
+    // NL_m += {G_m, phi}
+    grad_perp_G->R2C(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
 
 
     // 1D 
