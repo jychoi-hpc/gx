@@ -16,9 +16,10 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   Gy         = nullptr;  dJ0phi_dx  = nullptr;  dJ0phi_dy   = nullptr;  dJ0apar_dx = nullptr;
   dJ0apar_dy = nullptr;  dphi       = nullptr;  g_res       = nullptr;  
   J0phi      = nullptr;  J0apar     = nullptr;  dphi_dy     = nullptr;
+  phasefac   = nullptr;
 
   // JFP: to keep these or not?
-  dJ0phi_dx_phase = nullptr;  dJ0phi_dy_phase = nullptr; dJ0apar_dx_phase = nullptr;  dJ0apar_dy_phase = nullptr;
+  //dJ0phi_dx_phase = nullptr;  dJ0phi_dy_phase = nullptr; dJ0apar_dx_phase = nullptr;  dJ0apar_dy_phase = nullptr;
 
   if (grids_ -> Nl < 2) {
     printf("\n");
@@ -31,14 +32,19 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
   
+  // JFP: for now, initialize phase factor with zeros. Calculate it later.
+  // phasefac = (kx* - kxbar)*x
+  //checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyNz));
+  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+
   nBatch = grids_->Nz*grids_->Nl; 
-  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
+  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl, phasefac); // Moose
   
   nBatch = grids_->Nz*grids_->Nj; 
-  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
+  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj, phasefac); 
 
   nBatch = grids_->Nz;
-  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
+  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac);
 
   checkCuda(cudaMalloc(&tmp_c,    sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
   checkCuda(cudaMalloc(&dG,    sizeof(float)*grids_->NxNyNz*grids_->Nl));
@@ -189,8 +195,6 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     if (pars_->fftperp=="1D"){
   
       // y --> ky, then phase_fac ky --> y.
-      //grad_perp_J0f -> phase_mult(dJ0apar_dx, dJ0apar_dx_phase);
-      //grad_perp_J0f -> phase_mult(dJ0apar_dy, dJ0apar_dy_phase);
       grad_perp_J0f -> phase_mult(dJ0apar_dx);
       grad_perp_J0f -> phase_mult(dJ0apar_dy);
     } 

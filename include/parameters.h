@@ -94,6 +94,7 @@ class Parameters {
   int Boltzmann_opt;
   int stages;
   int geoType, iflux, isym;
+  int fftperp_dim;
   //  int lh_ikx, lh_iky;
   int zonal_dens_switch, q0_dens_switch;
   // formerly part of time struct
@@ -194,7 +195,8 @@ class Parameters {
   
   std::string Btype;
   std::string code_info;
-  
+  std::string fftperp;
+
   std::string restart_from_file, restart_to_file;
   //  char restart_from_file[512];
   //  char restart_to_file[512];

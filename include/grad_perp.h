@@ -6,9 +6,10 @@
 
 class GradPerp {
  public:
-  GradPerp(Grids* grids, int batch, int mem);
+  GradPerp(Grids* grids, int batch, int mem, float phasefac);
   ~GradPerp();
 
+  void phase_mult (float* G);
   void dxC2R (cuComplex* G, float* dxG);
   void dyC2R (cuComplex* G, float* g);
   void C2R   (cuComplex* G, float* Gy);
@@ -22,8 +23,11 @@ class GradPerp {
   dim3 dG, dB;
   Grids     * grids_ ;
   cuComplex * tmp    ;
+  float * tmp1Dreal  ;
   cufftHandle gradperp_plan_R2C;
   cufftHandle gradperp_plan_C2R;
   cufftHandle gradperp_plan_dxC2R;
   cufftHandle gradperp_plan_dyC2R;
+  cufftHandle gradperp_plan_R2Cy;
+  cufftHandle gradperp_plan_C2Ry;
 };

@@ -225,7 +225,8 @@ extern __managed__ cufftCallbackLoadC i_kxs_callbackPtr;
 extern __managed__ cufftCallbackLoadC i_kx_callbackPtr;
 extern __managed__ cufftCallbackLoadC i_ky_callbackPtr;
 extern __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr;
-  
+extern __managed__ cufftCallbackLoadC phasefac_callbackPtr;
+
 __device__ void zfts(void *dataOut, size_t offset, cufftComplex element, void *data, void *sharedPtr);
 __device__ void i_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void abs_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
