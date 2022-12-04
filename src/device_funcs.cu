@@ -1002,6 +1002,8 @@ __device__ cuComplex i_kxs(void *dataIn, size_t offset, void *kxsData, void *sha
   return Ikxs*((cuComplex*)dataIn)[offset];
 }
 
+// JFP 1D adding the phase factor here.
+
 __device__ cuComplex i_ky(void *dataIn, size_t offset, void *kyData, void *sharedPtr)
 {
   float *ky = (float*) kyData;

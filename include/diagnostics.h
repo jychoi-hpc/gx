@@ -40,7 +40,8 @@ private:
   float fluxDenom; float * flux_fac; 
   float  volDenom; float * vol_fac ;
   float * kvol_fac;
-  
+  float * phasefac;
+
   cuComplex valphi;
 
   Parameters   * pars_         ;
@@ -103,7 +104,8 @@ private:
   float fluxDenom; float * flux_fac; 
   float  volDenom; float * vol_fac ;
   float * kvol_fac;
-  
+  float * phasefac;
+
   cuComplex valphi;
 
   Parameters   * pars_         ;

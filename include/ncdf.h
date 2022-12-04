@@ -139,6 +139,7 @@ class NetCDF_ids {
   cuComplex * amom      ;
   cuComplex * df        ;
   cuComplex * favg      ; 
+  float * phasefac      ;
   float totW;
 
   dim3 dgx, dbx, dgxy, dbxy, dGr, dBr, dbp, dgp, dbfla, dgfla, dball, dgall; 

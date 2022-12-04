@@ -34,6 +34,9 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   vol_fac = nullptr;
   flux_fac = nullptr;
   kvol_fac = nullptr;
+  phasefac   = nullptr;
+
+  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
 
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
   fields_old = new     Fields(pars_, grids_);       cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
@@ -171,7 +174,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   
   if (pars_->Reservoir) {
     int nbatch = 1;
-    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc);    
+    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc, phasefac);    
   }    
 }
 
@@ -407,13 +410,9 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     nc_sync(id->file);
   }
   if (pars_->Reservoir && counter%pars_->ResTrainingDelta == 0) {
-    if (pars_->fftperp=="2D"){
-      grad_perp->C2R(G[0]->G(), gy_d);
-    }
-    if (pars_->fftperp=="1D"){
-      grad_perp->C2Rx(G[0]->G(), gy_d);
-      grad_perp->C2Ry(G[0]->G(), gy_d);
-    }
+
+    grad_perp->C2R(G[0]->G(), gy_d);
+    if (pars_->fftperp=="1D") grad_perp->phase_mult(gy_d);
 
     if (pars_->ResFakeData) {
       rc->fake_data(gy_d);
@@ -443,14 +442,8 @@ void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time)
     } else {
       for(int is=0; is<grids_->Nspecies; is++) {
 
-        if (pars_->fftperp=="2D"){
-          grad_perp -> C2R (G[is]->G(), gy_d);
-        }
-
-        if (pars_->fftperp=="1D"){
-          grad_perp -> C2Rx (G[is]->G(), gy_d);
-          grad_perp -> C2Ry (G[is]->G(), gy_d);
-        }
+        grad_perp -> C2R (G[is]->G(), gy_d);
+        if (pars_->fftperp=="1D") grad_perp->phase_mult(gy_d);
       }
     }
     double *gy_double;

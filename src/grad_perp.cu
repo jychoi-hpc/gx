@@ -1,7 +1,7 @@
 #include "grad_perp.h"
 #include "get_error.h"
 
-GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float phasefac) // phasefac is a function of ky and time.
+GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) // phasefac is a function of ky and time.
   : grids_(grids), batch_size_(batch_size), mem_size_(mem_size), tmp(nullptr), tmp1Dreal(nullptr)
 {
   // 2D

@@ -117,6 +117,7 @@ Nonlinear_GK::~Nonlinear_GK()
   if ( g_res       ) cudaFree ( g_res       );
   if ( J0phi       ) cudaFree ( J0phi       );
   if ( J0apar      ) cudaFree ( J0apar      );
+  if ( phasefac    ) cudaFree ( phasefac    );
 }
 
 void Nonlinear_GK::qvar (cuComplex* G, int N)
@@ -176,8 +177,6 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   if (pars_->fftperp=="1D"){
   
     // y --> ky, then phase_fac ky --> y.
-    //grad_perp_J0f -> phase_mult(dJ0phi_dx, dJ0phi_dx_phase); // dJ0phi_dx_phase new quantity with phase multiplication.
-    //grad_perp_J0f -> phase_mult(dJ0phi_dy, dJ0phi_dy_phase);
     grad_perp_J0f -> phase_mult(dJ0phi_dx); // JFP: keep dJ0phi_dx variable same name.
     grad_perp_J0f -> phase_mult(dJ0phi_dy);
   }
@@ -193,14 +192,10 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     // Phase factor.
     // 1D
     if (pars_->fftperp=="1D"){
-  
       // y --> ky, then phase_fac ky --> y.
       grad_perp_J0f -> phase_mult(dJ0apar_dx);
       grad_perp_J0f -> phase_mult(dJ0apar_dy);
     } 
-
-    }
-
   }
   
   // loop over m to save memory. also makes it easier to parallelize.
@@ -228,7 +223,6 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       // compute {G_m, Apar}
       bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
-
       grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
@@ -339,9 +333,12 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   dphi_dy = nullptr;
   dapar_dx = nullptr;
   dapar_dy = nullptr;
-  
+  phasefac   = nullptr;
+
+  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+
   nBatch = grids_->Nz; 
-  grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz); 
+  grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac); 
 
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
@@ -394,6 +391,7 @@ Nonlinear_KREHM::~Nonlinear_KREHM()
   if ( dapar_dx ) cudaFree ( dapar_dx );
   if ( dapar_dy ) cudaFree ( dapar_dy );
   if ( val1 ) cudaFree ( val1 ); 
+  if ( phasefac    ) cudaFree ( phasefac    );
   if ( red ) delete red;
 }
 
@@ -452,9 +450,12 @@ Nonlinear_KS::Nonlinear_KS(Parameters* pars, Grids* grids) :
   Gy          = nullptr;
   dg_dy       = nullptr;
   g_res       = nullptr;  
+  phasefac   = nullptr;
   
+  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+
   nBatch = 1;
-  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->Nyc);
+  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->Nyc, phasefac);
   
   checkCuda(cudaMalloc(&Gy,    sizeof(float)*grids_->Ny));
   checkCuda(cudaMalloc(&dg_dy, sizeof(float)*grids_->Ny));  
@@ -474,6 +475,7 @@ Nonlinear_KS::~Nonlinear_KS()
   if ( Gy          ) cudaFree ( Gy          );  
   if ( dg_dy       ) cudaFree ( dg_dy       );
   if ( g_res       ) cudaFree ( g_res       );
+  if ( phasefac    ) cudaFree ( phasefac    );
 }
 
 void Nonlinear_KS::qvar (cuComplex* G, int N)
@@ -529,12 +531,15 @@ Nonlinear_VP::Nonlinear_VP(Parameters* pars, Grids* grids) :
 {
 
   Gy          = nullptr;  dphi_dy     = nullptr;  g_res       = nullptr;  
-  
+  phasefac   = nullptr;
+
+  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+
   nBatch = grids_->Nm;
-  grad_perp_G =    new GradPerp(grids_, nBatch, grids_->Nyc*grids_->Nm);
+  grad_perp_G =    new GradPerp(grids_, nBatch, grids_->Nyc*grids_->Nm, phasefac);
   
   nBatch = 1;
-  grad_perp_f =  new GradPerp(grids_, nBatch, grids_->Nyc);
+  grad_perp_f =  new GradPerp(grids_, nBatch, grids_->Nyc, phasefac);
   
   checkCuda(cudaMalloc(&Gy,      sizeof(float)*grids_->Ny*grids_->Nm)); 
   checkCuda(cudaMalloc(&dphi_dy, sizeof(float)*grids_->Ny));              
@@ -556,6 +561,7 @@ Nonlinear_VP::~Nonlinear_VP()
   if ( Gy          ) cudaFree ( Gy          );
   if ( dphi_dy     ) cudaFree ( dphi_dy     );
   if ( g_res       ) cudaFree ( g_res       );
+  if ( phasefac    ) cudaFree ( phasefac    );
 }
 
 void Nonlinear_VP::qvar (cuComplex* G, int N)
