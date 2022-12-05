@@ -1002,8 +1002,6 @@ __device__ cuComplex i_kxs(void *dataIn, size_t offset, void *kxsData, void *sha
   return Ikxs*((cuComplex*)dataIn)[offset];
 }
 
-// JFP 1D adding the phase factor here.
-
 __device__ cuComplex i_ky(void *dataIn, size_t offset, void *kyData, void *sharedPtr)
 {
   float *ky = (float*) kyData;
@@ -1011,6 +1009,20 @@ __device__ cuComplex i_ky(void *dataIn, size_t offset, void *kyData, void *share
   cuComplex Iky = make_cuComplex(0., ky[idy]);
   return Iky*((cuComplex*)dataIn)[offset];
 }
+
+// JFP 1D phase factor callback for ky FFT.
+__device__ cuComplex phase_fac(void *dataIn, size_t offset, void *phaseData, void *sharedPtr)
+{
+  float *phase = (float*) phaseData;
+  unsigned int idy = offset % nyc;
+  cuComplex Iphase = make_cuComplex(0., phase[idy]); // 1i*phase, where phase is real.
+  // Complex expoential calculation.
+  // exp(Iphase) = exp(Iphase.x)*(cos(Iphase.y) + 1i*sin(Iphase.y))) = cos(Iphase.y) + 1i*sin(Iphase.y), since Iphase.x = 0.
+  cuComplex compexp;
+  sincosf(Iphase.y, &compexp.y, &compexp.x); // Read sin(Iphase.y) and cos(Iphase.y) into real and imaginary parts of complex exponential.
+  return compexp*((cuComplex*)dataIn)[offset];
+}
+
 
 // for ExB shear, still need to take care of the phase factors associated with kx grid misses
 __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
@@ -1031,6 +1043,9 @@ __managed__ cufftCallbackLoadC i_kxs_callbackPtr = i_kxs;
 __managed__ cufftCallbackLoadC i_kx_callbackPtr = i_kx;
 __managed__ cufftCallbackLoadC i_ky_callbackPtr = i_ky;
 __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr = mask_and_scale;
+__managed__ cufftCallbackLoadC phasefac_callbackPtr = phase_fac;
+
+
 
 // Multiplies by i kz / Nz 
 __device__ void i_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
