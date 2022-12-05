@@ -16,6 +16,7 @@
 [Domain]
  y0 = 30.0              # controls box length in y (in units of rho_ref) and minimum ky, so that ky_min*rho_ref = 1/y0 
  boundary = "linked"    # use twist-shift boundary conditions along field line
+ fftphase = true        # true for including phase shift in flow shear, non-twisting flux tube, etc.
 
 [Physics]
  beta = 1e-3                     # reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))

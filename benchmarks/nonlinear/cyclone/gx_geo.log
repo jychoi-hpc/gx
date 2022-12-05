@@ -1,0 +1,13 @@
+For a valid calculation all the errors you see < 1E-2
+
+curve intersection check passed... surfaces do not intersect
+
+grad theta_geo along l don't match...error = 1.7307E-02 
+
+grad theta_st along l doesn't match...error = 2.0685E-02
+
+theta hat dot grad theta = 1 test passed...
+
+Writing eikfile eik.out
+Writing eikfile in netCDF format
+

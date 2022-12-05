@@ -412,7 +412,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   if (pars_->Reservoir && counter%pars_->ResTrainingDelta == 0) {
 
     grad_perp->C2R(G[0]->G(), gy_d);
-    if (pars_->fftperp=="1D") grad_perp->phase_mult(gy_d);
+    if (pars_->fftphase==true) grad_perp->phase_mult(gy_d);
 
     if (pars_->ResFakeData) {
       rc->fake_data(gy_d);
@@ -443,7 +443,7 @@ void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time)
       for(int is=0; is<grids_->Nspecies; is++) {
 
         grad_perp -> C2R (G[is]->G(), gy_d);
-        if (pars_->fftperp=="1D") grad_perp->phase_mult(gy_d);
+        if (pars_->fftphase==true) grad_perp->phase_mult(gy_d);
       }
     }
     double *gy_double;

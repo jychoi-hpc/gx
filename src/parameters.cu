@@ -79,7 +79,7 @@ void Parameters::get_nml_vars(char* filename)
   jtwist   = toml::find_or <int>         (tnml, "jtwist",      -1    );
   Zp       = toml::find_or <int>         (tnml, "zp",           2*nperiod-1    );
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
-  fftperp = toml::find_or <std::string> (tnml, "fftperp", "2D" );
+  fftphase     = toml::find_or <bool> (tnml, "fftphase",     true);
   bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
   float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
   
@@ -703,10 +703,6 @@ void Parameters::get_nml_vars(char* filename)
   if( boundary == "periodic") { boundary_option_periodic = true;
   } else { boundary_option_periodic = false; }
   
-  // Moose
-  if( fftperp == "1D") { fftperp_dim = 1;
-  } else { fftperp_dim = 2; } 
-
   if     ( init_field == "density") { initf = inits::density; }
   else if( init_field == "upar"   ) { initf = inits::upar   ; }
   else if( init_field == "tpar"   ) { initf = inits::tpar   ; }

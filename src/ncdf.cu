@@ -2512,7 +2512,7 @@ void NetCDF_ids::write_ks_data(nca *D, cuComplex *G) {
   if (!D->write_v_time) return;
 
   grad_perp->C2R(G, D->data);
-  if (pars_->fftperp=="1D") grad_perp -> phase_mult(D->data); // 1D
+  if (pars_->fftphase==true) grad_perp -> phase_mult(D->data); // 1D
 
   CP_TO_CPU (D->cpu, D->data, sizeof(float)*D->N_);
   write_nc(D);
