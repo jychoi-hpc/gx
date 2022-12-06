@@ -32,10 +32,10 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
   
-  // JFP: for now, initialize phase factor with zeros. Calculate it later.
+  // JFP: for now, initialize phase factor with zeros. Calculate it later in grids.cu or in some other timestepper.
   // phasefac = (kx* - kxbar)*x
-  //checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyNz));
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = grids_->Nz*grids_->Nl; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl, phasefac); // Moose
@@ -335,7 +335,8 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   dapar_dy = nullptr;
   phasefac   = nullptr;
 
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = grids_->Nz; 
   grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac); 
@@ -452,7 +453,8 @@ Nonlinear_KS::Nonlinear_KS(Parameters* pars, Grids* grids) :
   g_res       = nullptr;  
   phasefac   = nullptr;
   
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = 1;
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->Nyc, phasefac);
@@ -533,7 +535,8 @@ Nonlinear_VP::Nonlinear_VP(Parameters* pars, Grids* grids) :
   Gy          = nullptr;  dphi_dy     = nullptr;  g_res       = nullptr;  
   phasefac   = nullptr;
 
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = grids_->Nm;
   grad_perp_G =    new GradPerp(grids_, nBatch, grids_->Nyc*grids_->Nm, phasefac);

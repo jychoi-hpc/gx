@@ -94,7 +94,6 @@ class Parameters {
   int Boltzmann_opt;
   int stages;
   int geoType, iflux, isym;
-  int fftperp_dim;
   //  int lh_ikx, lh_iky;
   int zonal_dens_switch, q0_dens_switch;
   // formerly part of time struct
@@ -127,6 +126,7 @@ class Parameters {
   float vtmax;
   float delrho, p_prime_input, invLp_input, alpha_input;
   float B_ref, a_ref, grhoavg, surfarea;
+  bool fftphase;
 
   // parameters for KREHM system
   bool krehm;

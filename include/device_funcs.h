@@ -220,11 +220,13 @@ __device__ cuComplex i_kxs(void *dataIn, size_t offset, void *kxsData, void *sha
 __device__ cuComplex i_kx(void *dataIn, size_t offset, void *kxData, void *sharedPtr);
 __device__ cuComplex i_ky(void *dataIn, size_t offset, void *kyData, void *sharedPtr);
 __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr);
+__device__ void mask_and_scale_ky(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr);
 
 extern __managed__ cufftCallbackLoadC i_kxs_callbackPtr;
 extern __managed__ cufftCallbackLoadC i_kx_callbackPtr;
 extern __managed__ cufftCallbackLoadC i_ky_callbackPtr;
 extern __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr;
+extern __managed__ cufftCallbackStoreC mask_and_scale_ky_callbackPtr;
 extern __managed__ cufftCallbackLoadC phasefac_callbackPtr;
 
 __device__ void zfts(void *dataOut, size_t offset, cufftComplex element, void *data, void *sharedPtr);

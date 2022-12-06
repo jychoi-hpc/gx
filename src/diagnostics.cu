@@ -36,7 +36,8 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   kvol_fac = nullptr;
   phasefac   = nullptr;
 
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
   fields_old = new     Fields(pars_, grids_);       cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");

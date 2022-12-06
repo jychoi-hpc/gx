@@ -18,7 +18,8 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   phasefac   = nullptr;
 
   // JFP allocating phasefac.
-  cudaMemset(phasefac, 0, sizeof(int)*grids_->NxNyNz);
+  checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) {
     float dum = 1.0;

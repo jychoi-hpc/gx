@@ -2,7 +2,8 @@
 #include "get_error.h"
 
 GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) // phasefac is a function of ky and time.
-  : grids_(grids), batch_size_(batch_size), mem_size_(mem_size), tmp(nullptr), tmp1Dreal(nullptr)
+  : grids_(grids), batch_size_(batch_size), mem_size_(mem_size), tmp(nullptr)
+
 {
   // 2D
   cufftCreate(&gradperp_plan_R2C);
@@ -18,8 +19,6 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
   // Order of Nx, Ny is correct here
 
   cudaMalloc (&tmp, sizeof(cuComplex)*mem_size_);
-  // 1D mem allocation
-  cudaMalloc (&tmp1Dreal, sizeof(float)*mem_size_); 
 
   int maxthreads = 1024; 
   int nthreads = min(maxthreads, mem_size_);
@@ -28,47 +27,20 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
   dB = dim3(nthreads, 1, 1);
   dG = dim3(nblocks,  1, 1);
   
-  // 2D
   int NLPSfftdims[2] = {grids->Nx, grids->Ny};
-  // 1D
-  int NLPSfftdimy = grids->Nyc; // size of y
-  int NLPSfftdimky = grids->Ny; // size of ky
-  // y --> ky FFT
-  int istridey = 1;                   // distance between two successive input elements in innermost dimension (the FFT dimension?)
-                                      // = distance between (kx,y=1) and (kx,y=2) = 1
-  int idisty = grids->Ny;             // distance between the first element of two consecutive signals in a batch of the input data
-                                      // = distance between (kx=1,y=1) and (kx=2,y=1) = Ny
-  int ostridey = 1;                   // same, for output arrays.
-  int odisty = grids->Ny;
-  int isizey = grids_->NxNycNz;          // size of input data
-  int osizey = grids_->NxNycNz;          // size of output data
-
-  // ky --> y FFT
-  int istrideky = 1;                  // distance between two successive input elements in innermost dimension (the FFT dimension?)
-  int idistky = grids->Nyc;           // distance between the first element of two consecutive signals in a batch of the input data
-                                      // = distance between (kx=1,ky=1) and (kx=2,ky=1) = Nyc
-  int ostrideky = 1;                  // same, for output arrays.
-  int odistky = grids->Nyc;
-  int isizeky = grids_->NxNycNz;          // size of input data
-  int osizeky = grids_->NxNycNz;          // size of output data
-
-  // Arguments for cufftMakePlanMany
-  //cufftMakePlanMany(plan_name, rank (FFT dimension), *n (size of FFT), #inembed (NULL), istride, idist, *onembed (NULL), ostride, odist, cufftType, batch_size_, size_t *workSize);
+  int NLPSfftdimky = grids->Ny;
 
   size_t workSize;
   
-  // 2D
+  // 2D, unstrided batch.
   cufftMakePlanMany(gradperp_plan_C2R,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_R2C,    2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dxC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
   cufftMakePlanMany(gradperp_plan_dyC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
 
   // 1D
-  cufftMakePlanMany(gradperp_plan_R2Cy,    1, &NLPSfftdimy, &isizey, istridey, idisty, &osizey, ostridey, odisty, CUFFT_R2C, batch_size_, &workSize);
-  cufftMakePlanMany(gradperp_plan_C2Ry,    1, &NLPSfftdimky, &isizeky, istrideky, idistky, &osizeky, ostrideky, odistky, CUFFT_C2R, batch_size_, &workSize);
-
-  // from grad_parallel, delete later.
-  //cufftMakePlanMany(zft_plan_inverse, dim, &n, &isize, istride, idist, &osize, ostride, odist, CUFFT_C2C, batchsize, &workSize);
+  cufftMakePlanMany(gradperp_plan_C2Ry,    1, &NLPSfftdimky, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_*grids->Nx, &workSize);
+  cufftMakePlanMany(gradperp_plan_R2Cy,    1, &NLPSfftdimky, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_*grids->Nx, &workSize);
 
   // Marker for adding cufftXtMakePlanMany for 1D FFT in future when BF16 is supported.
 
@@ -88,8 +60,8 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
                      NULL);
 
   // 1D
-  // Use for a(x,y) --> a(x,ky).
-  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &mask_and_scale_callbackPtr,
+  // Use for a(x,y) --> a(x,ky). // Different masking pointer.
+  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &mask_and_scale_ky_callbackPtr,
                      CUFFT_CB_ST_COMPLEX,
                      NULL);
 
@@ -125,20 +97,9 @@ GradPerp::~GradPerp()
 // 1D
 void GradPerp::phase_mult(float* G)
 {
-  cufftComplex* G_ky; // intermediate quantity G(x,ky)
-  G_ky = (cufftComplex*) malloc (sizeof(cufftComplex)*grids_->NxNycNz);
-
-  //cuComplex* G_h;
-  //G_h = (cuComplex*) malloc (sizeof(cuComplex)*N);
-
   // Step 1:  G(x,y) [ky FFT] ---> G(x,ky)
-  CP_ON_GPU (tmp1Dreal, G, sizeof(float)*mem_size_);;
-  // G is input data, G_ky is output.
-  cufftExecR2C(gradperp_plan_R2Cy, tmp1Dreal, G_ky);
-
+  cufftExecR2C(gradperp_plan_R2Cy, G, tmp);
   // Step 2:  G(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G(x,y), now with phase.
-  CP_ON_GPU (tmp, G_ky, sizeof(cuComplex)*mem_size_);;
-  // G_ky is input data, G is output.
   cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
 }
 
