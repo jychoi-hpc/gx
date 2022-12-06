@@ -14,6 +14,7 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
   // 1D y,ky transforms
   cufftCreate(&gradperp_plan_R2Cy); // phi(x,y) ---> phi(x,ky). F_ky.
   cufftCreate(&gradperp_plan_C2Ry); // phi(x,ky) ---> phi(x,y) with phase factor in callback. F_ky^-1.
+  cufftCreate(&gradperp_plan_C2Ry_minus); // phi(x,ky) ---> phi(x,y) with minus phase factor in callback. F_ky^-1.
 
   // Use MakePlanMany to enable callbacks
   // Order of Nx, Ny is correct here
@@ -40,8 +41,9 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
 
   // 1D
   cufftMakePlanMany(gradperp_plan_C2Ry,    1, &NLPSfftdimky, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_*grids->Nx, &workSize);
+  // this plan is for the minus phase factor.
+  cufftMakePlanMany(gradperp_plan_C2Ry_minus,    1, &NLPSfftdimky, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_*grids->Nx, &workSize);
   cufftMakePlanMany(gradperp_plan_R2Cy,    1, &NLPSfftdimky, NULL, 1, 0, NULL, 1, 0, CUFFT_R2C, batch_size_*grids->Nx, &workSize);
-
   // Marker for adding cufftXtMakePlanMany for 1D FFT in future when BF16 is supported.
 
   cudaDeviceSynchronize();
@@ -61,7 +63,7 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
 
   // 1D
   // Use for a(x,y) --> a(x,ky). // Different masking pointer.
-  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &mask_and_scale_ky_callbackPtr,
+  cufftXtSetCallback(gradperp_plan_R2Cy,   (void**) &scale_ky_callbackPtr,
                      CUFFT_CB_ST_COMPLEX,
                      NULL);
 
@@ -69,6 +71,12 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
   cufftXtSetCallback(gradperp_plan_C2Ry, (void**) &phasefac_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
                      (void**)&phasefac);
+
+  // Use for a(x,ky) --> a(x,y), where multiplication by -phasefac*a(x,ky) in callback.
+  cufftXtSetCallback(gradperp_plan_C2Ry_minus, (void**) &phasefac_minus_callbackPtr,
+                     CUFFT_CB_LD_COMPLEX,
+                     (void**)&phasefac);
+
   // We don't need d/dy for ky FFT, since ky multiplication still only occurs with the 2D transforms.
 
   cudaDeviceSynchronize();
@@ -87,20 +95,23 @@ GradPerp::~GradPerp()
   cufftDestroy ( gradperp_plan_C2Ry    );
 }
 
-// Moose: simpler approach. Create a separate function for when we have 1D transform, and define methods?
-
-// phase_mult allows for multiplying by phase factor.
+// This method multiplies by phase factor in FFT.
 // Steps:
 // 1) gradperp_plan_R2Cy: G(x,y) [ky FFT] ---> G(x,ky) 
 // 2) gradperp_plan_C2Ry: [CALLBACK MULTIPLY] ---> G_phase(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G_phase(x,y)
+// Note that the phase_mult is called with a positive sign for each term in the nonlinearity, then after multiplication is done in real space, we call phase_mult again with a negative sign.
 // This is useful because it avoids FFTs in x, which are unfavorable b/c bf16 not supported with striding arrays. We want bf16 once implemented.
 // 1D
-void GradPerp::phase_mult(float* G)
+void GradPerp::phase_mult(float* G, bool positive_phase)
 {
   // Step 1:  G(x,y) [ky FFT] ---> G(x,ky)
   cufftExecR2C(gradperp_plan_R2Cy, G, tmp);
-  // Step 2:  G(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G(x,y), now with phase.
-  cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
+  // Step 2:  G(x,ky) = G(x,ky)*phase_factor(ky) [y FFT] ---> G(x,y), with positive or negative phase.
+  if (positive_phase) {
+    cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
+  } else { 
+    cufftExecC2R(gradperp_plan_C2Ry_minus, tmp, G);
+  }
 }
 
 // Out-of-place 2D transforms in cufft now overwrite the input data. 

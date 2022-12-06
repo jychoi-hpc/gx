@@ -26,16 +26,26 @@ protected:
     grids = new Grids(pars);
     grids->init_ks_and_coords();
 
+    //float* phasefac, phasefac_minus, phasefac_plus;
     float* phasefac;
     cudaMalloc((void**) &phasefac, sizeof(float)*grids->NxNyc);
+    //cudaMalloc((void**) &phasefac_minus, sizeof(float)*grids->NxNyc);
+    //cudaMalloc((void**) &phasefac_plus, sizeof(float)*grids->NxNyc);
+
     cudaMemset(phasefac, 0, sizeof(float)*grids->NxNyc);
+    //cudaMemset(phasefac_minus, 3.14, sizeof(float)*grids->NxNyc);
+    //cudaMemset(phasefac_plus, -3.14, sizeof(float)*grids->NxNyc);
 
     grad_perp = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac);
+    //grad_perp_minus_phase = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac_minus);
+    //grad_perp_plus_phase = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac_plus);
   }
 
   virtual void TearDown() {
     delete grids;
     delete grad_perp;
+    //delete grad_perp_minus_phase;
+    //delete grad_perp_plus_phase;
     delete pars;
     //cudaFree(phasefac);
   }
@@ -58,8 +68,9 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
   cudaMalloc((void**) &dx, sizeof(float)*grids->NxNyNz*grids->Nl);
   cudaMalloc((void**) &dy, sizeof(float)*grids->NxNyNz*grids->Nl);
   cudaMalloc((void**) &comp, sizeof(cuComplex)*grids->NxNycNz*grids->Nl);
-  //cudaMalloc((void**) &initky, sizeof(float)*grids->NxNycNz*grids->Nl);
   cudaMalloc((void**) &initky, sizeof(float)*grids->NxNyNz*grids->Nl);
+  //cudaMalloc((void**) &initky_plus_phase, sizeof(float)*grids->NxNyNz*grids->Nl);
+  //cudaMalloc((void**) &initky_minus_phase, sizeof(float)*grids->NxNyNz*grids->Nl);
 
   float kx = .2;
   float ky = .1;
@@ -156,6 +167,33 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
            EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 2e-6);
          } else {
            EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 2e-6);
+         }
+      }
+    }
+  }
+
+  printf("Checking phase_mult with positive and negative phase multiply...\n");
+
+  cudaMemcpy(initky, init_h, sizeof(float)*grids->NxNyNz*grids->Nl, cudaMemcpyHostToDevice);
+
+  grad_perp->phase_mult(initky);
+  grad_perp->phase_mult(initky, false);
+  //grad_perp->phase_mult(initky_plus_phase);
+  //grad_perp->phase_mult(initky_minus_phase);
+
+  for(int idz=0; idz<grids->Nz*grids->Nl; idz++) {
+    for(int idx=0; idx<grids->Nx; idx++) {
+      for(int idy=0; idy<grids->Ny; idy++) {
+         int globalIdx = idy + grids->Ny*idx + grids->Nx*grids->Ny*idz;
+         // First check: initky matches init_h after the Fourier Transform.
+         if(idy==1 && idx==2) {
+           EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 4e-6);
+         } else if (idy==2 && idx==2){
+           EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 4e-6);
+         } else if (idy==3 && idx==2){
+           EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 4e-6);
+         } else {
+           EXPECT_FLOAT_EQ_D(&initky[globalIdx], init_h[globalIdx], 4e-6);
          }
       }
     }

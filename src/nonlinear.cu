@@ -35,7 +35,7 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   // JFP: for now, initialize phase factor with zeros. Calculate it later in grids.cu or in some other timestepper.
   // phasefac = (kx* - kxbar)*x
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
-  cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+  cudaMemset(phasefac, 0., sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = grids_->Nz*grids_->Nl; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl, phasefac); // Moose
@@ -215,6 +215,8 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
     // compute {G_m, phi}
     bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
     laguerre->transformToSpectral(g_res, dG);
+    // Now, we do the ky forward and backward 1D transforms again, but with a minus phase factor. We do after the laguerre transformToSpectral to get an nl sized array, not nj.
+    if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D
 
     // NL_m += {G_m, phi}
     grad_perp_G->R2C(dG, G_res->Gm(m_local), true); // this R2C has accumulate=true
@@ -223,6 +225,9 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       // compute {G_m, Apar}
       bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
+
+      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
+
       grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m+1} += -vt*sqrt(m+1)*{G_m, Apar}
@@ -251,6 +256,7 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       laguerre    -> transformToGrid(dG, dg_dy);
       bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
+      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
       grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m} += -vt*sqrt(m)*{G_{m-1}, Apar}
@@ -272,6 +278,8 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       laguerre    -> transformToGrid(dG, dg_dy);
       bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre->transformToSpectral(g_res, dG);
+
+      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
       grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
 
       // NL_{m} += -vt*sqrt(m+1)*{G_{m+1}, Apar}
@@ -282,6 +290,7 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
 double Nonlinear_GK::cfl(Fields *f, double dt_max)
 {
   float vpmax = sqrtf(2.*pars_->nm_in)*pars_->vtmax; // estimate of max vpar on grid
+  // Do we need phase_mult here?
 
   grad_perp_f -> dxC2R(f->phi, dphi); 
   abs GBX (dphi, grids_->NxNyNz);

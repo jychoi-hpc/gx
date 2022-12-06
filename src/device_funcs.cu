@@ -1017,12 +1017,24 @@ __device__ cuComplex phase_fac(void *dataIn, size_t offset, void *phaseData, voi
   unsigned int idx = offset / nyc % nx;
   unsigned int idy = offset % nyc;
   // Complex expoential calculation.
-  // exp(Iphase) = exp(Iphase.x)*(cos(Iphase.y) + 1i*sin(Iphase.y))) = cos(Iphase.y) + 1i*sin(Iphase.y), since Iphase.x = 0.
+  // exp(phase) = exp(phase.x)*(cos(phase.y) + 1i*sin(phase.y))) = cos(phase.y) + 1i*sin(phase.y), since phase.x = 0.
   cuComplex compexp;
   sincosf(phase[idy+nyc*idx], &compexp.y, &compexp.x); // Read sin(phase) and cos(phase) into real and imaginary parts of complex exponential.
   return compexp*((cuComplex*)dataIn)[offset];
 }
 
+// JFP 1D minus phase factor callback for ky FFT.
+__device__ cuComplex phase_fac_minus(void *dataIn, size_t offset, void *phaseData, void *sharedPtr)
+{
+  float *phase = (float*) phaseData;
+  unsigned int idx = offset / nyc % nx;
+  unsigned int idy = offset % nyc;
+  // Complex expoential calculation.
+  // exp(-phase) = exp(-phase.x)*(cos(-phase.y) + 1i*sin(-phase.y))) = cos(-phase.y) + 1i*sin(-phase.y), since phase.x = 0.
+  cuComplex compexp;
+  sincosf(-phase[idy+nyc*idx], &compexp.y, &compexp.x); // Read sin(phase) and cos(phase) into real and imaginary parts of complex exponential.
+  return compexp*((cuComplex*)dataIn)[offset];
+}
 
 // for ExB shear, still need to take care of the phase factors associated with kx grid misses
 __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
@@ -1039,7 +1051,7 @@ __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex elemen
   }
 }
 
-__device__ void mask_and_scale_ky(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
+__device__ void scale_ky(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
 {
   ((cuComplex*)dataOut)[offset] = element/(ny);
 }
@@ -1048,9 +1060,9 @@ __managed__ cufftCallbackLoadC i_kxs_callbackPtr = i_kxs;
 __managed__ cufftCallbackLoadC i_kx_callbackPtr = i_kx;
 __managed__ cufftCallbackLoadC i_ky_callbackPtr = i_ky;
 __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr = mask_and_scale;
-__managed__ cufftCallbackStoreC mask_and_scale_ky_callbackPtr = mask_and_scale_ky;
+__managed__ cufftCallbackStoreC scale_ky_callbackPtr = scale_ky;
 __managed__ cufftCallbackLoadC phasefac_callbackPtr = phase_fac;
-
+__managed__ cufftCallbackLoadC phasefac_minus_callbackPtr = phase_fac_minus;
 
 
 // Multiplies by i kz / Nz 
