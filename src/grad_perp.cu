@@ -1,7 +1,7 @@
 #include "grad_perp.h"
 #include "get_error.h"
 
-GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) // phasefac is a function of ky and time.
+GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac, float* minusphasefac) // phasefac is a function of ky and time.
   : grids_(grids), batch_size_(batch_size), mem_size_(mem_size), tmp(nullptr)
 
 {
@@ -72,12 +72,16 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size, float* phasefac) 
                      CUFFT_CB_LD_COMPLEX,
                      (void**)&phasefac);
 
+  // For future use, put in minusphasefac with the same callback pointer, rather than phasefac_minus_callbackPtr as below.
   // Use for a(x,ky) --> a(x,y), where multiplication by -phasefac*a(x,ky) in callback.
-  cufftXtSetCallback(gradperp_plan_C2Ry_minus, (void**) &phasefac_minus_callbackPtr,
+  cufftXtSetCallback(gradperp_plan_C2Ry_minus, (void**) &phasefac_callbackPtr,
                      CUFFT_CB_LD_COMPLEX,
-                     (void**)&phasefac);
+                     (void**)&minusphasefac);
 
-  // We don't need d/dy for ky FFT, since ky multiplication still only occurs with the 2D transforms.
+  // Use for a(x,ky) --> a(x,y), where multiplication by -phasefac*a(x,ky) in callback.
+  //cufftXtSetCallback(gradperp_plan_C2Ry_minus, (void**) &phasefac_minus_callbackPtr,
+  //                  CUFFT_CB_LD_COMPLEX,
+  //                   (void**)&phasefac);
 
   cudaDeviceSynchronize();
 }

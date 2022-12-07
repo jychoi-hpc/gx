@@ -41,6 +41,7 @@ private:
   float  volDenom; float * vol_fac ;
   float * kvol_fac;
   float * phasefac;
+  float * minusphasefac;
 
   cuComplex valphi;
 

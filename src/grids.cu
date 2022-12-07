@@ -28,6 +28,7 @@ Grids::Grids(Parameters* pars) :
   kz_outh         = nullptr;  kpar_outh       = nullptr;  kzp             = nullptr;
   y_h             = nullptr;  kxs             = nullptr;  x_h             = nullptr;
   theta0_h        = nullptr;  th0             = nullptr;  z_h             = nullptr;
+  //phasefac         = nullptr; // Moose
 
   Nspecies = pars->nspec_in;
   Nm = pars->nm_in;
@@ -108,6 +109,7 @@ Grids::Grids(Parameters* pars) :
   y_h      = (float*) malloc(sizeof(float) * Ny       );
   z_h      = (float*) malloc(sizeof(float) * Nz       );
   cudaMalloc     ( (void**) &kxs,       sizeof(float) * Nx * Nyc );
+  //cudaMalloc     ( (void**) &phasefac,       sizeof(float) * Nx * Nyc ); // Moose
   checkCuda(cudaGetLastError());
 
   //  printf("In grids constructor. Nyc = %i \n",Nyc);
@@ -171,6 +173,8 @@ void Grids::init_ks_and_coords()
     dim3 dG = (nb1, nb2, nb3);
     init_kxs <<< dG, dB >>> (kxs, kx, th0);
     CP_TO_CPU (theta0_h, th0, sizeof(float)*Nx);    
+    // Moose, if ExB shear, should also initialize the phase factor.
+    //init_phasefac << dG, dB >>> (kxs, kx, th0)
   }
   
   if (Nx<4) {
@@ -216,3 +220,10 @@ void Grids::init_ks_and_coords()
     z_h[k] = 2.*M_PI *pars_->Zp *(k-Nz/2)/Nz;
   }
 }
+
+// This method updates kx and phasefac due to ExB flow shear.
+//void Grids::update_kx_phasefac()
+//{
+//
+//}
+

@@ -16,10 +16,7 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   Gy         = nullptr;  dJ0phi_dx  = nullptr;  dJ0phi_dy   = nullptr;  dJ0apar_dx = nullptr;
   dJ0apar_dy = nullptr;  dphi       = nullptr;  g_res       = nullptr;  
   J0phi      = nullptr;  J0apar     = nullptr;  dphi_dy     = nullptr;
-  phasefac   = nullptr;
-
-  // JFP: to keep these or not?
-  //dJ0phi_dx_phase = nullptr;  dJ0phi_dy_phase = nullptr; dJ0apar_dx_phase = nullptr;  dJ0apar_dy_phase = nullptr;
+  phasefac   = nullptr;  minusphasefac   = nullptr;
 
   if (grids_ -> Nl < 2) {
     printf("\n");
@@ -36,15 +33,17 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   // phasefac = (kx* - kxbar)*x
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0., sizeof(float)*grids_->NxNyc); // New size
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0., sizeof(float)*grids_->NxNyc); // New size
 
   nBatch = grids_->Nz*grids_->Nl; 
-  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl, phasefac); // Moose
+  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl, phasefac, minusphasefac); // Moose
   
   nBatch = grids_->Nz*grids_->Nj; 
-  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj, phasefac); 
+  grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj, phasefac, minusphasefac);
 
   nBatch = grids_->Nz;
-  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac);
+  grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac, minusphasefac);
 
   checkCuda(cudaMalloc(&tmp_c,    sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
   checkCuda(cudaMalloc(&dG,    sizeof(float)*grids_->NxNyNz*grids_->Nl));
@@ -118,6 +117,7 @@ Nonlinear_GK::~Nonlinear_GK()
   if ( J0phi       ) cudaFree ( J0phi       );
   if ( J0apar      ) cudaFree ( J0apar      );
   if ( phasefac    ) cudaFree ( phasefac    );
+  if ( minusphasefac    ) cudaFree ( minusphasefac    );
 }
 
 void Nonlinear_GK::qvar (cuComplex* G, int N)
@@ -343,12 +343,16 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   dapar_dx = nullptr;
   dapar_dy = nullptr;
   phasefac   = nullptr;
+  minusphasefac   = nullptr;
 
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+
   nBatch = grids_->Nz; 
-  grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac); 
+  grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz, phasefac, minusphasefac); 
 
   int nR = grids_->NxNyNz;
   red = new Block_Reduce(nR); cudaDeviceSynchronize();
@@ -402,6 +406,7 @@ Nonlinear_KREHM::~Nonlinear_KREHM()
   if ( dapar_dy ) cudaFree ( dapar_dy );
   if ( val1 ) cudaFree ( val1 ); 
   if ( phasefac    ) cudaFree ( phasefac    );
+  if ( minusphasefac    ) cudaFree ( minusphasefac    );
   if ( red ) delete red;
 }
 
@@ -461,12 +466,16 @@ Nonlinear_KS::Nonlinear_KS(Parameters* pars, Grids* grids) :
   dg_dy       = nullptr;
   g_res       = nullptr;  
   phasefac   = nullptr;
-  
+  minusphasefac   = nullptr;
+ 
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+
   nBatch = 1;
-  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->Nyc, phasefac);
+  grad_perp_G =     new GradPerp(grids_, nBatch, grids_->Nyc, phasefac, minusphasefac);
   
   checkCuda(cudaMalloc(&Gy,    sizeof(float)*grids_->Ny));
   checkCuda(cudaMalloc(&dg_dy, sizeof(float)*grids_->Ny));  
@@ -487,6 +496,7 @@ Nonlinear_KS::~Nonlinear_KS()
   if ( dg_dy       ) cudaFree ( dg_dy       );
   if ( g_res       ) cudaFree ( g_res       );
   if ( phasefac    ) cudaFree ( phasefac    );
+  if ( minusphasefac    ) cudaFree ( minusphasefac    );
 }
 
 void Nonlinear_KS::qvar (cuComplex* G, int N)
@@ -542,16 +552,19 @@ Nonlinear_VP::Nonlinear_VP(Parameters* pars, Grids* grids) :
 {
 
   Gy          = nullptr;  dphi_dy     = nullptr;  g_res       = nullptr;  
-  phasefac   = nullptr;
+  phasefac   = nullptr;   minusphasefac   = nullptr;
 
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+
   nBatch = grids_->Nm;
-  grad_perp_G =    new GradPerp(grids_, nBatch, grids_->Nyc*grids_->Nm, phasefac);
+  grad_perp_G =    new GradPerp(grids_, nBatch, grids_->Nyc*grids_->Nm, phasefac, minusphasefac);
   
   nBatch = 1;
-  grad_perp_f =  new GradPerp(grids_, nBatch, grids_->Nyc, phasefac);
+  grad_perp_f =  new GradPerp(grids_, nBatch, grids_->Nyc, phasefac, minusphasefac);
   
   checkCuda(cudaMalloc(&Gy,      sizeof(float)*grids_->Ny*grids_->Nm)); 
   checkCuda(cudaMalloc(&dphi_dy, sizeof(float)*grids_->Ny));              
@@ -574,6 +587,7 @@ Nonlinear_VP::~Nonlinear_VP()
   if ( dphi_dy     ) cudaFree ( dphi_dy     );
   if ( g_res       ) cudaFree ( g_res       );
   if ( phasefac    ) cudaFree ( phasefac    );
+  if ( minusphasefac    ) cudaFree ( minusphasefac    );
 }
 
 void Nonlinear_VP::qvar (cuComplex* G, int N)

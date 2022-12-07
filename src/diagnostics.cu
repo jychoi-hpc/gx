@@ -35,9 +35,13 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   flux_fac = nullptr;
   kvol_fac = nullptr;
   phasefac   = nullptr;
+  minusphasefac   = nullptr;
 
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
   fields_old = new     Fields(pars_, grids_);       cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
@@ -175,7 +179,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   
   if (pars_->Reservoir) {
     int nbatch = 1;
-    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc, phasefac);    
+    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc, phasefac, minusphasefac);    
   }    
 }
 

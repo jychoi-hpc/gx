@@ -16,10 +16,14 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   amom = nullptr;
   df          = nullptr;  favg        = nullptr;
   phasefac   = nullptr;
+  minusphasefac   = nullptr;
 
   // JFP allocating phasefac.
   checkCuda(cudaMalloc(&phasefac,    sizeof(float)*grids_->NxNyc));
   cudaMemset(phasefac, 0, sizeof(float)*grids_->NxNyc); // New size
+
+  checkCuda(cudaMalloc(&minusphasefac,    sizeof(float)*grids_->NxNyc));
+  cudaMemset(minusphasefac, 0, sizeof(float)*grids_->NxNyc); // New size
 
   if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) {
     float dum = 1.0;
@@ -102,7 +106,7 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
   
   if (pars_->write_kmom || pars_->write_xymom || pars_->write_avgz) {
     int nbatch = grids_->Nz;
-    grad_phi = new GradPerp(grids_, nbatch, grids_->NxNycNz, phasefac);
+    grad_phi = new GradPerp(grids_, nbatch, grids_->NxNycNz, phasefac, minusphasefac);
 
     cudaMalloc (&df,     sizeof(cuComplex)*grids_->NxNycNz);
     cudaMalloc (&favg,   sizeof(cuComplex)*grids_->Nx);
@@ -1679,7 +1683,7 @@ NetCDF_ids::NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo) :
     g_y -> time_count[1] = grids_->Ny;
 
     int nbatch = 1;
-    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc, phasefac);    
+    grad_perp = new GradPerp(grids_, nbatch, grids_->Nyc, phasefac, minusphasefac);
   } else {
     g_y = new nca(0); 
   }    

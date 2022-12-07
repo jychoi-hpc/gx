@@ -751,6 +751,8 @@ __global__ void calc_bgrad(float* bgrad, const float* bgrad_temp, const float* b
   if (idz < nz) bgrad[idz] = ( bgrad_temp[idz] / bmag[idz] ) * scale;
 }
 
+
+// Moose ExB shear init.
 __global__ void init_kxs(float* kxs, float* kx, float* th0)
 {
   unsigned int idy = get_id1();
@@ -759,6 +761,18 @@ __global__ void init_kxs(float* kxs, float* kx, float* th0)
     kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
   }
 }
+
+
+// Moose ExB shear init.
+//__global__ void init_kxs(float* kxs, float* kx, float* th0)
+//{
+//  unsigned int idy = get_id1();
+//  unsigned int idx = get_id2();
+//  if (unmasked(idx, idy)) {
+//    kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
+//  }
+//}
+
 
 __global__ void update_kxs(float* kxs, float* dth0)
 {
@@ -1023,18 +1037,19 @@ __device__ cuComplex phase_fac(void *dataIn, size_t offset, void *phaseData, voi
   return compexp*((cuComplex*)dataIn)[offset];
 }
 
+// Note: not using this to define negative phase for FFTs.
 // JFP 1D minus phase factor callback for ky FFT.
-__device__ cuComplex phase_fac_minus(void *dataIn, size_t offset, void *phaseData, void *sharedPtr)
-{
-  float *phase = (float*) phaseData;
-  unsigned int idx = offset / nyc % nx;
-  unsigned int idy = offset % nyc;
-  // Complex expoential calculation.
-  // exp(-phase) = exp(-phase.x)*(cos(-phase.y) + 1i*sin(-phase.y))) = cos(-phase.y) + 1i*sin(-phase.y), since phase.x = 0.
-  cuComplex compexp;
-  sincosf(-phase[idy+nyc*idx], &compexp.y, &compexp.x); // Read sin(phase) and cos(phase) into real and imaginary parts of complex exponential.
-  return compexp*((cuComplex*)dataIn)[offset];
-}
+//__device__ cuComplex phase_fac_minus(void *dataIn, size_t offset, void *phaseData, void *sharedPtr)
+//{
+//  float *phase = (float*) phaseData;
+//  unsigned int idx = offset / nyc % nx;
+//  unsigned int idy = offset % nyc;
+//  // Complex expoential calculation.
+//  // exp(-phase) = exp(-phase.x)*(cos(-phase.y) + 1i*sin(-phase.y))) = cos(-phase.y) + 1i*sin(-phase.y), since phase.x = 0.
+//  cuComplex compexp;
+//  sincosf(-phase[idy+nyc*idx], &compexp.y, &compexp.x); // Read sin(phase) and cos(phase) into real and imaginary parts of complex exponential.
+//  return compexp*((cuComplex*)dataIn)[offset];
+//}
 
 // for ExB shear, still need to take care of the phase factors associated with kx grid misses
 __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
@@ -1062,7 +1077,7 @@ __managed__ cufftCallbackLoadC i_ky_callbackPtr = i_ky;
 __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr = mask_and_scale;
 __managed__ cufftCallbackStoreC scale_ky_callbackPtr = scale_ky;
 __managed__ cufftCallbackLoadC phasefac_callbackPtr = phase_fac;
-__managed__ cufftCallbackLoadC phasefac_minus_callbackPtr = phase_fac_minus;
+//__managed__ cufftCallbackLoadC phasefac_minus_callbackPtr = phase_fac_minus;
 
 
 // Multiplies by i kz / Nz 
@@ -2351,6 +2366,11 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g, const cuComplex* __r
 	  - igb_d_s * (              (l+1)*S_H(sl+1,sm) + (2*l+1)*S_H(sl,sm)              + l*S_H(sl-1,sm) )
 	  
 	  - (nu_ + nuei_) * ( b_s + 2*l + m ) * ( S_H(sl,sm) );
+	
+	// add exb shear term
+
+	// from gs2
+	//-2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm
 
 	// add drive and conservation terms in low hermite moments
 	if (m==0) {

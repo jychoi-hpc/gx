@@ -28,15 +28,18 @@ protected:
 
     //float* phasefac, phasefac_minus, phasefac_plus;
     float* phasefac;
+    float* minusphasefac;
     cudaMalloc((void**) &phasefac, sizeof(float)*grids->NxNyc);
+    cudaMalloc((void**) &minusphasefac, sizeof(float)*grids->NxNyc);
     //cudaMalloc((void**) &phasefac_minus, sizeof(float)*grids->NxNyc);
     //cudaMalloc((void**) &phasefac_plus, sizeof(float)*grids->NxNyc);
 
     cudaMemset(phasefac, 0, sizeof(float)*grids->NxNyc);
+    cudaMemset(minusphasefac, 0, sizeof(float)*grids->NxNyc);
     //cudaMemset(phasefac_minus, 3.14, sizeof(float)*grids->NxNyc);
     //cudaMemset(phasefac_plus, -3.14, sizeof(float)*grids->NxNyc);
 
-    grad_perp = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac);
+    grad_perp = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac, minusphasefac);
     //grad_perp_minus_phase = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac_minus);
     //grad_perp_plus_phase = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl, phasefac_plus);
   }

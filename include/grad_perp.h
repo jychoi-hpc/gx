@@ -6,7 +6,7 @@
 
 class GradPerp {
  public:
-  GradPerp(Grids* grids, int batch, int mem, float* phasefac);
+  GradPerp(Grids* grids, int batch, int mem, float* phasefac, float* minusphasefac);
   ~GradPerp();
 
   void phase_mult (float* G, bool positive_phase=true);
