@@ -522,6 +522,7 @@ void Parameters::get_nml_vars(char* filename)
   chs_eq = toml::find_or <bool> (tnml, "chs_eq", false);
   transp_eq = toml::find_or <bool> (tnml, "transp_eq", false);
   gs2d_eq = toml::find_or <bool> (tnml, "gs2d_eq", false);
+  RBzeta = toml::find_or <float> (tnml, "RBzeta", (double) rmaj); // JFP: RBzeta = I_N(psi) R Bzeta / a Bref ?= (rmaj / a) by default until we have GX capability to calculate R(theta). But for now, assume  R Bzeta / a = Bref.
 
   tnml = nml;
   if (nml.contains("Physics")) tnml = toml::find(nml, "Physics");
@@ -530,7 +531,7 @@ void Parameters::get_nml_vars(char* filename)
   if (!all_kinetic) beta = 0.0; // electromagnetic doesn't make sense with adiabatic species
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    nonlinear_mode );  linear = !nonlinear_mode;
   ExBshear = toml::find_or <bool> (tnml, "ExBshear",    ExBshear_domain );
-  g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
+  g_exb    = toml::find_or <float> (tnml, "g_exb",    (double) g_exb_domain  );
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       0.0);

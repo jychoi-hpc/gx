@@ -105,7 +105,7 @@ class Parameters {
   Tmethod scheme_opt;
   Closure closure_model_opt;
   
-  float rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri;
+  float RBzeta, rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri;
   float tri, tripri, drhodpsi, epsl, kxfac, cfl, phi_ext, scale, tau_fac;
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
   float x0, y0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;

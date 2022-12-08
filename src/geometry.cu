@@ -272,6 +272,8 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   float qsf = pars->qsf;
   float beta_e = pars->beta;
   float rmaj = pars->rmaj;
+  float rhoc = pars->rhoc;
+
   specie* species = pars->species_h;
   
   gradpar = (float) abs(1./(qsf*rmaj));
@@ -741,7 +743,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMalloc ((void**) &gb_d,   sizeof(float)*grids->NxNycNz);
   checkCuda  (cudaGetLastError());
 
-  cudaMemset (kperp2, 0., sizeof(float)*grids->NxNycNz);
+  cudaMemset (kperp2, 0., sizeof(float)*grids->NxNycNz); // if restarting, start with current value.
   cudaMemset (omegad, 0., sizeof(float)*grids->NxNycNz);
   cudaMemset (cv_d,   0., sizeof(float)*grids->NxNycNz);
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);

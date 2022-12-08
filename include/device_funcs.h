@@ -316,7 +316,7 @@ __global__ void streaming_rhs(const cuComplex* __restrict__ g, const cuComplex* 
 __global__ void rhs_linear(const cuComplex* __restrict__ g, const cuComplex* __restrict__ phi, const cuComplex* __restrict__ apar, const cuComplex* __restrict__ bpar,
 			   const cuComplex* __restrict__ upar_bar, const cuComplex* __restrict__ uperp_bar, const cuComplex* __restrict__ t_bar,
 			   const float* __restrict__ kperp2, const float* __restrict__ cv_d, const float* __restrict__ gb_d, const float* __restrict__ bmag, const float* __restrict__ bgrad,
-			   const float* __restrict__ ky, const specie sp, const specie sp_i, cuComplex* __restrict__ rhs, bool hegna, bool ei_colls);  // bb6126 - hegna test
+			   const float* __restrict__ ky, const specie sp, const specie sp_i, cuComplex* __restrict__ rhs, bool hegna, bool ei_colls, float rhoc, float g_exb, float RBzeta, float qsf);  // bb6126 - hegna test
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);
