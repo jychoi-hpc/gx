@@ -54,6 +54,9 @@ void SSPx2::advance(double *t, MomentsG** G, Fields* f)
   }
   // end updates
   
+  // update the kx grid and phase factor if flow shear.
+  ExBshear(MomentsG** G1, MomentsG** G, Fields* f, float* grids_->kx_shift, int* grids_->jump, double dt)
+
   EulerStep (G1, G, GRhs, f, true); 
   solver_->fieldSolve(G1, f);
 

@@ -102,3 +102,7 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
   *t += dt_;
 }
 
+void Ketcheson10::time_monitor(double* t)
+{
+
+}
