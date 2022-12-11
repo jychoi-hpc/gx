@@ -333,6 +333,6 @@ __global__ void hyperdiff(const cuComplex* g, const float* kx, const float* ky,
 __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, const float nu_hyper_m,
 				const int p_hyper_l, const int p_hyper_m, cuComplex* rhs, const float vt);
 
-__global__ void kx_phase_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt);
+__global__ void kxs_phase_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt);
 
 __global__ void field_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt);

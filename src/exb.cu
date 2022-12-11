@@ -12,19 +12,23 @@ exb::exb(Parameters* pars, Grids* grids, Geometry* geo) :
 exb::~exb()
 {
   //if (closures) delete closures;
-
   //if (favg)       cudaFree(favg);
 }
 
-void exb::flow_shear_shift(cuComplex *Phi, float* kx_shift, int* jump, double dt)
+void exb::flow_shear_shift(MomentsG* G, Fields* f, float* kx_shift, int* jump, double dt)
 {
   // shift moments and fields in kx to account for ExB shear
-  kx_phase_shift<<<dimGrid,dimBlock>>>(kx_shift,jump,ky,g_exb,dt);
+  kxs_phase_shift<<<dimGrid,dimBlock>>>(kx_shift, jump, ky, x, phasefac g_exb, dt);
+  // update geometry
+  update_geo<<<dimGrid,dimBlock>>>(kx_shift, ky, cv_d, gb_d, kperp2,
+                           cv, cv0, gb, gb0, omegad,
+                           gds2, gds21, gds22, bmagInv, shat, jump);
   // shift phi
-  field_shift<<<dimGrid,dimBlock>>>(Phi,jump);
+  field_shift<<<dimGrid,dimBlock>>>(f->phi,jump);
   // shift apar and bpar
-  field_shift<<<dimGrid,dimBlock>>>(Apar,jump);
-  field_shift<<<dimGrid,dimBlock>>>(Bpar,jump);
+  // if apar, bpar terms...
+  field_shift<<<dimGrid,dimBlock>>>(f->apar,jump);
+  field_shift<<<dimGrid,dimBlock>>>(f->bpar,jump);
   // shift dist function
   field_shift<<<dimGrid,dimBlock>>>(G,jump);
 }

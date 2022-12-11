@@ -2,9 +2,9 @@
 
 // ======= SSPx2 =======
 SSPx2::SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, ExBshear *exbshear, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
+  forcing_(forcing), exbshear_(exbshear) dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
 {
   // new objects for temporaries
   GRhs  = new MomentsG (pars, grids);
@@ -33,6 +33,9 @@ void SSPx2::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bo
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     GRhs->set_zero();
+
+    exbshear_->flow_shear_shift(MomentsG* G, Fields* f, kx_shift, jump, dt);
+
     linear_->rhs(G[is], f, GRhs);
 
     if(nonlinear_ != nullptr) {

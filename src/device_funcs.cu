@@ -752,60 +752,6 @@ __global__ void calc_bgrad(float* bgrad, const float* bgrad_temp, const float* b
 }
 
 
-// Moose ExB shear init.
-// This is kx at t = 0. Throughout simulation, this will update for g_exb != 0.
-__global__ void init_kxs(float* kxs, float* kx, float* th0)
-{
-  unsigned int idy = get_id1();
-  unsigned int idx = get_id2();
-  if (unmasked(idx, idy)) {
-    kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
-  }
-}
-
-
-// Moose ExB shear init.
-//__global__ void init_kxs(float* kxs, float* kx, float* th0)
-//{
-//  unsigned int idy = get_id1();
-//  unsigned int idx = get_id2();
-//  if (unmasked(idx, idy)) {
-//    kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
-//  }
-//}
-
-
-__global__ void update_kxs(float* kxs, float* dth0)
-{
-  unsigned int idy = get_id1();
-  unsigned int idx = get_id2();
-  if (unmasked(idx, idy)) {
-    //    kxs[idy + nyc*idx]  =
-  }
-}
-
-__global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, float* kperp2,
-			   float* cv, float* cv0, float* gb, float* gb0, float* omegad, 
-			   float* gds2, float* gds21, float* gds22, float* bmagInv, float shat)
-{
-
-  unsigned int idy = get_id1();
-  unsigned int idx = get_id2();
-  unsigned int idz = get_id3();
-
-  float shatInv = 1./shat; // Needs a test for zero
-  
-  if (idy>0 && unmasked(idx, idy) && idz < nz) { 
-    unsigned int idxyz = idy + nyc*(idx + nx*idz);
-    kperp2[idxyz] = ( ky[idy] * ( ky[idy] * gds2[idz] + 2. * kxs[idy+nyc*idx] * shatInv * gds21[idz]) 		       
-			+ pow( kxs[idy+nyc*idx] * shatInv, 2) * gds22[idz] ) * pow( bmagInv[idz], 2);
-    
-    cv_d[idxyz] = ky[idy] * cv[idz] + kxs[idy+nyc*idx] * shatInv * cv0[idz] ;     
-    gb_d[idxyz] = ky[idy] * gb[idz] + kxs[idy+nyc*idx] * shatInv * gb0[idz] ;
-    omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
-  }
-}
-
 // note: kperp2 = kperp**2 / B**2
 __global__ void init_kperp2(float* kperp2, const float* kx, const float* ky,
 			    const float* gds2, const float* gds21, const float* gds22,
@@ -2632,7 +2578,7 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
 
 // JFP flow shear addition.
 // Updates kx star and phasefac for flow shear.
-__global__ void kx_phase_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt)
+__global__ void kxs_phase_shift(float* kxs, float* kx_shift, int* jump, float* ky, float* x, float* phasefac float g_exb, double dt)
 {
   unsigned int idy = get_idy();
   unsigned int idx = get_idx();
@@ -2641,13 +2587,39 @@ __global__ void kx_phase_shift(float* kx_shift, int* jump, float* ky,float* xgri
 
   if(idy<ny/2+1) {
     // Idea is that we track the difference between kx_star = kx(t=0) - ky gamma_E time and kx_bar = the nearest kx on grid. We need this for the phase factor in the FFT. Additionally, jump tells us how to shift ikx in the function shiftField.
-    kx_shift[idy] = kx_shift[idy] - ky[idy]*g_exb*dt;      // 
-    jump[idy] = roundf(kx_shift[idy]/dkx);                 //roundf() is C equivalent of f90 nint(). jump*dkx gives the closest kx on the grid, which is kxbar.
-    kx_shift[idy] = kx_shift[idy] - jump[idy]*dkx; // kx_star - kx_bar, which multiplied by x, is the phase.
-    phasefac[idy] = kx_shift[idy]*xgrid; // this depends on both iky and idx. Should I calculate phase here?
+    kxs[idy+nyc*idx] = kxs[idy+nyc*idx] - ky[idy]*g_exb*dt; // kx_star
+    jump[idy+nyc*idx] = roundf(kxs[idy+nyc*idx]/dkx);                 //roundf() is C equivalent of f90 nint(). jump*dkx gives the closest kx on the grid, which is kxbar.
+    phasefac[idy+nyc*idx] = (kxs[idy+nyc*idx] - jump[idy+nyc*idx]*dkx)*x[idx]; // kx_star - kx_bar, which multiplied by x, is the phase.
+    int ikx_shifted = get_ikx(idx) - jump[idy+nyc*idx];
+    //if field is sheared beyond resolution or mask, subtract/add (depending on sign of g_exb) the maximum wavenumber. // JFP: should work with up-down asymmetry?
+    if( ikx_shifted > (nx-1)/3 || ikx_shifted < -(nx-1)/3 ) {
+      kxs[idy+nyc*idx] = kxs[idy+nyc*idx] - sign(g_exb)*(2*kx[-1])
+    }
   }
 }
 // Subtleties: 1 extra padding in ky, normalization for theta0 and gexb, not letting kx go to ±inf, restarting kperp, updating kperp, kperp and kx at different Runge-Kutta timesteps
+
+__global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, float* kperp2,
+                           float* cv, float* cv0, float* gb, float* gb0, float* omegad,
+                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat, int* jump)
+{
+
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+
+  float shatInv = 1./shat; // Needs a test for zero
+
+  if (idy>0 && unmasked(idx, idy) && idz < nz) {
+    unsigned int idxyz = idy + nyc*(idx + nx*idz);
+    kperp2[idxyz] = ( ky[idy] * ( ky[idy] * gds2[idz] + 2. * kxs[idy+nyc*idx] * shatInv * gds21[idz])
+                        + pow( kxs[idy+nyc*idx] * shatInv, 2) * gds22[idz] ) * pow( bmagInv[idz], 2);
+
+    cv_d[idxyz] = ky[idy] * cv[idz] + kxs[idy+nyc*idx] * shatInv * cv0[idz] ;
+    gb_d[idxyz] = ky[idy] * gb[idz] + kxs[idy+nyc*idx] * shatInv * gb0[idz] ;
+    omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
+  }
+}
 
 __global__ void field_shift(cuComplex* field, int* jump)
 {
@@ -2658,7 +2630,7 @@ __global__ void field_shift(cuComplex* field, int* jump)
   if(idx<nx && idy<(ny/2+1) && idz<nz) {
     unsigned int index = idy + (ny/2+1)*idx + nx*(ny/2+1)*idz;
 
-    int ikx_shifted = get_ikx(idx) - jump[idy];
+    int ikx_shifted = get_ikx(idx) - jump[idy+nyc*idx];
 
     //if field is sheared beyond resolution or mask, set field to zero
     if( ikx_shifted > (nx-1)/3 || ikx_shifted < -(nx-1)/3 ) {
@@ -2675,6 +2647,16 @@ __global__ void field_shift(cuComplex* field, int* jump)
 
       field[index] = field[index_shifted];
     }
+  }
+}
+
+// This is kx at t = 0. Throughout simulation, this will update for g_exb != 0.
+__global__ void init_kxs(float* kxs, float* kx, float* th0)
+{
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  if (unmasked(idx, idy)) {
+    kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
   }
 }
 
