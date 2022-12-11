@@ -208,12 +208,7 @@ __global__ void init_omegad(float* omegad, float* cv_d, float* gb_d, const float
 			    const float* cv, const float* gb, const float* cv0, const float* gb0, float shat);
 
 __global__ void calc_bgrad(float* bgrad, const float* bgrad_temp, const float* bmag, float scale);
-__global__ void init_kxs(float* kxs, float* kx, float* th0);
-__global__ void update_kxs(float* kxs, float* dth0);
-__global__ void update_theta0(float* th0, double dt);
-__global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, float* kperp2,
-			   float* cv, float* cv0, float* gb, float* gb0, float* omegad,  			      
-			   float* gds2, float* gds21, float* gds22, float* bmagInv, float shat);
+__global__ void update_theta0(float* th0, double dt); // JFP: currently empty.
   
 __device__ cuComplex i_kxs(void *dataIn, size_t offset, void *kxsData, void *sharedPtr);
 
@@ -228,7 +223,6 @@ extern __managed__ cufftCallbackLoadC i_ky_callbackPtr;
 extern __managed__ cufftCallbackStoreC mask_and_scale_callbackPtr;
 extern __managed__ cufftCallbackStoreC scale_ky_callbackPtr;
 extern __managed__ cufftCallbackLoadC phasefac_callbackPtr;
-//extern __managed__ cufftCallbackLoadC phasefac_minus_callbackPtr;
 
 __device__ void zfts(void *dataOut, size_t offset, cufftComplex element, void *data, void *sharedPtr);
 __device__ void i_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
@@ -333,6 +327,13 @@ __global__ void hyperdiff(const cuComplex* g, const float* kx, const float* ky,
 __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, const float nu_hyper_m,
 				const int p_hyper_l, const int p_hyper_m, cuComplex* rhs, const float vt);
 
-__global__ void kxs_phase_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt);
+__global__ void init_kxstar(float* kxstar, float* kx, float* th0);
 
-__global__ void field_shift(float* kx_shift, int* jump, float* ky,float* xgrid, float* phasefac float g_exb, double dt);
+__global__ void geo_shift(float* kxstar, float* ky, float* cv_d, float* gb_d, float* kperp2,
+                           float* cv, float* cv0, float* gb, float* gb0, float* omegad,
+                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat);
+
+__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx, float* ky, float* x, float* phasefac float g_exb, double dt);
+
+__global__ void field_shift(cuComplex* field, int* kxbar_ikx);
+

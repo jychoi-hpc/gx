@@ -1,34 +1,50 @@
 #include "exb.h"
 
 //=======================================
-// Linear_GK
-// object for handling linear terms in GK
+// exb
+// object for handling flow shear terms.
 //=======================================
-exb::exb(Parameters* pars, Grids* grids, Geometry* geo) :
-  pars_(pars), grids_(grids), geo_(geo), closures(nullptr) 
+exb_GK::exb_GK(Parameters* pars_, Grids* grids, Geometry* geo) :
+  pars_(pars_), grids_(grids), geo_(geo)
 {
+  int nxkyz = grids_->NxNycNz;
+
+  nbx = min(32, nxkyz);      ngx = 1 + (nxkyz-1)/nbx;
+  nby = min(16, nlag);       ngy = 1 + (nlag-1)/nby;
+
+  dBk = dim3(nbx, nby, 1);
+  dGk = dim3(ngx, ngy, 1);
+
+  // Dimensions for the field_shift kernels.
+  nt1 = pars_->i_share;   nb1 = 1 + (nbx-1)/nt1;
+
+  // JFP: this is likely wrong.
+  dimBlockfield = nt1;
+  dimGridfield = nb1;
 }
 
-exb::~exb()
+exb_GK::~exb_GK()
 {
   //if (closures) delete closures;
   //if (favg)       cudaFree(favg);
 }
 
-void exb::flow_shear_shift(MomentsG* G, Fields* f, float* kx_shift, int* jump, double dt)
+void exb_GK::flow_shear_shift(MomentsG* G, Fields* f, double dt)
 {
+
   // shift moments and fields in kx to account for ExB shear
-  kxs_phase_shift<<<dimGrid,dimBlock>>>(kx_shift, jump, ky, x, phasefac g_exb, dt);
+  kxstar_phase_shift<<<grids_->NxNyc,nt1>>>(grids_->kxstar, grids_->kxbar_ikx, grids_->ky, grids_->x, grids_->phasefac, pars_->g_exb, dt);
   // update geometry
-  update_geo<<<dimGrid,dimBlock>>>(kx_shift, ky, cv_d, gb_d, kperp2,
-                           cv, cv0, gb, gb0, omegad,
-                           gds2, gds21, gds22, bmagInv, shat, jump);
-  // shift phi
-  field_shift<<<dimGrid,dimBlock>>>(f->phi,jump);
-  // shift apar and bpar
-  // if apar, bpar terms...
-  field_shift<<<dimGrid,dimBlock>>>(f->apar,jump);
-  field_shift<<<dimGrid,dimBlock>>>(f->bpar,jump);
-  // shift dist function
-  field_shift<<<dimGrid,dimBlock>>>(G,jump);
+  geo_shift<<<grids_->NxNycNz,nt1>>>(grids_->kxstar, grids_->ky, geo_->cv_d, geo_->gb_d, geo_->kperp2,
+                           geo_->cv, geo_->cv0, geo_->gb, geo_->gb0, geo_->omegad,
+                           geo_->gds2, geo_->gds21, geo_->gds22, geo_->bmagInv, pars_->shat);
+  // shift fields
+  field_shift<<<dimGridfield,dimBlockfield>>>(f->phi,grids_->kxbar_ikx);
+  if (pars_->fapar > 0.) field_shift<<<<dimGridfield,dimBlockfield>>>(f->apar,grids_->kxbar_ikx);
+  //if (pars_->fbpar > 0.) field_shift<<<dimGridfield,dimBlockfield>>>(f->bpar,kxbar_ikx); // JFP: note: to update once we have bpar.
+  // shift dist function, batching in m.
+  for(int m=grids_->m_lo; m<grids_->m_up; m++) {
+    int m_local = m - grids_->m_lo;
+    field_shift <<< dGk, dBk >>> (G->Gm(m_local),kxbar_ikx);
+
 }

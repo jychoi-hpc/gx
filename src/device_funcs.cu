@@ -2578,32 +2578,30 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
 
 // JFP flow shear addition.
 // Updates kx star and phasefac for flow shear.
-__global__ void kxs_phase_shift(float* kxs, float* kx_shift, int* jump, float* ky, float* x, float* phasefac float g_exb, double dt)
+// kx star = kx - ky shat gammaE time
+// kx bar = roundf(kx star / Delta kx), nearest neighbour.
+// dealiased kx grid \in [-Kx, Kx]
+// When |kx star| > Kx, we shift by nx to take index back to dealiased grid.
+// We only shift kx star values onto dealiased grids. We leave the kx grids that are aliased away.
+
+// This is kx at t = 0. Throughout simulation, this will update for g_exb != 0.
+__global__ void init_kxstar_kxbar_phasefac(float* kxstar, float* kxbar_ikx, float* phasefac, float* kx)
 {
-  unsigned int idy = get_idy();
-  unsigned int idx = get_idx();
-
-  float dkx = (float) 1./X0_d;
-
-  if(idy<ny/2+1) {
-    // Idea is that we track the difference between kx_star = kx(t=0) - ky gamma_E time and kx_bar = the nearest kx on grid. We need this for the phase factor in the FFT. Additionally, jump tells us how to shift ikx in the function shiftField.
-    kxs[idy+nyc*idx] = kxs[idy+nyc*idx] - ky[idy]*g_exb*dt; // kx_star
-    jump[idy+nyc*idx] = roundf(kxs[idy+nyc*idx]/dkx);                 //roundf() is C equivalent of f90 nint(). jump*dkx gives the closest kx on the grid, which is kxbar.
-    phasefac[idy+nyc*idx] = (kxs[idy+nyc*idx] - jump[idy+nyc*idx]*dkx)*x[idx]; // kx_star - kx_bar, which multiplied by x, is the phase.
-    int ikx_shifted = get_ikx(idx) - jump[idy+nyc*idx];
-    //if field is sheared beyond resolution or mask, subtract/add (depending on sign of g_exb) the maximum wavenumber. // JFP: should work with up-down asymmetry?
-    if( ikx_shifted > (nx-1)/3 || ikx_shifted < -(nx-1)/3 ) {
-      kxs[idy+nyc*idx] = kxs[idy+nyc*idx] - sign(g_exb)*(2*kx[-1])
-    }
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  if (unmasked(idx, idy)) {
+    kxstar[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
+    kxbar_ikx[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
+    phasefac[idy+nyc*idx] = 0; // should read this from a file if this is a restarted case
   }
+  // JFP: note: to normalize kxstar, theta0, and ky*g_exb*dt correctly for stellarators with different connection lengths.
+  // JFP: note: add read-in kxstar option.
 }
-// Subtleties: 1 extra padding in ky, normalization for theta0 and gexb, not letting kx go to ±inf, restarting kperp, updating kperp, kperp and kx at different Runge-Kutta timesteps
 
-__global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, float* kperp2,
+__global__ void geo_shift(float* kxstar, float* ky, float* cv_d, float* gb_d, float* kperp2,
                            float* cv, float* cv0, float* gb, float* gb0, float* omegad,
-                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat, int* jump)
+                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat)
 {
-
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
   unsigned int idz = get_id3();
@@ -2612,16 +2610,44 @@ __global__ void update_geo(float* kxs, float* ky, float* cv_d, float* gb_d, floa
 
   if (idy>0 && unmasked(idx, idy) && idz < nz) {
     unsigned int idxyz = idy + nyc*(idx + nx*idz);
-    kperp2[idxyz] = ( ky[idy] * ( ky[idy] * gds2[idz] + 2. * kxs[idy+nyc*idx] * shatInv * gds21[idz])
-                        + pow( kxs[idy+nyc*idx] * shatInv, 2) * gds22[idz] ) * pow( bmagInv[idz], 2);
-
-    cv_d[idxyz] = ky[idy] * cv[idz] + kxs[idy+nyc*idx] * shatInv * cv0[idz] ;
-    gb_d[idxyz] = ky[idy] * gb[idz] + kxs[idy+nyc*idx] * shatInv * gb0[idz] ;
+    kperp2[idxyz] = ( ky[idy] * ( ky[idy] * gds2[idz] + 2. * kxstar[idy+nyc*idx] * shatInv * gds21[idz])
+                        + pow( kxstar[idy+nyc*idx] * shatInv, 2) * gds22[idz] ) * pow( bmagInv[idz], 2);
+    cv_d[idxyz] = ky[idy] * cv[idz] + kxstar[idy+nyc*idx] * shatInv * cv0[idz]; // JFP: worth updating only radial component of drifts?
+    gb_d[idxyz] = ky[idy] * gb[idz] + kxstar[idy+nyc*idx] * shatInv * gb0[idz];
     omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
   }
 }
 
-__global__ void field_shift(cuComplex* field, int* jump)
+__global__ void kxstar_phase_shift(float* kxstar, int kxbar_ikx, float* ky, float* x, float* phasefac float g_exb, double dt)
+{
+  unsigned int idy = get_idy();
+  unsigned int idx = get_idx();
+
+  float dkx = (float) 1./X0_d;
+  float kxalias_max = (float) dkx*(nx-1)/3
+
+  if(idy<ny/2+1) {
+    // We track the difference between kx_star = kx(t=0) - ky gamma_E time and kx_bar = the nearest kx on grid. We need this for the phase factor in the FFT. Additionally, kxbar_ikx tells us how to shift ikx in the function shiftField.
+    kxstar[idy+nyc*idx] = kxstar[idy+nyc*idx] - ky[idy]*g_exb*dt; // kx_star
+    kxbar_ikx[idy+nyc*idx] = roundf(kxstar[idy+nyc*idx]/dkx);      //roundf() is C equivalent of f90 nint(). kxbar_ikx*dkx gives the closest kx on the grid, which is kxbar.
+    phasefac[idy+nyc*idx] = (kxstar[idy+nyc*idx] - kxbar_ikx[idy+nyc*idx]*dkx)*x[idx]; // kx_star - kx_bar, which multiplied by x, is the phase.
+    //if field is sheared beyond resolution or mask, subtract/add (depending on sign of g_exb) the maximum wavenumber. // JFP: should work with up-down asymmetry?
+    if(kxbar_ikx[idy+nyc*idx] > (nx-1)/3 || kxbar_ikx[idy+nyc*idx] < -(nx-1)/3 ) {
+      kxstar[idy+nyc*idx] = kxstar[idy+nyc*idx] + sign(g_exb)*2*kxalias_max // shifting kxs to opposite side of dealiased kx grid.
+    }
+  }
+}
+
+// Subtleties: 1 extra padding in ky, normalization for theta0 and gexb, not letting kx go to ±inf, restarting kperp, updating kperp, kperp and kx at different Runge-Kutta timesteps
+
+// JFP: This function shifts the fields at each timestep due to ExB shear.
+// index is at the previous timestep.
+// index_shifted is at the new timestep, due to ExB shear changing kxstar, and therefore potentially kxbar.
+// ikx_shifted is the index of kxbar at the new timestep.
+// if ikx_shifted is outside of the dealiased grid, we set fields to zero.
+// otherwise, we shift fields to the appropriate new kx index.
+// this should work for multistep schemes.
+__global__ void field_shift(cuComplex* field, int kxbar_ikx)
 {
   unsigned int idx = get_idx();
   unsigned int idy = get_idy();
@@ -2630,10 +2656,10 @@ __global__ void field_shift(cuComplex* field, int* jump)
   if(idx<nx && idy<(ny/2+1) && idz<nz) {
     unsigned int index = idy + (ny/2+1)*idx + nx*(ny/2+1)*idz;
 
-    int ikx_shifted = get_ikx(idx) - jump[idy+nyc*idx];
+    int ikx_shifted = kxbar_ikx[idy+nyc*idx]
 
     //if field is sheared beyond resolution or mask, set field to zero
-    if( ikx_shifted > (nx-1)/3 || ikx_shifted < -(nx-1)/3 ) {
+    if(kxbar_ikx[idy+nyc*idx] > (nx-1)/3 || kxbar_ikx[idy+nyc*idx] < -(nx-1)/3 ) {
       field[index].x = 0.;
       field[index].y = 0.;
     }
@@ -2647,16 +2673,6 @@ __global__ void field_shift(cuComplex* field, int* jump)
 
       field[index] = field[index_shifted];
     }
-  }
-}
-
-// This is kx at t = 0. Throughout simulation, this will update for g_exb != 0.
-__global__ void init_kxs(float* kxs, float* kx, float* th0)
-{
-  unsigned int idy = get_id1();
-  unsigned int idx = get_id2();
-  if (unmasked(idx, idy)) {
-    kxs[idy+nyc*idx] = kx[idx]; // should read this from a file if this is a restarted case
   }
 }
 

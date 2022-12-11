@@ -34,7 +34,7 @@ void SSPx2::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bo
   for(int is=0; is<grids_->Nspecies; is++) {
     GRhs->set_zero();
 
-    exbshear_->flow_shear_shift(MomentsG* G, Fields* f, kx_shift, jump, dt);
+    exbshear_->flow_shear_shift(MomentsG* G, Fields* f, kx_shift, jump, dt_);
 
     linear_->rhs(G[is], f, GRhs);
 
