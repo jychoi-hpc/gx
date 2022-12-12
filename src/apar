@@ -1,0 +1,55 @@
+cv:linear.cu:			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
+cv:linear.cu:  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+cv:ncdf.cu:  Tbar <<<blocks, threads>>> (t_bar, G->G(), f->phi, geo_->kperp2);
+cv:nonlinear.cu:    J0phiAndBparToGrid GBK (J0phi, f->phi, f->bpar, geo_->kperp2, laguerre->get_roots(), rho2s, tz, pars_->fphi, pars_->fbpar);
+cv:nonlinear.cu:    J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
+cv:nonlinear.cu:    J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
+cv:x0:nonlinear.cu:    J0phiAndBparToGrid GBK (J0phi, f->phi, f->bpar, geo_->kperp2, laguerre->get_roots(), rho2s, tz, pars_->fphi, pars_->fbpar);
+cv:x0:nonlinear.cu:    J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
+cv:x0:nonlinear.cu:    J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
+diagnostics.cu:    CP_TO_CPU(&valphi, &f->phi[idx], sizeof(cuComplex));
+exb.cu:  field_shift<<<dimGridfield,dimBlockfield>>>(f->phi,grids_->kxbar_ikx);
+exb.cu:    field_shift<<<<dimGridfield,dimBlockfield>>>(f->apar,grids_->kxbar_ikx);
+exb.cu:  //if (pars_->fbpar > 0.) field_shift<<<dimGridfield,dimBlockfield>>>(f->bpar,kxbar_ikx); // JFP: note: to update once we have bpar.
+grad_parallel_linked.cu:    dampEnds_linked GCHAINS (G->G(), f->phi, f->apar, f->bpar, kperp2, *(G->species), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms, GRhs->G());
+grad_perp.cu:// Out-of-place 2D transforms in cufft now overwrite the input data. 
+linear.cu:			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
+linear.cu:  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+linear.cu:      	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
+linear.cu:    fieldlineaverage <<< nb1, nt1 >>> (favg, df, f->phi, vol_fac);
+linear.cu:  rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, nu_ei, rho_s, d_e, GRhs->G());
+linear.cu:  rhs_lin_vp <<< dG, dB >>> (G->G(), f->phi, GRhs->G(), grids_->ky,
+moments.cu:  // this is a proof-of-principle hack. typically nothing will happen here
+ncdf.cu:  Tbar <<<blocks, threads>>> (t_bar, G->G(), f->phi, geo_->kperp2);
+ncdf.cu:  get_pzt <<<blocks, threads>>> (&primary[0], &secondary[0], &tertiary[0], f->phi, t_bar);
+nonlinear.cu:  //    qvar(f->phi, grids_->NxNycNz);
+nonlinear.cu:    J0phiAndBparToGrid GBK (J0phi, f->phi, f->bpar, geo_->kperp2, laguerre->get_roots(), rho2s, tz, pars_->fphi, pars_->fbpar);
+nonlinear.cu:    J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
+nonlinear.cu:    J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
+nonlinear.cu:  grad_perp_f -> dxC2R(f->phi, dphi); 
+nonlinear.cu:    grad_perp_f -> dxC2R(f->apar, dapar); 
+nonlinear.cu:  grad_perp_f -> dyC2R(f->phi, dphi);  
+nonlinear.cu:    grad_perp_f -> dyC2R(f->apar, dapar); 
+nonlinear.cu:  grad_perp->dxC2R(f->phi, dphi_dx);
+nonlinear.cu:  grad_perp->dyC2R(f->phi, dphi_dy);
+nonlinear.cu:  grad_perp->dxC2R(f->apar, dapar_dx);
+nonlinear.cu:  grad_perp->dyC2R(f->apar, dapar_dy);
+nonlinear.cu:  grad_perp_f -> dyC2R(f->phi, dphi_dy);
+ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_k10.cu:  solver_->fieldSolve(G, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_sspx3.cu:  solver_->fieldSolve(G1, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_sspx3.cu:  solver_->fieldSolve(G2, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_sspx3.cu:  solver_->fieldSolve(G, f);          if (pars_->dealias_kz) grad_par->dealias(f->phi);
+version.c:const char * build_git_sha = "ee9c16f-dirty";
+x0:exb.cu:  if (pars_->fapar > 0.) field_shift<<<<dimGridfield,dimBlockfield>>>(f->apar,grids_->kxbar_ikx);
+x0:exb.cu:  //if (pars_->fbpar > 0.) field_shift<<<dimGridfield,dimBlockfield>>>(f->bpar,kxbar_ikx); // JFP: note: to update once we have bpar.
+x0:nonlinear.cu:    J0phiAndBparToGrid GBK (J0phi, f->phi, f->bpar, geo_->kperp2, laguerre->get_roots(), rho2s, tz, pars_->fphi, pars_->fbpar);
+x0:nonlinear.cu:    J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
+x0:nonlinear.cu:    J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
+x0:ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+x0:ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+x0:ts_k10.cu:  solver_->fieldSolve(G, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+x0:ts_sspx3.cu:  solver_->fieldSolve(G1, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+x0:ts_sspx3.cu:  solver_->fieldSolve(G2, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+x0:ts_sspx3.cu:  solver_->fieldSolve(G, f);          if (pars_->dealias_kz) grad_par->dealias(f->phi);

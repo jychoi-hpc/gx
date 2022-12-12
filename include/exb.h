@@ -2,11 +2,12 @@
 #include "device_funcs.h"
 #include "fields.h"
 #include "moments.h"
+#include "geometry.h"
 
 class ExB {
   public:
     virtual ~ExB() {};
-    virtual void flow_shear_shift(MomentsG* G, Fields* f, double dt);
+    virtual void flow_shear_shift(MomentsG* G, Fields* f, double dt) = 0;
 };
 
 class ExB_GK : public ExB {
