@@ -1,0 +1,435 @@
+closures.cu:  //  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, pars_->species);
+closures.cu:  int q_ = pars_->smith_perp_q;
+closures.cu:  int q_ = pars_->smith_par_q;
+diagnostics.cu:  if (pars_->fixed_amplitude) cudaMalloc (&phi_max, sizeof(float) * nX * nY);
+diagnostics.cu:  if (pars_->Reservoir) rc = new Reservoir(pars_, grids_->NxNyNz*grids_->Nmoms);  
+diagnostics.cu:  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2s, sizeof(float) * nG); 
+diagnostics.cu:  if (pars_->diagnosing_kzspec) {
+diagnostics.cu:    if (pars_->local_limit) {
+diagnostics.cu:    else if(pars_->boundary_option_periodic) {
+diagnostics.cu:      grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+diagnostics.cu:  // need if (pars_->write_flux || "diagnosing potential) {
+diagnostics.cu:  if (!pars_->all_kinetic) {
+diagnostics.cu:    if (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+diagnostics.cu:  if (pars_->diagnosing_pzt) {
+diagnostics.cu:  sprintf(stopfilename_, "%s.stop", pars_->run_name);
+diagnostics.cu:  if (pars_->ks) {
+diagnostics.cu:    if (pars_->ResWrite) {
+diagnostics.cu:      ry_h = (double*) malloc(sizeof(double)*pars_->ResQ*grids_->NxNyNz*grids_->Nmoms);
+diagnostics.cu:  if (pars_->Reservoir) {
+diagnostics.cu:  nw = pars_->nwrite;
+diagnostics.cu:    if (pars_->Reservoir && counter > pars_->nstep-pars_->ResPredict_Steps*pars_->ResTrainingDelta) {
+diagnostics.cu:      //      if (pars_->ResWrite) id -> write_nc( id -> r_time, time);
+diagnostics.cu:    if (!pars_->Reservoir) {
+diagnostics.cu:    if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
+diagnostics.cu:    if ( id -> qs -> write_v_time && grids_->iproc==0) printf("%s: Step %d: Time = %f \t", pars_->run_name, counter, time);          // To screen
+diagnostics.cu:    if (!id -> qs -> write_v_time && grids_->iproc==0) printf("%s: Step %d: Time = %f\n",  pars_->run_name, counter, time);
+diagnostics.cu:	float rho2s = pars_->species_h[is_glob].rho2;
+diagnostics.cu:	float p_s = pars_->species_h[is_glob].nt;
+diagnostics.cu:	float vt_s = pars_->species_h[is_glob].vt;
+diagnostics.cu:	float rho2s = pars_->species_h[is_glob].rho2;
+diagnostics.cu:        float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
+diagnostics.cu:	float vt_s = pars_->species_h[is_glob].vt;
+diagnostics.cu:    if (pars_->diagnosing_kzspec) {
+diagnostics.cu:	float rho2s = pars_->species_h[is_glob].rho2;
+diagnostics.cu:	float qfac = pars_->species_h[is_glob].nz*pars_->species_h[is_glob].zt;
+diagnostics.cu:      if (pars_->add_Boltzmann_species) {
+diagnostics.cu:	if (pars_->Boltzmann_opt == BOLTZMANN_IONS)  Wphi2_summand loop_R (Phi2, amom_d, kvol_fac);
+diagnostics.cu:	if (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+diagnostics.cu:	float fac = 1./pars_->tau_fac;
+diagnostics.cu:    if (pars_->diagnosing_spectra) {                                        // Various spectra
+diagnostics.cu:      if (pars_->gx) {
+diagnostics.cu:	  float rho2s = pars_->species_h[is_glob].rho2;
+diagnostics.cu:	  float qnfac = pars_->species_h[is_glob].nz*pars_->species_h[is_glob].zt;
+diagnostics.cu:	if (pars_->add_Boltzmann_species) {
+diagnostics.cu:	  if (pars_->Boltzmann_opt == BOLTZMANN_IONS)  Wphi2_summand loop_R (Phi2, fields->phi, vol_fac);
+diagnostics.cu:	  if (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {	  
+diagnostics.cu:	  float fac = 1./pars_->tau_fac;
+diagnostics.cu:      if (pars_->ks) {
+diagnostics.cu:    if (pars_->Reservoir && counter > pars_->nstep-pars_->ResPredict_Steps*pars_->ResTrainingDelta) {
+diagnostics.cu:      if (!pars_->ResFakeData) id -> write_ks_data ( id -> g_y, G[0]->G());
+diagnostics.cu:    if (!pars_->Reservoir) {
+diagnostics.cu:  if (pars_->Reservoir && counter%pars_->ResTrainingDelta == 0) {
+diagnostics.cu:    if (pars_->fftphase==true) grad_perp->phase_mult(gy_d);
+diagnostics.cu:    if (pars_->ResFakeData) {
+diagnostics.cu:  if (pars_->fixed_amplitude && (counter % nw == nw-2)) {
+diagnostics.cu:  if (pars_->Reservoir && rc->predicting()) {
+diagnostics.cu:    if (pars_->ResFakeData) {
+diagnostics.cu:        if (pars_->fftphase==true) grad_perp->phase_mult(gy_d);
+diagnostics.cu:    for (int i=0; i<pars_->ResPredict_Steps; i++) {
+diagnostics.cu:      time += pars_->dt * pars_->ResTrainingDelta;
+diagnostics.cu:  if (pars_->write_fields) {
+diagnostics.cu:  //if (pars_->diagnosing_kzspec) {
+diagnostics.cu:  //  if (pars_->local_limit) {
+diagnostics.cu:  //  else if(pars_->boundary_option_periodic) {
+diagnostics.cu:  //    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+diagnostics.cu:  // need if (pars_->write_flux || "diagnosing potential) {
+diagnostics.cu:  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2s, sizeof(float) * nG); 
+diagnostics.cu:  if (pars_->diagnosing_pzt) {
+diagnostics.cu:  sprintf(stopfilename_, "%s.stop", pars_->run_name);
+diagnostics.cu:  nw = pars_->nwrite;
+diagnostics.cu:    printf("%s: Step %d: Time = %f\n",  pars_->run_name, counter, time);
+diagnostics.cu:    //if (pars_->write_phi) id->write_nc(id->phi, phi);
+diagnostics.cu:    if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
+diagnostics.cu:    if (pars_->diagnosing_spectra) {                                        // Various spectra
+diagnostics.cu:      Wphi_summand_krehm loop_R (P2(), fields->phi, vol_fac, grids_->kx, grids_->ky, pars_->rho_i);
+exb.cu:  nt1 = pars_->i_share;   nb1 = 1 + (nbx-1)/nt1;
+exb.cu:  kxstar_phase_shift<<<grids_->NxNyc,nt1>>>(grids_->kxstar, grids_->kxbar_ikx, grids_->ky, grids_->x, grids_->phasefac, pars_->g_exb, dt);
+exb.cu:                           geo_->gds2, geo_->gds21, geo_->gds22, geo_->bmagInv, pars_->shat);
+exb.cu:  if (pars_->fapar > 0.) field_shift<<<<dimGridfield,dimBlockfield>>>(f->apar,grids_->kxbar_ikx);
+exb.cu:  //if (pars_->fbpar > 0.) field_shift<<<dimGridfield,dimBlockfield>>>(f->bpar,kxbar_ikx); // JFP: note: to update once we have bpar.
+fields.cu:  //if (pars_->beta > 0. || pars_->krehm) {
+fields.cu:  //  if (!pars_->krehm) {
+fields.cu:  if(pars_->beta>0) rescale_kernel <<< dG, dB >>> (apar,  phi_max, 1);
+forcing.cu:  forcing_amp_ = pars_->forcing_amp;
+forcing.cu:  generate_random_numbers (&random_real, &random_imag, forcing_amp_, pars_->dt);
+forcing.cu:  switch (pars_->stirf)
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+forcing.cu:  forcing_amp_ = pars_->forcing_amp;
+forcing.cu:  generate_random_numbers (&random_real, &random_imag, forcing_amp_, pars_->dt);
+forcing.cu:  switch (pars_->stirf)
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+forcing.cu:  generate_random_numbers(&random_real, &random_imag, forcing_amp_, pars_->dt);
+forcing.cu:  switch (pars_->stirf)
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+grids.cu:  if (pars_->ExBshear) {  
+grids.cu:  if (pars_->ExBshear) {
+grids.cu:  setdev_constants(Nx, Ny, Nyc, Nz, Nspecies, Nm, Nl, Nj, pars_->Zp, pars_->ikx_fixed, pars_->iky_fixed, is_lo, is_up, m_lo, m_up, m_ghost, pars_->nm_in);
+grids.cu:  if (pars_->ExBshear) {
+grids.cu:  kInit <<<nb, nt>>> (kx, ky, kz, kzm, kzp, pars_->x0, pars_->y0, pars_->Zp, pars_->dealias_kz);
+grids.cu:  if (pars_->ExBshear) {
+grids.cu:  for (int i = 1; i < Ny ; i++) y_h[i] = y_h[i-1] + (float) 2*M_PI*(pars_->y0)/Ny;
+grids.cu:  for (int i = 1; i < Nx ; i++) x_h[i] = x_h[i-1] + (float) 2*M_PI*(pars_->x0)/Nx;
+grids.cu:    z_h[k] = 2.*M_PI *pars_->Zp *(k-Nz/2)/Nz;
+linear.cu:  if(pars_->local_limit) {
+linear.cu:  else if(pars_->boundary_option_periodic && pars_->nx_in > 1) {
+linear.cu:    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+linear.cu:  switch (pars_->closure_model_opt)
+linear.cu:  if (pars_->HB_hyper) {
+linear.cu:  nn1 = grids_->NxNycNz;         nt1 = pars_->i_share     ;   nb1 = 1 + (nn1-1)/nt1;
+linear.cu:    printf("You are using i_share = %d now, perhaps by default.\n", pars_->i_share);
+linear.cu:	   pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
+linear.cu:  if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
+linear.cu:	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->hegna, pars_->ei_colls, pars_->rhoc, pars_->g_exb, pars_->RBzeta, pars_->qsf);
+linear.cu:  if (pars_->HB_hyper) {
+linear.cu:    get_s01 <<< 1, 1 >>> (s01, favg, grids_->kx, pars_->w_osc);
+linear.cu:    get_s1 <<< nb1, nt1 >>> (s10, s11, grids_->kx, grids_->ky, df, pars_->w_osc);
+linear.cu:				     grids_->kx, grids_->ky, pars_->D_HB, pars_->p_HB, GRhs->G());
+linear.cu:  switch (pars_->closure_model_opt) {
+linear.cu:  if(pars_->hypercollisions) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+linear.cu:								   pars_->nu_hyper_l,
+linear.cu:								   pars_->nu_hyper_m,
+linear.cu:								   pars_->p_hyper_l,
+linear.cu:								   pars_->p_hyper_m, GRhs->G(), G->species->vt);
+linear.cu:  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+linear.cu:						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
+linear.cu:  if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2);
+linear.cu:  if(pars_->local_limit) {
+linear.cu:  else if(pars_->boundary_option_periodic) {
+linear.cu:    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+linear.cu:  switch (pars_->closure_model_opt)
+linear.cu:  nn1 = grids_->NxNycNz;         nt1 = pars_->i_share     ;   nb1 = 1 + (nn1-1)/nt1;
+linear.cu:  switch (pars_->closure_model_opt) {
+linear.cu:  if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
+linear.cu:								   pars_->nu_hyper_l,
+linear.cu:								   pars_->nu_hyper_m,
+linear.cu:								   pars_->p_hyper_l,
+linear.cu:								   pars_->p_hyper_m, GRhs->G(), 1.);
+linear.cu:  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+linear.cu:						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());
+linear.cu:  rhs_ks <<< dG, dB >>> (G->G(), GRhs->G(), grids_->ky, pars_->eps_ks);
+linear.cu:			     pars_->vp_closure, pars_->vp_nu,       pars_->vp_nuh,
+linear.cu:			     pars_->vp_alpha,   pars_->vp_alpha_h);
+moments.cu:  if (pars_->ks) {
+moments.cu:  if (pars_->vp) {
+moments.cu:  if (!pars_->restart) init_h[0].x = 1.; // This is the Maxwellian background
+moments.cu:  init_h[1 + grids_->Nyc * 2].x = pars_->init_amp; // This is a temperature perturbation (up to a factor of sqrt(2)).
+moments.cu:  if (pars_->restart) this->restart_read(time);
+moments.cu://  std::normal_distribution<float> ramp(0., pars_->init_amp);
+moments.cu://  if(pars_->restart) {
+moments.cu:  if (pars_->ks) {
+moments.cu:    if(pars_->init_single) {
+moments.cu:      int iky = pars_->iky_single;
+moments.cu:      int ikx = pars_->ikx_single;
+moments.cu:	//    if(pars_->nlpm_test && iky==0) fac = .5;
+moments.cu:	  init_h[index].x = pars_->init_amp; //*fac;
+moments.cu:	  samp = pars_->init_amp;
+moments.cu:	      if (pars_->ikpar_init < 0) {		
+moments.cu:		init_h[index].x *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
+moments.cu:				  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
+moments.cu:		init_h[index].y *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
+moments.cu:				  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
+moments.cu:		init_h[index].x *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
+moments.cu:		init_h[index].y *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
+moments.cu:	  if (pars_->random_init) {
+moments.cu:  switch (pars_->initf)
+moments.cu:  if(pars_->restart) {
+moments.cu:  bool neqfix = !pars_->eqfix;
+moments.cu:  bool neqfix = !pars_->eqfix;
+moments.cu:  bool neqfix = !pars_->eqfix;
+moments.cu:  bool neqfix = !pars_->eqfix;
+moments.cu:  strcpy(strb, pars_->restart_to_file.c_str());
+moments.cu:  //  if(pars_->restart) {
+moments.cu:  strcpy(strb, pars_->restart_from_file.c_str());
+moments.cu:  if (Nm-pars_->nm_add != (int) ldum) {
+moments.cu:  if (Nl-pars_->nl_add != (int) ldum) {
+moments.cu:  if (Nz != (int) ldum*pars_->ntheta_mult) {
+moments.cu:    printf("Cannot restart because of nz mismatch: %d \t %zu \n", Nz, ldum*pars_->ntheta_mult);
+moments.cu:  if (1 + 2*((Nx/pars_->nx_mult-1)/3) != (int) ldum) {
+moments.cu:  if (1 + (Ny/pars_->ny_mult-1)/3 != (int) ldum) {
+moments.cu:  if (pars_->domain_change) {
+moments.cu:    int old_Nakx = 1 + 2 * ((Nx/pars_->nx_mult - 1)/3);
+moments.cu:    int old_Naky = 1 +     ((Ny/pars_->ny_mult - 1)/3);
+moments.cu:    int old_Nz = Nz/pars_->ntheta_mult;
+moments.cu:    int old_Nl = Nl - pars_->nl_add;
+moments.cu:    int old_Nm = Nm - pars_->nm_add;
+moments.cu:  scale = pars_->scale;
+moments.cu:  if (!pars_->domain_change) {
+moments.cu:    int old_Naky = 1 +    (Ny/pars_->ny_mult - 1)/3;    int jj; 
+moments.cu:    int old_Nakx = 1 + 2*((Nx/pars_->nx_mult - 1)/3);   int ii; 
+moments.cu:    int old_Nx = Nx/pars_->nx_mult;
+moments.cu:    int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
+moments.cu:    int old_Nm = Nm - pars_->nm_add;
+moments.cu:    int old_Nl = Nl - pars_->nl_add;
+moments.cu:            ii = i * pars_->x0_mult;
+moments.cu:      	  jj = j * pars_->y0_mult;
+moments.cu:            ii =(i-old_Nx) * pars_->x0_mult + Nx;
+moments.cu:            if ((i-old_Nx) * pars_->x0_mult + 1 + Nakx/2 > 0) {
+moments.cu:      	  jj = j * pars_->y0_mult;
+moments.cu:  if (pars_->tp_t0 > -0.5) {
+moments.cu:    if (time < (double) pars_->tp_t0) {
+moments.cu:      float tp = pars_->tprim0;
+moments.cu:      if (time < (double) pars_->tp_tf) {
+moments.cu:        float tprim0 = pars_->tprim0;
+moments.cu:        float tprimf = pars_->tprimf;
+moments.cu:        float t0 = pars_->tp_t0;
+moments.cu:        float tf = pars_->tp_tf;
+moments.cu:        float tp = pars_->tprimf;
+ncdf.cu:  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) {
+ncdf.cu:    red = new          All_Reduce(grids_, pars_->wspectra); CUDA_DEBUG("Reductions: %s \n"); // G**2
+ncdf.cu:    pot = new Grid_Species_Reduce(grids_, pars_->pspectra); CUDA_DEBUG("Reductions: %s \n"); // (1-G0) Phi**2 keeping track of species
+ncdf.cu:    ph2 = new         Grid_Reduce(grids_, pars_->aspectra); CUDA_DEBUG("Reductions: %s \n"); // Phi**2
+ncdf.cu:  strcpy(strb, pars_->run_name); 
+ncdf.cu:  if (retval = nc_create_par(strb, NC_CLOBBER | NC_NETCDF4, pars_->mpcom, MPI_INFO_NULL, &file)) ERR(retval);
+ncdf.cu:  if (pars_->write_kmom || pars_->write_xymom || pars_->write_avgz) {
+ncdf.cu:  if (pars_->ResWrite) {
+ncdf.cu:    r_file = pars_->ncresid;
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:    z_file = pars_->nczid;
+ncdf.cu:  if (pars_->ResWrite) {
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:  if (pars_->write_moms) {
+ncdf.cu:  if (pars_->write_moms) {
+ncdf.cu:  if (pars_->write_phi) {
+ncdf.cu:  if (pars_->write_phi) {
+ncdf.cu:  if (pars_->write_phi_kpar and pars_->write_moms) {      
+ncdf.cu:  if (pars_->write_phi_kpar) {
+ncdf.cu:  if (pars_->write_fields && pars_->fphi > 0.) {
+ncdf.cu:  if (pars_->write_fields && pars_->fapar > 0.) {
+ncdf.cu:  if (pars_->write_fields && pars_->fbpar > 0.) {
+ncdf.cu:  if (pars_->write_omega) {
+ncdf.cu:  if (pars_->write_rh) {
+ncdf.cu:  if (pars_->write_pzt) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_species] > 0) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_kx] > 0) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_ky] > 0) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_kz] > 0) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_z] > 0) {
+ncdf.cu:  if (pars_->write_xyPhi) {
+ncdf.cu:  if (pars_->pspectra[PSPECTRA_kxky] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_species] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_kx] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_ky] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_kz] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_z] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_kxky] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_species] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_kx] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_ky] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_kz] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_z] > 0) {
+ncdf.cu:  if (pars_->aspectra[ASPECTRA_kxky] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_lm] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_l] > 0) {
+ncdf.cu:  if (pars_->wspectra[WSPECTRA_m] > 0) {
+ncdf.cu:  bool linked = (not pars_->local_limit && not pars_->boundary_option_periodic);
+ncdf.cu:  if (pars_->write_vEy) {
+ncdf.cu:  if (pars_->write_avg_zvE) {
+ncdf.cu:  if (pars_->write_avg_zkxvEy) {
+ncdf.cu:  if (pars_->write_avg_zkden) {
+ncdf.cu:  if (pars_->write_avg_zkUpar) {
+ncdf.cu:  if (pars_->write_avg_zkTpar) {
+ncdf.cu:  if (pars_->write_avg_zkqpar) {
+ncdf.cu:  if (pars_->write_avg_zkTperp) {
+ncdf.cu:  if (pars_->write_kxvEy) {
+ncdf.cu:  if (pars_->write_kden) {
+ncdf.cu:  if (pars_->write_kUpar) {
+ncdf.cu:  if (pars_->write_kTpar) {
+ncdf.cu:  if (pars_->write_kTperp) {
+ncdf.cu:  if (pars_->write_kqpar) {
+ncdf.cu:  if (pars_->write_xyvEy) {
+ncdf.cu:  if (pars_->write_xyvEx) {
+ncdf.cu:  if (pars_->write_xyden) {
+ncdf.cu:  if (pars_->write_xyUpar) {
+ncdf.cu:  if (pars_->write_xyTpar) {
+ncdf.cu:  if (pars_->write_xyTperp) {
+ncdf.cu:  if (pars_->write_xyqpar) {
+ncdf.cu:  if (pars_->ks && pars_->ResWrite) {
+ncdf.cu:    r_y = new nca(pars_->ResQ * grids_->NxNyNz * grids_->Nmoms);
+ncdf.cu:    r_y -> time_count[1] = pars_->ResQ * grids_->NxNyNz*grids_->Nmoms;
+ncdf.cu:  if (pars_->ks && pars_->write_ks) {
+ncdf.cu:  if (pars_->write_free_energy) {
+ncdf.cu:  if (pars_->write_fluxes ) {
+ncdf.cu:  if (pars_->write_fluxes ) {
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:  if (pars_->ResWrite) {
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:          if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
+ncdf.cu:          if (j==0) {th0 = 0.;} else {th0 = grids_->kx_h[i]/(grids_->ky_h[j]*pars_->shat);}
+ncdf.cu:  idum = pars_->boundary_option_periodic ? 1 : 0;
+ncdf.cu:  idum = pars_->local_limit ? 1 : 0;
+ncdf.cu:        const char *spec_string = pars_->species_h[is_glob].type == 1 ? "e" : "i";
+ncdf.cu:        const char *spec_string = pars_->species_h[is_glob].type == 1 ? "e" : "i";
+ncdf.cu:  if (pars_->write_xymom) {
+ncdf.cu:    if (retval = nc_close(pars_->nczid)) ERR(retval);
+ncdf.cu:  if (pars_->fftphase==true) grad_perp -> phase_mult(D->data); // 1D
+nonlinear.cu:  if (pars_->fapar > 0.) {
+nonlinear.cu:  if (pars_->fapar > 0.) {
+nonlinear.cu:  cfl_x_inv = (float) grids_->Nx/2 / (pars_->cfl * pars_->x0);
+nonlinear.cu:  cfl_y_inv = (float) grids_->Ny/2 / (pars_->cfl * pars_->y0); 
+nonlinear.cu://  cfl_x_inv = (float) grids_->Nx / (pars_->cfl * 2 * M_PI * pars_->x0);
+nonlinear.cu://  cfl_y_inv = (float) grids_->Ny / (pars_->cfl * 2 * M_PI * pars_->y0);
+nonlinear.cu:  if(pars_->fbpar > 0.0) {
+nonlinear.cu:    J0phiAndBparToGrid GBK (J0phi, f->phi, f->bpar, geo_->kperp2, laguerre->get_roots(), rho2s, tz, pars_->fphi, pars_->fbpar);
+nonlinear.cu:    J0fToGrid GBK (J0phi, f->phi, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fphi);
+nonlinear.cu:  if (pars_->fftphase==true){
+nonlinear.cu:  if (pars_->fapar > 0.) {
+nonlinear.cu:    J0fToGrid GBK (J0apar, f->apar, geo_->kperp2, laguerre->get_roots(), rho2s, pars_->fapar);
+nonlinear.cu:    if (pars_->fftphase==true){
+nonlinear.cu:    if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:    if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:    bracket GBX (g_res, dg_dx, dJ0phi_dy, dg_dy, dJ0phi_dx, pars_->kxfac);
+nonlinear.cu:    if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D
+nonlinear.cu:    if (pars_->fapar > 0.) {
+nonlinear.cu:      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
+nonlinear.cu:      if(m+1 < pars_->nm_in) add_scaled_singlemom_kernel GBK (G_res->Gm(m_local+1), 1., G_res->Gm(m_local+1), -vts*sqrtf(m+1), tmp_c);
+nonlinear.cu:  if(pars_->fapar > 0. && grids_->nprocs_m>1) {
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
+nonlinear.cu:    if(m<pars_->nm_in-1) {
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG); // 1D
+nonlinear.cu:      bracket GBX (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
+nonlinear.cu:      if (pars_->fftphase==true) grad_perp_G -> phase_mult(dG, false); // 1D with minus phase factor.
+nonlinear.cu:  float vpmax = sqrtf(2.*pars_->nm_in)*pars_->vtmax; // estimate of max vpar on grid
+nonlinear.cu:  if(pars_->fapar > 0.0) {
+nonlinear.cu:    if (pars_->fftphase==true) grad_perp_f -> phase_mult(dapar); // 1D
+nonlinear.cu:  if (pars_->fftphase==true) grad_perp_f -> phase_mult(dphi); // 1D
+nonlinear.cu:  if(pars_->fapar > 0.0) {
+nonlinear.cu:    if (pars_->fftphase==true) grad_perp_f -> phase_mult(dapar); // 1D
+nonlinear.cu:  cfl_x_inv = (float) grids_->Nx / (pars_->cfl * 2 * M_PI * pars_->x0);
+nonlinear.cu:  cfl_y_inv = (float) grids_->Ny / (pars_->cfl * 2 * M_PI * pars_->y0); 
+reservoir.cu:  ResQ_      = pars_->ResQ;    N_ = ResQ_ * M_;
+reservoir.cu:  K_         = pars_->ResK;
+reservoir.cu:  sigma_     = (double) pars_->ResSigma;
+reservoir.cu:  ResRadius_ = (double) pars_->ResSpectralRadius;
+reservoir.cu:  beta_      = (double) pars_->ResReg;
+reservoir.cu:  nT_        = pars_->ResTrainingSteps;
+reservoir.cu:  sigNoise_  = pars_->ResSigmaNoise;
+reservoir.cu:  addNoise_  = pars_->add_noise;
+reservoir.cu:  if (pars_->ResFakeData) {
+solver.cu:  if (pars_->ks) return;
+solver.cu:  if(pars_->fapar > 0.) count = 2*grids_->NxNycNz;
+solver.cu:  if(pars_->fbpar > 0.) count = 3*grids_->NxNycNz;
+solver.cu:  if(pars_->fapar > 0.) jparbar = nbar+grids_->NxNycNz;
+solver.cu:  if(pars_->fbpar > 0.) jperpbar = nbar+2*grids_->NxNycNz;
+solver.cu:  if(!pars_->all_kinetic && (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS)) {cudaMalloc((void**) &tmp,  cgrid); zero(tmp);}
+solver.cu:  if(pars_->fphi > 0.) {
+solver.cu:  if(pars_->fapar > 0.) {
+solver.cu:  if(pars_->fbpar > 0.) {
+solver.cu:  for(int is_glob=0; is_glob<pars_->nspec_in; is_glob++) {
+solver.cu:                        pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar);
+solver.cu:  if (!pars_->all_kinetic && (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) && !pars_->no_fields) {     
+solver.cu:    calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->jacobian, qneutFacPhi, pars_->tau_fac);
+solver.cu:  if (pars_->ks) return;
+solver.cu:  if (pars_->vp) {
+solver.cu:  if (pars_->no_fields) { zero(fields->phi); return; }
+solver.cu:  if (pars_->all_kinetic) {
+solver.cu:	if(pars_->fbpar>0.0) real_space_perp_current GQN (nbar+2*grids_->NxNycNz, G[is]->G(), geo_->kperp2, *G[is]->species);
+solver.cu:        if(pars_->fapar>0.0) real_space_par_current GQN (nbar+grids_->NxNycNz, G[is]->G(), geo_->kperp2, *G[is]->species);
+solver.cu:    if (pars_->fbpar>0.0) {
+solver.cu:      qneut_and_ampere_perp GQN (fields->phi, fields->bpar, nbar, jperpbar, qneutFacPhi, qneutFacBpar, amperePerpFacPhi, amperePerpFacBpar, pars_->fphi, pars_->fbpar);
+solver.cu:      qneut GQN (fields->phi, nbar, qneutFacPhi, pars_->fphi);
+solver.cu:    if (pars_->fapar>0.0) ampere_apar  GQN (fields->apar, jparbar, ampereParFac, pars_->fapar);
+solver.cu:    if(pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+solver.cu:      qneutAdiab_part1 GQN (             tmp, nbar, geo_->jacobian, qneutFacPhi, pars_->tau_fac);
+solver.cu:      qneutAdiab_part2 GQN (fields->phi, tmp, nbar, phiavgdenom,    qneutFacPhi, pars_->tau_fac, pars_->fphi);
+solver.cu:    if(pars_->Boltzmann_opt == BOLTZMANN_IONS) qneutAdiab GQN (fields->phi, nbar, qneutFacPhi, pars_->tau_fac, pars_->fphi);
+solver.cu:  if(pars_->source_option==PHIEXT) add_source GQN (fields->phi, pars_->phi_ext);
+solver.cu:  phiSolve_krehm<<<dG, dB>>>(fields->phi, G[0]->G(0), grids_->kx, grids_->ky, pars_->rho_i);
+solver.cu:  aparSolve_krehm<<<dG, dB>>>(fields->apar, G[0]->G(1), grids_->kx, grids_->ky, pars_->rho_s, pars_->d_e);
+solver.cu:  if (pars_->ks) return;
+trinity_interface.cu:  strcpy(strb, pars_->run_name); 
+trinity_interface.cu:  double dz = 2.*M_PI/pars_->nz_in;
+trinity_interface.cu:  for (int i=0; i<pars_->nz_in; i++) {
+trinity_interface.cu:  for(int s=0; s<pars_->nspec_in; s++) {
+trinity_interface.cu:    for(int i=tlen - pars_->navg/pars_->nwrite; i<tlen; i++) {
+trinity_interface.cu:    if(pars_->add_Boltzmann_species && pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+trinity_interface.cu:      if(pars_->species_h[s].type==1) { // electrons
+trinity_interface.cu:  for(int s=0; s<pars_->nspec_in; s++) {
+trinity_interface.cu:    if(pars_->add_Boltzmann_species && pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+trinity_interface.cu:      printf("%s: Species %d: qflux = %g, pflux = %g, heat = %g, surfarea = %g\n", pars_->run_name, s, tfluxes->qflux[s+1], tfluxes->pflux[s+1], tfluxes->heat[s+1], surfarea);
+trinity_interface.cu:      printf("%s: Species %d: qflux = %g, pflux = %g, heat = %g\n", pars_->run_name, s, tfluxes->qflux[s], tfluxes->pflux[s], tfluxes->heat[s]);
+ts_k10.cu:  if (pars_->local_limit)                     { grad_par = new GradParallelLocal(grids_);
+ts_k10.cu:  } else if (pars_->boundary_option_periodic) { grad_par = new GradParallelPeriodic(grids_);
+ts_k10.cu:  } else {                                      grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+ts_k10.cu:    linear_->rhs(G_q1[is], f, GRhs[is]);   if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
+ts_k10.cu:    if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
+ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_k10.cu:  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_k10.cu:    if (pars_->dealias_kz) grad_par->dealias(G[is]);
+ts_k10.cu:    if (pars_->dealias_kz) grad_par->dealias(G[is]);
+ts_k10.cu:  solver_->fieldSolve(G, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_k2.cu:  stages_ = pars_->stages;
+ts_rk2.cu:    if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
+ts_rk4.cu:    if (pars_->eqfix) Gnew[is]->copyFrom(G[is]);
+ts_sspx2.cu:    if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
+ts_sspx3.cu:  if (pars_->local_limit) {
+ts_sspx3.cu:  else if (pars_->boundary_option_periodic) {
+ts_sspx3.cu:    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+ts_sspx3.cu:    linear_->rhs(G[is], f, GRhs[is]);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
+ts_sspx3.cu:    if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
+ts_sspx3.cu:  solver_->fieldSolve(G1, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_sspx3.cu:  solver_->fieldSolve(G2, f);         if (pars_->dealias_kz) grad_par->dealias(f->phi);
+ts_sspx3.cu:  solver_->fieldSolve(G, f);          if (pars_->dealias_kz) grad_par->dealias(f->phi);

@@ -46,6 +46,8 @@ __global__ void acc_scaled_kernel(cuComplex* res,
 
 __global__ void abs(float *f, int N);
 
+__device__ float sign(float x);
+
 __global__ void add_scaled_singlemom_kernel(float* res,
 					    double c1, const float* m1,
 					    double c2, const float* m2);
@@ -327,13 +329,12 @@ __global__ void hyperdiff(const cuComplex* g, const float* kx, const float* ky,
 __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, const float nu_hyper_m,
 				const int p_hyper_l, const int p_hyper_m, cuComplex* rhs, const float vt);
 
-__global__ void init_kxstar(float* kxstar, float* kx, float* th0);
+__global__ void init_kxstar_kxbar_phasefac(float* kxstar, int* kxbar_ikx, float* phasefac, const float* kx);
 
-__global__ void geo_shift(float* kxstar, float* ky, float* cv_d, float* gb_d, float* kperp2,
-                           float* cv, float* cv0, float* gb, float* gb0, float* omegad,
-                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat);
+__global__ void geo_shift(const float* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
+                           const float* cv, const float* cv0, const float* gb, const float* gb0, float* omegad,
+                           const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, const float shat);
 
-__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx, float* ky, float* x, float* phasefac float g_exb, double dt);
+__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx, const float* ky, const float* x, float* phasefac, const float g_exb, const double dt, const float x0);
 
-__global__ void field_shift(cuComplex* field, int* kxbar_ikx);
-
+__global__ void field_shift(cuComplex* field, const int* kxbar_ikx);

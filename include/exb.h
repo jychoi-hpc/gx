@@ -3,16 +3,16 @@
 #include "fields.h"
 #include "moments.h"
 
-class exb {
+class ExB {
  public:
-  virtual ~exb() {};
-  virtual void flow_shear_shift(MomentsG* G, Fields* f, double dt) = 0;
+  //virtual ~ExB() {};
+  void flow_shear_shift(MomentsG* G, Fields* f, double dt);
 };
 
-class exb_GK : public exb {
+class ExB_GK : public ExB {
 public:
-  exb_GK(Parameters* pars, Grids* grids, Geometry* geo); 
-  ~exb_GK();
+  ExB_GK(Parameters* pars, Grids* grids, Geometry* geo); 
+  //~ExB_GK();
 
   void flow_shear_shift(MomentsG* G, Fields* f, double dt);
 

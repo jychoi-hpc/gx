@@ -2,9 +2,9 @@
 
 // ======= SSPx2 =======
 SSPx2::SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, ExBshear *exbshear, double dt_in) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in):
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), exbshear_(exbshear) dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
 {
   // new objects for temporaries
   GRhs  = new MomentsG (pars, grids);
@@ -34,7 +34,9 @@ void SSPx2::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bo
   for(int is=0; is<grids_->Nspecies; is++) {
     GRhs->set_zero();
 
-    exbshear_->flow_shear_shift(MomentsG* G, Fields* f, kx_shift, jump, dt_);
+    if (pars_->fftphase==true) {
+      exb_->flow_shear_shift(G[is], f, dt_);
+    }
 
     linear_->rhs(G[is], f, GRhs);
 
@@ -56,9 +58,6 @@ void SSPx2::advance(double *t, MomentsG** G, Fields* f)
     G1[is]->update_tprim(*t);
   }
   // end updates
-  
-  // update the kx grid and phase factor if flow shear.
-  ExBshear(MomentsG** G1, MomentsG** G, Fields* f, float* grids_->kx_shift, int* grids_->jump, double dt)
 
   EulerStep (G1, G, GRhs, f, true); 
   solver_->fieldSolve(G1, f);

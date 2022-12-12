@@ -102,7 +102,8 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
   *t += dt_;
 }
 
-void Ketcheson10::time_monitor(double* t)
-{
-
-}
+// JFP: add function to calculate time various stages of scheme.
+//void Ketcheson10::time_monitor(double* t)
+//{
+//
+//}

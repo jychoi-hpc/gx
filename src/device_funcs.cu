@@ -316,6 +316,12 @@ __global__ void abs(float *f, int N)
   if (i < N) f[i] = abs(f[i]);
 }
 
+__device__ float sign(float x)
+{
+  int t = x<0 ? -1 : 0;
+  x > 0 ? 1 : t;
+}
+
 __global__ void add_section(cuComplex *res, const cuComplex *tmp, int ntot)
 {
   unsigned int i = get_id1();
@@ -2585,7 +2591,7 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
 // We only shift kx star values onto dealiased grids. We leave the kx grids that are aliased away.
 
 // This is kx at t = 0. Throughout simulation, this will update for g_exb != 0.
-__global__ void init_kxstar_kxbar_phasefac(float* kxstar, float* kxbar_ikx, float* phasefac, float* kx)
+__global__ void init_kxstar_kxbar_phasefac(float* kxstar, int* kxbar_ikx, float* phasefac, const float* kx)
 {
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
@@ -2598,9 +2604,9 @@ __global__ void init_kxstar_kxbar_phasefac(float* kxstar, float* kxbar_ikx, floa
   // JFP: note: add read-in kxstar option.
 }
 
-__global__ void geo_shift(float* kxstar, float* ky, float* cv_d, float* gb_d, float* kperp2,
-                           float* cv, float* cv0, float* gb, float* gb0, float* omegad,
-                           float* gds2, float* gds21, float* gds22, float* bmagInv, float shat)
+__global__ void geo_shift(const float* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
+                           const float* cv, const float* cv0, const float* gb, const float* gb0, float* omegad,
+                           const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, const float shat)
 {
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
@@ -2618,13 +2624,13 @@ __global__ void geo_shift(float* kxstar, float* ky, float* cv_d, float* gb_d, fl
   }
 }
 
-__global__ void kxstar_phase_shift(float* kxstar, int kxbar_ikx, float* ky, float* x, float* phasefac float g_exb, double dt)
+__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx, const float* ky, const float* x, float* phasefac, const float g_exb, const double dt, const float x0)
 {
-  unsigned int idy = get_idy();
-  unsigned int idx = get_idx();
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
 
-  float dkx = (float) 1./X0_d;
-  float kxalias_max = (float) dkx*(nx-1)/3
+  float dkx = (float) 1./x0;
+  float kxalias_max = (float) dkx*(nx-1)/3;
 
   if(idy<ny/2+1) {
     // We track the difference between kx_star = kx(t=0) - ky gamma_E time and kx_bar = the nearest kx on grid. We need this for the phase factor in the FFT. Additionally, kxbar_ikx tells us how to shift ikx in the function shiftField.
@@ -2633,7 +2639,7 @@ __global__ void kxstar_phase_shift(float* kxstar, int kxbar_ikx, float* ky, floa
     phasefac[idy+nyc*idx] = (kxstar[idy+nyc*idx] - kxbar_ikx[idy+nyc*idx]*dkx)*x[idx]; // kx_star - kx_bar, which multiplied by x, is the phase.
     //if field is sheared beyond resolution or mask, subtract/add (depending on sign of g_exb) the maximum wavenumber. // JFP: should work with up-down asymmetry?
     if(kxbar_ikx[idy+nyc*idx] > (nx-1)/3 || kxbar_ikx[idy+nyc*idx] < -(nx-1)/3 ) {
-      kxstar[idy+nyc*idx] = kxstar[idy+nyc*idx] + sign(g_exb)*2*kxalias_max // shifting kxs to opposite side of dealiased kx grid.
+      kxstar[idy+nyc*idx] = kxstar[idy+nyc*idx] + sign(g_exb)*2*kxalias_max; // shifting kxs to opposite side of dealiased kx grid.
     }
   }
 }
@@ -2647,35 +2653,34 @@ __global__ void kxstar_phase_shift(float* kxstar, int kxbar_ikx, float* ky, floa
 // if ikx_shifted is outside of the dealiased grid, we set fields to zero.
 // otherwise, we shift fields to the appropriate new kx index.
 // this should work for multistep schemes.
-__global__ void field_shift(cuComplex* field, int kxbar_ikx)
+__global__ void field_shift(cuComplex* field, const int* kxbar_ikx)
 {
-  unsigned int idx = get_idx();
-  unsigned int idy = get_idy();
-  unsigned int idz = get_idz();
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
 
   if(idx<nx && idy<(ny/2+1) && idz<nz) {
-    unsigned int index = idy + (ny/2+1)*idx + nx*(ny/2+1)*idz;
-
-    int ikx_shifted = kxbar_ikx[idy+nyc*idx]
+    int index = idy + (ny/2+1)*idx + nx*(ny/2+1)*idz;
+    int ikx_shifted = kxbar_ikx[idy+nyc*idx];
 
     //if field is sheared beyond resolution or mask, set field to zero
-    if(kxbar_ikx[idy+nyc*idx] > (nx-1)/3 || kxbar_ikx[idy+nyc*idx] < -(nx-1)/3 ) {
+    if( kxbar_ikx[idy+nyc*idx] > (nx-1)/3 || kxbar_ikx[idy+nyc*idx] < -(nx-1)/3 ) {
       field[index].x = 0.;
       field[index].y = 0.;
     }
     else {
-      unsigned int idx_shifted;
-      if(ikx_shifted < 0)
+      int idx_shifted;
+      if(ikx_shifted < 0) {
         idx_shifted = ikx_shifted + nx;
+      }
       else idx_shifted = ikx_shifted;
 
-      unsigned int index_shifted = idy + (ny/2+1)*idx_shifted + nx*(ny/2+1)*idz;
+      int index_shifted = idy + (ny/2+1)*idx_shifted + nx*(ny/2+1)*idz;
 
       field[index] = field[index_shifted];
     }
   }
 }
-
 
 // uperp_bar(ky, kx, z, s) = sqrt(b(s)) * sum_l [Jflr(ky, kx, z, l,  b(s)) + Jflr(ky, kx, z, l-1, b(s))] *
 //                                                 [g(ky, kx, z, l, 0, is) + Jflr(ky, kx, z, l, b(s)) phi(ky, kx, z, s)) 

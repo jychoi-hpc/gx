@@ -8,6 +8,7 @@
 #include "solver.h"
 #include "forcing.h"
 #include "grad_parallel.h"
+#include "exb.h"
 
 class Timestepper {
  public:
@@ -121,7 +122,7 @@ class K2 : public Timestepper {
 class SSPx2 : public Timestepper {
  public:
   SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+	Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
   ~SSPx2();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -137,6 +138,7 @@ class SSPx2 : public Timestepper {
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
+  ExB        * exb_       ;
   MomentsG  ** G1         ;
   MomentsG  ** G2         ;
   MomentsG   * GRhs       ;

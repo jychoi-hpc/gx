@@ -4,7 +4,7 @@
 // exb
 // object for handling flow shear terms.
 //=======================================
-exb_GK::exb_GK(Parameters* pars_, Grids* grids, Geometry* geo) :
+ExB_GK::ExB_GK(Parameters* pars_, Grids* grids, Geometry* geo) :
   pars_(pars_), grids_(grids), geo_(geo)
 {
   int nxkyz = grids_->NxNycNz;
@@ -23,17 +23,17 @@ exb_GK::exb_GK(Parameters* pars_, Grids* grids, Geometry* geo) :
   dimGridfield = nb1;
 }
 
-exb_GK::~exb_GK()
+ExB_GK::~ExB_GK()
 {
   //if (closures) delete closures;
   //if (favg)       cudaFree(favg);
 }
 
-void exb_GK::flow_shear_shift(MomentsG* G, Fields* f, double dt)
+void ExB_GK::flow_shear_shift(MomentsG* G, Fields* f, double dt)
 {
 
   // shift moments and fields in kx to account for ExB shear
-  kxstar_phase_shift<<<grids_->NxNyc,nt1>>>(grids_->kxstar, grids_->kxbar_ikx, grids_->ky, grids_->x, grids_->phasefac, pars_->g_exb, dt);
+  kxstar_phase_shift<<<grids_->NxNyc,nt1>>>(grids_->kxstar, grids_->kxbar_ikx, grids_->ky, grids_->x, grids_->phasefac, pars_->g_exb, dt, pars_->x0);
   // update geometry
   geo_shift<<<grids_->NxNycNz,nt1>>>(grids_->kxstar, grids_->ky, geo_->cv_d, geo_->gb_d, geo_->kperp2,
                            geo_->cv, geo_->cv0, geo_->gb, geo_->gb0, geo_->omegad,
