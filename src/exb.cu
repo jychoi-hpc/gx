@@ -7,10 +7,11 @@
 ExB_GK::ExB_GK(Parameters* pars_, Grids* grids, Geometry* geo) :
   pars_(pars_), grids_(grids), geo_(geo)
 {
-  int nxkyz = grids_->NxNycNz;
+  //unsigned int nxkyz = grids_->NxNycNz;
+  //unsigned int nlag = grids_->Nj;
 
-  nbx = min(32, nxkyz);      ngx = 1 + (nxkyz-1)/nbx;
-  nby = min(16, nlag);       ngy = 1 + (nlag-1)/nby;
+  int nbx = min(32, grids_->NxNycNz);   int ngx = 1 + (grids_->NxNycNz-1)/nbx;
+  int nby = min(16, grids_->Nj);   int ngy = 1 + (grids_->Nj-1)/nby;
 
   dBk = dim3(nbx, nby, 1);
   dGk = dim3(ngx, ngy, 1);
@@ -31,7 +32,6 @@ ExB_GK::~ExB_GK()
 
 void ExB_GK::flow_shear_shift(MomentsG* G, Fields* f, double dt)
 {
-
   // shift moments and fields in kx to account for ExB shear
   kxstar_phase_shift<<<grids_->NxNyc,nt1>>>(grids_->kxstar, grids_->kxbar_ikx, grids_->ky, grids_->x, grids_->phasefac, pars_->g_exb, dt, pars_->x0);
   // update geometry

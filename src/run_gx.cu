@@ -56,6 +56,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
 
   if (pars->krehm) {
     linear = new Linear_KREHM(pars, grids);          
+    exb = new ExB_GK(pars, grids, geo);
     if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
 
     solver = new Solver_KREHM(pars, grids);
@@ -72,6 +73,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   //////////////////////////////  
   if (pars->ks) {
     linear    = new Linear_KS(pars, grids);    
+    exb = new ExB_GK(pars, grids, geo);
     if (!pars->linear) nonlinear = new Nonlinear_KS(pars, grids);
 
     // no field solve for K-S
@@ -88,6 +90,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   //////////////////////////////  
   if (pars->vp) {
     linear    = new Linear_VP(pars, grids);    
+    exb = new ExB_GK(pars, grids, geo);
     if (!pars->linear) nonlinear = new Nonlinear_VP(pars, grids);
 
     solver = new Solver_VP(pars, grids);    
@@ -106,6 +109,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    //}
+    //else {
+    //  case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+    //}
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     }
 
@@ -175,6 +182,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     if (G[is])         delete G[is];
   }
   if (linear)    delete linear;
+  if (exb)    delete exb;
   if (nonlinear) delete nonlinear;
   if (timestep)  delete timestep;
 

@@ -15,5 +15,6 @@
 #include "reservoir.h"
 #include "device_funcs.h"
 #include "get_error.h"
+#include "exb.h"
 
 void run_gx(Parameters * parameters, Grids * grids, Geometry * geo, Diagnostics * diagnostics);
