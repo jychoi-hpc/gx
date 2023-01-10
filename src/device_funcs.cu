@@ -71,17 +71,22 @@ __host__ __device__ float factorial(int m) {
   else return sqrtf(2.*M_PI*m)*powf(m,m)*expf(-m)*(1.+1./(12.*m)+1./(288.*m*m));
 }
 
-// recursive algorithm for computing derivatives of sqrt(Gamma_0(b))
+// algorithm for computing derivatives of sqrt(Gamma_0(b))
 __host__ __device__ float sgam0_derivative(const int l, const float b) {
   if (l==0) {
-    // base case
     return sgam0(b);
+  } else if (l==1) {
+    return -0.5 * (g1(b) + g0(b))/sgam0(b);
   } else {
-    // recursive case: compute derivative using chain rule
-    float f = sgam0(b);
-    float g = g0(b);
-    float g_prime = -g - g1(b);
-    return ( (l-1)*sgam0_derivative(l-1, b)*g + g_prime )/(2*f);
+    float f_1 = sgam0(b);
+    float f_2 = -0.5 * (g1(b) + g0(b))/sgam0(b);
+    // compute derivatives iteratively
+    for (int i=2; i<=l; i++) {
+      float f_3 = (i-1) * f_2 - 0.5*g0(b)*f_1/sgam0(b);
+      f_1 = f_2;
+      f_2 = f_3;
+    }
+    return f_2;
   }
 }
 
