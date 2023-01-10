@@ -71,14 +71,26 @@ __host__ __device__ float factorial(int m) {
   else return sqrtf(2.*M_PI*m)*powf(m,m)*expf(-m)*(1.+1./(12.*m)+1./(288.*m*m));
 }
 
+// recursive algorithm for computing derivatives of sqrt(Gamma_0(b))
+__host__ __device__ float sgam0_derivative(const int l, const float b) {
+  if (l==0) {
+    // base case
+    return sgam0(b);
+  } else {
+    // recursive case: compute derivative using chain rule
+    float f = sgam0(b);
+    float g = g0(b);
+    float g_prime = -g - g1(b);
+    return ( (l-1)*sgam0_derivative(l-1, b)*g + g_prime )/(2*f);
+  }
+}
+
 __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
   if (l>30) return 0.; // protect against underflow for single precision evaluation
 
   if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else if (b<5) return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2), use if b<5
-  // Pade approximant of Gamma0^(1/2), first order, expanded around be = 0, which has Jflr = (-0.5*b)^l (1+b/2)^(-1-l)
-  else return pow(-0.5*b, l)*pow(1+b/2,-l-1);
+  else return 1./factorial(l)*pow(b, l)*sgam0_derivative(l, b);
 }
 
 __host__ __device__ float g0(float b) {
