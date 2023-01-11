@@ -14,6 +14,7 @@ __device__ float Jfac(int l, float b);
 __host__ __device__ float g0(float b);
 __host__ __device__ float g1(float b);
 __host__ __device__ float sgam0 (float b);
+__host__ __device__ float sgam0_derivative (int l, float b);
 
 __host__ __device__ bool operator>(cuComplex f, cuComplex g);
 __host__ __device__ bool operator<(cuComplex f, cuComplex g);

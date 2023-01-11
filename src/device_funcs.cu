@@ -72,20 +72,24 @@ __host__ __device__ float factorial(int m) {
 }
 
 // algorithm for computing derivatives of sqrt(Gamma_0(b))
+// l > 1 derivatives still erroneous.
 __host__ __device__ float sgam0_derivative(const int l, const float b) {
   if (l==0) {
+    printf("l = %d, sgam0(b) = %f, b = %f \n ", l ,sgam0(b) ,b);
     return sgam0(b);
   } else if (l==1) {
-    return -0.5 * (g1(b) + g0(b))/sgam0(b);
+    printf("l = %d, 0.5 * (g1(b) - g0(b))/sgam0(b) = %f, b = %f \n ", l ,0.5 * (g1(b) - g0(b))/sgam0(b) ,b);
+    return 0.5 * (g1(b) - g0(b))/sgam0(b);
   } else {
     float f_1 = sgam0(b);
-    float f_2 = -0.5 * (g1(b) + g0(b))/sgam0(b);
+    float f_2 = 0.5 * (g1(b) - g0(b))/sgam0(b);
     // compute derivatives iteratively
     for (int i=2; i<=l; i++) {
       float f_3 = (i-1) * f_2 - 0.5*g0(b)*f_1/sgam0(b);
       f_1 = f_2;
       f_2 = f_3;
     }
+    printf("l = %d, f_2 = %f, b = %f \n ", l ,f_2 ,b);
     return f_2;
   }
 }
@@ -95,7 +99,7 @@ __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
 
   if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else return 1./factorial(l)*pow(b, l)*sgam0_derivative(l, b);
+  else return (1./factorial(l))*pow(b, l)*sgam0_derivative(l, b);
 }
 
 __host__ __device__ float g0(float b) {
