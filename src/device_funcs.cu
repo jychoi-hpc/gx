@@ -102,41 +102,10 @@ __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
   if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
   else if (b<5.) return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2)
-  else if (l==1) {
-    //fac = 0.5*(g1(b)-g0(b))/sgam0(b);	  
-    //printf("fac for l = 1 is %f b is %f \n",fac, b);
-    return 0.5*(g1(b)-g0(b))/sgam0(b); // JFP
-  }
-  else if (l==2) {
-    //fac = -0.25*( pow( -g0(b)+g1(b) , 2 )/pow( g0(b) , 1.5 ) )   
-    //+ 0.5*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/sgam0(b); 
-    //printf("fac for l = 2 is %f b is %f \n",fac, b);
-    return -0.25*( pow( -g0(b)+g1(b) , 2 )/pow( g0(b) , 1.5 ) )
-    + 0.5*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/sgam0(b);
-  }
-  else if (l==3) {
-    //fac = 0.375*( pow( -g0(b)+g1(b) , 3 )/pow( g0(b) , 2.5 ) )
-    //      - 0.75*( -g0(b) + g1(b) )*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/pow( g0(b) , 1.5 ) 
-    //              + 0.5*( -g0(b) + 3*g1(b) - 1.5*( g0(b) + g2(b) ) + 0.5*(g1(b) + 0.5*( g1(b) + g3(b) ) ) )/pow(g0(b), 0.5);
-    //printf("fac for l = 3 is %f b is %f \n",fac, b);
-    return 0.375*( pow( -g0(b)+g1(b) , 3 )/pow( g0(b) , 2.5 ) ) 
-	  - 0.75*( -g0(b) + g1(b) )*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/pow( g0(b) , 1.5 ) 
-		  + 0.5*( -g0(b) + 3*g1(b) - 1.5*( g0(b) + g2(b) ) + 0.5*(g1(b) + 0.5*( g1(b) + g3(b) ) ) )/pow(g0(b), 1.5);
-  }
-  else if (l==4) 
-  {
-    //fac = - 0.9375*( pow(-g0(b) + g1(b), 4) / pow(g0(b), 3.5) )
-    //      + 2.25*( pow( -g0(b)+g1(b) , 2 )* ( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ) /pow( g0(b) , 2.5 ) ) 
-    //              - 0.75*( pow( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ,2)  )/pow( g0(b) , 1.5 )
-    //              - (-g0(b) + g1(b))*( -g0(b) + 3*g1(b) - 1.5*(g0(b) + g2(b)) + 0.5*(g1(b) + 0.5*(g1(b) +g3(b))) )/pow(g0(b), 1.5)
-    //              + 0.5*( g0(b) -4*g1(b) + 3*(g0(b) +g2(b)) -2*(g1(b) + 0.5*(g1(b)+g3(b))) + 0.5*(0.5*(g0(b)+ g2(b)) + 0.5*(0.5*(g0(b) + g2(b)) +0.5*(g2(b) +g4(b))) ) )/pow(g0(b), 0.5);
-    //printf("fac for l = 4 is %f b is %f \n",fac, b);
-    return - 0.9375*( pow(-g0(b) + g1(b), 4) / pow(g0(b), 3.5) ) 
-	  + 2.25*( pow( -g0(b)+g1(b) , 2 )* ( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ) /pow( g0(b) , 2.5 ) ) 
-		  - 0.75*( pow( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ,2)  )/pow( g0(b) , 1.5 )
-		  - (-g0(b) + g1(b))*( -g0(b) + 3*g1(b) - 1.5*(g0(b) + g2(b)) + 0.5*(g1(b) + 0.5*(g1(b) +g3(b))) )/pow(g0(b), 1.5)
-		  + 0.5*( g0(b) -4*g1(b) + 3*(g0(b) +g2(b)) -2*(g1(b) + 0.5*(g1(b)+g3(b))) + 0.5*(0.5*(g0(b)+ g2(b)) + 0.5*(0.5*(g0(b) + g2(b)) +0.5*(g2(b) +g4(b))) ) )/pow(g0(b), 0.5);
-  }
+  else if (l==1) return 0.5*(g1(b)-g0(b))/sgam0(b); // d / db (sqrt(I_0 exp(-b/2)))
+  else if (l==2) return -0.25*( pow( -g0(b)+g1(b) , 2 )/pow( g0(b) , 1.5 ) ) + 0.5*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/sgam0(b); // d^2 / db^2 (sqrt(I_0 exp(-b/2)))
+  else if (l==3) return 0.375*( pow( -g0(b)+g1(b) , 3 )/pow( g0(b) , 2.5 ) ) - 0.75*( -g0(b) + g1(b) )*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/pow( g0(b) , 1.5 ) + 0.5*( -g0(b) + 3*g1(b) - 1.5*( g0(b) + g2(b) ) + 0.5*(g1(b) + 0.5*( g1(b) + g3(b) ) ) )/pow(g0(b), 1.5);
+  else if (l==4) return - 0.9375*( pow(-g0(b) + g1(b), 4) / pow(g0(b), 3.5) ) + 2.25*( pow( -g0(b)+g1(b) , 2 )* ( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ) /pow( g0(b) , 2.5 ) ) - 0.75*( pow( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ,2)  )/pow( g0(b) , 1.5 )- (-g0(b) + g1(b))*( -g0(b) + 3*g1(b) - 1.5*(g0(b) + g2(b)) + 0.5*(g1(b) + 0.5*(g1(b) +g3(b))) )/pow(g0(b), 1.5) + 0.5*( g0(b) -4*g1(b) + 3*(g0(b) +g2(b)) -2*(g1(b) + 0.5*(g1(b)+g3(b))) + 0.5*(0.5*(g0(b)+ g2(b)) + 0.5*(0.5*(g0(b) + g2(b)) +0.5*(g2(b) +g4(b))) ) )/pow(g0(b), 0.5);
   //else return (1./factorial(l))*pow(b, l)*sgam0_derivative(l, b);
   else return pow(-0.5*b, l)*pow(1+b/2,-l-1);
 }
