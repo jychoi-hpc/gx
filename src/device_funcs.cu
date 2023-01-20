@@ -95,11 +95,50 @@ __host__ __device__ float sgam0_derivative(const int l, const float b) {
 }
 
 __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
+
+  //float fac;
   if (l>30) return 0.; // protect against underflow for single precision evaluation
 
   if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else return (1./factorial(l))*pow(b, l)*sgam0_derivative(l, b);
+  else if (b<5.) return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2)
+  else if (l==1) {
+    //fac = 0.5*(g1(b)-g0(b))/sgam0(b);	  
+    //printf("fac for l = 1 is %f b is %f \n",fac, b);
+    return 0.5*(g1(b)-g0(b))/sgam0(b); // JFP
+  }
+  else if (l==2) {
+    //fac = -0.25*( pow( -g0(b)+g1(b) , 2 )/pow( g0(b) , 1.5 ) )   
+    //+ 0.5*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/sgam0(b); 
+    //printf("fac for l = 2 is %f b is %f \n",fac, b);
+    return -0.25*( pow( -g0(b)+g1(b) , 2 )/pow( g0(b) , 1.5 ) )
+    + 0.5*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/sgam0(b);
+  }
+  else if (l==3) {
+    //fac = 0.375*( pow( -g0(b)+g1(b) , 3 )/pow( g0(b) , 2.5 ) )
+    //      - 0.75*( -g0(b) + g1(b) )*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/pow( g0(b) , 1.5 ) 
+    //              + 0.5*( -g0(b) + 3*g1(b) - 1.5*( g0(b) + g2(b) ) + 0.5*(g1(b) + 0.5*( g1(b) + g3(b) ) ) )/pow(g0(b), 0.5);
+    //printf("fac for l = 3 is %f b is %f \n",fac, b);
+    return 0.375*( pow( -g0(b)+g1(b) , 3 )/pow( g0(b) , 2.5 ) ) 
+	  - 0.75*( -g0(b) + g1(b) )*( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) )/pow( g0(b) , 1.5 ) 
+		  + 0.5*( -g0(b) + 3*g1(b) - 1.5*( g0(b) + g2(b) ) + 0.5*(g1(b) + 0.5*( g1(b) + g3(b) ) ) )/pow(g0(b), 1.5);
+  }
+  else if (l==4) 
+  {
+    //fac = - 0.9375*( pow(-g0(b) + g1(b), 4) / pow(g0(b), 3.5) )
+    //      + 2.25*( pow( -g0(b)+g1(b) , 2 )* ( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ) /pow( g0(b) , 2.5 ) ) 
+    //              - 0.75*( pow( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ,2)  )/pow( g0(b) , 1.5 )
+    //              - (-g0(b) + g1(b))*( -g0(b) + 3*g1(b) - 1.5*(g0(b) + g2(b)) + 0.5*(g1(b) + 0.5*(g1(b) +g3(b))) )/pow(g0(b), 1.5)
+    //              + 0.5*( g0(b) -4*g1(b) + 3*(g0(b) +g2(b)) -2*(g1(b) + 0.5*(g1(b)+g3(b))) + 0.5*(0.5*(g0(b)+ g2(b)) + 0.5*(0.5*(g0(b) + g2(b)) +0.5*(g2(b) +g4(b))) ) )/pow(g0(b), 0.5);
+    //printf("fac for l = 4 is %f b is %f \n",fac, b);
+    return - 0.9375*( pow(-g0(b) + g1(b), 4) / pow(g0(b), 3.5) ) 
+	  + 2.25*( pow( -g0(b)+g1(b) , 2 )* ( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ) /pow( g0(b) , 2.5 ) ) 
+		  - 0.75*( pow( g0(b) - 2*g1(b) + 0.5*( g0(b)+g2(b) ) ,2)  )/pow( g0(b) , 1.5 )
+		  - (-g0(b) + g1(b))*( -g0(b) + 3*g1(b) - 1.5*(g0(b) + g2(b)) + 0.5*(g1(b) + 0.5*(g1(b) +g3(b))) )/pow(g0(b), 1.5)
+		  + 0.5*( g0(b) -4*g1(b) + 3*(g0(b) +g2(b)) -2*(g1(b) + 0.5*(g1(b)+g3(b))) + 0.5*(0.5*(g0(b)+ g2(b)) + 0.5*(0.5*(g0(b) + g2(b)) +0.5*(g2(b) +g4(b))) ) )/pow(g0(b), 0.5);
+  }
+  //else return (1./factorial(l))*pow(b, l)*sgam0_derivative(l, b);
+  else return pow(-0.5*b, l)*pow(1+b/2,-l-1);
 }
 
 __host__ __device__ float g0(float b) {
@@ -127,6 +166,7 @@ __host__ __device__ float g0(float b) {
   }
   
   if (g<tol) g=tol; 
+  //printf("g0 = %e for b = %e \n",g,b);
   return g;
 
 }
@@ -157,9 +197,142 @@ __host__ __device__ float g1(float b) {
   }
   
   if (g<tol) g=tol; 
+  //printf("g1 = %e for b = %e \n",g,b);
   return g;
 
 }
+
+
+__host__ __device__ float g2(float b) {
+
+  float tol = 1.e-7;
+  float tk, b2, b2sq;
+  float g, x, xi, xp2i, err;
+
+  if (b < tol) {return 0.0;}
+
+  b2 = 0.5 * b;
+  b2sq = b2 * b2;
+  tk = expf(-b) * b2 * b2;
+  g = tk;
+
+  x = 1.;
+  err = 1.;
+
+  while (err > tol) {
+    xi = 1./x;
+    xp2i=1./(2.+x);
+    tk  = tk * b2sq * xi * xp2i;
+    g += tk;
+    x += 1.;
+    err = abs(tk/g);
+  }
+
+  if (g<tol) g=tol;
+  //printf("g2 = %e for b = %e \n",g/2.,b);
+  return g/2.;
+
+}
+
+
+__host__ __device__ float g3(float b) {
+
+  float tol = 1.e-7;
+  float tk, b2, b2sq;
+  float g, x, xi, xp3i, err;
+
+  if (b < tol) {return 0.0;}
+
+  b2 = 0.5 * b;
+  b2sq = b2 * b2;
+  tk = expf(-b) * b2 * b2 * b2;
+  g = tk;
+
+  x = 1.;
+  err = 1.;
+
+  while (err > tol) {
+    xi = 1./x;
+    xp3i=1./(3.+x);
+    tk  = tk * b2sq * xi * xp3i;
+    g += tk;
+    x += 1.;
+    err = abs(tk/g);
+  }
+ 
+  if (g<tol) g=tol;
+  //printf("g3 = %e for b = %e \n",g/(2.*3.),b);
+  return g/(2.*3.);
+
+}
+
+
+__host__ __device__ float g4(float b) {
+
+  float tol = 1.e-7;
+  float tk, b2, b2sq;
+  float g, x, xi, xp4i, err;
+
+  if (b < tol) {return 0.0;}
+
+  b2 = 0.5 * b;
+  b2sq = b2 * b2;
+  tk = expf(-b) * b2 * b2 * b2 * b2;
+  g = tk;
+
+  x = 1.;
+  err = 1.;
+
+  while (err > tol) {
+    xi = 1./x;
+    xp4i=1./(4.+x);
+    tk  = tk * b2sq * xi * xp4i;
+    g += tk;
+    x += 1.;
+    err = abs(tk/g);
+  }
+
+  if (g<tol) g=tol;
+  //printf("g4 = %e for b = %e \n",g/(2.*3.*4.),b);
+  return g/(2.*3.*4.);
+
+}
+
+// JFP general formula for Gamma_n = I_n(x) Exp(-x), valid for n > 0.
+__host__ __device__ float gamman(float b, int n) {
+
+  float tol = 1.e-7;
+  float tk, b2, b2sq;
+  float g, x, xi, xpni, err;
+
+  if (b < tol) {return 0.0;}
+
+  b2 = 0.5 * b;
+  b2sq = b2 * b2;
+  tk = expf(-b) * pow(b2,n);
+  g = tk;
+
+  x = 1.;
+  err = 1.;
+
+  while (err > tol) {
+    xi = 1./x;
+    xpni=1./(n+x); // dodgy with int in float.
+    tk  = tk * b2sq * xi * xpni;
+    g += tk;
+    x += 1.;
+    err = abs(tk/g);
+  }
+
+  if (g<tol) g=tol;
+  //printf("gn = %e for b = %e for n = %d \n",g/factorial(n),b,n);
+  return g/factorial(n);
+
+}
+
+
+
+
 
 __host__ __device__ float sgam0 (float b) {return sqrt(g0(b));}
 __host__ __device__ bool operator>(cuComplex f, cuComplex g) { return f.x*f.x+f.y*f.y > g.x*g.x+g.y*g.y; }

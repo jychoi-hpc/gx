@@ -13,6 +13,10 @@ __device__ float Jfac(int l, float b);
 
 __host__ __device__ float g0(float b);
 __host__ __device__ float g1(float b);
+__host__ __device__ float g2(float b);
+__host__ __device__ float g3(float b);
+__host__ __device__ float g4(float b);
+__host__ __device__ float gamman(float b, int n);
 __host__ __device__ float sgam0 (float b);
 __host__ __device__ float sgam0_derivative (int l, float b);
 
