@@ -1,0 +1,124 @@
+closures.cu:    grad_par_->dz(G->G(0, 2, is), tmp); // roughly d/dz T_par
+closures.cu:    grad_par_->abs_dz(G->G(0, 3, is), tmp); // roughly |d/dz| q_par,par
+closures.cu:    grad_par_->abs_dz(G->G(1, 1, is), tmp); // rougly |d/dz| q_par,perp
+closures.cu:  //  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, pars_->species);
+closures.cu:  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, G->tz());
+closures.cu:  smith_perp_toroidal_closures GB (G->G(), GRhs->G(), omegad_, Aclos_, q_, G->tz());
+closures.cu:	grad_par_->dz(G->G(l, m, is), tmp);              // Aha. This is where the difference between kzp and kz comes in
+closures.cu:	grad_par_->abs_dz(G->G(l, m, is), tmp_abs);
+diagnostics.cu:	heat_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
+diagnostics.cu:        part_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
+diagnostics.cu:      W_summand GALL (G2, G->G(), kvol_fac, G->nt());
+diagnostics.cu:      W_summand GALL (G2, G->G(), vol_fac, G->nt());
+diagnostics.cu:	CP_TO_CPU(g_h, G->G(), sizeof(cuComplex)*grids_->Nyc);
+diagnostics.cu:    id -> write_moment ( id -> kden,    G->dens_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> kUpar,   G->upar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> kTpar,   G->tpar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> kTperp,  G->tprp_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> kqpar,   G->qpar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> avg_zkden,   G->dens_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> avg_zkUpar,  G->upar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> avg_zkTpar,  G->tpar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> avg_zkTperp, G->tprp_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> avg_zkqpar,  G->qpar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> xyden,   G->dens_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> xyUpar,  G->upar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> xyTpar,  G->tpar_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> xyTperp, G->tprp_ptr[0], vol_fac);
+diagnostics.cu:    id -> write_moment ( id -> xyqpar,  G->qpar_ptr[0], vol_fac);
+diagnostics.cu:      if (!pars_->ResFakeData) id -> write_ks_data ( id -> g_y, G->G());
+diagnostics.cu:      id -> write_ks_data ( id -> g_y, G->G());
+diagnostics.cu:    grad_perp->C2R(G->G(), gy_d);
+diagnostics.cu:    G->rescale(phi_max);
+diagnostics.cu:      grad_perp -> C2R (G->G(), gy_d);
+diagnostics.cu:      W_summand GALL (G2, G->G(), vol_fac, G->nt());
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
+forcing.cu:    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
+forcing.cu:                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+grad_parallel.cu:  for (int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
+grad_parallel.cu:    kz_dealias GGP2 (G->G(0,0,is), grids_->kzm, grids_->Nmoms);
+grad_parallel.cu:  for (int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);  
+grad_parallel.cu:  for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
+grad_parallel.cu:  for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);
+grad_parallel.cu:    cufftExecC2C(dz_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
+grad_parallel.cu:    cufftExecC2C(dz_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);
+grad_parallel.cu:  G->scale(make_cuComplex(0.,kpar));
+grad_parallel_linked.cu:      linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+grad_parallel_linked.cu:      linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+grad_parallel_linked.cu:      linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+grad_parallel_linked.cu:      linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+grad_parallel_linked.cu:      dampEnds_linked GCHAINS (G->G(0,0,is), f->phi, f->apar, kperp2, G->zt(is), G->vt(is), G->r2(is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms, GRhs->G(0,0,is));
+grad_parallel_linked.cu:     linkedCopy GCHAINS (G->G(0,0,is), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+grad_parallel_linked.cu:     linkedCopyBack GCHAINS (G_linked[c], G->G(0,0,is), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+linear.cu:			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, G->zt(), G->r2(), G->vt());  
+linear.cu:  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, G->r2(), geo_->gradpar, G->vt(), G->zt(), GRhs->G());
+linear.cu:      	(G->G(), f->phi, f->apar, upar_bar, uperp_bar, t_bar,
+linear.cu:	 grids_->ky, G->vt(), G->zt(), G->tz(), G->nz(), G->as(), G->nu(), G->tp(), G->up(), G->fp(), G->r2(), G->ty(),
+linear.cu:    HB_hyper <<< dG_all, dB_all >>> (G->G(), s01, s10, s11,
+linear.cu:  if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
+linear.cu:								   pars_->p_hyper_m, G->vt(), GRhs->G());
+linear.cu:  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+linear.cu:  rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, nu_ei, rho_s, d_e, GRhs->G());
+linear.cu:  if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
+linear.cu:								   pars_->p_hyper_m, G->vt(), GRhs->G());
+linear.cu:  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+linear.cu:  rhs_ks <<< dG, dB >>> (G->G(), GRhs->G(), grids_->ky, pars_->eps_ks);
+linear.cu:  rhs_lin_vp <<< dG, dB >>> (G->G(), f->phi, GRhs->G(), grids_->ky,
+ncdf.cu:  Tbar <<<blocks, threads>>> (t_bar, G->G(), f->phi, geo_->kperp2);
+nonlinear.cu:      grad_perp_G -> dxC2R(G->Gm(m,s), dG);
+nonlinear.cu:      grad_perp_G -> dyC2R(G->Gm(m,s), dG);      
+nonlinear.cu:      grad_perp_G->R2C(dG, G_res->Gm(m,s), true); // this R2C has accumulate=true
+nonlinear.cu:        grad_perp_G->R2C(dG, tmp_c, false); // this R2C has accumulate=false
+nonlinear.cu:    grad_perp->dxC2R(G->Gm(m), dg_dx);
+nonlinear.cu:    grad_perp->dyC2R(G->Gm(m), dg_dy);      
+nonlinear.cu:  grad_perp_G -> dyC2R(G->G(), dg_dy);
+nonlinear.cu:  grad_perp_G -> C2R(G->G(), Gy);
+nonlinear.cu:  grad_perp_G -> C2R(G->G(), Gy);
+run_gx.cu:    if (pars->save_for_restart && counter % pars->nsave == 0) G->restart_write(&time);
+run_gx.cu:  if (pars->save_for_restart) G->restart_write(&time);
+solver.cu:    if (pars_->long_wavelength_GK) calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->kperp2, geo_->jacobian, G->r2s_long_wavelength_GK(), G->qn(), pars_->tau_fac, true); // Set gamma_0 = 1 - b_s.
+solver.cu:    else calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->kperp2, geo_->jacobian, G->r2(), G->qn(), pars_->tau_fac, false);
+solver.cu:    getPhi GQN (fields->phi, G->G(), grids_->ky);
+solver.cu:             qneut GQN (fields->phi,  G->G(), geo_->kperp2, G->r2(), G->qn(), G->nz());
+solver.cu:    if (em) ampere GQN (fields->apar, G->G(), geo_->kperp2, geo_->bmag, G->r2(), G->as(), G->amp(), pars_->beta);
+solver.cu:    real_space_density GQN (nbar, G->G(), geo_->kperp2, G->r2(), G->nz());
+solver.cu:      qneutAdiab_part1 GQN (             tmp, nbar,              geo_->kperp2, geo_->jacobian, G->r2(), G->qn(), pars_->tau_fac);
+solver.cu:      qneutAdiab_part2 GQN (fields->phi, tmp, nbar, phiavgdenom, geo_->kperp2,                 G->r2(), G->qn(), pars_->tau_fac);
+solver.cu:    if(pars_->Boltzmann_opt == BOLTZMANN_IONS) qneutAdiab GQN (fields->phi, nbar, geo_->kperp2, G->r2(), G->qn(), pars_->tau_fac);
+solver.cu:  phiSolve_krehm<<<dG, dB>>>(fields->phi, G->G(0), grids_->kx, grids_->ky, pars_->rho_i);
+solver.cu:  aparSolve_krehm<<<dG, dB>>>(fields->apar, G->G(1), grids_->kx, grids_->ky, pars_->rho_s, pars_->d_e);
+solver.cu:  getPhi GQN (fields->phi, G->G(), grids_->ky);
+ts_g3.cu:  G->add_scaled(onethird, G_u2, twothirds, G_u1);
+ts_k10.cu:  G->add_scaled(1., G_q2, 0.6, G_q1, 0.1*dt_, G);
+ts_rk4.cu:  G->add_scaled(1., G, 1., GRhs, dt_/6., GStar);
+ts_rk4.cu:  G->add_scaled(1., G, 1., GRhs, dt_/3., G_q1, dt_/6., G_q2);
+ts_sspx2.cu:  G->add_scaled(2.-sqrt(2.), G, sqrt(2.)-2., G1, 1., G2);
+ts_sspx3.cu:  G->add_scaled((1.-w2-w3), G, w3, G1, (w2-1.), G2, 1., G3);
+ts_sspx3.cu:  G->mask();

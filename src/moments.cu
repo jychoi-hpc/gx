@@ -29,7 +29,10 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   float * amps_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   float * nu_ss_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
   int   * typ_h = (int*) malloc(sizeof(int) * grids_->Nspecies );
-  
+  //if (pars_->long_wavelength_GK){
+  float * r2s_long_wavelength_GK_h = (float*) malloc(sizeof(float) * grids_->Nspecies );
+  //}
+
   for (int is=0; is<grids_->Nspecies; is++) {
     vts_h[is] = pars_->species_h[is].vt;
     tzs_h[is] = pars_->species_h[is].tz;
@@ -45,6 +48,9 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
     amps_h[is] = pars_->species_h[is].amp;
     nu_ss_h[is] = pars_->species_h[is].nu_ss;
     typ_h[is] = pars_->species_h[is].type;
+    if (pars_->long_wavelength_GK){
+      r2s_long_wavelength_GK_h[is] = pars_->species_h[is].rho2_long_wavelength_GK;
+    }
   }    
 
   checkCuda(cudaMalloc( &vts,   sizeof(float) * grids_->Nspecies ) );
@@ -61,6 +67,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   checkCuda(cudaMalloc( &ups,   sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &nu_ss, sizeof(float) * grids_->Nspecies ) );
   checkCuda(cudaMalloc( &typ,   sizeof(int)   * grids_->Nspecies ) );
+  checkCuda(cudaMalloc( &r2s_long_wavelength_GK,   sizeof(float) * grids_->Nspecies ) );
 
   CP_TO_GPU(vts, vts_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(tzs, tzs_h, sizeof(float)*grids_->Nspecies);
@@ -76,11 +83,16 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids) :
   CP_TO_GPU(amps, amps_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(nu_ss, nu_ss_h, sizeof(float)*grids_->Nspecies);
   CP_TO_GPU(typ, typ_h, sizeof(int)  *grids_->Nspecies);
-  
+  //if (pars_->long_wavelength_GK){
+  CP_TO_GPU(r2s_long_wavelength_GK, r2s_long_wavelength_GK_h, sizeof(float)*grids_->Nspecies);
+  //}
+ 
   free(vts_h);  free(tzs_h);  free(zts_h);  free(nts_h);
   free(nzs_h);  free(r2s_h);  free(tps_h);  free(fps_h);
   free(ups_h);  free(aps_h);  free(qns_h);  free(nu_ss_h);  
-  free(typ_h);  free(amps_h);
+  free(typ_h);  free(amps_h); free(r2s_long_wavelength_GK_h);
+
+  //if (pars_->long_wavelength_GK) free(r2s_long_wavelength_GK_h);
   
   dens_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
   upar_ptr = (cuComplex**) malloc(sizeof(cuComplex*) * grids_->Nspecies);
@@ -181,6 +193,8 @@ MomentsG::~MomentsG() {
   cudaFree(nu_ss);
   cudaFree(typ);
   if ( G_lm     ) cudaFree ( G_lm );
+
+  if (pars_->long_wavelength_GK) cudaFree(r2s_long_wavelength_GK);
 }
 
 void MomentsG::set_zero(void) {

@@ -73,11 +73,18 @@ __host__ __device__ float factorial(int m) {
 }
 
 __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
-  if (l>30) return 0.; // protect against underflow for single precision evaluation
-
-  if (l<0) return 0.;
+  if (b<0.001){
+    //printf("b<0.001 \n");
+    return 1.; // for long_wavelength_GK where b = 0.
+  }
+  else if (l>30) return 0.; // protect against underflow for single precision evaluation
+  else if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else if (b<15) return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2), use if b<10
+  else if (b<15) {
+    printf("1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.) = %e \n", 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.));
+    printf("b = %e \n", b);
+    return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2), use if b<15.
+  }
   //JFP implementing Pade approximant of Gamma0^(1/2), first order, expanded around be = 20. For now, expand around be = 0, which has Jflr = (-0.5*b)^L (1+b/2)^(-1-L)
   else return pow(-0.5*b, l)*pow(1+b/2,-l-1);
 }
@@ -1918,7 +1925,7 @@ __global__ void qneutAdiab_part2(cuComplex* Phi, const cuComplex* PhiAvgNum_tmp,
 }
 
 __global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* kperp2, const float* jacobian,
-				 const float* rho2s, const float* qns, float tau_fac)
+				 const float* rho2s, const float* qns, float tau_fac, const bool long_wavelength_GK)
 {   
   unsigned int idx = get_id1();
   
@@ -1934,8 +1941,15 @@ __global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* kperp2, const 
 	for (int is=0; is < nspecies; is++) {
 	  int idy = 0;
 	  int idxyz = idy + nyc*(idx + idz*nx);
-	  float b_s = kperp2[idxyz] * rho2s[is];
-	  pfilter2 += qns[is] * (1. - g0(b_s));
+	  float b_s = kperp2[idxyz] * rho2s[is]; // note that in long_wavelength_GK, rho2s !=0 here.
+	  if (long_wavelength_GK) {
+	    pfilter2 += qns[is] * b_s;
+	    printf("long wavelength! b_s = %e \n", b_s); // Check we get correct nonzero b.
+	  }
+          else {
+            pfilter2 += qns[is] * (1. - g0(b_s));
+            printf("Full GK!");
+	  }
 	}	
 	PhiAvgDenom[idx] = PhiAvgDenom[idx] + jacobian[idz] * pfilter2 / (tau_fac + pfilter2);
       }

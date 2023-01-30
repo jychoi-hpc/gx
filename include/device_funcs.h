@@ -270,7 +270,7 @@ __global__ void qneutAdiab_part2(cuComplex* Phi, const cuComplex* PhiAvgNum_tmp,
 				 const float* rho2s, const float* qns, float tau_fac);
 
 __global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* kperp2, const float* jacobian,
-				 const float* rho2s, const float* qns, float tau_fac);
+				 const float* rho2s, const float* qns, float tau_fac, const bool long_wavelength_GK);
 
 __global__ void add_source(cuComplex* f, const float source);
 

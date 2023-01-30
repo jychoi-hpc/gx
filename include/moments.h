@@ -31,7 +31,8 @@ class MomentsG {
   float* up(int s=0) {return &ups[s];}
   float* fp(int s=0) {return &fps[s];}
   int*   ty(int s=0) {return &typ[s];}
-  
+  float* r2_long_wavelength_GK(int s=0) {return &r2s_long_wavelength_GK[s];} // JFP
+
   cuComplex * Gm(int m, int s=0) {   return G(0,m,s);   }
 
   void update_tprim(double time);
@@ -94,4 +95,5 @@ class MomentsG {
   float * ups = nullptr;
   float * fps = nullptr;
   int   * typ = nullptr;
+  float * r2s_long_wavelength_GK = nullptr; // JFP
 };

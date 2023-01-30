@@ -20,4 +20,5 @@ typedef struct {
   float as;
   float amp;
   int type;
+  float rho2_long_wavelength_GK;
 } specie;

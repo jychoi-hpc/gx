@@ -24,8 +24,11 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo, MomentsG* G)
     int threads, blocks;
     threads = min(grids_->Nx, 128);
     blocks = 1 + (grids_->Nx-1)/threads;
-    
-    calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->kperp2, geo_->jacobian, G->r2(), G->qn(), pars_->tau_fac);
+   
+    if (pars_->long_wavelength_GK){
+      calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->kperp2, geo_->jacobian, G->r2_long_wavelength_GK(), G->qn(), pars_->tau_fac, true); // JFP Set gamma_0 = 1 - b_s.
+    }
+    else calc_phiavgdenom <<<blocks, threads>>> (phiavgdenom, geo_->kperp2, geo_->jacobian, G->r2(), G->qn(), pars_->tau_fac, false);
   }
   
   int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;

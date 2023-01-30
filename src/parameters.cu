@@ -78,6 +78,7 @@ void Parameters::get_nml_vars(char* filename)
   Zp       = toml::find_or <int>         (tnml, "zp",           2*nperiod-1    );
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
   nonTwist = toml::find_or <bool>   (tnml, "nonTwist",   false ); // JMH, will only use NTFT if specified  as true
+  long_wavelength_GK = toml::find_or <bool>   (tnml, "long_wavelength_GK",   false ); // JFP, long wavelength GK
   bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
   float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
 
@@ -846,6 +847,7 @@ void Parameters::store_ncdf(int ncid) {
   if (retval = nc_def_var (nc_dom, "boundary_dum",  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_put_att_text (nc_dom, ivar, "value", boundary.size(), boundary.c_str())) ERR(retval);
   if (retval = nc_def_var (nc_dom, "nonTwist",      NC_INT,   0, NULL, &ivar)) ERR(retval); // JMH
+  if (retval = nc_def_var (nc_dom, "long_wavelength_GK",      NC_INT,   0, NULL, &ivar)) ERR(retval); // JFP
 
   if (retval = nc_def_var (nc_ml, "Use_reservoir",  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_ml, "Q",              NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1076,6 +1078,7 @@ void Parameters::store_ncdf(int ncid) {
   putint   (nc_dom, "zp",      Zp      );
   putint   (nc_dom, "jtwist",  jtwist  );
   putbool  (nc_dom, "nonTwist", nonTwist); // JMH
+  putbool  (nc_dom, "long_wavelength_GK", long_wavelength_GK); // JFP
 
   put_real (nc_time, "dt",      dt      );
   putint   (nc_time, "nstep",   nstep   );
@@ -1225,6 +1228,11 @@ void Parameters::init_species(specie* species)
     species[s].tz   = species[s].temp / species[s].z;
     species[s].zt   = species[s].z / species[s].temp;
     species[s].rho2 = species[s].temp * species[s].mass / (species[s].z * species[s].z); // note this does not have a factor of 1/B**2
+    if (long_wavelength_GK) {
+      species[s].rho2  = 0; // setting rho2 = 0.
+      species[s].rho2_long_wavelength_GK  = species[s].temp * species[s].mass / (species[s].z * species[s].z); // note this does not have a factor of 1/B**2. This rho2 is used for quasineutrality 1-Gam0 --> b_s approximation, whereas rho2 = 0 elsewhere for long_wavelength_GK.
+      printf("You are running GX with the long wavelength approximation.");
+    }
     species[s].nt   = species[s].dens * species[s].temp;
     species[s].qneut= species[s].dens * species[s].z * species[s].z / species[s].temp;
     species[s].nz   = species[s].dens * species[s].z;

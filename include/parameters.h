@@ -136,7 +136,8 @@ class Parameters {
   bool write_all_kmom, write_kmom, write_xymom, write_all_xymom, write_avgz, write_all_avgz;
   bool zero_shat;
   bool nonTwist; //JMH
-  
+  bool long_wavelength_GK; // JFP
+
   bool write_avg_zvE, write_avg_zkxvEy, write_avg_zkden, write_avg_zkUpar;
   bool write_avg_zkTpar, write_avg_zkTperp, write_avg_zkqpar;
 
