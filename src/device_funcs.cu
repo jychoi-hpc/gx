@@ -73,16 +73,18 @@ __host__ __device__ float factorial(int m) {
 }
 
 __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
+  //if (b>0.001) printf("b = %e \n", b);
   if (b<0.001){
     //printf("b<0.001 \n");
-    return 1.; // for long_wavelength_GK where b = 0.
+    if (l == 0) return 1.; // for long_wavelength_GK where b = 0.
+    else if (l > 0) return 0.; // for long_wavelength_GK where b = 0.
   }
   else if (l>30) return 0.; // protect against underflow for single precision evaluation
   else if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
   else if (b<15) {
-    printf("1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.) = %e \n", 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.));
-    printf("b = %e \n", b);
+    //printf("1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.) = %e \n", 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.));
+    //printf("b = %e \n", b);
     return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2), use if b<15.
   }
   //JFP implementing Pade approximant of Gamma0^(1/2), first order, expanded around be = 20. For now, expand around be = 0, which has Jflr = (-0.5*b)^L (1+b/2)^(-1-L)
@@ -1948,7 +1950,7 @@ __global__ void calc_phiavgdenom(float* PhiAvgDenom, const float* kperp2, const 
 	  }
           else {
             pfilter2 += qns[is] * (1. - g0(b_s));
-            printf("Full GK!");
+            printf("Full GK! \n");
 	  }
 	}	
 	PhiAvgDenom[idx] = PhiAvgDenom[idx] + jacobian[idz] * pfilter2 / (tau_fac + pfilter2);
