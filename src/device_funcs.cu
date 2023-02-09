@@ -77,9 +77,7 @@ __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
 
   if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else if (b<15) return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2), use if b<10
-  //JFP implementing Pade approximant of Gamma0^(1/2), first order, expanded around be = 20. For now, expand around be = 0, which has Jflr = (-0.5*b)^L (1+b/2)^(-1-L)
-  else return pow(-0.5*b, l)*pow(1+b/2,-l-1);
+  else return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2)
 }
 
 __host__ __device__ float g0(float b) {
