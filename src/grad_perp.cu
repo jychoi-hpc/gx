@@ -1,4 +1,5 @@
 #include "grad_perp.h"
+#include "device_funcs.h"
 #include "get_error.h"
 
 GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
@@ -29,17 +30,35 @@ GradPerp::GradPerp(Grids* grids, int batch_size, int mem_size)
   cufftMakePlanMany(gradperp_plan_dyC2R,  2, NLPSfftdims, NULL, 1, 0, NULL, 1, 0, CUFFT_C2R, batch_size_, &workSize);
 
   cudaDeviceSynchronize();
-  cufftXtSetCallback(gradperp_plan_dxC2R, (void**) &i_kx_callbackPtr, 
-                     CUFFT_CB_LD_COMPLEX, 
-                     (void**)&grids_->kx);
+  cufftCallbackLoadC i_kxs_callbackPtr_h;
+  cufftCallbackLoadC i_kx_callbackPtr_h; 
+  cufftCallbackLoadC i_ky_callbackPtr_h; 
+  cufftCallbackStoreC mask_and_scale_callbackPtr_h;
 
-  cufftXtSetCallback(gradperp_plan_dyC2R, (void**) &i_ky_callbackPtr, 
-                     CUFFT_CB_LD_COMPLEX, 
-                     (void**)&grids_->ky);
+  checkCuda(cudaMemcpyFromSymbol(&i_kxs_callbackPtr_h, 
+                     i_kxs_callbackPtr, 
+                     sizeof(i_kxs_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&i_kx_callbackPtr_h, 
+                     i_kx_callbackPtr, 
+                     sizeof(i_kx_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&i_ky_callbackPtr_h, 
+                     i_ky_callbackPtr, 
+                     sizeof(i_ky_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&mask_and_scale_callbackPtr_h, 
+                     mask_and_scale_callbackPtr, 
+                     sizeof(mask_and_scale_callbackPtr_h)));
 
-  cufftXtSetCallback(gradperp_plan_R2C,   (void**) &mask_and_scale_callbackPtr, 
+  checkCuda(cufftXtSetCallback(gradperp_plan_dxC2R, (void**) &i_kx_callbackPtr_h, 
+                     CUFFT_CB_LD_COMPLEX, 
+                     (void**)&grids_->kx));
+
+  checkCuda(cufftXtSetCallback(gradperp_plan_dyC2R, (void**) &i_ky_callbackPtr_h, 
+                     CUFFT_CB_LD_COMPLEX, 
+                     (void**)&grids_->ky));
+
+  checkCuda(cufftXtSetCallback(gradperp_plan_R2C,   (void**) &mask_and_scale_callbackPtr_h, 
                      CUFFT_CB_ST_COMPLEX, 
-                     NULL);
+                     NULL));
   cudaDeviceSynchronize();
 }
 
@@ -57,7 +76,7 @@ GradPerp::~GradPerp()
 void GradPerp::dxC2R(cuComplex* G, float* dxG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);;
-  cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG);
+  checkCuda(cufftExecC2R(gradperp_plan_dxC2R, tmp, dxG));
 }
 
 void GradPerp::qvar (cuComplex* G, int N)
@@ -69,7 +88,7 @@ void GradPerp::qvar (cuComplex* G, int N)
   CP_TO_CPU (G_h, G, N*sizeof(cuComplex));
 
   printf("\n");
-  for (int i=0; i<N; i++) printf("grad_perp: var(%d,%d) = (%e, %e) \n", i%Nk, i/Nk, G_h[i].x, G_h[i].y);
+  for (int i=0; i<N; i++) printf("grad_perp: var(%d,%d,%d) = (%e, %e)  \n", i%grids_->Nyc, i/grids_->Nyc%grids_->Nx, i/Nk, G_h[i].x, G_h[i].y);
   printf("\n");
 
   free (G_h);
@@ -84,7 +103,7 @@ void GradPerp::qvar (float* G, int N)
   CP_TO_CPU (G_h, G, N*sizeof(float));
 
   printf("\n");
-  for (int i=0; i<N; i++) printf("grad_perp: var(%d,%d) = %e \n", i%Nx, i/Nx, G_h[i]);
+  for (int i=0; i<N; i++) printf("grad_perp: var(%d,%d,%d) = %e \n", i%grids_->Ny, i/grids_->Ny%grids_->Nx, i/Nx, G_h[i]);
   printf("\n");
 
   free (G_h);
@@ -93,23 +112,23 @@ void GradPerp::qvar (float* G, int N)
 void GradPerp::dyC2R(cuComplex* G, float* dyG)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
-  cufftExecC2R(gradperp_plan_dyC2R, tmp, dyG);
+  checkCuda(cufftExecC2R(gradperp_plan_dyC2R, tmp, dyG));
 }
 
 void GradPerp::C2R(cuComplex* G, float* Gy)
 {
   CP_ON_GPU (tmp, G, sizeof(cuComplex)*mem_size_);
-  cufftExecC2R(gradperp_plan_C2R, tmp, Gy);
+  checkCuda(cufftExecC2R(gradperp_plan_C2R, tmp, Gy));
 }
 
 // An R2C that accumulates -- will be very useful
 void GradPerp::R2C(float* G, cuComplex* res, bool accumulate)
 {
   if (accumulate) {
-    cufftExecR2C(gradperp_plan_R2C, G, tmp);
+    checkCuda(cufftExecR2C(gradperp_plan_R2C, G, tmp));
     add_section <<< dG, dB >>> (res, tmp, mem_size_);
   } else {
-    cufftExecR2C(gradperp_plan_R2C, G, res);
+    checkCuda(cufftExecR2C(gradperp_plan_R2C, G, res));
   }
 }
 

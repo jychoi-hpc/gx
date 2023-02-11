@@ -3,6 +3,7 @@
 #include "device_test.h"
 #include "parameters.h"
 #include "grids.h"
+#include "geometry.h"
 #include "get_error.h"
 
 class TestLaguerreTransform : public ::testing::Test {
@@ -130,8 +131,8 @@ TEST_F(TestLaguerreTransform, identity) {
   }
   cudaMemcpy(G, init_h, sizeof(float)*grids->NxNyNz*grids->Nl, cudaMemcpyHostToDevice);
 
-  checkCuda(laguerre->transformToGrid(G, g));
-  checkCuda(laguerre->transformToSpectral(g, Gres));
+  laguerre->transformToGrid(G, g);
+  laguerre->transformToSpectral(g, Gres);
   
   for(int i=0; i<grids->NxNyNz*grids->Nl; i++) {
     EXPECT_FLOAT_EQ_D(&Gres[i], init_h[i], 1.e-7);
@@ -172,9 +173,9 @@ TEST_F(TestLaguerreTransform, identity2) {
   }
   cudaMemcpy(G, init_h, sizeof(float)*grids->NxNyNz*grids->Nl, cudaMemcpyHostToDevice);
 
-  checkCuda(laguerre->transformToGrid(G, g));
+  laguerre->transformToGrid(G, g);
   scale<<<1,1>>>(g,g,2.,grids->NxNyNz*(laguerre->J+1));
-  checkCuda(laguerre->transformToSpectral(g, Gres));
+  laguerre->transformToSpectral(g, Gres);
   
   for(int i=0; i<grids->NxNyNz*grids->Nl; i++) {
     EXPECT_FLOAT_EQ_D(&Gres[i], 2.*init_h[i], 1.e-6);

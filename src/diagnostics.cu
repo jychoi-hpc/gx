@@ -27,7 +27,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   int nG  = nR * grids_->Nmoms * nS;
 
   favg        = nullptr;  df          = nullptr;  val         = nullptr;  
-  G2          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
+  G2s          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
   vEk         = nullptr;  phi_max     = nullptr; 
   ry_h        = nullptr;  gy_h        = nullptr;  gy_d        = nullptr;
@@ -35,7 +35,6 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   flux_fac = nullptr;
   kvol_fac = nullptr;
 
-  
   id         = new NetCDF_ids(grids_, pars_, geo_); cudaDeviceSynchronize(); CUDA_DEBUG("NetCDF_ids: %s \n");
   fields_old = new     Fields(pars_, grids_);       cudaDeviceSynchronize(); CUDA_DEBUG("Fields: %s \n");
 
@@ -61,7 +60,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   CP_TO_GPU(flux_fac, flux_fac_h, sizeof(float)*nZ);
   free(flux_fac_h);
   
-  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2, sizeof(float) * nG); 
+  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2s, sizeof(float) * nG); 
 
   if (pars_->diagnosing_kzspec) {
     float *kvol_fac_h;
@@ -79,7 +78,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
       grad_par = new GradParallelPeriodic(grids_);
     }
     else {
-      grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
+      grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist);
     }
   }
   // need if (pars_->write_flux || "diagnosing potential) {
@@ -96,7 +95,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
 
     cudaMalloc (&Phi2, sizeof(float) * nR);  
   }
-  
+
   if (id -> omg -> write_v_time) {
     cudaMalloc     (    &omg_d,   sizeof(cuComplex) * nX * nY);//     cudaMemset (omg_d, 0., sizeof(cuComplex) * nX * nY);
     tmp_omg_h = (cuComplex*) malloc (sizeof(cuComplex) * nX * nY);
@@ -125,7 +124,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   //  dB_scale = min(512, nR);
   //  dG_scale = 1 + (nR-1)/dB_scale.x;
 
-  dB_spectra = dim3(min(16, nY), min(8, nX), min(8, nZ));
+  dB_spectra = dim3(min(8, nY), min(8, nX), min(8, nZ));
   dG_spectra = dim3(1 + (nY-1)/dB_spectra.x, 1 + (nX-1)/dB_spectra.y, 1 + (nZ-1)/dB_spectra.z);  
 
   int nyx =  nY * nX;
@@ -181,7 +180,7 @@ Diagnostics_GK::~Diagnostics_GK()
   if (fields_old) delete fields_old;
   if (id)         delete id;
 
-  if (G2)         cudaFree      ( G2        );
+  if (G2s)        cudaFree      ( G2s       );
   if (P2s)        cudaFree      ( P2s       );
   if (Phi2)       cudaFree      ( Phi2      );
   if (t_bar)      cudaFree      ( t_bar     );
@@ -203,13 +202,13 @@ Diagnostics_GK::~Diagnostics_GK()
   if (ry_h)       free  ( ry_h      );
 }
 
-bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, double time) 
+bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
 {
   int retval;
   bool stop = false;
   int nw;
 
-  if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+  if(id -> omg -> write_v_time && counter >= 0) {                    // complex frequencies
     int nt = min(512, grids_->NxNyc) ;
     growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
     fields_old->copyPhiFrom(fields);
@@ -219,9 +218,8 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 
   //if ((counter % nw == nw-1) && id -> omg -> write_v_time) fields_old->copyPhiFrom(fields);
     
-  if(counter%nw == 0) {
+  if(counter%nw == 1 || time > pars_->t_max) {
 
-    fflush(NULL);
     if (pars_->Reservoir && counter > pars_->nstep-pars_->ResPredict_Steps*pars_->ResTrainingDelta) {
       id -> write_nc(id -> time, time);
       //      if (pars_->ResWrite) id -> write_nc( id -> r_time, time);
@@ -232,47 +230,56 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 
     if (pars_->write_xymom) id -> write_nc( id -> z_time, time);
     
-    if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
-      print_omg(omg_d);  id -> write_omg(omg_d);
-    }
-
-    if ( id -> qs -> write_v_time) printf("%s: Step %d: Time = %f \t", pars_->run_name, counter, time);          // To screen
-    if (!id -> qs -> write_v_time) printf("%s: Step %d: Time = %f\n",  pars_->run_name, counter, time);
+    if ( id -> qs -> write_v_time && grids_->iproc==0) printf("%s: Step %7d: Time = %10.5f,  dt = %.3e,  ", pars_->run_name, counter, time, dt);          // To screen
+    if (!id -> qs -> write_v_time && grids_->iproc==0) printf("%s: Step %7d: Time = %10.5f,  dt = %.3e\n",  pars_->run_name, counter, time, dt);
   
     if ( id -> qs -> write_v_time) {                                                                // heat flux
       
       for(int is=0; is<grids_->Nspecies; is++) {
-	float rho2s = pars_->species_h[is].rho2;
-	float p_s = pars_->species_h[is].nt;
-	heat_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
-				  grids_->ky, flux_fac, geo_->kperp2, rho2s, p_s);
+        int is_glob = is + grids_->is_lo;
+	float rho2s = pars_->species_h[is_glob].rho2;
+	float p_s = pars_->species_h[is_glob].nt;
+	float vt_s = pars_->species_h[is_glob].vt;
+	heat_flux_summand loop_R (P2(is), fields->phi, fields->apar, G[is]->G(),
+				  grids_->ky, flux_fac, geo_->kperp2, rho2s, p_s, vt_s);
       }
-      id -> write_Q(P2s); 
+      id -> write_Qky(P2());
+      id -> write_Qkx(P2());
+      id -> write_Qkxky(P2());
+      id -> write_Qz(P2());
+      id -> write_Q(P2()); 
     }      
 
     if ( id -> ps -> write_v_time) {
 
       for(int is=0; is<grids_->Nspecies; is++) {
-        float rho2s = pars_->species_h[is].rho2;
-        float n_s = pars_->nspec>1 ? pars_->species_h[is].dens : 0.;
-        part_flux_summand loop_R (P2(is), fields->phi, G->G(0,0,is),
-        			  grids_->ky, flux_fac, geo_->kperp2, rho2s, n_s);
+        int is_glob = is + grids_->is_lo;
+	float rho2s = pars_->species_h[is_glob].rho2;
+        float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
+	float vt_s = pars_->species_h[is_glob].vt;
+	part_flux_summand loop_R (P2(is), fields->phi, fields->apar, G[is]->G(),
+				  grids_->ky, flux_fac, geo_->kperp2, rho2s, n_s, vt_s);
       }
       id -> write_P(P2s); 
     }
-    if ( id -> qs -> write_v_time) printf("\n");
+    if ( id -> qs -> write_v_time && grids_->m_lo == 0) printf("\n");
+
+    if(id -> omg -> write_v_time && counter > 0) {                    // complex frequencies
+      print_omg(omg_d);  id -> write_omg(omg_d);
+    }
     
     if (pars_->diagnosing_kzspec) {
-      grad_par->zft(G); // get G = G(kz)
-      W_summand GALL (G2, G->G(), kvol_fac, G->nt());
-      grad_par->zft_inverse(G); // restore G
-
-      grad_par->zft(fields->phi, amom_d); // get amom_d = phi(kz)
-      
       for (int is=0; is < grids_->Nspecies; is++) {             // P2(s) = (1-G0(s)) |phi**2| for each kinetic species
-	float rho2s = pars_->species_h[is].rho2;
+        int is_glob = is + grids_->is_lo;
+        grad_par->zft(G[is]); // get G = G(kz)
+        W_summand GALL (G2(is), G[is]->G(), kvol_fac, G[is]->species->nt);
+        grad_par->zft_inverse(G[is]); // restore G
+
+        grad_par->zft(fields->phi, amom_d); // get amom_d = phi(kz)
+      
+	float rho2s = pars_->species_h[is_glob].rho2;
 	Wphi_summand loop_R (P2(is), amom_d, kvol_fac, geo_->kperp2, rho2s);
-	float qfac =  pars_->species_h[is].qneut;
+	float qfac = pars_->species_h[is_glob].nz*pars_->species_h[is_glob].zt;
 	Wphi_scale loop_R   (P2(is), qfac);
       }
 
@@ -289,17 +296,20 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 	Wphi_scale loop_R (Phi2, fac);
       }
       
-      id -> write_Wkz(G2);    id -> write_Pkz(P2());    id -> write_Akz(Phi2);      
+      id -> write_Wkz(G2());    id -> write_Pkz(P2());    id -> write_Akz(Phi2);      
     }
     
     if (pars_->diagnosing_spectra) {                                        // Various spectra
-      W_summand GALL (G2, G->G(), vol_fac, G->nt());
+      for (int is=0; is < grids_->Nspecies; is++) {  
+        W_summand GALL (G2(is), G[is]->G(), vol_fac, G[is]->species->nt);
+      }
       
       if (pars_->gx) {
 	for (int is=0; is < grids_->Nspecies; is++) {       // P2(s) = (1-G0(s)) |phi**2| for each kinetic species
-	  float rho2s = pars_->species_h[is].rho2;
+          int is_glob = is + grids_->is_lo;
+	  float rho2s = pars_->species_h[is_glob].rho2;
 	  Wphi_summand loop_R (P2(is), fields->phi, vol_fac, geo_->kperp2, rho2s);
-	  float qnfac = pars_->species_h[is].qneut;
+	  float qnfac = pars_->species_h[is_glob].nz*pars_->species_h[is_glob].zt;
 	  Wphi_scale loop_R   (P2(is), qnfac);
 	}
 
@@ -319,7 +329,7 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
       if (pars_->ks) {
 	cuComplex * g_h;
 	g_h = (cuComplex*) malloc (sizeof(cuComplex)*grids_->Nyc);
-	CP_TO_CPU(g_h, G->G(), sizeof(cuComplex)*grids_->Nyc);
+	CP_TO_CPU(g_h, G[0]->G(), sizeof(cuComplex)*grids_->Nyc);
 	float Dtmp = 0.;
 	for (int i=0; i<grids_->Naky; i++) {
 	  Dtmp += (g_h[i].x*g_h[i].x + g_h[i].y*g_h[i].y)*grids_->ky_h[i]*grids_->ky_h[i];
@@ -330,13 +340,13 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 	free(g_h);
       }
       
-      id->write_Wm    (G2   );    id->write_Wl    (G2   );    id->write_Wlm   (G2   );    
-      id->write_Wz    (G2   );    id->write_Wky   (G2   );    id->write_Wkx   (G2   );    id->write_Wkxky (G2  );    
+      id->write_Wm    (G2()   );    id->write_Wl    (G2()   );    id->write_Wlm   (G2()   );    
+      id->write_Wz    (G2()   );    id->write_Wky   (G2()   );    id->write_Wkx   (G2()   );    id->write_Wkxky (G2()  );    
       id->write_Pz    (P2() );    id->write_Pky   (P2() );    id->write_Pkx   (P2() );    id->write_Pkxky (P2());    
       id->write_Az    (Phi2 );    id->write_Aky   (Phi2 );    id->write_Akx   (Phi2 );    id->write_Akxky (Phi2);
       
       // Do not change the order of these four calls because totW is accumulated in order when it is requested:
-      id->write_Ps(P2s);    id->write_Ws(G2);    id->write_As(Phi2);    id->write_Wtot();
+      id->write_Ps(P2());    id->write_Ws(G2());    id->write_As(Phi2);    id->write_Wtot();
     }
     
     // Rosenbluth-Hinton diagnostic
@@ -356,20 +366,24 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
     // Plot ky=kz=0 components of various quantities as functions of x
     id -> write_moment ( id -> vEy,     fields->phi,    vol_fac);
     id -> write_moment ( id -> kxvEy,   fields->phi,    vol_fac);
-    id -> write_moment ( id -> kden,    G->dens_ptr[0], vol_fac);
-    id -> write_moment ( id -> kUpar,   G->upar_ptr[0], vol_fac);
-    id -> write_moment ( id -> kTpar,   G->tpar_ptr[0], vol_fac);
-    id -> write_moment ( id -> kTperp,  G->tprp_ptr[0], vol_fac);
-    id -> write_moment ( id -> kqpar,   G->qpar_ptr[0], vol_fac);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      id -> write_moment ( id -> kden,    G[is]->dens_ptr, vol_fac);
+      id -> write_moment ( id -> kUpar,   G[is]->upar_ptr, vol_fac);
+      id -> write_moment ( id -> kTpar,   G[is]->tpar_ptr, vol_fac);
+      id -> write_moment ( id -> kTperp,  G[is]->tprp_ptr, vol_fac);
+      id -> write_moment ( id -> kqpar,   G[is]->qpar_ptr, vol_fac);
+    }
 
     // Plot some zonal scalars
     id -> write_moment ( id -> avg_zvE,     fields->phi,    vol_fac);
     id -> write_moment ( id -> avg_zkxvEy,  fields->phi,    vol_fac);
-    id -> write_moment ( id -> avg_zkden,   G->dens_ptr[0], vol_fac);
-    id -> write_moment ( id -> avg_zkUpar,  G->upar_ptr[0], vol_fac);
-    id -> write_moment ( id -> avg_zkTpar,  G->tpar_ptr[0], vol_fac);
-    id -> write_moment ( id -> avg_zkTperp, G->tprp_ptr[0], vol_fac);
-    id -> write_moment ( id -> avg_zkqpar,  G->qpar_ptr[0], vol_fac);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      id -> write_moment ( id -> avg_zkden,   G[is]->dens_ptr, vol_fac);
+      id -> write_moment ( id -> avg_zkUpar,  G[is]->upar_ptr, vol_fac);
+      id -> write_moment ( id -> avg_zkTpar,  G[is]->tpar_ptr, vol_fac);
+      id -> write_moment ( id -> avg_zkTperp, G[is]->tprp_ptr, vol_fac);
+      id -> write_moment ( id -> avg_zkqpar,  G[is]->qpar_ptr, vol_fac);
+    }
 
     // Plot f(x,y,z=0)
     id -> write_moment ( id -> xyPhi,   fields->phi,    vol_fac);
@@ -378,23 +392,26 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
     id -> write_moment ( id -> xykxvEy, fields->phi,    vol_fac);
     id -> write_moment ( id -> xyvEy,   fields->phi,    vol_fac);
     id -> write_moment ( id -> xyvEx,   fields->phi,    vol_fac);
-    id -> write_moment ( id -> xyden,   G->dens_ptr[0], vol_fac);
-    id -> write_moment ( id -> xyUpar,  G->upar_ptr[0], vol_fac);
-    id -> write_moment ( id -> xyTpar,  G->tpar_ptr[0], vol_fac);
-    id -> write_moment ( id -> xyTperp, G->tprp_ptr[0], vol_fac);
-    id -> write_moment ( id -> xyqpar,  G->qpar_ptr[0], vol_fac);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      id -> write_moment ( id -> xyden,   G[is]->dens_ptr, vol_fac);
+      id -> write_moment ( id -> xyUpar,  G[is]->upar_ptr, vol_fac);
+      id -> write_moment ( id -> xyTpar,  G[is]->tpar_ptr, vol_fac);
+      id -> write_moment ( id -> xyTperp, G[is]->tprp_ptr, vol_fac);
+      id -> write_moment ( id -> xyqpar,  G[is]->qpar_ptr, vol_fac);
+    }
 
     if (pars_->Reservoir && counter > pars_->nstep-pars_->ResPredict_Steps*pars_->ResTrainingDelta) {
-      if (!pars_->ResFakeData) id -> write_ks_data ( id -> g_y, G->G());
+      if (!pars_->ResFakeData) id -> write_ks_data ( id -> g_y, G[0]->G());
     }
     if (!pars_->Reservoir) {
-      id -> write_ks_data ( id -> g_y, G->G());
+      id -> write_ks_data ( id -> g_y, G[0]->G());
     }
 
     nc_sync(id->file);
+    fflush(NULL);
   }
   if (pars_->Reservoir && counter%pars_->ResTrainingDelta == 0) {
-    grad_perp->C2R(G->G(), gy_d);
+    grad_perp->C2R(G[0]->G(), gy_d);
     if (pars_->ResFakeData) {
       rc->fake_data(gy_d);
       id -> write_ks_data( id -> g_y, gy_d);
@@ -404,7 +421,9 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
 
   if (pars_->fixed_amplitude && (counter % nw == nw-2)) {
     maxPhi KXKY (phi_max, fields->phi);
-    G->rescale(phi_max);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      G[is]->rescale(phi_max);
+    }
     fields->rescale(phi_max);
   }
   
@@ -413,13 +432,15 @@ bool Diagnostics_GK::loop(MomentsG* G, Fields* fields, double dt, int counter, d
   return stop;
 }
 
-void Diagnostics_GK::finish(MomentsG* G, Fields* fields, double time) 
+void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time) 
 {
   if (pars_->Reservoir && rc->predicting()) {
     if (pars_->ResFakeData) {
       rc->fake_data(gy_d);
     } else {
-      grad_perp -> C2R (G->G(), gy_d);
+      for(int is=0; is<grids_->Nspecies; is++) {
+        grad_perp -> C2R (G[is]->G(), gy_d);
+      }
     }
     double *gy_double;
     cudaMalloc(&gy_double, sizeof(double)*grids_->Ny);
@@ -433,14 +454,17 @@ void Diagnostics_GK::finish(MomentsG* G, Fields* fields, double time)
       id -> write_ks_data (id -> g_y, gy_d);
     }
   }
+  if (pars_->write_fields) {
+    id -> write_fields(id -> fields_phi,  fields->phi );
+    id -> write_fields(id -> fields_apar, fields->apar);
+    id -> write_fields(id -> fields_bpar, fields->bpar);
+  }
 }
 
 void Diagnostics_GK::print_omg(cuComplex *W)
 {
   CP_TO_CPU (tmp_omg_h, W, sizeof(cuComplex)*grids_->NxNyc);
-  //CP_TO_CPU (tmp_phi_h, WW, sizeof(cuComplex)*grids_->NxNyc);
-  //print_growth_rates_to_screen(tmp_omg_h, tmp_phi_h);
-  print_growth_rates_to_screen(tmp_omg_h);
+  if(grids_->iproc==0) print_growth_rates_to_screen(tmp_omg_h);
 }
 
   // For each kx, z, l and m, sum the moments of G**2 + Phi**2 (1-Gamma_0) with weights:
@@ -531,7 +555,7 @@ Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids) :
   int nG  = nR * grids_->Nmoms * nS;
 
   favg        = nullptr;  df          = nullptr;  val         = nullptr;  
-  G2          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
+  G2s          = nullptr;  P2s         = nullptr;  Phi2        = nullptr;
   omg_d       = nullptr;  tmp_omg_h   = nullptr;  t_bar       = nullptr;  
   vEk         = nullptr;  phi_max     = nullptr;
 
@@ -565,7 +589,7 @@ Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids) :
   //  }
   //}
   // need if (pars_->write_flux || "diagnosing potential) {
-  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2, sizeof(float) * nG); 
+  if (pars_->diagnosing_spectra || pars_->diagnosing_kzspec) cudaMalloc (&G2s, sizeof(float) * nG); 
   cudaMalloc (&P2s, sizeof(float) * nR * nS);
 
   if (id -> omg -> write_v_time) {
@@ -638,7 +662,7 @@ Diagnostics_KREHM::~Diagnostics_KREHM()
   if (fields_old) delete fields_old;
   if (id)         delete id;
 
-  if (G2)         cudaFree      ( G2        );
+  if (G2s)        cudaFree      ( G2s       );
   if (P2s)        cudaFree      ( P2s       );
   if (Phi2)       cudaFree      ( Phi2      );
   if (t_bar)      cudaFree      ( t_bar     );
@@ -654,7 +678,7 @@ Diagnostics_KREHM::~Diagnostics_KREHM()
   if (tmp_omg_h)  free  ( tmp_omg_h );
 }
 
-bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter, double time) 
+bool Diagnostics_KREHM::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
 {
   int retval;
   bool stop = false;
@@ -666,6 +690,7 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
 
     fflush(NULL);
     id -> write_nc(id -> time, time);
+    printf("%s: Step %d: Time = %f\n",  pars_->run_name, counter, time);
  
     //if (pars_->write_phi) id->write_nc(id->phi, phi);
 
@@ -679,12 +704,12 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
     }
 
     if (pars_->diagnosing_spectra) {                                        // Various spectra
-      W_summand GALL (G2, G->G(), vol_fac, G->nt());
+      W_summand GALL (G2(), G[0]->G(), vol_fac, G[0]->species->nt);
 
       Wphi_summand_krehm loop_R (P2(), fields->phi, vol_fac, grids_->kx, grids_->ky, pars_->rho_i);
       
-      id->write_Wm    (G2   );    id->write_Wl    (G2   );    id->write_Wlm   (G2   );    
-      id->write_Wz    (G2   );    id->write_Wky   (G2   );    id->write_Wkx   (G2   );    id->write_Wkxky (G2  );    
+      id->write_Wm    (G2()   );    id->write_Wl    (G2()   );    id->write_Wlm   (G2()   );    
+      id->write_Wz    (G2()   );    id->write_Wky   (G2()   );    id->write_Wkx   (G2()   );    id->write_Wkxky (G2()  );    
       id->write_Pz    (P2() );    id->write_Pky   (P2() );    id->write_Pkx   (P2() );    id->write_Pkxky (P2());    
       
       // Do not change the order of these four calls because totW is accumulated in order when it is requested:
@@ -699,7 +724,7 @@ bool Diagnostics_KREHM::loop(MomentsG* G, Fields* fields, double dt, int counter
   return stop;
 }
 
-void Diagnostics_KREHM::finish(MomentsG* G, Fields* fields, double time) 
+void Diagnostics_KREHM::finish(MomentsG** G, Fields* fields, double time) 
 {
 }
 

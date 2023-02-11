@@ -4,7 +4,6 @@
 #include <iostream>
 #include "geometric_coefficients.h"
 #include <netcdf.h>
-#include "parameters.h"
 #include <cmath>
 #include "vmec_variables.h"
 #include "solver.h"
@@ -23,18 +22,25 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
   vmec(vmec_vars) {
 
   const auto nml = toml::parse(nml_file); 
+  auto tnml = nml;
 
-  vmec_path   = toml::find_or <string> (nml, "vmec_path", "./"); // not presently used! 
-  out_path  = toml::find_or <string> (nml, "out_path", "./"); 
-  alpha  = toml::find_or <double> (nml, "alpha", 0.0);
-  nzgrid = toml::find_or <int> (nml, "nzgrid", 16);
-  npol   = toml::find_or <int> (nml, "npol", 1);
+  if (nml.contains("Dimensions")) tnml = toml::find(nml, "Dimensions");
+  int ntheta = toml::find_or <int> (tnml, "ntheta", 32);
+  nzgrid = ntheta/2;
+
+  if (nml.contains("Geometry")) tnml = toml::find(nml, "Geometry");
+
+  vmec_path   = toml::find_or <string> (tnml, "vmec_path", ""); // not presently used! 
+  out_path  = toml::find_or <string> (tnml, "out_path", ""); 
+  alpha  = toml::find_or <double> (tnml, "alpha", 0.0);
+  npol   = toml::find_or <int> (tnml, "npol", 1);
   desired_normalized_toroidal_flux =
-    toml::find_or <double> (nml, "desired_normalized_toroidal_flux", 0.25);
-  vmec_surface_option = toml::find_or <int> (nml, "vmec_surface_option", 2);
-  flux_tube_cut = toml::find_or <string> (nml, "flux_tube_cut", "none");
-  custom_length = toml::find_or <double> (nml, "custom_length", M_PI);
-  which_crossing = toml::find_or <int> (nml, "which_crossing", 4);
+    toml::find_or <double> (tnml, "desired_normalized_toroidal_flux", 0.25);
+  vmec_surface_option = toml::find_or <int> (tnml, "vmec_surface_option", 2);
+  flux_tube_cut = toml::find_or <string> (tnml, "flux_tube_cut", "none");
+  custom_length = toml::find_or <double> (tnml, "custom_length", M_PI);
+  which_crossing = toml::find_or <int> (tnml, "which_crossing", 4);
+  file_tag = toml::find_or <string> (tnml, "file_tag", ""); // new TQ 8.14
 
   // ------------------------------------------------------------------------
   // ------------------------------------------------------------------------
@@ -105,6 +111,7 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
   case 0:
     // use exact radius requested
     normalized_toroidal_flux_used = desired_normalized_toroidal_flux;
+    std::cout << "normalized flux used = " << normalized_toroidal_flux_used << "\n";
     break;
       
   case 1:
@@ -987,8 +994,10 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
     gds2_pest[itheta] = (grad_alpha_X[itheta] * grad_alpha_X[itheta] + grad_alpha_Y[itheta] * grad_alpha_Y[itheta] + grad_alpha_Z[itheta] * grad_alpha_Z[itheta])
       * L_reference * L_reference * normalized_toroidal_flux_used;
 
-    // Note that the gds21 value from GIST had the incorrect sign at some point. Thus, if comparing to GIST, it is possible that the signs will disagree
-    // it seems like the sign needs to be flipped if the VMEC toroidal flux is positive, otherwise gds21 is incorrect (potentially related to signgs = -1?)
+    // Note that the gds21 value from GIST had the incorrect sign at some point.
+    // Thus, if comparing to GIST, it is possible that the signs will disagree
+    // it seems like the sign needs to be flipped if the VMEC toroidal flux is positive,
+    // otherwise gds21 is incorrect (potentially related to signgs = -1?)
     gds21_pest[itheta] = (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta])
       * (shat / B_reference);
     //    gds21_pest[itheta] = (sign_psi * vmec->signgs) * (grad_alpha_X[itheta] * grad_psi_X[itheta] + grad_alpha_Y[itheta] * grad_psi_Y[itheta] + grad_alpha_Z[itheta] * grad_psi_Z[itheta]) * (shat / B_reference);
@@ -1057,13 +1066,13 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
     
       if (flux_tube_cut == "gds21") {
 	
-	get_cut_indices_zeros(gds21_pest, ileft, iright, nzgrid, root_idx_left, root_idx_right);
+	get_cut_indices_zeros(gds21_pest, ileft, iright, nzgrid_cut, root_idx_left, root_idx_right);
 	get_revised_theta_zeros(theta_std_copy, gds21_pest, theta_grid_cut, revised_theta_grid);
 	
       }
       else if (flux_tube_cut == "gbdrift0") {
 	
-	get_cut_indices_zeros(gbdrift0_pest, ileft, iright, nzgrid, root_idx_left, root_idx_right);
+	get_cut_indices_zeros(gbdrift0_pest, ileft, iright, nzgrid_cut, root_idx_left, root_idx_right);
 	get_revised_theta_zeros(theta_std_copy, gbdrift0_pest, theta_grid_cut, revised_theta_grid);
       }
       else {
@@ -1086,29 +1095,29 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
     cvdrift_cut = slice(cvdrift_pest, ileft, iright);
     cvdrift0_cut = slice(cvdrift0_pest, ileft, iright);
         
-    bmag_temp = &bmag_cut[0];
-    gradpar_temp = &gradpar_cut[0];
-    grho_temp = &grho_cut[0];
-    gds2_temp = &gds2_cut[0];
-    gds21_temp = &gds21_cut[0];
-    gds22_temp = &gds22_cut[0];
-    gbdrift_temp = &gbdrift_cut[0];
-    gbdrift0_temp = &gbdrift0_cut[0];
-    cvdrift_temp = &cvdrift_cut[0];
-    cvdrift0_temp = &cvdrift0_cut[0];
+    bmag_temp = &bmag_pest[0];
+    gradpar_temp = &gradpar_pest[0];
+    grho_temp = &grho_pest[0];
+    gds2_temp = &gds2_pest[0];
+    gds21_temp = &gds21_pest[0];
+    gds22_temp = &gds22_pest[0];
+    gbdrift_temp = &gbdrift_pest[0];
+    gbdrift0_temp = &gbdrift0_pest[0];
+    cvdrift_temp = &cvdrift_pest[0];
+    cvdrift0_temp = &cvdrift0_pest[0];
     //theta_grid_temp = &theta_grid_cut[0];
  
     // Interpolate the cut grid onto the revised grid based on the type of cut
-    interp_to_new_grid(bmag_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gradpar_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(grho_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gds2_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gds21_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gds22_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gbdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(gbdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(cvdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
-    interp_to_new_grid(cvdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid, true);
+    interp_to_new_grid(&bmag_cut[0], bmag_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gradpar_cut[0], gradpar_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&grho_cut[0], grho_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gds2_cut[0], gds2_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gds21_cut[0], gds21_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gds22_cut[0], gds22_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gbdrift_cut[0], gbdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&gbdrift0_cut[0], gbdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&cvdrift_cut[0], cvdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&cvdrift0_cut[0], cvdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
 
     std::cout << "Final gds21 = [";
     for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
@@ -1253,7 +1262,7 @@ void Geometric_coefficients::get_revised_theta_custom(std::vector<double>& theta
 
 }
 
-void Geometric_coefficients::get_cut_indices_zeros(std::vector<double>& data, int &ileft_, int &iright_, int &nzgrid_, int& root_idx_left_, int& root_idx_right_) {
+void Geometric_coefficients::get_cut_indices_zeros(std::vector<double>& data, int &ileft_, int &iright_, int &nzgrid_cut, int& root_idx_left_, int& root_idx_right_) {
 
   std::vector<double> data_cut;
   
@@ -1296,7 +1305,7 @@ void Geometric_coefficients::get_cut_indices_zeros(std::vector<double>& data, in
   root_idx_right = isign[which_crossing + (nzeros-1)] + region;
   
   data_cut = slice(data,ileft,iright);
-  nzgrid_ = (data_cut.size() - 1) / 2;
+  nzgrid_cut = (data_cut.size() - 1) / 2;
 
 }
 
@@ -1455,7 +1464,6 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
 						    double* cvdrift0) {
 
   // set up filename
-  std::string out_name;
   std::string tor_flux = std::to_string(normalized_toroidal_flux_used);
   std::string custom_info = std::to_string(custom_length);
   custom_info = custom_info.substr(0,5);
@@ -1463,29 +1471,37 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   tor_flux = tor_flux.substr(0,5);
   std::string vmec_name = vmec->vmec_data;
   vmec_name = vmec_name.substr(0,vmec_name.size()-3); // could change 0 to 5 to shorten these names
+  vmec_name = vmec_name.substr(vmec_name.find_last_of("/")+1);
 
-  out_name = out_path + "gx_" + vmec_name + "_psiN_" + tor_flux;
+  /* This part of the code writes the (netcdf) geometry output name*/
+  outnc_name = out_path + "gx_" + vmec_name + "_psiN_" + tor_flux;
     
   if (flux_tube_cut == "custom") {
-    out_name += "_custom_[-" + custom_info + "," + custom_info + "]";
+    outnc_name += "_custom_[-" + custom_info + "," + custom_info + "]";
   }
   else if (flux_tube_cut == "gds21") {
-    out_name += "_gds21" ;
+    outnc_name += "_gds21" ;
   }
   else if (flux_tube_cut == "gbdrift0") {
-    out_name += "_gbdrift0" ;
+    outnc_name += "_gbdrift0" ;
   }
   //  else {
-  //    out_name += "";
+  //    outnc_name += "";
   //  }  
 
-  out_name += + "_nt_" + theta_grid_points + "_geo.nc";
+  outnc_name += + "_nt_" + theta_grid_points + "_geo.nc";
+  /* This is the new usage. Above is previous. 
+   * If file_tag is not included in the input file, do nothing, 
+   * else overwrite the above outnc_name. */
+  if (file_tag != "") {
+    outnc_name = out_path + "gx_geo_" + file_tag + ".nc";
+  }
   
   // create file for writing
   int retval;
   int ncgeo;
   
-  if (retval = nc_create(out_name.c_str(), NC_CLOBBER, &ncgeo))  ERR(retval);
+  if (retval = nc_create(outnc_name.c_str(), NC_CLOBBER, &ncgeo))  ERR(retval);
 
   // define dimensions
   int id_z; 
@@ -1508,6 +1524,14 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   if (retval = nc_def_var(ncgeo, "q", NC_DOUBLE, 0, NULL, &id_q))                       ERR(retval);
   int id_scale;
   if (retval = nc_def_var(ncgeo, "scale", NC_DOUBLE, 0, NULL, &id_scale))               ERR(retval);
+
+
+  // write vmec file name as an attribute
+  int id_vmec;
+  if (retval = nc_def_var(ncgeo, "wout", NC_INT, 0, NULL, &id_vmec))        ERR(retval);
+  std::string wout = vmec->vmec_data;
+  if (retval = nc_put_att_text (ncgeo, id_vmec, "filename", 
+  wout.size(), wout.c_str())) ERR(retval);
 
   // define arrays
   int geodim[1];
@@ -1540,7 +1564,7 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   if (retval = nc_def_var(ncgeo, "gds21", NC_DOUBLE, 1, geodim, &id_gds21))   ERR(retval);
   int id_gds22;
   if (retval = nc_def_var(ncgeo, "gds22", NC_DOUBLE, 1, geodim, &id_gds22))   ERR(retval);
-  
+
   // end definition phase
   if (retval = nc_enddef(ncgeo)) ERR(retval);
   
@@ -1559,6 +1583,7 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   double q = 1.0;
   if (retval = nc_put_var(ncgeo, id_q, &q))                             ERR(retval);
   if (retval = nc_put_var(ncgeo, id_scale, &domain_scaling_factor))     ERR(retval);
+
   
   if (retval = nc_put_vara(ncgeo, id_theta,    start, count, theta_grid))  ERR(retval);
   if (retval = nc_put_vara(ncgeo, id_gradpar,  start, count, gradpar))     ERR(retval);
@@ -1583,33 +1608,40 @@ void Geometric_coefficients::write_geo_arrays_to_file(double* theta_grid, double
 						      double* gbdrift0, double* cvdrift,
 						      double* cvdrift0) {
 
-  std::string out_name;
   std::string tor_flux = std::to_string(normalized_toroidal_flux_used);
   std::string custom_info = std::to_string(custom_length);
   custom_info = custom_info.substr(0,5);
   std::string theta_grid_points = std::to_string(2*nzgrid);
   tor_flux = tor_flux.substr(0,5);
   std::string vmec_name = vmec->vmec_data;
+  vmec_name = vmec_name.substr(vmec_name.find_last_of("/")+1);
   vmec_name = vmec_name.substr(0,vmec_name.size()-3);
 
-  out_name = out_path + "grid.gx_" + vmec_name + "_psiN_" + tor_flux;
+  /* This part of the code writes the (human readable) output name*/
+  outfile_name = out_path + "grid.gx_" + vmec_name + "_psiN_" + tor_flux;
     
   if (flux_tube_cut == "custom") {
-    out_name += "_custom_[-" + custom_info + "," + custom_info + "]";
+    outfile_name += "_custom_[-" + custom_info + "," + custom_info + "]";
   }
   else if (flux_tube_cut == "gds21") {
-    out_name += "_gds21" ;
+    outfile_name += "_gds21" ;
   }
   else if (flux_tube_cut == "gbdrift0") {
-    out_name += "_gbdrift0" ;
+    outfile_name += "_gbdrift0" ;
   }
   //  else {
-  //    out_name += "";
+  //    outfile_name += "";
   //  }  
+  outfile_name += + "_nt_" + theta_grid_points;
 
-  out_name += + "_nt_" + theta_grid_points;
+  /* This is the new usage. Above is previous. 
+   * If file_tag is not included in the input file, do nothing, 
+   * else overwrite the above outfile_name. */
+  if (file_tag != "") {
+    outfile_name = out_path + "grid.gx_" + file_tag;
+  }
   
-  std::ofstream out_file(out_name);
+  std::ofstream out_file(outfile_name);
   //  std::ofstream out_file(".\\name.ext");
   if (out_file.is_open()) {
     out_file << "ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q scale\n";

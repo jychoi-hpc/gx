@@ -49,37 +49,35 @@ Beer42::~Beer42() {
 
 void Beer42::apply_closures(MomentsG* G, MomentsG* GRhs) 
 {
-  for (int is=0; is < grids_->Nspecies; is++) {
+  const float vt_ = G->species->vt;
 
-    const float vt_ = pars_->species_h[is].vt;
+  int nn = grids_->NxNycNz; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;
+  cuComplex zero = make_cuComplex(0.,0.);
 
-    int nn = grids_->NxNycNz; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;
-    cuComplex zero = make_cuComplex(0.,0.);
+  // mask unevolved moments
+  setval <<< nb, nt >>> (GRhs->G(1, 2), zero, nn);
+  setval <<< nb, nt >>> (GRhs->G(1, 3), zero, nn);
 
-    // mask unevolved moments
-    setval <<< nb, nt >>> (GRhs->G(1, 2, is), zero, nn);
-    setval <<< nb, nt >>> (GRhs->G(1, 3, is), zero, nn);
+  //    cudaMemset(GRhs->G(1, 2, is), 0., sizeof(cuComplex)*grids_->NxNycNz);
+  //    cudaMemset(GRhs->G(1, 3, is), 0., sizeof(cuComplex)*grids_->NxNycNz);
 
-    //    cudaMemset(GRhs->G(1, 2, is), 0., sizeof(cuComplex)*grids_->NxNycNz);
-    //    cudaMemset(GRhs->G(1, 3, is), 0., sizeof(cuComplex)*grids_->NxNycNz);
+  // parallel streaming
+  grad_par_->dz(G->G(0, 2), tmp); // roughly d/dz T_par
+  
+  add_scaled_singlemom_kernel GB (GRhs->G(0, 3), 1., GRhs->G(0, 3), -Beta_par/sqrt(3.)*gpar_*vt_, tmp);
 
-    // parallel streaming
-    grad_par_->dz(G->G(0, 2, is), tmp); // roughly d/dz T_par
-    
-    add_scaled_singlemom_kernel GB (GRhs->G(0, 3, is), 1., GRhs->G(0, 3, is), -Beta_par/sqrt(3.)*gpar_*vt_, tmp);
+  grad_par_->abs_dz(G->G(0, 3), tmp); // roughly |d/dz| q_par,par
 
-    grad_par_->abs_dz(G->G(0, 3, is), tmp); // roughly |d/dz| q_par,par
+  add_scaled_singlemom_kernel GB (GRhs->G(0, 3), 1., GRhs->G(0, 3), -sqrt(2.)*D_par*gpar_*vt_, tmp);
 
-    add_scaled_singlemom_kernel GB (GRhs->G(0, 3, is), 1., GRhs->G(0, 3, is), -sqrt(2.)*D_par*gpar_*vt_, tmp);
+  grad_par_->abs_dz(G->G(1, 1), tmp); // rougly |d/dz| q_par,perp
 
-    grad_par_->abs_dz(G->G(1, 1, is), tmp); // rougly |d/dz| q_par,perp
-
-    add_scaled_singlemom_kernel GB (GRhs->G(1, 1, is), 1., GRhs->G(1, 1, is), -sqrt(2.)*D_perp*gpar_*vt_, tmp);
-  }
+  add_scaled_singlemom_kernel GB (GRhs->G(1, 1), 1., GRhs->G(1, 1), -sqrt(2.)*D_perp*gpar_*vt_, tmp);
+  
   
   // toroidal terms.  
   //  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, pars_->species);
-  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, G->tz());
+  beer_toroidal_closures GB (G->G(), GRhs->G(), omegad_, nu, G->species->tz);
 }
 
 SmithPerp::SmithPerp(Parameters* pars, Grids* grids, Geometry* geo): 
@@ -182,7 +180,7 @@ SmithPerp::~SmithPerp() {
 void SmithPerp::apply_closures(MomentsG* G, MomentsG* GRhs) 
 {
   // perp closure terms are only toroidal
-  smith_perp_toroidal_closures GB (G->G(), GRhs->G(), omegad_, Aclos_, q_, G->tz());
+  smith_perp_toroidal_closures GB (G->G(), GRhs->G(), omegad_, Aclos_, q_, G->species->tz);
 }
 
 
@@ -221,29 +219,27 @@ void SmithPar::apply_closures(MomentsG* G, MomentsG* GRhs)
 {
   int M = grids_->Nm - 1;
 
-  for (int is=0; is < grids_->Nspecies; is++) {
-    const float vt_ = pars_->species_h[is].vt;
+  const float vt_ = G->species->vt;
 
-    // apply closure to mth hermite equation for all laguerre moments
-    for(int l = 0; l < grids_->Nl; l++) {
-      
-      //      cudaMemset(clos, 0, sizeof(cuComplex)*grids_->NxNycNz);
-      
-      int nn = grids_->NxNycNz; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;
-      cuComplex zero = make_cuComplex(0.,0.);
-      
-      // reset closure array every time step
-      setval <<< nb, nt >>> (clos, zero, nn); 
+  // apply closure to mth hermite equation for all laguerre moments
+  for(int l = 0; l < grids_->Nl; l++) {
+    
+    //      cudaMemset(clos, 0, sizeof(cuComplex)*grids_->NxNycNz);
+    
+    int nn = grids_->NxNycNz; int nt = min(nn, 512); int nb = 1 + (nn-1)/nt;
+    cuComplex zero = make_cuComplex(0.,0.);
+    
+    // reset closure array every time step
+    setval <<< nb, nt >>> (clos, zero, nn); 
 
-    // write m+1 moment as a sum of lower order moments
-      for (int m = M; m >= grids_->Nm - q_; m--) {
+  // write m+1 moment as a sum of lower order moments
+    for (int m = M; m >= grids_->Nm - q_; m--) {
 
-	grad_par_->dz(G->G(l, m, is), tmp);              // Aha. This is where the difference between kzp and kz comes in
-	grad_par_->abs_dz(G->G(l, m, is), tmp_abs);
-	
-	add_scaled_singlemom_kernel GB (clos, 1., clos, -a_coefficients_[M - m].y, tmp_abs, a_coefficients_[M - m].x, tmp);
-      }
-      add_scaled_singlemom_kernel GB (GRhs->G(l, M, is), 1., GRhs->G(l, M, is), -sqrtf(M+1)*gpar_*vt_, clos);
+      grad_par_->dz(G->G(l, m), tmp);              // Aha. This is where the difference between kzp and kz comes in
+      grad_par_->abs_dz(G->G(l, m), tmp_abs);
+      
+      add_scaled_singlemom_kernel GB (clos, 1., clos, -a_coefficients_[M - m].y, tmp_abs, a_coefficients_[M - m].x, tmp);
     }
+    add_scaled_singlemom_kernel GB (GRhs->G(l, M), 1., GRhs->G(l, M), -sqrtf(M+1)*gpar_*vt_, clos);
   }
 }

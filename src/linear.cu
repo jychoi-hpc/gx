@@ -5,7 +5,7 @@
 // object for handling linear terms in GK
 //=======================================
 Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
-  pars_(pars), grids_(grids), geo_(geo),
+  pars_(pars), grids_(grids), geo_(geo), 
   closures(nullptr), grad_par(nullptr)
 {
   ks = false;
@@ -23,13 +23,13 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     DEBUGPRINT("Using local limit for grad parallel.\n");
     grad_par = new GradParallelLocal(grids_);
   }
-  else if(pars_->boundary_option_periodic && pars_->nx_in > 1) {
-    DEBUGPRINT("Using periodic for grad parallel.\n");
-    grad_par = new GradParallelPeriodic(grids_);
-  }
+  //else if(pars_->boundary_option_periodic && pars_->nx_in > 1) {
+  //  DEBUGPRINT("Using periodic for grad parallel.\n");
+  //  grad_par = new GradParallelPeriodic(grids_);
+  //}
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
+    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist);
   }
 
   switch (pars_->closure_model_opt)
@@ -69,7 +69,7 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   }
   
   // allocate conservation terms for collision operator
-  size_t size = sizeof(cuComplex)*grids_->NxNycNz*grids_->Nspecies;
+  size_t size = sizeof(cuComplex)*grids_->NxNycNz;
   cudaMalloc((void**) &upar_bar, size);
   cudaMalloc((void**) &uperp_bar, size);
   cudaMalloc((void**) &t_bar, size);
@@ -84,9 +84,9 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dBs = dim3(nt1, nt2, nt3);
   dGs = dim3(nb1, nb2, nb3);
 
-  nn1 = grids_->Nyc;                              nt1 = min(nn1, 16);    nb1 = (nn1-1)/nt1 + 1;
-  nn2 = grids_->Nx*grids_->Nz;                    nt2 = min(nn2, 16);    nb2 = (nn2-1)/nt2 + 1;
-  nn3 = grids_->Nspecies*grids_->Nm*grids_->Nl;   nt3 = min(nn3,  4);    nb3 = (nn3-1)/nt3 + 1;
+  nn1 = grids_->Nyc;             nt1 = min(nn1, 16);    nb1 = (nn1-1)/nt1 + 1;
+  nn2 = grids_->Nx*grids_->Nz;   nt2 = min(nn2, 16);    nb2 = (nn2-1)/nt2 + 1;
+  nn3 = grids_->Nm*grids_->Nl;   nt3 = min(nn3,  4);    nb3 = (nn3-1)/nt3 + 1;
   
   dB_all = dim3(nt1, nt2, nt3);
   dG_all = dim3(nb1, nb2, nb3);	 
@@ -103,15 +103,24 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dimBlock = dim3(nt1, nt2, nt3);
   dimGrid  = dim3(nb1, nb2, nb3);
   
-  sharedSize = nt1 * (grids_->Nl+2) * (grids_->Nm+4) * sizeof(cuComplex);
+  if(grids_->m_ghost == 0)
+    sharedSize = nt1 * (grids_->Nl+2) * (grids_->Nm+4) * sizeof(cuComplex);
+  else 
+    sharedSize = nt1 * (grids_->Nl+2) * (grids_->Nm+2*grids_->m_ghost) * sizeof(cuComplex);
+
+  int dev;
+  cudaDeviceProp prop;
+  checkCuda( cudaGetDevice(&dev) );
+  checkCuda( cudaGetDeviceProperties(&prop, dev) );
+  maxSharedSize = prop.sharedMemPerBlockOptin;
 
   DEBUGPRINT("For linear RHS: size of shared memory block = %f KB\n", sharedSize/1024.);
-  if(sharedSize/1024.>96.) {
+  if(sharedSize>maxSharedSize && grids_->m_ghost == 0) {
     printf("Error: currently cannot support this velocity resolution due to shared memory constraints.\n");
     printf("If you wish to try to keep this velocity resolution, ");
     printf("you can try lowering i_share in your input file.\n");
     printf("You are using i_share = %d now, perhaps by default.\n", pars_->i_share);
-    printf("The size of the shared memory block should be less than 96 KB ");
+    printf("The size of the shared memory block should be less than %d KB ", maxSharedSize/1024);
     printf("which means i_share*(nhermite+4)*(nlaguerre+2) < %d. \n", 12*1024);
     printf("Presently, you have set i_share*(nhermite+4)*(nlaguerre+2) = %d. \n",
 	   pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
@@ -125,7 +134,7 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dimBlockh = dim3(nt1, nt2, nt3);
   dimGridh  = dim3(nb1, nb2, nb3);
   
-  
+  cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, 12*1024*sizeof(cuComplex));    
 }
 
 Linear_GK::~Linear_GK()
@@ -145,25 +154,22 @@ Linear_GK::~Linear_GK()
 
 void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
-  // to be safe, start with zeros on RHS
-  GRhs->set_zero();
-  
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions)  conservation_terms <<< nb1, nt1 >>>
-			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, geo_->kperp2, G->zt(), G->r2(), G->vt());  
-  
+			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
+
   // Free-streaming requires parallel FFTs, so do that first
-  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, G->r2(), geo_->gradpar, G->vt(), G->zt(), GRhs->G());
+  cudaStreamSynchronize(G->syncStream);
+  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
   grad_par->dz(GRhs);
   
   // calculate most of the RHS
-  cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, 12*1024*sizeof(cuComplex));    
+  cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
-      	(G->G(), f->phi, f->apar, upar_bar, uperp_bar, t_bar,
+      	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
-	 grids_->ky, G->vt(), G->zt(), G->tz(), G->nz(), G->as(), G->nu(), G->tp(), G->up(), G->fp(), G->r2(), G->ty(),
-	 GRhs->G(), pars_->hegna);
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->hegna, pars_->ei_colls);
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {
@@ -193,11 +199,11 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
   }
 
   // hypercollisions
-  if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
+  if(pars_->hypercollisions) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
 								   pars_->nu_hyper_l,
 								   pars_->nu_hyper_m,
 								   pars_->p_hyper_l,
-								   pars_->p_hyper_m, G->vt(), GRhs->G());
+								   pars_->p_hyper_m, GRhs->G(), G->species->vt);
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
@@ -205,6 +211,15 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // apply parallel boundary conditions. for linked BCs, this involves applying 
   // a damping operator to the RHS near the boundaries of extended domain.
   if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2);
+}
+
+void Linear_GK::get_max_frequency(double *omega_max)
+{
+  // estimate max linear frequency from kz_max*vpar_max*vt_max + omegad_max, with omegad_max ~ 2*tz_max*(kx_max+ky_max)*vpar_max^2/R
+  omega_max[0] = pars_->tzmax*grids_->kx_max/abs(geo_->shat)*(grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
+  omega_max[1] = pars_->tzmax*grids_->ky_max*(grids_->vpar_max*grids_->vpar_max*geo_->cvdrift_max + grids_->muB_max*geo_->gbdrift_max);
+  if(pars_->linear) omega_max[1] = (omega_max[1] + grids_->ky_max*(1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));
+  omega_max[2] = pars_->vtmax*grids_->vpar_max*grids_->kz_max*geo_->gradpar;
 }
 
 //==========================================
@@ -226,7 +241,7 @@ Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids) :
   }
   else {
     DEBUGPRINT("Using twist-and-shift for grad parallel.\n");
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist, geo_->m0_h);
+    grad_par = new GradParallelLinked(grids_, pars_->jtwist, pars_->nonTwist);
   }
  
   switch (pars_->closure_model_opt)
@@ -304,10 +319,10 @@ void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
 
   // hypercollisions
   if(pars_->hypercollisions) hypercollisions<<<dimGrid,dimBlock>>>(G->G(),
-								   pars_->nu_hyper_l,
-								   pars_->nu_hyper_m,
-								   pars_->p_hyper_l,
-								   pars_->p_hyper_m, G->vt(), GRhs->G());
+								   0.,
+								   1./pars_->dt/pars_->nm_in,
+								   1.,
+								   pars_->p_hyper_m, GRhs->G(), 1.);
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->nu_hyper, pars_->D_hyper, GRhs->G());

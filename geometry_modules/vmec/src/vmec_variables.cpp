@@ -1,7 +1,6 @@
 #include <iostream>
 #include "vmec_variables.h"
 #include <netcdf.h>
-#include "parameters.h"
 #include <cmath>
 #include "toml.hpp"
 
@@ -13,9 +12,11 @@ VMEC_variables::VMEC_variables(char *nml_file) {// : vmec_file(vdata) {
   // read input file to find name of file with vmec data in it
 
   const auto nml = toml::parse(nml_file); 
+  auto tnml = nml;
+  if (nml.contains("Geometry")) tnml = toml::find(nml, "Geometry");
 
-  vmec_data = toml::find <std::string> (nml, "vmec_file");
-  vmec_path = toml::find_or <std::string> (nml, "vmec_path", "./");
+  vmec_data = toml::find <std::string> (tnml, "vmec_file");
+  vmec_path = toml::find_or <std::string> (tnml, "vmec_path", "");
 
   std::string tmpfile;
   tmpfile = vmec_path + vmec_data;

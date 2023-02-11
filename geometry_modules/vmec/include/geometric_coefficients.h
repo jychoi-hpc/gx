@@ -2,7 +2,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "parameters.h"
 #include "vmec_variables.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -30,6 +29,8 @@ class Geometric_coefficients {
   std::vector<double> slice(std::vector<double> const &, int, int);
 
   VMEC_variables *vmec;
+  std::string outfile_name;
+  std::string outnc_name;
 
   template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
@@ -206,8 +207,10 @@ class Geometric_coefficients {
   // input variables for the interface
   std::string vmec_path; // not presently used! 
   std::string out_path;
+  std::string file_tag;
   double alpha = 0.0;
   int nzgrid = 16;
+  int nzgrid_cut = 16;
   int npol = 1;
   int sign_psi;
   double desired_normalized_toroidal_flux = 0.25;

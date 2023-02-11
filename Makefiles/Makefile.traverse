@@ -4,37 +4,44 @@
 # add the following to your .bash_profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=traverse
-# module load cudatoolkit/11.0
+# module load nvhpc-nocompiler/22.5
+# module load cudatoolkit/11.7
 # module load openmpi/cuda-11.0/gcc/4.0.4/64
 # module load netcdf/gcc/hdf5-1.10.6/openmpi-4.0.4/4.7.3
 # module load hdf5/gcc/openmpi-4.0.4/1.10.6
 # module load gsl/1.15
+# module load anaconda3/2021.5
+# module load fftw/gcc/openmpi-4.0.4/3.3.8
 #
 
-# paths to netcdf added as part of module load
-NETCDF_INC = 
-NETCDF_LIB = -lnetcdf -lnetcdff -lhdf5 
+# paths to netcdf
+NETCDF_INC = -I ${NETCDFDIR}/include
+NETCDF_LIB = -L ${NETCDFDIR}/lib64 -lnetcdf -lnetcdff -lhdf5 
 
 # paths to openmpi
 OMPI_DIR = /usr/local/openmpi/cuda-11.0/4.0.4/gcc/ppc64le
 MPI_INC = -I ${OMPI_DIR}/include
-MPI_LIB = -L ${OMPI_DIR}/lib64 -lmpi 
+MPI_LIB = -L ${OMPI_DIR}/lib64 -lmpi
 
-# paths to cutensor (already in path)
-CUTENSOR_INC = 
-CUTENSOR_LIB = -lcutensor -lcudart
+# paths to cuda 
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NVHPC_ROOT}/comm_libs/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcudart -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -L ${NVHPC_ROOT}/comm_libs/nccl/lib -lnccl 
 
-# paths to cuda added as part of module load
-CUDA_INC = ${CUTENSOR_INC}
-CUDA_LIB = -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp ${CUTENSOR_LIB}
+# paths to gsl 
+GSL_INC = -I /usr/include 
+GSL_LIB = -lgsl -lgslcblas
 
-GSL_LIB = -lgsl -lgslcblas -lm
+C_LIB = -ldl -lm -lpthread
+
+# this GS2 install should be accessible to all users
+GS2_PATH = /home/nmandell/gs2
 
 CUDAARCH=70
-CC=gcc
+CC=g++
 
-NVCC      = nvcc
-NVCCFLAGS = -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math 
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

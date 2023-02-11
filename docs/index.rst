@@ -12,10 +12,10 @@ A unique feature of GX is the use of a Hermite-Laguerre velocity discretization,
 Another unique feature of GX is that it is a GPU-native code, designed and optimized in CUDA/C++. 
 This means you will need access to an NVIDIA GPU to run GX. 
 
-The GX repository is open source and hosted on BitBucket: https://bitbucket.org/gyrokinetics/gx.
+The GX repository is open source and hosted on BitBucket: https://bitbucket.org/gyrokinetics/gx. The GX paper is now on arXiv! https://arxiv.org/abs/2209.06731
 
 GX is currently under rapid development, resulting in quickly-changing functionality and capabilities.
-A number of planned improvements to the code (such as multi-GPU capability) are listed in the issue tracker on BitBucket (https://bitbucket.org/gyrokinetics/gx/issues).
+A number of planned improvements to the code are listed in the issue tracker on BitBucket (https://bitbucket.org/gyrokinetics/gx/issues).
 
 .. toctree::
    :maxdepth: 2

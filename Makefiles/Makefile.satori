@@ -4,31 +4,37 @@
 # add the following to your .bash_profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=satori
-# module load spack/0.1
+# module load spack-flat/0.1
 # module load nvhpc/21.5
-# module load openmpi/3.1.6-cuda-pmi-ucx-slurm-jhklron
-# module load anaconda3
-# export LD_LIBRARY_PATH=/home/software/spack/netcdf/4.7.2-uejs26rg7r42xfpg6f7xrfofbdjkxveq/lib:/home/software/spack/gsl/2.5-wmeietinmhfzwiammzup4ymx3wpa3ucz/lib:/software/hpc-sdk/2021_215/Linux_ppc64le/21.5/math_libs/lib64:/home/software/spack/hdf5/1.10.5-otmytxdnpayxhzfyhl7fu3nlvdiftlt5/lib:$LD_LIBRARY_PATH
+# module load anaconda3-2020.02-gcc-8.3.1-2ks5tch
+# module load openmpi-3.1.6-gcc-8.3.1-cuda-pmi-ucx-slurm-jhklron
+# module load netcdf-c-4.7.4-gcc-8.3.1-pxsrehp
+# module load hdf5-1.10.7-gcc-8.3.1-l3qeolo
+# module load gsl-2.5-gcc-8.3.1-5g2iioq
 #
 
-NETCDF_DIR = /home/software/spack/netcdf/4.7.2-uejs26rg7r42xfpg6f7xrfofbdjkxveq/
-NETCDF_INC = -I${NETCDF_DIR}/include
-NETCDF_LIB = -L${NETCDF_DIR}/lib -lnetcdf 
+NETCDF_INC = 
+NETCDF_LIB = -lnetcdf -lhdf5 
 
 MPI_INC= 
 MPI_LIB= -lmpi
 
-GSL_DIR = /home/software/spack/gsl/2.5-wmeietinmhfzwiammzup4ymx3wpa3ucz/
-GSL_INC = -I${GSL_DIR}/include
-GSL_LIB = -L${GSL_DIR}/lib -lgsl -lgslcblas -lm
+GSL_INC = 
+GSL_LIB = -lgsl -lgslcblas 
+
+C_LIB = -ldl -lm -lpthread
 
 NVCC=nvcc
 CUDAARCH=70
-CUDA_DIR = /software/hpc-sdk/2021_215/Linux_ppc64le/21.5/math_libs
-CUDA_INC = -I${CUDA_DIR}/include 
-CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lcutensor -lcudart
+CUDA_LIB = -L${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lcutensor -lcudart -L${NVHPC_ROOT}/comm_libs/nccl/lib -lnccl
 
-NVCCFLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true
+CC=g++
+
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+GS2_PATH = /home/nrm/gs2
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

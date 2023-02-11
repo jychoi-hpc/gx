@@ -21,9 +21,8 @@
  nonlinear_mode = false         # this is a linear calculation
 
 [Time]
- dt = 0.00025		# timestep size (in units of L_ref/vt_ref)
- nstep  = 5000		# number of timesteps
- scheme = "sspx3"       # use SSPx3 timestepping scheme
+ t_max = 1.25           # end time (in units of L_ref/vt_ref)
+ scheme = "sspx3"       # use SSPx3 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
  ikpar_init = 1                  # parallel wavenumber of initial perturbation
@@ -32,8 +31,7 @@
  init_electrons_only = true      # only set up initial pertubation in electrons
 
 [Geometry]
- igeo = 0               # use analytical geometry specification (s-alpha or slab)
- slab = true            # use slab geometry
+ geo_option = "slab"    # use slab geometry
  shat = 1.0e-8          # magnetic shear
 
 # it is okay to have extra species data here; only the first nspecies elements of each item are used

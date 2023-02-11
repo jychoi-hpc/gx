@@ -22,9 +22,8 @@
  nonlinear_mode = false          # this is a linear calculation
 
 [Time]
- dt = 0.005             # timestep size (in units of L_ref/vt_ref)
- nstep = 30000          # number of timesteps
- scheme = "sspx3"       # use SSPx3 timestepping scheme
+ t_max = 150.0          # end time (in units of L_ref/vt_ref)
+ scheme = "rk4"         # use RK4 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
  ikpar_init = 0                  # parallel wavenumber of initial perturbation
@@ -32,7 +31,7 @@
  init_amp = 1.0e-10              # amplitude of initial condition
 
 [Geometry]
- igeo = 0                        # use s-alpha analytical model geometry
+ geo_option = "s-alpha"          # use s-alpha analytical model geometry
  eps = 0.18                      # inverse aspect ratio of flux surface, r/R
  Rmaj = 2.77778                  # major radius of center of flux surface, normalized to L_ref
  qinp = 1.4                      # safety factor

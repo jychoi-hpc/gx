@@ -32,16 +32,16 @@ void KzForcing::stir(MomentsG *G) {
   
   switch (pars_->stirf)
     {
-    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
-    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
-    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
-    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
-    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
-    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
     }
                              
 }
@@ -64,16 +64,16 @@ void genForcing::stir(MomentsG *G) {
 
   switch (pars_->stirf)
     {
-    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
-    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
-    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
-    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
-    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
-    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
     }
 }
 
@@ -97,16 +97,16 @@ void KzForcingImpulse::stir(MomentsG *G) {
 
   switch (pars_->stirf)
     {                   
-    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index); break;
-    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr[0], pars_->forcing_index); break;
-    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
-    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr[0], pars_->forcing_index); break;
-    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr[0], pars_->forcing_index); break;
-    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr[0], pars_->forcing_index); break;
-    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr[0], pars_->forcing_index);
-                          stirring_kernel GSINGLE (rf,           G->tprp_ptr[0], pars_->forcing_index); break;
+    case stirs::density : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index); break;
+    case stirs::upar    : stirring_kernel GSINGLE (rf,           G->upar_ptr, pars_->forcing_index); break;
+    case stirs::tpar    : stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::tperp   : stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
+    case stirs::qpar    : stirring_kernel GSINGLE (rf*sqrt(6.0), G->qpar_ptr, pars_->forcing_index); break;
+    case stirs::qperp   : stirring_kernel GSINGLE (rf*sqrt(2.0), G->qprp_ptr, pars_->forcing_index); break;
+    case stirs::ppar    : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf*sqrt(2.0), G->tpar_ptr, pars_->forcing_index); break;
+    case stirs::pperp   : stirring_kernel GSINGLE (rf,           G->dens_ptr, pars_->forcing_index);
+                          stirring_kernel GSINGLE (rf,           G->tprp_ptr, pars_->forcing_index); break;
     }
 
   stirring_done = true;

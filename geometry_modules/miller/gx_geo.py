@@ -11,8 +11,15 @@ from scipy.interpolate import InterpolatedUnivariateSpline as linspl
 from scipy.interpolate import CubicSpline as cubspl
 from scipy.integrate import cumtrapz as ctrap
 from utils import *
-import toml
+import os
 import sys
+
+# Add toml directory to module search path
+parent_dir = os.path.abspath(os.path.dirname(__file__))
+toml_dir = os.path.join(parent_dir, 'toml')
+
+sys.path.append(toml_dir)
+import toml
 
 # definitions of the following variables can be obtained from 
 # https://gyrokinetics.gitlab.io/gs2/page/namelists/#theta_grid_eik_knobs
@@ -54,6 +61,8 @@ nperiod = f['Dimensions']['nperiod']
 rhoc = f['Geometry']['rhoc']
 qinp = f['Geometry']['qinp']
 s_hat_input = f['Geometry']['shat']
+if s_hat_input == 0.0:
+   s_hat_input = 1.e-8
 Rmaj =  f['Geometry']['Rmaj']
 R_geo = f['Geometry']['R_geo']
 shift = f['Geometry']['shift']

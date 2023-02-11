@@ -71,6 +71,9 @@ void LaguerreTransform::initTransforms(float* toGrid_h, float* toSpectral_h, flo
   double x_i, wgt, Lmat;
   gsl_vector_view polyvec;
 
+  float x_L = gsl_vector_get(eval, L-1);
+  vmax = x_L;
+
   for (j=0; j<J; j++) {
     x_i = gsl_vector_get (eval, j); 
     roots_h[j] = (float) x_i; // Used in argument of J0

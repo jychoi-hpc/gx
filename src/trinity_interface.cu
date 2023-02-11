@@ -29,28 +29,7 @@ void gx_get_fluxes_(trin_parameters_struct* tpars, trin_fluxes_struct* tfluxes, 
   Geometry    * geo         = nullptr;
   Diagnostics_GK * diagnostics = nullptr;
 
-  int igeo = pars->igeo;
-  DEBUGPRINT("Initializing geometry...\n");
-  if(igeo==0) {
-    geo = new S_alpha_geo(pars, grids);
-    CUDA_DEBUG("Initializing geometry s_alpha: %s \n");
-  }
-  else if(igeo==1) {
-    geo = new File_geo(pars, grids);
-    printf("************************* \n \n \n");
-    printf("Warning: may have assumed grho = 1 \n \n \n");
-    printf("************************* \n");
-    CUDA_DEBUG("Initializing geometry from file: %s \n");
-  } 
-  else if(igeo==2) {
-    geo = new geo_nc(pars, grids);
-    CUDA_DEBUG("Initializing geometry from NetCDF file: %s \n");
-  } 
-  else if(igeo==3) {
-    DEBUGPRINT("igeo = 3 not yet implemented!\n");
-    exit(1);
-    //geo = new Gs2_geo();
-  }
+  geo = init_geo(pars, grids);
 
   DEBUGPRINT("Initializing diagnostics...\n");
   diagnostics = new Diagnostics_GK(pars, grids, geo);

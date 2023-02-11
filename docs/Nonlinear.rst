@@ -44,7 +44,7 @@ Domain
    y0 = 28.2              # controls box length in y (in units of rho_ref) and minimum ky, so that ky_min*rho_ref = 1/y0 
    boundary = "linked"    # use twist-shift boundary conditions along field line
   
-The ``[Domain]`` group here is similar to the one from the :ref:`linear <lindom>` calculation. Here, setting the binormal box length with ``y0=28.2`` means that the minimum binormal wavenumber will be :math:`k_{y\, \mathrm{min}}\rho_i = \textt{1/y0} = 0.0355`, and the maximum binormal wavenumber will be :math:`k_{y\,\mathrm{max}}\rho_i = \texttt{nky/y0} = 0.78`. What about the radial box length? By default (when there is finite magnetic shear), the radial box length is set to be approximately the same as the binormal box length. It usually cannot be exactly equal because the radial box length must be specially quantized so that the twist-shift (``"linked"``) boundary condition can be applied appropriately.
+The ``[Domain]`` group here is similar to the one from the :ref:`linear <lindom>` calculation. Here, setting the binormal box length with ``y0=28.2`` means that the minimum binormal wavenumber will be :math:`k_{y\, \mathrm{min}}\rho_i = \texttt{1/y0} = 0.0355`, and the maximum binormal wavenumber will be :math:`k_{y\,\mathrm{max}}\rho_i = \texttt{nky/y0} = 0.78`. What about the radial box length? By default (when there is finite magnetic shear), the radial box length is set to be approximately the same as the binormal box length. It usually cannot be exactly equal because the radial box length must be specially quantized so that the twist-shift (``"linked"``) boundary condition can be applied appropriately.
 
 Physics
 =======

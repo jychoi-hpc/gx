@@ -8,39 +8,53 @@ G3::G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   G_u1(nullptr), G_u2(nullptr)
 {
   // new objects for temporaries
-  G_u1  = new MomentsG (pars_, grids_);
-  G_u2  = new MomentsG (pars_, grids_);
+  G_u1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  G_u2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is+grids->is_lo;
+    G_u1[is] = new MomentsG (pars_, grids_, is_glob);
+    G_u2[is] = new MomentsG (pars_, grids_, is_glob);
+  }
 }
 
 G3::~G3()
 {
-  if (G_u1)  delete G_u1;
-  if (G_u2)  delete G_u2;
+  for(int is=0; is<grids_->Nspecies; is++) {
+    if (G_u1[is]) delete G_u1[is];
+    if (G_u2[is]) delete G_u2[is];
+  }
+  free(G_u1);
+  free(G_u2);
 }
 
-void G3::EulerStep(MomentsG* G_u, MomentsG* GRhs, Fields* f, bool setdt)
+void G3::EulerStep(MomentsG** G_u, MomentsG** GRhs, Fields* f, bool setdt)
 {
-  linear_->rhs(G_u, f, GRhs);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    linear_->rhs(G_u[is], f, GRhs[is]);
 
-  if(nonlinear_ != nullptr) {
-    nonlinear_->nlps(G_u, f, GRhs);
-    if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    if(nonlinear_ != nullptr) {
+      nonlinear_->nlps(G_u[is], f, GRhs[is]);
+      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+    }
+
+    G_u[is]->add_scaled(1., G_u[is], dt_, GRhs[is]);
   }
-
-  G_u->add_scaled(1., G_u, dt_, GRhs);
   solver_->fieldSolve(G_u, f);    
 }
 
-void G3::advance(double *t, MomentsG* G, Fields* f)
+void G3::advance(double *t, MomentsG** G, Fields* f)
 {
   // update the gradients if they are evolving
-  G   -> update_tprim(*t); 
-  G_u1-> update_tprim(*t); 
-  //  G_u2-> update_tprim(*t); 
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G[is]->update_tprim(*t);
+    G_u1[is]->update_tprim(*t);
+  }
   // end updates
 
-  G_u1->copyFrom(G);
-  G_u2->copyFrom(G);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G_u1[is]->copyFrom(G[is]);
+    G_u2[is]->copyFrom(G[is]);
+  }
 
   float onethird = 1./3.;
   float twothirds = 2./3.;  
@@ -51,13 +65,17 @@ void G3::advance(double *t, MomentsG* G, Fields* f)
 
   EulerStep(G_u1, G, f, setdt);
 
-  G_u1->add_scaled(0.75, G_u2, 0.25, G_u1);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G_u1[is]->add_scaled(0.75, G_u2[is], 0.25, G_u1[is]);
+  }
   solver_->fieldSolve(G_u1, f);
   
   EulerStep(G_u1, G, f, setdt);
-  G->add_scaled(onethird, G_u2, twothirds, G_u1);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    G[is]->add_scaled(onethird, G_u2[is], twothirds, G_u1[is]);
 
-  if (forcing_ != nullptr) forcing_->stir(G);
+    if (forcing_ != nullptr) forcing_->stir(G[is]);
+  }
   
   solver_->fieldSolve(G, f);
   *t += dt_;

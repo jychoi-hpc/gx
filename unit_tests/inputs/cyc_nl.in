@@ -18,9 +18,7 @@
  
 [Restart]
  restart = false
- restart_from_file = "none.nc"
- save_for_restart = false
- restart_to_file = "restart.nc"
+ save_for_restart = true
 
 [Dimensions]
  ntheta = 12

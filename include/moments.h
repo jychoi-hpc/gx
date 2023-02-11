@@ -7,38 +7,29 @@
 
 class MomentsG {
  public:
-  MomentsG(Parameters* pars, Grids* grids);
+  MomentsG(Parameters* pars, Grids* grids, int is=-1);
   ~MomentsG();
 
   // accessor function to get pointer to specific l,m,s of G array
   // calling with no arguments gives pointer to beginning of G_lm
-  cuComplex* G(int l=0, int m=0, int s=0) {
-    //    return &G_lm[grids_->NxNycNz*l + grids_->NxNycNz*grids_->Nl*m + grids_->NxNycNz*grids_->Nmoms*s];
-    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*(m + grids_->Nm*s))];
+  cuComplex* G(int l=0, int m=0) {
+    assert(l<grids_->Nl && m<grids_->Nm+grids_->m_ghost && m>=-grids_->m_ghost && "Invalid moment requested");
+    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*(m+grids_->m_ghost))];
     // glm[ky, kx, z]
   }
-  float* tz(int s=0) {return &tzs[s];}
-  float* zt(int s=0) {return &zts[s];}
-  float* nt(int s=0) {return &nts[s];}
-  float* as(int s=0) {return &aps[s];}
-  float* r2(int s=0) {return &r2s[s];}
-  float* nz(int s=0) {return &nzs[s];}
-  float* qn(int s=0) {return &qns[s];}
-  float* amp(int s=0) {return &amps[s];}
-  float* nu(int s=0) {return &nu_ss[s];}
-  float* vt(int s=0) {return &vts[s];}
-  float* tp(int s=0) {return &tps[s];}
-  float* up(int s=0) {return &ups[s];}
-  float* fp(int s=0) {return &fps[s];}
-  int*   ty(int s=0) {return &typ[s];}
   
-  cuComplex * Gm(int m, int s=0) {   return G(0,m,s);   }
+  cuComplex * Gm(int m) {   return G(0,m);   }
+
+  // accessor to G array including ghosts
+  cuComplex * Gghost(int l=0, int m=0) {
+    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*m)];
+  }
 
   void update_tprim(double time);
   void qvar (int N);
   void apply_mask(void);
   void initVP(double* time);
-  void initialConditions(double* time);
+  void initialConditions(double* time=nullptr);
   void restart_write(double* time);
   void restart_read(double* time);
   
@@ -61,37 +52,31 @@ class MomentsG {
 
  //  void dz(MomentsG* G);
   void reality(int ngz);
+
+  void sync();
+  void syncNCCL();
+  void syncMPI();
   
   inline void copyFrom(MomentsG* source) {
-    cudaMemcpy(this->G(), source->G(), grids_->size_G, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->Gghost(), source->Gghost(), grids_->size_G, cudaMemcpyDeviceToDevice);
   }
  
   dim3 dimGrid, dimBlock, dG_all, dB_all;
 
-  cuComplex ** dens_ptr;
-  cuComplex ** upar_ptr;
-  cuComplex ** tpar_ptr;
-  cuComplex ** tprp_ptr;
-  cuComplex ** qpar_ptr;
-  cuComplex ** qprp_ptr;
+  // pointer to pars_->species_h[is] struct
+  specie* species;
+
+  cuComplex * dens_ptr;
+  cuComplex * upar_ptr;
+  cuComplex * tpar_ptr;
+  cuComplex * tprp_ptr;
+  cuComplex * qpar_ptr;
+  cuComplex * qprp_ptr;
+
+  cudaStream_t syncStream;
  
  private:
   cuComplex  * G_lm   ;
   Grids      * grids_ ;
   Parameters * pars_  ;
-
-  float * tzs = nullptr;
-  float * zts = nullptr;
-  float * nts = nullptr;
-  float * aps = nullptr;
-  float * r2s = nullptr;
-  float * nzs = nullptr;
-  float * qns = nullptr;
-  float * amps = nullptr;
-  float * nu_ss = nullptr;
-  float * vts = nullptr;
-  float * tps = nullptr;
-  float * ups = nullptr;
-  float * fps = nullptr;
-  int   * typ = nullptr;
 };

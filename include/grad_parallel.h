@@ -3,7 +3,6 @@
 #include "moments.h"
 #include "parameters.h"
 #include "fields.h"
-#include "hermite_transform.h"
 #include "cufftXt.h"
 #include "cufft.h"
 #include "device_funcs.h"
@@ -46,7 +45,6 @@ class GradParallelPeriodic : public GradParallel {
   
  private:
   Grids * grids_ ;
-  HermiteTransform * hermite;
   
   cufftHandle zft_plan_forward;  cufftHandle dz_plan_forward;
   cufftHandle zft_plan_inverse;  cufftHandle dz_plan_inverse;
@@ -73,7 +71,6 @@ class GradParallelLinked : public GradParallel {
 
  private:
   Grids * grids_ ;
-  HermiteTransform * hermite;
   
   int get_nClasses(int *idxRight, int *idxLeft, int *linksR, int *linksL, int *n_k, int naky, int ntheta0, int jshift0);
   void get_nLinks_nChains(int *nLinks, int *nChains, int *n_k, int nClasses, int naky, int ntheta0);

@@ -2,6 +2,7 @@
 #include "parameters.h"
 #include "device_funcs.h"
 #include "get_error.h"
+#include "nccl.h"
 
 class Grids {
 
@@ -15,6 +16,7 @@ class Grids {
   int Nz;
   int Nspecies; 
   int Nm;
+  int Nm_glob;
   int Nl;
   int Nj;
   int Nyc;
@@ -34,10 +36,28 @@ class Grids {
   float * kx_outh;  float * kz_outh;
   float * kpar_outh;
   float *y_h, *x_h, *z_h;
+  int * m0_h;
   
   float * theta0_h ;
   float * th0; 
   float Zp;
+  float kx_max, ky_max, kz_max, vpar_max, muB_max;
+
+  ncclComm_t ncclComm, ncclComm_s, ncclComm_m0;
+  ncclUniqueId ncclId, ncclId_m;
+  std::vector<ncclUniqueId> ncclId_s;
+  cudaStream_t ncclStream;
+
+  int iproc, nprocs;
+  int iproc_m, nprocs_m;
+  int iproc_s, nprocs_s;
+  int is_lo, is_up;
+  int m_lo, m_up;
+  int m_ghost;
+
+  int proc(int iproc_m_in, int iproc_s_in) { return iproc_m_in + nprocs_m*iproc_s_in; };
+  int procLeft() {return proc(iproc_m-1, iproc_s);}
+  int procRight() {return proc(iproc_m+1, iproc_s);}
 
   /* Flow shear arrays*/
   //  float * kx_shift ;

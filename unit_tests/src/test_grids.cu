@@ -3,16 +3,27 @@
 #include "parameters.h"
 #include "grids.h"
 #include "device_funcs.h"
+#include "mpi.h"
 
 class TestGrids : public ::testing::Test {
 protected:
   virtual void SetUp() {
-    Parameters* pars = new Parameters;
+    char** argv;
+    int argc = 0;
+    MPI_Comm mpcom = MPI_COMM_WORLD;
+    MPI_Comm_rank(mpcom, &iproc);
+    MPI_Comm_size(mpcom, &nprocs);
+
+    int devid = 0; // This should be determined (optionally) on the command line
+    checkCuda(cudaSetDevice(devid));
+    cudaDeviceSynchronize();
+    pars = new Parameters(iproc, nprocs, mpcom);
+    pars->get_nml_vars("inputs/cyc_nl");
     checkCuda(cudaGetLastError());
     pars->nx_in = 20;
     pars->ny_in = 48;
     pars->nz_in = 32;
-    pars->nspec_in = 1;
+    pars->nspec_in = 2;
     pars->nm_in = 4;
     pars->nl_in = 2;
     pars->Zp = 1.;
@@ -26,9 +37,13 @@ protected:
 
   virtual void TearDown() {
     delete grids;
+    delete pars;
+    cudaDeviceReset();
   }
 
   Grids *grids;
+  Parameters* pars;
+  int iproc, nprocs;
 };
 
 TEST_F(TestGrids, Dimensions) {
@@ -68,6 +83,18 @@ TEST_F(TestGrids, Ks_on_device) {
  } 
 }
 
+TEST_F(TestGrids, ParTest) {
+  if(nprocs<=pars->nspec_in) {
+    EXPECT_EQ(grids->Nspecies, pars->nspec_in/nprocs);
+    EXPECT_EQ(grids->Nm, pars->nm_in);
+  } else {
+    EXPECT_EQ(grids->Nspecies, 1);
+    int nprocs_m = nprocs/pars->nspec_in;
+    EXPECT_EQ(grids->m_ghost, 2);
+    EXPECT_EQ(grids->Nm, pars->nm_in/nprocs_m);
+  } 
+}
+
 //TEST_F(TestGrids, DeviceConstants) {
 //  int Nx, Nyc, Nz;
 //  cudaMemcpyFromSymbol(&Nx, nx, sizeof(int), 0, cudaMemcpyDeviceToHost);
@@ -78,3 +105,4 @@ TEST_F(TestGrids, Ks_on_device) {
 //  EXPECT_EQ(Nyc, 25);
 //  EXPECT_EQ(Nz, 32);
 //}
+

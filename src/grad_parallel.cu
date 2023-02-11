@@ -35,9 +35,23 @@ GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
 
   // set up callback functions
   cudaDeviceSynchronize();
-  cufftXtSetCallback(   zft_plan_forward, (void**)   &zfts_callbackPtr, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kz);
-  cufftXtSetCallback(    dz_plan_forward, (void**)   &i_kz_callbackPtr, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp);
-  cufftXtSetCallback(abs_dz_plan_forward, (void**) &abs_kz_callbackPtr, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp);
+
+  cufftCallbackStoreC zfts_callbackPtr_h;
+  cufftCallbackStoreC i_kz_callbackPtr_h;
+  cufftCallbackStoreC abs_kz_callbackPtr_h;
+  checkCuda(cudaMemcpyFromSymbol(&zfts_callbackPtr_h, 
+                     zfts_callbackPtr, 
+                     sizeof(zfts_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&i_kz_callbackPtr_h, 
+                     i_kz_callbackPtr, 
+                     sizeof(i_kz_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&abs_kz_callbackPtr_h, 
+                     abs_kz_callbackPtr, 
+                     sizeof(abs_kz_callbackPtr_h)));
+
+  checkCuda(cufftXtSetCallback(   zft_plan_forward, (void**)   &zfts_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kz));
+  checkCuda(cufftXtSetCallback(    dz_plan_forward, (void**)   &i_kz_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
+  checkCuda(cufftXtSetCallback(abs_dz_plan_forward, (void**) &abs_kz_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
   cudaDeviceSynchronize();
 
   int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
@@ -55,7 +69,6 @@ GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
   dBf = dim3(nt1, nt2, 1);
   dGf = dim3(nb1, nb2, 1);
   
-  hermite = new HermiteTransform(grids_);
 }
 
 GradParallelPeriodic::~GradParallelPeriodic() {
@@ -69,11 +82,9 @@ GradParallelPeriodic::~GradParallelPeriodic() {
 // Dealias in kz
 void GradParallelPeriodic::dealias(MomentsG* G)
 {
-  for (int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
-  for (int is = 0; is < grids_->Nspecies; is++) {
-    kz_dealias GGP2 (G->G(0,0,is), grids_->kzm, grids_->Nmoms);
-  }
-  for (int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);  
+  for (int i = 0; i < grids_->Nmoms; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
+  kz_dealias GGP2 (G->G(), grids_->kzm, grids_->Nmoms);
+  for (int i = 0; i < grids_->Nmoms; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);  
 }
 
 // Dealias in kz
@@ -89,13 +100,13 @@ void GradParallelPeriodic::dealias(cuComplex* f)
 void GradParallelPeriodic::zft(MomentsG* G)
 {
   // for now, loop over all l and m because cannot batch 
-  for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
+  for(int i = 0; i < grids_->Nmoms; i++) cufftExecC2C(zft_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
 }
 
 void GradParallelPeriodic::zft_inverse(MomentsG* G)
 {
   // for now, loop over all l and m because cannot batch 
-  for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);
+  for(int i = 0; i < grids_->Nmoms; i++) cufftExecC2C(zft_plan_inverse, G->G(i), G->G(i), CUFFT_INVERSE);
 }
 
 // Fourier transform for a single moment
@@ -119,7 +130,7 @@ void GradParallelPeriodic::dz(MomentsG* G)
   // for now, loop over all l and m because cannot batch 
   // eventually will optimize by first transposing so that z is fastest index
 
-  for(int i = 0; i < grids_->Nmoms*grids_->Nspecies; i++) {
+  for(int i = 0; i < grids_->Nmoms; i++) {
     // forward FFT (z -> kz) & multiply by i kz (via callback)
     cufftExecC2C(dz_plan_forward, G->G(i), G->G(i), CUFFT_FORWARD);
 
@@ -190,7 +201,11 @@ GradParallel1D::GradParallel1D(Grids* grids) :
   cufftPlan1d(&dz_plan_inverse, grids_->Nz, CUFFT_C2R, 1);
 
   cudaDeviceSynchronize();
-  cufftXtSetCallback(dz_plan_forward, (void**) &i_kz_1d_callbackPtr, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kz);
+  cufftCallbackStoreC i_kz_1d_callbackPtr_h;
+  checkCuda(cudaMemcpyFromSymbol(&i_kz_1d_callbackPtr_h, 
+                     i_kz_1d_callbackPtr, 
+                     sizeof(i_kz_1d_callbackPtr_h)));
+  checkCuda(cufftXtSetCallback(dz_plan_forward, (void**) &i_kz_1d_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kz));
   cudaDeviceSynchronize();
 
   cudaMalloc((void**) &b_complex, sizeof(cuComplex)*(grids_->Nz/2+1));
@@ -204,7 +219,7 @@ GradParallel1D::~GradParallel1D() {
 
 void GradParallel1D::dz1D(float* b)  // even tho cuda 11+ overwrites inputs, this is ok
 {
-  cufftExecR2C(dz_plan_forward, b, b_complex); 
-  cufftExecC2R(dz_plan_inverse, b_complex, b);
+  checkCuda(cufftExecR2C(dz_plan_forward, b, b_complex)); 
+  checkCuda(cufftExecC2R(dz_plan_inverse, b_complex, b));
 }
 

@@ -22,6 +22,7 @@ class LaguerreTransform {
   float * get_toGrid() {return toGrid;}
   float * get_toSpectral() {return toSpectral;}
   float * get_roots() {return roots;}
+  float get_vmax() {return vmax;}
   const int L;
   const int J;
 
@@ -30,6 +31,7 @@ class LaguerreTransform {
   float * toGrid     ;
   float * toSpectral ;
   float * roots      ;
+  float vmax;
 
   void initTransforms(float* toGrid, float* toSpectral, float* roots);
 

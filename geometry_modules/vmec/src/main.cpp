@@ -10,6 +10,9 @@ int main(int argc, char* argv[]) {
   strcpy (nml_file, argv[1]);
   strcat (nml_file, ".ing");
 
+  // check for an additional input (by looking flag or whatever) and force the output file name
+  // to be something the users wishes
+
   VMEC_variables *vmec = new VMEC_variables(nml_file);
   Geometric_coefficients *geo = new Geometric_coefficients(nml_file, vmec);
 

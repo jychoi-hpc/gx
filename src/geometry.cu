@@ -1,12 +1,183 @@
 #include "geometry.h"
+#include "vmec_variables.h"
+#include "geometric_coefficients.h"
 #define GGEO <<< dimGrid, dimBlock >>>
 
+#include "geometry_modules/vmec/include/solver.h"
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <sstream>
 
+// wrapper for initializing a particular Geometry class
+Geometry* init_geo(Parameters* pars, Grids* grids)
+{
+  Geometry* geo;
 
+  int igeo = pars->igeo;
+  std::string geo_option = pars->geo_option;
+  DEBUGPRINT("Initializing geometry...\n");
+  if(geo_option=="s-alpha" || geo_option=="slab" || geo_option=="const-curv" || igeo==0) {
+    if(geo_option=="slab") pars->slab = true;
+    if(geo_option=="const-curv") pars->const_curv = true;
+
+    geo = new S_alpha_geo(pars, grids);
+    CUDA_DEBUG("Initializing geometry s_alpha: %s \n");
+    if(igeo==0) {
+      printf(ANSI_COLOR_RED);
+      printf("Warning: igeo is being deprecated. Use geo_option=\"s-alpha\" instead of igeo=0.\n"); 
+      printf(ANSI_COLOR_RESET);
+    }
+  }
+  else if(geo_option=="miller") {
+    // call python geometry module to write an eik.out geo file
+    // GX_PATH is defined at compile time via a -D flag
+    if(grids->iproc == 0) {
+      char command[300];
+      sprintf(command, "python %s/geometry_modules/miller/gx_geo.py %s.in %s > gx_geo.log", GX_PATH, pars->run_name, pars->geofilename.c_str());
+      printf("Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
+      system(command);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // now read the eik file that was generated
+    geo = new Eik_geo(pars, grids);
+    CUDA_DEBUG("Initializing miller geometry: %s \n");
+  } 
+  else if(geo_option=="vmec") {
+    char nml_file[512];
+    strcpy (nml_file, pars->run_name);
+    strcat (nml_file, ".in");
+    VMEC_variables *vmec = new VMEC_variables(nml_file);
+    Geometric_coefficients *vmec_geo = new Geometric_coefficients(nml_file, vmec);
+    pars->geofilename = vmec_geo->outfile_name;
+
+    // now read the eik file that was generated
+    geo = new Eik_geo(pars, grids);
+    delete vmec_geo;
+    delete vmec;
+  }
+#ifdef GS2_PATH
+  else if(geo_option=="gs2_geo") {
+    if(grids->iproc == 0) {
+      // write an eik.in file
+      write_eiktest_in(pars, grids);
+      char command[300];
+      sprintf(command, "%s/bin/eiktest %s.eik.in > eiktest.log", GS2_PATH, pars->run_name);
+      pars->geofilename = std::string(pars->run_name) + ".eik.eik.out";
+      printf("Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
+      system(command);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    pars->geofilename = std::string(pars->run_name) + ".eik.eik.out"; // need this on all procs
+
+    // now read the eik file that was generated
+    geo = new Eik_geo(pars, grids);
+  }
+#else
+  else if(geo_option=="gs2_geo") {
+    printf("Error: gx was not compiled with gs2 geometry support.\n");
+    exit(1);
+  }
+#endif
+  else if(geo_option=="eik" || igeo==1) {
+    // read already existing eik.out geo file (don't run any geometry module) 
+    geo = new Eik_geo(pars, grids);
+    CUDA_DEBUG("Initializing geometry from eik.out file: %s \n", pars->geofilename.c_str());
+    if(igeo==1) {
+      printf(ANSI_COLOR_RED);
+      printf("Warning: igeo is being deprecated. Use geo_option=\"eik\" instead of igeo=1.\n"); 
+      printf(ANSI_COLOR_RESET);
+    }
+  }
+  else if(geo_option=="nc" || igeo==2) {
+    geo = new geo_nc(pars, grids);
+    CUDA_DEBUG("Initializing geometry from NetCDF file: %s \n");
+    if(igeo==2) {
+      printf(ANSI_COLOR_RED);
+      printf("Warning: igeo is being deprecated. Use geo_option=\"nc\" instead of igeo=2.\n"); 
+      printf(ANSI_COLOR_RESET);
+    }
+  } 
+  else {
+    printf("Error: geo_option = \"%s\" is invalid.\n", geo_option.c_str());
+    printf("Options are: geo_option = {\"s-alpha\", \"miller\", \"vmec\", \"eik\", \"nc\", \"slab\", \"const-curv\"}\n");
+    exit(1);
+  }
+  return geo;
+}
+
+void write_eiktest_in(Parameters *pars, Grids *grids) {
+  FILE *fptr;
+
+  char fname[300];
+  sprintf(fname, "%s.eik.in", pars->run_name);
+  fptr = fopen(fname, "w");
+  fprintf(fptr, "&stuff\n");
+  fprintf(fptr, " ntheta = %d\n", pars->nz_in);
+  fprintf(fptr, " nperiod = %d\n", pars->nperiod);
+  fprintf(fptr, " geoType = %d\n", pars->geoType);
+  fprintf(fptr, " rmaj = %.9e\n", pars->rmaj);
+  fprintf(fptr, " akappri = %.9e\n", pars->akappri);
+  fprintf(fptr, " akappa = %.9e\n", pars->akappa);
+  fprintf(fptr, " shift = %.9e\n", pars->shift);
+  fprintf(fptr, " equal_arc = .true. ! this is required for GX\n");
+  fprintf(fptr, " rhoc = %.9e\n", pars->rhoc);
+  fprintf(fptr, " itor = 1\n");
+  fprintf(fptr, " qinp = %.9e\n", pars->qsf);
+  fprintf(fptr, " iflux = %d\n", pars->iflux);
+  fprintf(fptr, " delrho = %f\n", pars->delrho);
+  fprintf(fptr, " tri = %.9e\n", pars->tri);
+  fprintf(fptr, " bishop = %d\n", pars->bishop);
+  fprintf(fptr, " irho = %d\n", pars->irho);
+  fprintf(fptr, " isym = %d\n", pars->isym);
+  fprintf(fptr, " tripri = %.9e\n", pars->tripri);
+  fprintf(fptr, " R_geo = %.9e\n", pars->r_geo);
+  fprintf(fptr, " eqfile = '%s'\n", pars->eqfile.c_str());
+  if(pars->efit_eq)
+    fprintf(fptr, " efit_eq = .true.\n");
+  else
+    fprintf(fptr, " efit_eq = .false.\n");
+  if(pars->dfit_eq)
+    fprintf(fptr, " dfit_eq = .true.\n");
+  else
+    fprintf(fptr, " dfit_eq = .false.\n");
+  if(pars->gen_eq)
+    fprintf(fptr, " gen_eq = .true.\n");
+  else
+    fprintf(fptr, " gen_eq = .false.\n");
+  if(pars->ppl_eq)
+    fprintf(fptr, " ppl_eq = .true.\n");
+  else
+    fprintf(fptr, " ppl_eq = .false.\n");
+  if(pars->local_eq)
+    fprintf(fptr, " local_eq = .true.\n");
+  else
+    fprintf(fptr, " local_eq = .false.\n");
+  if(pars->idfit_eq)
+    fprintf(fptr, " idfit_eq = .true.\n");
+  else
+    fprintf(fptr, " idfit_eq = .false.\n");
+  if(pars->chs_eq)
+    fprintf(fptr, " chs_eq = .true.\n");
+  else
+    fprintf(fptr, " chs_eq = .false.\n");
+  if(pars->transp_eq)
+    fprintf(fptr, " transp_eq = .true.\n");
+  else
+    fprintf(fptr, " transp_eq = .false.\n");
+  if(pars->gs2d_eq)
+    fprintf(fptr, " gs2d_eq = .true.\n");
+  else
+    fprintf(fptr, " gs2d_eq = .false.\n");
+  fprintf(fptr, " s_hat_input = %.9e\n", pars->s_hat_input);
+  fprintf(fptr, " p_prime_input = %.9e\n", pars->p_prime_input);
+  fprintf(fptr, " beta_prime_input = %.9e\n", pars->beta_prime_input);
+  fprintf(fptr, " invLp_input = %.9e\n", pars->invLp_input);
+  fprintf(fptr, " alpha_input = %.9e\n", pars->alpha_input);
+  fprintf(fptr, "/\n");
+  fclose(fptr);
+}
 
 Geometry::Geometry() {
 
@@ -147,18 +318,17 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
     gds21_h[k] = -shat * (shat * theta - shift * sin(theta));
     gds22_h[k] = pow(shat,2);
 
-    gbdrift_h[k] = 1. / (2.*rmaj) *
-               (cos(theta) + (shat * theta - shift * sin(theta)) * sin(theta));
+    gbdrift_h[k] = 1. / rmaj * (cos(theta) + (shat * theta - shift * sin(theta)) * sin(theta));
     cvdrift_h[k] = gbdrift_h[k];
 
-    gbdrift0_h[k] = - shat * sin(theta) / (2.*rmaj);
+    gbdrift0_h[k] = - shat * sin(theta) / rmaj;
     cvdrift0_h[k] = gbdrift0_h[k];
 
     grho_h[k] = 1;
 
     if(pars->const_curv) {
-      cvdrift_h[k] = 1./(2.*rmaj);
-      gbdrift_h[k] = 1./(2.*rmaj);
+      cvdrift_h[k] = 1./rmaj;
+      gbdrift_h[k] = 1./rmaj;
       cvdrift0_h[k] = 0.;
       gbdrift0_h[k] = 0.;
     }
@@ -279,19 +449,19 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) gbdrift_h[n] = (float) dtmp[n] / 4.0;
+  for (int n=0; n<N; n++) gbdrift_h[n] = (float) dtmp[n] / 2.0;
   
   if (retval = nc_inq_varid(ncgeo, "gbdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) gbdrift0_h[n] = (float) dtmp[n] / 4.0;
+  for (int n=0; n<N; n++) gbdrift0_h[n] = (float) dtmp[n] / 2.0;
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift", &id))      ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) cvdrift_h[n] = (float) dtmp[n] / 4.0;
+  for (int n=0; n<N; n++) cvdrift_h[n] = (float) dtmp[n] / 2.0;
   
   if (retval = nc_inq_varid(ncgeo, "cvdrift0", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, dtmp))            ERR(retval);
-  for (int n=0; n<N; n++) cvdrift0_h[n] = (float) dtmp[n] / 4.0;
+  for (int n=0; n<N; n++) cvdrift0_h[n] = (float) dtmp[n] / 2.0;
   
   free(dtmp);
 
@@ -365,12 +535,28 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
 }
 
 // MFM - 07/09/17
-File_geo::File_geo(Parameters *pars, Grids *grids)
+Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
 {
 
   printf("READING FILE GEO\n");
   operator_arrays_allocated_=false;
-  size_t size = sizeof(float)*grids->Nz; 
+
+  size_t eiksize = sizeof(double)*(grids->Nz+1); 
+  double* eik_z_h = (double*) malloc (eiksize);
+  double* eik_bmag_h = (double*) malloc (eiksize);
+  double* eik_bmagInv_h = (double*) malloc (eiksize);
+  double* eik_gradpar_h = (double*) malloc (eiksize);
+  double* eik_gds2_h = (double*) malloc (eiksize);
+  double* eik_gds21_h = (double*) malloc (eiksize);
+  double* eik_gds22_h = (double*) malloc (eiksize);
+  double* eik_gbdrift_h = (double*) malloc (eiksize);
+  double* eik_gbdrift0_h = (double*) malloc (eiksize);
+  double* eik_cvdrift_h = (double*) malloc (eiksize);
+  double* eik_cvdrift0_h = (double*) malloc (eiksize);
+  double* eik_grho_h = (double*) malloc (eiksize);
+  double* eik_jacobian_h = (double*) malloc (eiksize);
+
+  size_t size = sizeof(float)*(grids->Nz); 
   z_h = (float*) malloc (size);
   bmag_h = (float*) malloc (size);
   bmagInv_h = (float*) malloc (size);
@@ -432,6 +618,12 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       ss >> element; pars->shat     = stof(element);
       ss >> element; pars->kxfac    = stof(element);       
       ss >> element; pars->qsf      = stof(element);       
+      if (!ss.eof()) { // newer eik.out files may have additional data
+        ss >> element; pars->B_ref    = stof(element);
+        ss >> element; pars->a_ref    = stof(element);
+        ss >> element; pars->grhoavg  = stof(element);
+        ss >> element; pars->surfarea = stof(element);
+      }
 
       shat       = pars->shat;
       drhodpsi   = pars->drhodpsi;
@@ -456,52 +648,55 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       }
       
       getline (myfile, datline);  // text
-      for (int idz=0; idz < newNz; idz++) {
+      for (int idz=0; idz < newNz+1; idz++) {
 	getline (myfile, datline); stringstream ss(datline);
-        ss >> element; gbdrift_h[idz] = stof(element); gbdrift_h[idz] *= 0.25;
-        ss >> element; gradpar        = stof(element);
-        ss >> element; grho_h[idz]    = stof(element);
-        ss >> element; z_h[idz]       = stof(element);
+        ss >> element; eik_gbdrift_h[idz] = stod(element); eik_gbdrift_h[idz] *= 0.5;
+        ss >> element; eik_gradpar_h[idz] = stod(element);
+        ss >> element; eik_grho_h[idz]    = stod(element);
+        ss >> element; eik_z_h[idz]       = stod(element);
       }
-      getline(myfile, datline); // periodic points (not always periodic, but extra)
+      if(eik_gradpar_h[0] != eik_gradpar_h[Nz/2]) {
+        printf("Error: GX requires an equal-arc theta coordinate, so that gradpar = const.\nFor gs2 geometry module, use equal_arc = true. Exiting...\n");
+        fflush(stdout);
+        abort();
+      } else {
+        gradpar = eik_gradpar_h[0];
+      }
      
-      DEBUGPRINT("gbdrift[0]: %.7e    gbdrift[end]: %.7e\n",4.*gbdrift_h[0],4.*gbdrift_h[Nz-1]);
+      DEBUGPRINT("gbdrift[0]: %.7e    gbdrift[end]: %.7e\n",2.*gbdrift_h[0],2.*gbdrift_h[Nz-1]);
       DEBUGPRINT("z[0]: %.7e    z[end]: %.7e\n",z_h[0],z_h[Nz-1]);
       
       getline (myfile, datline);  // text
-      for (int idz=0; idz < newNz; idz++) {
+      for (int idz=0; idz < newNz+1; idz++) {
         getline (myfile, datline); stringstream ss(datline);
-        ss >> element; cvdrift_h[idz] = stof(element);
-        cvdrift_h[idz] *= 0.25;
-        ss >> element; gds2_h[idz]    = stof(element);
-        ss >> element; bmag_h[idz]    = stof(element);
-        bmagInv_h[idz]  = 1./bmag_h[idz];
-        jacobian_h[idz] = 1./abs(drhodpsi*gradpar*bmag_h[idz]);
+        ss >> element; eik_cvdrift_h[idz] = stod(element);
+        eik_cvdrift_h[idz] *= 0.5;
+        ss >> element; eik_gds2_h[idz]    = stod(element);
+        ss >> element; eik_bmag_h[idz]    = stod(element);
+        eik_bmagInv_h[idz]  = 1./eik_bmag_h[idz];
+        eik_jacobian_h[idz] = 1./abs(drhodpsi*gradpar*eik_bmag_h[idz]);
       }
-      getline(myfile, datline); // periodic points (not always periodic, but extra)
 
-      DEBUGPRINT("cvdrift[0]: %.7e    cvdrift[end]: %.7e\n",4.*cvdrift_h[0],4.*cvdrift_h[Nz-1]);
+      DEBUGPRINT("cvdrift[0]: %.7e    cvdrift[end]: %.7e\n",2.*cvdrift_h[0],2.*cvdrift_h[Nz-1]);
       DEBUGPRINT("bmag[0]: %.7e    bmag[end]: %.7e\n",bmag_h[0],bmag_h[Nz-1]);
       DEBUGPRINT("gds2[0]: %.7e    gds2[end]: %.7e\n",gds2_h[0],gds2_h[Nz-1]);
 
       getline(myfile, datline); // text
-      for (int idz=0; idz < newNz; idz++) {
+      for (int idz=0; idz < newNz+1; idz++) {
         getline (myfile, datline); stringstream ss(datline);
-        ss >> element; gds21_h[idz] = stof(element); 
-        ss >> element; gds22_h[idz] = stof(element);
+        ss >> element; eik_gds21_h[idz] = stod(element); 
+        ss >> element; eik_gds22_h[idz] = stod(element);
       }
-      getline(myfile, datline); // periodic points (not always periodic, but extra)
 
       DEBUGPRINT("gds21[0]: %.7e    gds21[end]: %.7e\n",gds21_h[0],gds21_h[Nz-1]);
       DEBUGPRINT("gds22[0]: %.7e    gds22[end]: %.7e\n",gds22_h[0],gds22_h[Nz-1]);
 
             getline(myfile, datline); // text
-      for (int idz=0; idz < newNz; idz++) {
+      for (int idz=0; idz < newNz+1; idz++) {
         getline (myfile, datline); stringstream ss(datline);
-        ss >> element; cvdrift0_h[idz] = stof(element); cvdrift0_h[idz] *= 0.25;
-        ss >> element; gbdrift0_h[idz] = stof(element); gbdrift0_h[idz] *= 0.25;
+        ss >> element; eik_cvdrift0_h[idz] = stod(element); eik_cvdrift0_h[idz] *= 0.5;
+        ss >> element; eik_gbdrift0_h[idz] = stod(element); eik_gbdrift0_h[idz] *= 0.5;
       }
-      getline(myfile, datline); // periodic points (not always periodic, but extra)
 
       DEBUGPRINT("gds21[0]: %.7e    gds21[end]: %.7e\n",gds21_h[0],gds21_h[Nz-1]);
       DEBUGPRINT("gds22[0]: %.7e    gds22[end]: %.7e\n",gds22_h[0],gds22_h[Nz-1]);
@@ -509,6 +704,22 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
       myfile.close();      
     }
   else cout << "Failed to open";    
+
+  // interpolate to equally-spaced theta grid
+  for(int k=0; k<newNz; k++) {
+    z_h[k] = 2.*M_PI *pars->Zp *(k-newNz/2)/newNz;
+  }
+  interp_to_new_grid(eik_bmag_h, bmag_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_bmagInv_h, bmagInv_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_gds2_h, gds2_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_gds21_h, gds21_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_gds22_h, gds22_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_gbdrift_h, gbdrift_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_gbdrift0_h, gbdrift0_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_cvdrift_h, cvdrift_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_cvdrift0_h, cvdrift0_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_grho_h, grho_h, eik_z_h, z_h, ntgrid, ntgrid, false);
+  interp_to_new_grid(eik_jacobian_h, jacobian_h, eik_z_h, z_h, ntgrid, ntgrid, false);
   
   //copy host variables to device variables
   CP_TO_GPU (z,        z_h,        size);
@@ -517,7 +728,6 @@ File_geo::File_geo(Parameters *pars, Grids *grids)
   CP_TO_GPU (cvdrift,  cvdrift_h,  size);
   CP_TO_GPU (bmag,     bmag_h,     size);
   CP_TO_GPU (bmagInv,  bmagInv_h,  size);
-  //  CP_TO_GPU (bgrad,    bgrad_h,    size);
   CP_TO_GPU (gds2,     gds2_h,     size);
   CP_TO_GPU (gds21,    gds21_h,    size);
   CP_TO_GPU (gds22,    gds22_h,    size);
@@ -563,21 +773,19 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
 
   // set jtwist and x0, now that we know the final value of shat from geometry
-  pars->set_jtwist_x0(shat, pars->nonTwist); //JMH
+  pars->set_jtwist_x0(&shat, pars->nonTwist); //JMH
   // initialize k and coordinate arrays
   grids->init_ks_and_coords();
 
   // initialize m0(ky, z) and deltaKx(ky, z), then correct kperp2 and omegad for non-twisting flux tube
   if (pars->nonTwist) { //JMH
-    // is this best way to initialize kernel with varying ky,z?
     dim3 dimBlock_ntft (32,4); 
     dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.z);
     
     init_ftwist <<< (1 + (grids->Nz-1)/dimBlock.z), 32 >>> (ftwist, gds21, gds22, shat);
     // creates m0[ky, z] grid that for offsetting mode numbers throughout rest of code, (44),(B.10) in Ball 2020
     init_m0 <<< dimGrid_ntft, dimBlock_ntft >>> (m0, pars->x0, grids->ky, ftwist, shat, pars->kxfac);
-    m0_h = (int*) malloc(sizeof(float)*grids->NycNz);
-    CP_TO_GPU (m0_h, m0, sizeof(float)*grids->NycNz);
+    CP_TO_GPU (grids->m0_h, m0, sizeof(float)*grids->NycNz);
           
     //creates deltaKx[ky, z] for offsetting wavenumbers throughout rest of code, (B.2) in Ball 2020
     init_deltaKx <<<dimGrid_ntft, dimBlock_ntft >>> (deltaKx, m0, pars->x0, grids->ky, ftwist); 
@@ -593,7 +801,20 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
     init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
     init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
   }
-  /* 
+  
+  // compute max values of gbdrift, cvdrift, gbdrift0, cvdrift0
+  gbdrift_max = 0.;
+  gbdrift0_max = 0.;
+  cvdrift_max = 0.;
+  cvdrift0_max = 0.;
+  for(int i=0; i<grids->Nz; i++) {
+    gbdrift_max = max(gbdrift_max, abs(gbdrift_h[i]));
+    gbdrift0_max = max(gbdrift0_max, abs(gbdrift0_h[i]));
+    cvdrift_max = max(cvdrift_max, abs(cvdrift_h[i]));
+    cvdrift0_max = max(cvdrift0_max, abs(cvdrift0_h[i]));
+  }
+
+  /*
   kperp2_h = (float*) malloc(sizeof(float)*grids->NxNycNz);
   CP_TO_GPU (kperp2_h,    kperp2, sizeof(float)*grids->NxNycNz);
 

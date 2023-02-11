@@ -25,8 +25,7 @@
  nstep = 1		# number of timesteps
 
 [Geometry]
- igeo = 0		# use s-alpha analytical geometry model
- slab = true		# use straight-field-line (slab) geometry
+ geo_option = "slab"    # use slab geometry
  shat = 1.0e-8		# magnetic shear
 
 [Boltzmann]

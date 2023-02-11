@@ -1,7 +1,7 @@
 #include "hermite_transform.h"
 
 HermiteTransform::HermiteTransform(Grids* grids, float vmax) :
-  grids_(grids), M(grids->Nm), vmax(vmax), 
+  grids_(grids), M(grids->Nm_glob), vmax(vmax), 
   toGrid(nullptr), toSpectral(nullptr), roots(nullptr)
 {
   double * toGrid_h     = nullptr;  double * toSpectral_h = nullptr;  double * roots_h      = nullptr;

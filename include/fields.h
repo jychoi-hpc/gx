@@ -12,6 +12,8 @@ class Fields {
   cuComplex * phi_h  ;
   cuComplex * apar   ;
   cuComplex * apar_h ;
+  cuComplex * bpar   ;
+  cuComplex * bpar_h ;
 
   cuComplex * ne ;
   cuComplex * ue ;
@@ -23,6 +25,7 @@ class Fields {
   
   void print_phi(void);
   void print_apar(void);
+  void print_bpar(void);
   void rescale(float * phi_max);
   
   inline void copyPhiFrom(Fields* source) {
@@ -30,6 +33,9 @@ class Fields {
   }
   inline void copyAparFrom(Fields* source) {
     cudaMemcpy(apar, source->apar, size_, cudaMemcpyDeviceToDevice);
+  }
+  inline void copyBparFrom(Fields* source) {
+    cudaMemcpy(bpar, source->bpar, size_, cudaMemcpyDeviceToDevice);
   }
   
 private:

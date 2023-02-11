@@ -1,0 +1,40 @@
+# Makefile for gpu.psfc.mit.edu
+# Maintainer: Noah Mandell (nrm@mit.edu)
+#
+# Note: in the following, paths to local installs in /home/nrm/software are used. this is not standard practice and should not be replicated in other Makefiles.
+# however, on this machine, there are no system installs of the dependencies, and the /home/nrm/software directory should be readable for all users.
+#
+# add the following to your .bash_profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# export GK_SYSTEM=psfcgpu
+# export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/math_libs/lib64:/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/comm_libs/nccl/lib:/opt/openmpi-4.0.4/gcc-8.3.1/lib:/home/nrm/software/netcdf-4.8.1/lib:/home/nrm/software/hdf5-1.10.8/lib:/home/nrm/software/gsl-2.7.1/lib:$LD_LIBRARY_PATH
+# alias python=python3
+#
+
+NETCDF_DIR = /home/nrm/software/netcdf-4.8.1
+HDF5_DIR = /home/nrm/software/hdf5-1.10.8
+NETCDF_INC = -I${NETCDF_DIR}/include
+NETCDF_LIB = -L${NETCDF_DIR}/lib -lnetcdf -L${HDF5_DIR}/lib -lhdf5 -lhdf5_hl
+
+MPI_DIR= /opt/openmpi-4.0.4/gcc-8.3.1
+MPI_INC= -I${MPI_DIR}/include
+MPI_LIB= -L${MPI_DIR}/lib -lmpi
+
+GSL_DIR = /home/nrm/software/gsl-2.7.1
+GSL_INC = -I${GSL_DIR}/include
+GSL_LIB = -L${GSL_DIR}/lib -lgsl -lgslcblas -lm
+
+# paths to cuda 
+NVHPC_ROOT = /opt/nvidia/hpc_sdk/Linux_x86_64/22.5
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NVHPC_ROOT}/comm_libs/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcudart -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -L ${NVHPC_ROOT}/comm_libs/nccl/lib -lnccl
+
+NVCC=nvcc
+CUDAARCH=70
+NVCCFLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif

@@ -1,12 +1,12 @@
 #include "grids.h"
+#include "hermite_transform.h"
+#include "laguerre_transform.h"
 
 Grids::Grids(Parameters* pars) :
   // copy from input parameters
   Nx       ( pars->nx_in       ),
   Ny       ( pars->ny_in       ),
   Nz       ( pars->nz_in       ),
-  Nspecies ( pars->nspec_in    ),
-  Nm       ( pars->nm_in       ),
   Nl       ( pars->nl_in       ),
   Nj       ( 3*pars->nl_in/2-1 ),
 
@@ -19,9 +19,9 @@ Grids::Grids(Parameters* pars) :
   NxNyNz   ( Nx * Ny * Nz      ),
   NxNz     ( Nx * Nz           ),
   NycNz    ( Nyc * Nz          ),
-  Nmoms    ( Nm * Nl           ),
-  size_G( sizeof(cuComplex) * NxNycNz * Nmoms * Nspecies), 
   Zp(pars->Zp),
+  iproc(pars->iproc),
+  nprocs(pars->nprocs),
   pars_(pars)
 {
   ky              = nullptr;  kx              = nullptr;  kz              = nullptr;
@@ -30,6 +30,69 @@ Grids::Grids(Parameters* pars) :
   kz_outh         = nullptr;  kpar_outh       = nullptr;  kzp             = nullptr;
   y_h             = nullptr;  kxs             = nullptr;  x_h             = nullptr;
   theta0_h        = nullptr;  th0             = nullptr;  z_h             = nullptr;
+  m0_h 		  = nullptr;
+
+  Nspecies = pars->nspec_in;
+  Nm = pars->nm_in;
+  Nm_glob = pars->nm_in;
+  is_lo = 0;
+  is_up = Nspecies;
+  m_lo = 0;
+  m_up = Nm;
+  m_ghost = 0;
+  nprocs_s = 1;
+  nprocs_m = 1;
+  iproc_m = 0;
+  iproc_s = 0;
+
+  // compute parallel decomposition
+  if(nprocs>1) {
+    // prioritize species decomp
+    if(nprocs<=Nspecies) {
+      assert((Nspecies%nprocs == 0) && "nprocs <= nspecies, so nspecies must be an integer multiple of nprocs\n");
+      // this is now the local Nspecies on this proc
+      Nspecies = Nspecies/nprocs;
+      nprocs_s = nprocs;
+      nprocs_m = 1;
+      iproc_s = iproc;
+      iproc_m = 0;
+      is_lo = iproc*Nspecies;
+      is_up = (iproc+1)*Nspecies;
+
+      m_lo = 0;
+      m_up = Nm;
+
+      //printf("GPU %d: is_lo = %d, is_up = %d, m_lo = %d, m_up = %d\n", iproc, is_lo, is_up, m_lo, m_up);
+    } else { // decomp in species and hermite
+      assert((nprocs%Nspecies == 0) && "nprocs > nspecies, so nprocs must be an integer multiple of nspecies\n");
+      nprocs_s = Nspecies;
+      nprocs_m = nprocs/Nspecies;
+      iproc_s = iproc/nprocs_m;
+      iproc_m = iproc%nprocs_m;
+
+      // this is now the local Nspecies on this proc
+      Nspecies = 1;
+      is_lo = iproc_s*Nspecies;
+      is_up = (iproc_s+1)*Nspecies;
+
+      assert((Nm%nprocs_m == 0) && "Nm must be an integer multiple of nprocs_m=nprocs/nspecies\n");
+      // this is now the local Nm on this proc
+      Nm = Nm/nprocs_m;
+
+      m_lo = iproc_m*Nm;
+      m_up = (iproc_m+1)*Nm;
+
+      // add ghosts in m
+      if(pars->slab) {
+        m_ghost = 1;
+      } else {
+        m_ghost = 2;
+      }
+    }
+  }
+
+  Nmoms = Nm * Nl;
+  size_G = sizeof(cuComplex) * NxNycNz * (Nm + 2*m_ghost) * Nl; // this includes ghosts on either end of m grid
   
   // kz is defined without the factor of gradpar
   
@@ -52,15 +115,41 @@ Grids::Grids(Parameters* pars) :
   x_h      = (float*) malloc(sizeof(float) * Nx       ); 
   y_h      = (float*) malloc(sizeof(float) * Ny       );
   z_h      = (float*) malloc(sizeof(float) * Nz       );
+  m0_h     = (int*)   malloc(sizeof(float) * Nyc * Nz );
   cudaMalloc     ( (void**) &kxs,       sizeof(float) * Nx * Nyc );
   checkCuda(cudaGetLastError());
 
   //  printf("In grids constructor. Nyc = %i \n",Nyc);
   
-  setdev_constants(Nx, Ny, Nyc, Nz, Nspecies, Nm, Nl, Nj, pars_->Zp, pars_->ikx_fixed, pars_->iky_fixed);
+  setdev_constants(Nx, Ny, Nyc, Nz, Nspecies, Nm, Nl, Nj, pars_->Zp, pars_->ikx_fixed, pars_->iky_fixed, is_lo, is_up, m_lo, m_up, m_ghost, pars_->nm_in);
 
   checkCuda(cudaDeviceSynchronize());
 
+  //cudaStreamCreate(&ncclStream);
+  if(iproc == 0) ncclGetUniqueId(&ncclId);
+  if(nprocs > 1) {
+    MPI_Bcast((void *)&ncclId, sizeof(ncclId), MPI_BYTE, 0, MPI_COMM_WORLD);
+  }
+  // set up some additional ncclIds
+  if(iproc == 0) ncclGetUniqueId(&ncclId_m);
+  if(nprocs > 1) {
+    MPI_Bcast((void *)&ncclId_m, sizeof(ncclId_m), MPI_BYTE, 0, MPI_COMM_WORLD);
+  }
+  ncclId_s.resize(nprocs_s);
+  for(int i=0; i<nprocs_s; i++) {
+    if(iproc == 0) ncclGetUniqueId(&ncclId_s[i]);
+    if(nprocs > 1) {
+      MPI_Bcast((void *)&ncclId_s[i], sizeof(ncclId_s[i]), MPI_BYTE, 0, MPI_COMM_WORLD);
+    }
+  }
+
+  // set up NCCL communicator that involves only GPUs containing m=0, i.e. grids_->proc(0, iproc_s)
+  checkCuda(ncclCommInitRank(&ncclComm, nprocs, ncclId, iproc));
+  // set up NCCL communicator that is per-species
+  checkCuda(ncclCommInitRank(&ncclComm_s, nprocs_m, ncclId_s[iproc_s], iproc_m));
+  if(iproc_m == 0) {
+    checkCuda(ncclCommInitRank(&ncclComm_m0, nprocs_s, ncclId_m, iproc_s));
+  }
 }
 
 Grids::~Grids() {
@@ -81,8 +170,10 @@ Grids::~Grids() {
   if (x_h)             free(x_h);
   if (y_h)             free(y_h);
   if (z_h)             free(z_h);
+  if (m0_h)	       free(m0_h);
   if (theta0_h)        free(theta0_h); 
  
+  if(nprocs > 1) ncclCommDestroy(ncclComm);
 }
 
 void Grids::init_ks_and_coords()
@@ -153,4 +244,14 @@ void Grids::init_ks_and_coords()
   for(int k=0; k<Nz; k++) {
     z_h[k] = 2.*M_PI *pars_->Zp *(k-Nz/2)/Nz;
   }
+
+  HermiteTransform * hermite = new HermiteTransform(this);
+  LaguerreTransform * laguerre = new LaguerreTransform(this, 1);
+  vpar_max = hermite->get_vmax();
+  muB_max = laguerre->get_vmax();
+  kx_max = kx_h[(Nx-1)/3];
+  ky_max = ky_h[(Ny-1)/3];
+  kz_max = kz_h[Nz/2];
+  delete hermite;
+  delete laguerre;
 }

@@ -1,0 +1,55 @@
+# Makefile for perlmutter (NERSC)
+# Maintainer: Noah Mandell (nrm@mit.edu)
+#
+# add and uncomment the following in your .bashrc.ext (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# export GK_SYSTEM=perlmutter
+# module load PrgEnv-gnu
+# module load cudatoolkit
+# module load nvhpc-mixed
+# module load cray-hdf5-parallel
+# module load cray-netcdf-hdf5parallel
+# module load e4s
+# module load gsl
+# module load python
+# module load craype-x86-milan
+# module load craype-accel-nvidia80
+# module load cray-fftw
+# module load nccl
+#
+
+
+
+# paths to netcdf
+NETCDF_INC = -I ${NETCDF_DIR}/include
+NETCDF_LIB = -L ${NETCDF_DIR}/lib -lnetcdf -lnetcdff -L${HDF5_DIR}/lib -lhdf5 
+
+# paths to mpich
+MPI_DIR = ${MPICH_DIR}
+MPI_INC = -I ${MPI_DIR}/include
+MPI_LIB = -L ${MPI_DIR}/lib -lmpi
+
+# paths to cuda 
+CUDA_INC = -I ${NVIDIA_PATH}/math_libs/include -I ${NCCL_HOME}/include
+CUDA_LIB = -L ${NVIDIA_PATH}/math_libs/lib64 -lcudart -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_HOME}/lib -lnccl
+
+# paths to gsl 
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+
+C_LIB = -lm
+
+CUDAARCH=80
+CC=CC
+
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif
+
+

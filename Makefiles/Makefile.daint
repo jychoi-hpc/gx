@@ -1,0 +1,48 @@
+# Makefile for Piz Daint (daint.cscs.ch)
+# Maintainers: Noah Mandell (nrm@mit.edu) & Justin Ball 
+#
+# add the following to your .bash_profile and uncomment (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+#export GK_SYSTEM=daint
+#module load PrgEnv-intel
+#module load daint-gpu
+#module load cray-mpich/7.7.18
+#module load cray-hdf5-parallel/1.12.0.4
+#module load cray-netcdf-hdf5parallel/4.7.4.4
+#module load GSL/2.7-CrayIntel-21.09
+#module load nvhpc-byo-compiler/22.2
+#module load cray-python/3.9.4.1
+#
+
+# paths to netcdf added as part of module load
+NETCDF_INC = -I ${NETCDF_DIR}/include 
+NETCDF_LIB = -L ${NETCDF_DIR}/lib -lnetcdf 
+
+# paths to mpi
+MPI_INC = -I ${MPICH_DIR}/include
+MPI_LIB = -L ${MPICH_DIR}/lib -lmpich 
+
+# paths to cuda added as part of module load
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NVHPC_ROOT}/comm_libs/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcudart -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -L ${NVHPC_ROOT}/comm_libs/nccl/lib -lnccl
+
+GSL_INC = 
+GSL_LIB = -lgsl -lgslcblas
+
+C_LIB = -ldl -lm -lpthread
+
+# piz daint has NVIDIA P100, so compute capability is 6.0
+CUDAARCH=60
+CC=g++
+
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif
+
+

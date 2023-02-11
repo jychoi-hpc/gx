@@ -19,7 +19,7 @@ Dependencies
 
 In addition to the NVCC compiler, the following external dependencies are required to build GX:
 
-- CUDA libraries (all of these are included with the CUDA toolkit): 
+- CUDA libraries (all of these are included with the CUDA toolkit and/or the NVIDIA HPC SDK): 
 
 	- CUDA Runtime
 	- cuFFT
@@ -27,6 +27,7 @@ In addition to the NVCC compiler, the following external dependencies are requir
 	- cuSOLVER
 	- cuTENSOR
 	- cuLIBOS
+        - NCCL
 
 - NetCDF
 - HDF5
