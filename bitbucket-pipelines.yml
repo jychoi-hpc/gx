@@ -1,0 +1,16 @@
+# Template C++ Application
+
+# This template allows you to validate your C++ application.
+# The workflow allows running tests and code linting on the default branch.
+
+
+#image: linux.shell
+
+pipelines:
+  default:
+      - step:
+          runs-on:
+            - self.hosted
+            - linux.shell
+          script:
+              - make -j
