@@ -1508,7 +1508,7 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, st))  ERR(retval);
 }
 
-void Parameters::set_jtwist_x0(float shat_in, bool nonTwist) // JMH
+void Parameters::set_jtwist_x0(float *shat_in, bool nonTwist) // JMH
 {
   printf("set_jtwist_x0: shat_in = %f\n", *shat_in);
   if (jtwist==0) {

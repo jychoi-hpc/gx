@@ -53,7 +53,7 @@ class GradParallelPeriodic : public GradParallel {
 
 class GradParallelLinked : public GradParallel {
  public:
-  GradParallelLinked(Grids* grids, int jtwist, bool nonTwist, int *m0); // added nonTwist // JMH
+  GradParallelLinked(Grids* grids, int jtwist, bool nonTwist); // added nonTwist // JMH
   ~GradParallelLinked();
 
   void dealias(MomentsG* G);

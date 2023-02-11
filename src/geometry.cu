@@ -202,7 +202,7 @@ Geometry::Geometry() {
   // operator arrays
   kperp2       = nullptr;  omegad     = nullptr;  cv_d       = nullptr;   gb_d      = nullptr;
   kperp2_h     = nullptr; 
-  m0           = nullptr; deltaKx     = nullptr;  m0_h       = nullptr;   ftwist    = nullptr; // JMH
+  m0           = nullptr; deltaKx     = nullptr;  ftwist    = nullptr; // JMH
 
 }
 
@@ -234,7 +234,6 @@ Geometry::~Geometry() {
   if (cvdrift0_h)  free(cvdrift0_h);	
   if (grho_h)      free(grho_h);	
   if (jacobian_h)  free(jacobian_h);	
-  if (m0_h)        free(m0_h); // JMH
 
   if(operator_arrays_allocated_) {
     if (kperp2) cudaFree(kperp2);
