@@ -2293,12 +2293,11 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, c
         const float b_ = kperp2_ * rho2_;
         // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
         cuComplex H_ = G[globalIdx];
-        if(idm+m_lo==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz] + (Jflr(idl, b_) + Jflr(idl-1, b_))*bpar[idxyz];
+        if(idm+m_lo==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz] + Jflr(idl, b_)*bpar[idxyz];
         if(idm+m_lo==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
         GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
       }
     }
-<<<<<<< HEAD
   }
   else {
 
@@ -2335,26 +2334,10 @@ __global__ void dampEnds_linked(cuComplex* G, cuComplex* phi, cuComplex* apar, c
         const float b_ = kperp2_ * rho2_;
         // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
         cuComplex H_ = G[globalIdx];
-        if(idm+m_lo==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz] + (Jflr(idl, b_) + Jflr(idl-1, b_))*bpar[idxyz];
+        if(idm+m_lo==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz] + Jflr(idl, b_)*bpar[idxyz];
         if(idm+m_lo==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
         GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
       }
-=======
-    // only damp ends of non-zonal (ky>0) modes, since ky=0 modes should be periodic
-    if(iky[idk]>0) {
-      unsigned int idl = idlm % nl;
-      unsigned int idm = idlm / nl;
-      const float kperp2_ = kperp2[idxyz];
-      const float zt_ = sp.zt;
-      const float vt_ = sp.vt;
-      const float rho2_ = sp.rho2;
-      const float b_ = kperp2_ * rho2_;
-      // the quantity we want to damp is h = g' + phi*FM - vpar*Apar*FM, so we need to adjust m=0 and m=1 with fields
-      cuComplex H_ = G[globalIdx];
-      if(idm+m_lo==0) H_ = H_ + zt_*Jflr(idl, b_)*phi[idxyz] + JflrB(idl, b_)*bpar[idxyz];
-      if(idm+m_lo==1) H_ = H_ - zt_*vt_*Jflr(idl, b_)*apar[idxyz]; 
-      GRhs[globalIdx] = GRhs[globalIdx] - 5.0*nu*vmax/L*H_;
->>>>>>> origin
     }
   }
 }

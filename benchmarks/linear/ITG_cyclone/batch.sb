@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gpus-per-task=1
+#SBATCH --time=0:10:00
+#SBATCH -J ntft_test
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jh8916@princeton.edu
+#SBATCH --reservation=test
+
+#source ~/.bash_profile
+
+srun /home/jh8916/ntft/gx itg_miller_adiabatic_electrons_ntfttest.in > itg_miller_adiabatic_electrons_ntfttest_conv.out
