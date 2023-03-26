@@ -10,6 +10,7 @@ __device__ unsigned int get_id3(void);
 
 __host__ __device__ float factorial(int m);
 __device__ float Jflr(int l, float b, bool enforce_JL_0=true);
+__device__ float JflrB(int l, float b, bool enforce_JL_0=true);
 __device__ float Jfac(int l, float b);
 
 __host__ __device__ float g0(float b);
@@ -262,10 +263,10 @@ __global__ void aparSolve_krehm (cuComplex *apar, cuComplex *G1, float* kx, floa
 
 __global__ void real_space_density(cuComplex* nbar, const cuComplex* g, const float *kperp2, const specie sp);
 __global__ void real_space_par_current(cuComplex* jbar, const cuComplex* g, const float *kperp2, const specie sp);
-__global__ void real_space_perp_current(cuComplex* jbar, const cuComplex* g, const float *kperp2, const specie sp);
+__global__ void real_space_perp_current(cuComplex* jbar, const cuComplex* g, const float *kperp2, const float *bmagInv, const specie sp);
 
 __global__ void sum_solverFacs(float* qneutFacPhi, float* qneutFacBpar, float* ampereParFac, float* amperePerpFacPhi, float* amperePerpFacBpar,
-                               const float* kperp2, const float* bmag, const specie sp, const float beta, const bool first, const float fapar, const float fbpar, const bool long_wavelength_GK);
+                               const float* kperp2, const float* bmag, const float* bmagInv, const specie sp, const float beta, const bool first, const float fapar, const float fbpar, bool long_wavelength_GK);
 
 __global__ void qneut(cuComplex* Phi, const cuComplex* nbar, const float* denom, float fphi);
 __global__ void ampere_apar(cuComplex* apar, cuComplex* jbar, float* denom, float fapar);

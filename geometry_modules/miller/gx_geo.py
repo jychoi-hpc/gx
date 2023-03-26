@@ -49,9 +49,11 @@ input_file = sys.argv[1]
 if len(sys.argv) > 2:
     stem = input_file.split(".")[0]
     eikfile = sys.argv[2]
+    eiknc = eikfile[-8:] + ".eiknc.nc"
 else:
     stem = input_file.split(".")[0]
     eikfile = stem + ".eik.out"
+    eiknc = stem + ".eiknc.nc"
 
 f = toml.load(input_file)
 

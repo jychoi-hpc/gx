@@ -18,7 +18,7 @@
  boundary = "linked"    # use twist-shift boundary conditions along field line
 
 [Physics]
- beta = 1e-2                     # reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))
+ beta = 1e-3                     # reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))
  nonlinear_mode = true           # this is a nonlinear calculation
  ei_colls = false                # turn off electron-ion collisions
 

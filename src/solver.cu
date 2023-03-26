@@ -78,7 +78,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   //         amperePerpFacPhi  = beta/2*sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})
   //         amperePerpFacBpar = 1 + beta/2*sum_s n_s*t_s*sum_l (J_l + J_{l-1})^2
   for(int is_glob=0; is_glob<pars_->nspec_in; is_glob++) {
-    sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, geo_->kperp2, geo_->bmag,
+    sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, geo_->kperp2, geo_->bmag, geo_->bmagInv,
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
   }
 
@@ -130,7 +130,7 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
         real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
 	if(pars_->fbpar>0.0) {
           // jperpbar is an offset pointer to a location in nbar
-	  real_space_perp_current GQN (jperpbar, G[is]->G(), geo_->kperp2, *G[is]->species);
+	  real_space_perp_current GQN (jperpbar, G[is]->G(), geo_->kperp2, geo_->bmagInv, *G[is]->species);
 	}
       }
       if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1

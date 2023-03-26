@@ -29,7 +29,7 @@ struct g_params {
 
 double fzero_residual(double, void*);
 void solver_vmec_theta(double*, double*, int, double, double, VMEC_variables*, int*, double*);
-void interp_to_new_grid(double*, double*, double*, int, bool);
-void interp_to_new_grid(double*, double*, double*, double*, int, int, bool);
-void interp_to_new_grid(double*, float*, double*, float*, int, int, bool);
+void interp_to_new_grid(double*, double*, double*, int, int);
+void interp_to_new_grid(double*, double*, double*, double*, int, int);
+void interp_to_new_grid(double*, float*, double*, float*, int, int);
 double find_zero_crossing(double*, double*, int);

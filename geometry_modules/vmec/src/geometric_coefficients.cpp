@@ -1108,16 +1108,16 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
     //theta_grid_temp = &theta_grid_cut[0];
  
     // Interpolate the cut grid onto the revised grid based on the type of cut
-    interp_to_new_grid(&bmag_cut[0], bmag_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gradpar_cut[0], gradpar_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&grho_cut[0], grho_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gds2_cut[0], gds2_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gds21_cut[0], gds21_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gds22_cut[0], gds22_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gbdrift_cut[0], gbdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&gbdrift0_cut[0], gbdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&cvdrift_cut[0], cvdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
-    interp_to_new_grid(&cvdrift0_cut[0], cvdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], nzgrid_cut, nzgrid, true);
+    interp_to_new_grid(&bmag_cut[0], bmag_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gradpar_cut[0], gradpar_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&grho_cut[0], grho_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gds2_cut[0], gds2_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gds21_cut[0], gds21_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gds22_cut[0], gds22_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gbdrift_cut[0], gbdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&gbdrift0_cut[0], gbdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&cvdrift_cut[0], cvdrift_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
+    interp_to_new_grid(&cvdrift0_cut[0], cvdrift0_temp, &theta_grid_cut[0], &revised_theta_grid[0], 2*nzgrid_cut+1, 2*nzgrid+1);
 
     std::cout << "Final gds21 = [";
     for (int itheta=0; itheta<2*nzgrid+1; itheta++) {
@@ -1445,15 +1445,15 @@ void Geometric_coefficients::get_GX_geo_arrays(double *bmag_temp, double *gradpa
 
   // Interpolating each geometric array from the non-uniform theta grid, onto to the
   // uniform z grid where gradpar=const
-  interp_to_new_grid(bmag_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(grho_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(gds2_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(gds21_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(gds22_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(gbdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(gbdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(cvdrift_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
-  interp_to_new_grid(cvdrift0_temp, z_on_theta_grid, uniform_zgrid, nzgrid, false);
+  interp_to_new_grid(bmag_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(grho_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(gds2_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(gds21_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(gds22_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(gbdrift_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(gbdrift0_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(cvdrift_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
+  interp_to_new_grid(cvdrift0_temp, z_on_theta_grid, uniform_zgrid, 2*nzgrid+1, 2*nzgrid);
 }
   
 void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* bmag,

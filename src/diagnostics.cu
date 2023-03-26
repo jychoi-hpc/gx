@@ -128,16 +128,16 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dG_spectra = dim3(1 + (nY-1)/dB_spectra.x, 1 + (nX-1)/dB_spectra.y, 1 + (nZ-1)/dB_spectra.z);  
 
   int nyx =  nY * nX;
-  int nslm = nL * nM * nS;
+  int nlm = nL * nM;
 
-  int nt1 = 32;
+  int nt1 = 16;
   int nb1 = 1 + (nyx-1)/nt1;
 
-  int nt2 = 32;
+  int nt2 = 16;
   int nb2 = 1 + (grids_->Nz-1)/nt2;
   
   dB_all = dim3(nt1, nt2, 1);
-  dG_all = dim3(nb1, nb2, nslm);
+  dG_all = dim3(nb1, nb2, nlm);
   
   nt1 = min(32, grids_->Nyc);
   nb1 = 1 + (grids_->Nyc-1)/nt1;
@@ -301,7 +301,9 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     
     if (pars_->diagnosing_spectra) {                                        // Various spectra
       for (int is=0; is < grids_->Nspecies; is++) {  
-        W_summand GALL (G2(is), G[is]->G(), vol_fac, G[is]->species->nt);
+        int is_glob = is + grids_->is_lo;
+	float p_s = pars_->species_h[is_glob].nt;
+        W_summand GALL (G2(is), G[is]->G(), vol_fac, p_s);
       }
       
       if (pars_->gx) {
@@ -407,6 +409,12 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
       id -> write_ks_data ( id -> g_y, G[0]->G());
     }
 
+    if (pars_->write_fields) {
+      id -> write_fields(id -> fields_phi,  fields->phi );
+      id -> write_fields(id -> fields_apar, fields->apar);
+      id -> write_fields(id -> fields_bpar, fields->bpar);
+    }
+
     nc_sync(id->file);
     fflush(NULL);
   }
@@ -453,11 +461,6 @@ void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time)
       id -> write_nc(id -> time, time);
       id -> write_ks_data (id -> g_y, gy_d);
     }
-  }
-  if (pars_->write_fields) {
-    id -> write_fields(id -> fields_phi,  fields->phi );
-    id -> write_fields(id -> fields_apar, fields->apar);
-    id -> write_fields(id -> fields_bpar, fields->bpar);
   }
 }
 

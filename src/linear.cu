@@ -218,7 +218,7 @@ void Linear_GK::get_max_frequency(double *omega_max)
   // estimate max linear frequency from kz_max*vpar_max*vt_max + omegad_max, with omegad_max ~ 2*tz_max*(kx_max+ky_max)*vpar_max^2/R
   omega_max[0] = pars_->tzmax*grids_->kx_max/abs(geo_->shat)*(grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
   omega_max[1] = pars_->tzmax*grids_->ky_max*(grids_->vpar_max*grids_->vpar_max*geo_->cvdrift_max + grids_->muB_max*geo_->gbdrift_max);
-  if(pars_->linear) omega_max[1] = (omega_max[1] + grids_->ky_max*(1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));
+  if(pars_->linear && pars_->etamax < 1e5) omega_max[1] = (omega_max[1] + grids_->ky_max*(1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));
   omega_max[2] = pars_->vtmax*grids_->vpar_max*grids_->kz_max*geo_->gradpar;
 }
 

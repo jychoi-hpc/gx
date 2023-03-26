@@ -537,7 +537,7 @@ void Parameters::get_nml_vars(char* filename)
   g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
-  fbpar    = toml::find_or <float> (tnml, "fbpar",       0.0);
+  fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
   
   wspectra.resize(nw_spectra);
@@ -1576,8 +1576,9 @@ void Parameters::set_jtwist_x0(float *shat_in, bool nonTwist) // JMH
 
   if (zero_shat) {
     jtwist = 2*nx_in;
+    *shat_in = 1.e-6;
     boundary_option_periodic = true;
-    printf("Using no magnetic shear because zero_shat = true. Setting boundary_option='periodic' \n");
+    printf("Using no magnetic shear (setting shat = 1e-6) because zero_shat = true. Setting boundary_option='periodic' \n");
   }
   if (nonTwist) {
     if (!zero_shat) {
