@@ -327,6 +327,9 @@ __global__ void HB_hyper (const cuComplex* G, const float* s01, const float* s10
 __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
 				   const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const cuComplex* bpar, const float *kperp2,
 				   const specie sp);
+__global__ void conservation_terms_exact(cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
+				   const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const cuComplex* bpar, const float *kperp2,
+				   const specie sp);
 
 __global__ void hyperdiff(const cuComplex* g, const float* kx, const float* ky,
 			  float nu_hyper, float D_hyper, cuComplex* rhs);

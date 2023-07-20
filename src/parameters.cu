@@ -555,6 +555,7 @@ void Parameters::get_nml_vars(char* filename)
     fbpar = 0.0;
   }
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
+  coll_conserve_exact = toml::find_or <bool> (tnml, "coll_conserve_exact", true);
   
   wspectra.resize(nw_spectra);
   pspectra.resize(np_spectra);

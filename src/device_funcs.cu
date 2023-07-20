@@ -85,9 +85,19 @@ __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
   else return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2)
 }
 
+__device__ float JflrA(const int l, const float b)
+{ 
+  return l*Jflr(l-1, b) + 2*l*Jflr(l, b) + (l+1)*Jflr(l+1, b);
+} 
+
 __device__ float JflrB(const int l, const float b, bool enforce_JL_0) {
   if (l>=nl && enforce_JL_0) return 0;
   else return Jflr(l, b) + Jflr(l-1, b);
+}
+
+__device__ float Jfac(const int l, const float b)
+{
+  return 1.5*Jflr(l, b) + JflrA(l, b);
 }
 
 __host__ __device__ float g0(float b) {
@@ -705,11 +715,6 @@ __global__ void reality_kernel(cuComplex* g, int N)
       g[ig2].y = -g[ig].y;
     }
   }
-}
-
-__device__ float Jfac(int il, float b)
-{
-  return il*Jflr(il-1, b) + (2*il + 1.5)*Jflr(il, b) + (il+1)*Jflr(il+1, b);
 }
 
 __device__ bool unmasked(int idx, int idy) {
@@ -2654,7 +2659,7 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
     upar_bar[idxyz]  = make_cuComplex(0., 0.);
     uperp_bar[idxyz] = make_cuComplex(0., 0.);
     t_bar[idxyz]     = make_cuComplex(0., 0.);
-    
+
     float b_s = kperp2[idxyz] * sp.rho2;
     // sum over l
     for (int l=0; l < nl; l++) {
@@ -2674,6 +2679,60 @@ __global__ void conservation_terms(cuComplex* upar_bar, cuComplex* uperp_bar, cu
       }
     }
     uperp_bar[idxyz] = uperp_bar[idxyz]*sqrtf(b_s);
+  }
+}
+
+__global__ void conservation_terms_exact(cuComplex* upar_bar, cuComplex* uperp_bar, cuComplex* t_bar,
+				   const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const cuComplex* bpar, const float *kperp2,
+				   const specie sp)
+{
+  unsigned int idxyz = get_id1();
+
+  if (idxyz < nx*nyc*nz) {
+    cuComplex phi_  = phi[idxyz];
+    cuComplex apar_ = apar[idxyz];
+    cuComplex bpar_ = bpar[idxyz];
+    const float zt_ = sp.zt;
+    const float vt_ = sp.vt;
+
+    float b_s = kperp2[idxyz] * sp.rho2;
+    float g0_s = 0.;
+    float g0A_s = 0.;
+    float g0B_s = 0.;
+    float gAA_s = 0.;
+    float gAB_s = 0.;
+    float gBB_s = 0.;
+
+    cuComplex SN = make_cuComplex(0., 0.);
+    cuComplex SU = make_cuComplex(0., 0.);
+    cuComplex SP = make_cuComplex(0., 0.);
+    for (int l=0; l < nl; l++) {
+      const float Jl = Jflr(l, b_s);
+      const float JlA = JflrA(l, b_s);
+      const float JlB = JflrB(l, b_s);
+      g0_s += Jl*Jl;
+      g0A_s += Jl*JlA;
+      g0B_s += Jl*JlB;
+      gAA_s += JlA*JlA;
+      gAB_s += JlA*JlB;
+      gBB_s += JlB*JlB;
+
+      SN = SN + Jl*(b_s + 2*l)*Hc_(idxyz, l, 0);
+      SU = SU + Jl*(b_s + 2*l + 1)*H1c_(idxyz, l, 1) + sqrtf(b_s)*JlB*(b_s + 2*l)*Hc_(idxyz, l, 0);
+      SP = SP + sqrtf(2.)/3.*Jl*(b_s + 2*l + 2)*Gc_(idxyz, l, 2) + 2./3.*JlA*(b_s + 2*l)*Hc_(idxyz, l, 0);
+    }
+    float Nprp = sqrtf(b_s)*g0B_s;
+    float NT = 2*g0A_s;
+    float Upar = g0_s;
+    float Uprp = b_s*gBB_s;
+    float UT = 2*sqrtf(b_s)*gAB_s;
+    float Pprp = 2./3.*sqrtf(b_s)*gAB_s;
+    float PT = 2./3.*g0_s + 4./3.*gAA_s;
+    float det = NT*Pprp - Nprp*PT;
+
+    upar_bar[idxyz] = ( SN*(PT*Uprp - Pprp*UT)/det + SU + SP*(UT*Nprp - NT*Uprp)/det ) / Upar;
+    uperp_bar[idxyz] = (NT*SP - PT*SN)/det;
+    t_bar[idxyz] = (Pprp*SN - Nprp*SP)/det;
   }
 }
 
