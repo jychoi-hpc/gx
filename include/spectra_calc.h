@@ -78,6 +78,12 @@ class SpectraCalc_zst : public SpectraCalc {
   SpectraCalc_zst(Grids *grids, NcDims *nc_dims);
 };
 
+// class for calculating and writing spectra of form f(kz, s, t)
+class SpectraCalc_kzst : public SpectraCalc {
+ public:
+  SpectraCalc_kzst(Grids *grids, NcDims *nc_dims);
+};
+
 // class for calculating and writing spectra of form f(l, s, t)
 class SpectraCalc_lst : public SpectraCalc {
  public:
@@ -129,38 +135,48 @@ class SpectraCalc_zt : public SpectraCalc {
   SpectraCalc_zt(Grids *grids, NcDims *nc_dims);
 };
 
+// class for calculating and writing spectra of form f(kz, t)
+class SpectraCalc_kzt : public SpectraCalc {
+ public:
+  SpectraCalc_kzt(Grids *grids, NcDims *nc_dims);
+};
+
 // class that packages and initialzes all spectra calculator classes
 class AllSpectraCalcs {
  public:
   AllSpectraCalcs(Grids *grids, NcDims *nc_dims) {
-    st_spectra = new SpectraCalc_st(grids, nc_dims);
-    kxst_spectra = new SpectraCalc_kxst(grids, nc_dims);
-    kyst_spectra = new SpectraCalc_kyst(grids, nc_dims);
-    kxkyst_spectra = new SpectraCalc_kxkyst(grids, nc_dims);
-    zst_spectra = new SpectraCalc_zst(grids, nc_dims);
+    st_spectra     = new SpectraCalc_st     (grids, nc_dims);
+    kxst_spectra   = new SpectraCalc_kxst   (grids, nc_dims);
+    kyst_spectra   = new SpectraCalc_kyst   (grids, nc_dims);
+    kxkyst_spectra = new SpectraCalc_kxkyst (grids, nc_dims);
+    zst_spectra    = new SpectraCalc_zst    (grids, nc_dims);
+    kzst_spectra   = new SpectraCalc_kzst   (grids, nc_dims);
 
-    t_spectra = new SpectraCalc_t(grids, nc_dims);
-    kxt_spectra = new SpectraCalc_kxt(grids, nc_dims);
-    kyt_spectra = new SpectraCalc_kyt(grids, nc_dims);
-    kxkyt_spectra = new SpectraCalc_kxkyt(grids, nc_dims);
-    zt_spectra = new SpectraCalc_zt(grids, nc_dims);
+    t_spectra      = new SpectraCalc_t      (grids, nc_dims);
+    kxt_spectra    = new SpectraCalc_kxt    (grids, nc_dims);
+    kyt_spectra    = new SpectraCalc_kyt    (grids, nc_dims);
+    kxkyt_spectra  = new SpectraCalc_kxkyt  (grids, nc_dims);
+    zt_spectra     = new SpectraCalc_zt     (grids, nc_dims);
+    kzt_spectra    = new SpectraCalc_kzt    (grids, nc_dims);
 
-    lst_spectra = new SpectraCalc_lst(grids, nc_dims);
-    mst_spectra = new SpectraCalc_mst(grids, nc_dims);
-    lmst_spectra = new SpectraCalc_lmst(grids, nc_dims);
+    lst_spectra    = new SpectraCalc_lst    (grids, nc_dims);
+    mst_spectra    = new SpectraCalc_mst    (grids, nc_dims);
+    lmst_spectra   = new SpectraCalc_lmst   (grids, nc_dims);
   };
+  
   ~AllSpectraCalcs() {
     delete st_spectra;
     delete kxst_spectra;
     delete kyst_spectra;
     delete kxkyst_spectra;
     delete zst_spectra;
+    delete kzst_spectra;
 
     delete t_spectra;
     delete kxt_spectra;
     delete kyt_spectra;
     delete kxkyt_spectra;
-    delete zt_spectra;
+    delete kzt_spectra;
 
     delete lst_spectra;
     delete mst_spectra;
@@ -172,12 +188,14 @@ class AllSpectraCalcs {
   SpectraCalc * kyst_spectra;
   SpectraCalc * kxkyst_spectra;
   SpectraCalc * zst_spectra;
+  SpectraCalc * kzst_spectra;
 
   SpectraCalc * t_spectra;
   SpectraCalc * kxt_spectra;
   SpectraCalc * kyt_spectra;
   SpectraCalc * kxkyt_spectra;
   SpectraCalc * zt_spectra;
+  SpectraCalc * kzt_spectra;
 
   SpectraCalc * lst_spectra;
   SpectraCalc * mst_spectra;

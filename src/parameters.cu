@@ -445,27 +445,27 @@ void Parameters::get_nml_vars(char* filename)
   // with the GS2 geometry module via eiktest
   // for parameter definitions, see src/geo/geometry.f90 in the GS2 repo
   // the defaults are the same as the defaults in gs2's eiktest.f90
-  rhoc = toml::find_or <float> (tnml, "rhoc", 0.5); 
-  geoType = toml::find_or <int> (tnml, "geoType", 0); 
-  iflux = toml::find_or <int> (tnml, "iflux", 0); 
-  delrho = toml::find_or <float> (tnml, "delrho", 0.01); 
-  bishop = toml::find_or <int> (tnml, "bishop", 0); 
-  irho = toml::find_or <int> (tnml, "irho", 2); 
-  isym = toml::find_or <int> (tnml, "isym", 0); 
-  eqfile = toml::find_or <string> (tnml, "eqfile", "none" );  
-  s_hat_input = toml::find_or <float> (tnml, "s_hat_input", 1.0 );
-  p_prime_input = toml::find_or <float> (tnml, "p_prime_input", -2.0 );
-  invLp_input = toml::find_or <float> (tnml, "invLp_input", 5.0 );
-  alpha_input = toml::find_or <float> (tnml, "alpha_input", 0.0 );
-  efit_eq = toml::find_or <bool> (tnml, "efit_eq", false);
-  dfit_eq = toml::find_or <bool> (tnml, "dfit_eq", false);
-  gen_eq = toml::find_or <bool> (tnml, "gen_eq", false);
-  ppl_eq = toml::find_or <bool> (tnml, "ppl_eq", false);
-  local_eq = toml::find_or <bool> (tnml, "local_eq", false);
-  idfit_eq = toml::find_or <bool> (tnml, "idfit_eq", false);
-  chs_eq = toml::find_or <bool> (tnml, "chs_eq", false);
-  transp_eq = toml::find_or <bool> (tnml, "transp_eq", false);
-  gs2d_eq = toml::find_or <bool> (tnml, "gs2d_eq", false);
+  rhoc          = toml::find_or <float>  (tnml, "rhoc", 0.5); 
+  geoType       = toml::find_or <int>    (tnml, "geoType", 0); 
+  iflux         = toml::find_or <int>    (tnml, "iflux", 0); 
+  delrho        = toml::find_or <float>  (tnml, "delrho", 0.01); 
+  bishop        = toml::find_or <int>    (tnml, "bishop", 0); 
+  irho          = toml::find_or <int>    (tnml, "irho", 2); 
+  isym          = toml::find_or <int>    (tnml, "isym", 0); 
+  eqfile        = toml::find_or <string> (tnml, "eqfile", "none" );  
+  s_hat_input   = toml::find_or <float>  (tnml, "s_hat_input", 1.0 );
+  p_prime_input = toml::find_or <float>  (tnml, "p_prime_input", -2.0 );
+  invLp_input   = toml::find_or <float>  (tnml, "invLp_input", 5.0 );
+  alpha_input   = toml::find_or <float>  (tnml, "alpha_input", 0.0 );
+  efit_eq       = toml::find_or <bool>   (tnml, "efit_eq", false);
+  dfit_eq       = toml::find_or <bool>   (tnml, "dfit_eq", false);
+  gen_eq        = toml::find_or <bool>   (tnml, "gen_eq", false);
+  ppl_eq        = toml::find_or <bool>   (tnml, "ppl_eq", false);
+  local_eq      = toml::find_or <bool>   (tnml, "local_eq", false);
+  idfit_eq      = toml::find_or <bool>   (tnml, "idfit_eq", false);
+  chs_eq        = toml::find_or <bool>   (tnml, "chs_eq", false);
+  transp_eq     = toml::find_or <bool>   (tnml, "transp_eq", false);
+  gs2d_eq       = toml::find_or <bool>   (tnml, "gs2d_eq", false);
 
   tnml = nml;
   if (nml.contains("Physics")) tnml = toml::find(nml, "Physics");
@@ -478,6 +478,7 @@ void Parameters::get_nml_vars(char* filename)
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
   // electromagnetic doesn't make sense with adiabatic species
+  // well, actually electromagnetic with adiabatic ions might be useful
   if (!all_kinetic) {
     beta = 0.0; 
     fapar = 0.0;
@@ -571,11 +572,6 @@ void Parameters::get_nml_vars(char* filename)
 //  for (int k=0; k<aspectra.size(); k++) ksize = max(ksize, aspectra[k]);
 //  for (int k=0; k<qspectra.size(); k++) ksize = max(ksize, qspectra[k]);
 //
-//  tnml = nml;
-//  if (nml.contains("PZT")) tnml = toml::find (nml, "PZT");  
-//
-//  diagnosing_pzt = write_pzt;
-//  
 //  diagnosing_spectra = false;
 //  if (ksize > 0) diagnosing_spectra = true;
 //
@@ -922,7 +918,6 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_diag, "phi",             NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "phi_kpar",        NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diag, "rh",              NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_diag, "pzt",             NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_con, "scheme_dum",            NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_put_att_text (nc_con, ivar, "value", scheme.size(), scheme.c_str())) ERR(retval);
@@ -1163,7 +1158,6 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putbool  (nc_diag, "fluxes",         write_fluxes       );
   putbool  (nc_diag, "moms",           write_moms         );
   putbool  (nc_diag, "rh",             write_rh           );
-  putbool  (nc_diag, "pzt",            write_pzt          );
   putbool  (nc_diag, "phi",            write_phi          );
   putbool  (nc_diag, "phi_kpar",       write_phi_kpar     );
 
@@ -1335,6 +1329,7 @@ void Parameters::put_real (int ncid, const char varname[], float val) {
   if (retval = nc_put_var  (ncid, idum, &val)) ERR(retval);
 }
 
+/*
 void Parameters::put_wspectra (int ncid, std::vector<int> s) {
 
   int idum, retval;
@@ -1394,6 +1389,7 @@ void Parameters::put_phi2spectra (int ncid, std::vector<int> s) {
   if (retval = nc_inq_varid(ncid, "phi2spectra", &idum))     ERR(retval);
   if (retval = nc_put_vara (ncid, idum, phi2spectra_start, phi2spectra_count, s.data())) ERR(retval);
 }
+*/
 
 void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   int idum, retval;

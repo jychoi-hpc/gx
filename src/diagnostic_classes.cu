@@ -31,7 +31,7 @@ void SpectraDiagnostic::write_spectra(float* data)
 void SpectraDiagnostic::set_kernel_dims()
 {
   if(isMoments) {
-    int nyx =  grids_->Nyc * grids_->Nx;
+    int nyx = grids_->Nyc * grids_->Nx;
     int nlm = grids_->Nmoms;
 
     int nt1 = 16;
@@ -49,24 +49,29 @@ void SpectraDiagnostic::set_kernel_dims()
 }
 
 // |Phi|**2 diagnostic class
-Phi2Diagnostic::Phi2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+Phi2Diagnostic::Phi2Diagnostic(Parameters* pars,
+			       Grids* grids,
+			       Geometry* geo,
+			       NetCDF* ncdf,
+			       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "Phi2";
   isMoments = false;
   set_kernel_dims();
 
-  add_spectra(allSpectra->t_spectra);
-  add_spectra(allSpectra->kxt_spectra);
-  add_spectra(allSpectra->kyt_spectra);
-  add_spectra(allSpectra->kxkyt_spectra);
-  add_spectra(allSpectra->zt_spectra);
+  add_spectra (allSpectra->t_spectra);
+  add_spectra (allSpectra->kxt_spectra);
+  add_spectra (allSpectra->kyt_spectra);
+  add_spectra (allSpectra->kxkyt_spectra);
+  add_spectra (allSpectra->zt_spectra);
+  //  add_spectra (allSpectra->kzt_spectra);
 }
 
 void Phi2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
 {
   // compute |Phi|**2(ky, kx, z, t)
   Phi2_summand <<<dG, dB>>> (tmpf, f->phi, geo_->vol_fac); 	
+
   // compute and write spectra of |Phi|**2
   write_spectra(tmpf);
 
@@ -78,18 +83,22 @@ void Phi2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, f
   }
 }
 
-Apar2Diagnostic::Apar2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+Apar2Diagnostic::Apar2Diagnostic(Parameters* pars,
+				 Grids* grids,
+				 Geometry* geo,
+				 NetCDF* ncdf,
+				 AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "Apar2";
   isMoments = false;
   set_kernel_dims();
 
-  add_spectra(allSpectra->t_spectra);
-  add_spectra(allSpectra->kxt_spectra);
-  add_spectra(allSpectra->kyt_spectra);
-  add_spectra(allSpectra->kxkyt_spectra);
-  add_spectra(allSpectra->zt_spectra);
+  add_spectra (allSpectra->t_spectra);
+  add_spectra (allSpectra->kxt_spectra);
+  add_spectra (allSpectra->kyt_spectra);
+  add_spectra (allSpectra->kxkyt_spectra);
+  add_spectra (allSpectra->zt_spectra);
+  //  add_spectra (allSpectra->kzt_spectra);
 }
 
 void Apar2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -100,18 +109,48 @@ void Apar2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, 
   write_spectra(tmpf);
 }
 
-WphiDiagnostic::WphiDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+Bpar2Diagnostic::Bpar2Diagnostic(Parameters* pars,
+				 Grids* grids,
+				 Geometry* geo,
+				 NetCDF* ncdf,
+				 AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "Bpar2";
+  isMoments = false;
+  set_kernel_dims();
+
+  add_spectra (allSpectra->t_spectra);
+  add_spectra (allSpectra->kxt_spectra);
+  add_spectra (allSpectra->kyt_spectra);
+  add_spectra (allSpectra->kxkyt_spectra);
+  add_spectra (allSpectra->zt_spectra);
+  //  add_spectra (allSpectra->kzt_spectra);
+}
+
+void Bpar2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  // compute |Bpar|**2(ky, kx, z, t)
+  Phi2_summand <<<dG, dB>>> (tmpf, f->bpar, geo_->vol_fac); 	
+  // compute and write spectra of |Bpar|**2
+  write_spectra(tmpf);
+}
+
+WphiDiagnostic::WphiDiagnostic(Parameters* pars,
+			       Grids* grids,
+			       Geometry* geo,
+			       NetCDF* ncdf,
+			       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "Wphi";
   isMoments = false;
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
-  add_spectra(allSpectra->zst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->zst_spectra);
+  //  add_spectra (allSpectra->kzst_spectra);
 }
 
 void WphiDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -124,18 +163,22 @@ void WphiDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, f
   write_spectra(tmpf);
 }
 
-WaparDiagnostic::WaparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+WaparDiagnostic::WaparDiagnostic(Parameters* pars,
+				 Grids* grids,
+				 Geometry* geo,
+				 NetCDF* ncdf,
+				 AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "Wapar";
   isMoments = false;
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
-  add_spectra(allSpectra->zst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->zst_spectra);
+  //  add_spectra (allSpectra->kzst_spectra);
 }
 
 void WaparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -148,19 +191,51 @@ void WaparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, 
   write_spectra(tmpf);
 }
 
-WgDiagnostic::WgDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+WbparDiagnostic::WbparDiagnostic(Parameters* pars,
+				 Grids* grids,
+				 Geometry* geo,
+				 NetCDF* ncdf,
+				 AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "Wbpar";
+  isMoments = false;
+  set_kernel_dims();
+
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->zst_spectra);
+  //  add_spectra (allSpectra->kzst_spectra);
+}
+
+void WbparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    Wbpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->bpar, geo_->vol_fac, geo_->kperp2, geo_->bmag); 	
+  }
+  write_spectra(tmpf);
+}
+
+WgDiagnostic::WgDiagnostic(Parameters* pars,
+			   Grids* grids,
+			   Geometry* geo,
+			   NetCDF* ncdf,
+			   AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "Wg";
   isMoments = true;
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
-  add_spectra(allSpectra->zst_spectra);
-  add_spectra(allSpectra->lmst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->zst_spectra);
+  //  add_spectra (allSpectra->kzst_spectra);
+  add_spectra (allSpectra->lmst_spectra);
 }
 
 void WgDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -173,20 +248,23 @@ void WgDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, flo
   write_spectra(tmpG);
 }
 
-HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars,
+				       Grids* grids,
+				       Geometry* geo,
+				       NetCDF* ncdf,
+				       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "HeatFlux";
   description = "Turbulent heat flux in gyroBohm units"; 
   isMoments = false;
-  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher Hermites will have nonsense 
                                        // heat flux data, so skip the write from these procs
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
 }
 
 void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -197,7 +275,19 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
     float p_s = pars_->species_h[is_glob].nt;
     float vts = pars_->species_h[is_glob].vt;
     float tzs = pars_->species_h[is_glob].tz;
-    heat_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
+    
+    heat_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is],
+				    f->phi,
+				    f->apar,
+				    f->bpar,
+				    G[is]->G(),
+				    grids_->ky,
+				    geo_->flux_fac,
+				    geo_->kperp2,
+				    rho2s,
+				    p_s,
+				    vts,
+				    tzs); 	
   }
   write_spectra(tmpf);
 
@@ -213,20 +303,23 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
   }
 }
 
-HeatFluxESDiagnostic::HeatFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxESDiagnostic::HeatFluxESDiagnostic(Parameters* pars,
+					   Grids* grids,
+					   Geometry* geo,
+					   NetCDF* ncdf,
+					   AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "HeatFluxES";
   description = "Electrostatic component of turbulent heat flux in gyroBohm units"; 
   isMoments = false;
-  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher Hermites will have nonsense 
                                        // heat flux data, so skip the write from these procs
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
 }
 
 void HeatFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -236,25 +329,37 @@ void HeatFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* t
     float rho2s = pars_->species_h[is_glob].rho2;
     float p_s = pars_->species_h[is_glob].nt;
     float vts = pars_->species_h[is_glob].vt;
-    heat_flux_ES_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts); 	
+
+    heat_flux_ES_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is],
+				       f->phi,
+				       G[is]->G(),
+				       grids_->ky,
+				       geo_->flux_fac,
+				       geo_->kperp2,
+				       rho2s,
+				       p_s,
+				       vts); 	
   }
   write_spectra(tmpf);
 }
 
-HeatFluxAparDiagnostic::HeatFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxAparDiagnostic::HeatFluxAparDiagnostic(Parameters* pars,
+					       Grids* grids,
+					       Geometry* geo,
+					       NetCDF* ncdf,
+					       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "HeatFluxApar";
   description = "Electromagnetic (A_parallel) component of turbulent heat flux in gyroBohm units"; 
   isMoments = false;
-  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher Hermites will have nonsense 
                                        // heat flux data, so skip the write from these procs
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
 }
 
 void HeatFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -264,25 +369,37 @@ void HeatFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
     float rho2s = pars_->species_h[is_glob].rho2;
     float p_s = pars_->species_h[is_glob].nt;
     float vts = pars_->species_h[is_glob].vt;
-    heat_flux_Apar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->apar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts); 	
+
+    heat_flux_Apar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is],
+					 f->apar,
+					 G[is]->G(),
+					 grids_->ky,
+					 geo_->flux_fac,
+					 geo_->kperp2,
+					 rho2s,
+					 p_s,
+					 vts); 	
   }
   write_spectra(tmpf);
 }
 
-HeatFluxBparDiagnostic::HeatFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxBparDiagnostic::HeatFluxBparDiagnostic(Parameters* pars,
+					       Grids* grids,
+					       Geometry* geo,
+					       NetCDF* ncdf,
+					       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "HeatFluxBpar";
   description = "Electromagnetic (dB_parallel) component of turbulent heat flux in gyroBohm units"; 
   isMoments = false;
-  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher Hermites will have nonsense 
                                        // heat flux data, so skip the write from these procs
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
 }
 
 void HeatFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -292,13 +409,25 @@ void HeatFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
     float rho2s = pars_->species_h[is_glob].rho2;
     float p_s = pars_->species_h[is_glob].nt;
     float tzs = pars_->species_h[is_glob].tz;
-    heat_flux_Bpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, tzs); 	
+
+    heat_flux_Bpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is],
+					 f->bpar,
+					 G[is]->G(),
+					 grids_->ky,
+					 geo_->flux_fac,
+					 geo_->kperp2,
+					 rho2s,
+					 p_s,
+					 tzs); 	
   }
   write_spectra(tmpf);
 }
 
-ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars,
+					       Grids* grids,
+					       Geometry* geo,
+					       NetCDF* ncdf,
+					       AllSpectraCalcs* allSpectra) : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "ParticleFlux";
   description = "Turbulent particle flux in gyroBohm units"; 
@@ -307,10 +436,10 @@ ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars, Grids* grids, G
                                        // particle flux data, so skip the write from these procs
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
 }
 
 void ParticleFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -321,7 +450,19 @@ void ParticleFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
     float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
     float vts = pars_->species_h[is_glob].vt;
     float tzs = pars_->species_h[is_glob].tz;
-    particle_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, n_s, vts, tzs); 	
+
+    particle_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is],
+					f->phi,
+					f->apar,
+					f->bpar,
+					G[is]->G(),
+					grids_->ky,
+					geo_->flux_fac,
+					geo_->kperp2,
+					rho2s,
+					n_s,
+					vts,
+					tzs); 	
   }
   write_spectra(tmpf);
 
@@ -337,19 +478,24 @@ void ParticleFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
   }
 }
 
-TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars,
+						       Grids* grids,
+						       Geometry* geo,
+						       Linear* linear,
+						       NetCDF* ncdf,
+						       AllSpectraCalcs* allSpectra)
+  : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
   varname = "TurbulentHeating";
   description = "Turbulent heating from collisions in gyroBohm units"; 
   isMoments = true;
   set_kernel_dims();
 
-  add_spectra(allSpectra->st_spectra);
-  add_spectra(allSpectra->kxst_spectra);
-  add_spectra(allSpectra->kyst_spectra);
-  add_spectra(allSpectra->kxkyst_spectra);
-  add_spectra(allSpectra->lmst_spectra);
+  add_spectra (allSpectra->st_spectra);
+  add_spectra (allSpectra->kxst_spectra);
+  add_spectra (allSpectra->kyst_spectra);
+  add_spectra (allSpectra->kxkyst_spectra);
+  add_spectra (allSpectra->lmst_spectra);
 
   linear_ = linear;
 }
@@ -357,10 +503,32 @@ TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* 
 void TurbulentHeatingDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
+
     int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
-    if (pars_->collisions && pars_->coll_conservation)  conservation_terms <<< nb1, nt1 >>>
-  			    (linear_->upar_bar, linear_->uperp_bar, linear_->t_bar, G[is]->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G[is]->species));
-    turbulent_heating_summand <<<dG, dB>>> (&tmpG[grids_->NxNycNz*grids_->Nmoms*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky, geo_->vol_fac, geo_->kperp2, linear_->upar_bar, linear_->uperp_bar, linear_->t_bar, *(G[is]->species));
+
+    if (pars_->collisions && pars_->coll_conservation)
+      conservation_terms <<< nb1, nt1 >>> (linear_->upar_bar,
+					   linear_->uperp_bar,
+					   linear_->t_bar,
+					   G[is]->G(),
+					   f->phi,
+					   f->apar,
+					   f->bpar,
+					   geo_->kperp2,
+					   *(G[is]->species));
+    
+    turbulent_heating_summand <<<dG, dB>>> (&tmpG[grids_->NxNycNz*grids_->Nmoms*is],
+					    f->phi,
+					    f->apar,
+					    f->bpar,
+					    G[is]->G(),
+					    grids_->ky,
+					    geo_->vol_fac,
+					    geo_->kperp2,
+					    linear_->upar_bar,
+					    linear_->uperp_bar,
+					    linear_->t_bar,
+					    *(G[is]->species));
   }
   write_spectra(tmpG);
 }
@@ -386,7 +554,7 @@ GrowthRateDiagnostic::GrowthRateDiagnostic(Parameters* pars, Grids* grids, NetCD
   count[3] = 2;
 
   N = grids->NxNyc;
-  Nwrite = grids->Nakx*grids->Naky*2;
+  Nwrite = grids->Nakx * grids->Naky*2; // only write out dealiased modes
 
   int retval;
   if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
@@ -420,7 +588,7 @@ void GrowthRateDiagnostic::calculate_and_write(Fields* fields, Fields* fields_ol
   if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);
 
   // print to screen
-  int Nx = grids_->Nx;
+  int Nx   = grids_->Nx;
   int Naky = grids_->Naky;
   int Nyc  = grids_->Nyc;
 
@@ -458,8 +626,8 @@ void GrowthRateDiagnostic::dealias_and_reorder(cuComplex* fold, float* fnew)
   int it = 0;
   int itp = it + NK;
   for (int ik=0; ik<Naky; ik++) {
-    int Qp = itp + ik*Nakx;
-    int Rp = ik  + it*Nyc;
+    int Qp = itp + Nakx * ik;
+    int Rp = ik  + Nyc  * it;
     fnew[2*Qp  ] = fold[Rp].x;
     fnew[2*Qp+1] = fold[Rp].y;
   }
@@ -469,11 +637,11 @@ void GrowthRateDiagnostic::dealias_and_reorder(cuComplex* fold, float* fnew)
     int itn = NK - it;
     int itm = Nx - it;
     for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
+      int Qp = itp + Nakx * ik;
+      int Rp = ik  + Nyc  * it;
 
-      int Qn = itn + ik*Nakx;
-      int Rm = ik  + itm*Nyc;
+      int Qn = itn + Nakx * ik;
+      int Rm = ik  + Nyc  * itm;
       fnew[2*Qp  ] = fold[Rp].x;
       fnew[2*Qp+1] = fold[Rp].y;
 
@@ -508,7 +676,7 @@ FieldsDiagnostic::FieldsDiagnostic(Parameters* pars, Grids* grids, NetCDF* ncdf)
   count[4] = 2;
 
   N = grids->NxNycNz;
-  Nwrite = grids->Nakx*grids->Naky*grids->Nz*2;
+  Nwrite = grids->Nakx * grids->Naky * grids->Nz * 2;
 
   int retval;
   for(int i=0; i<3; i++) {
@@ -557,8 +725,8 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int it = 0;
   int itp = it + NK;
   for (int ik=0; ik<Naky; ik++) {
-    int Qp = itp + ik*Nakx;
-    int Rp = ik  + it*Nyc;
+    int Qp = itp + Nakx * ik;
+    int Rp = ik  + Nyc  * it;
     for (int k=0; k<Nz; k++) {
       int ig = Rp + Nx*Nyc*k;
       int ir = 0 + 2*(k + Nz*Qp);
@@ -573,11 +741,11 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
     int itn = NK - it;
     int itm = Nx - it;
     for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
+      int Qp = itp + Nakx * ik;
+      int Rp = ik  + Nyc  * it;
 
-      int Qn = itn + ik*Nakx;
-      int Rm = ik  + itm*Nyc;
+      int Qn = itn + Nakx * ik;
+      int Rm = ik  + Nyc  * itm;
       for (int k=0; k<Nz; k++) {
         int ip = Rp + Nx*Nyc*k;
         int im = Rm + Nx*Nyc*k;
@@ -598,13 +766,17 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   } 
 }
 
-MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, string varname)
+MomentsDiagnostic::MomentsDiagnostic(Parameters* pars,
+				     Grids* grids,
+				     Geometry* geo,
+				     NetCDF* ncdf,
+				     string varname)
 {
   nc_type = NC_FLOAT;
-  pars_ = pars;
-  grids_ = grids;
-  geo_ = geo;
-  ncdf_ = ncdf;
+  pars_    = pars;
+  grids_   = grids;
+  geo_     = geo;
+  ncdf_    = ncdf;
   varname_ = varname;
   nc_group = ncdf_->nc_diagnostics->diagnostics_id;
   ndim = 6;
@@ -625,8 +797,8 @@ MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* g
 
   start[1] = grids->is_lo;
 
-  N = grids->NxNycNz*grids->Nspecies;
-  Nwrite = grids->Nakx*grids->Naky*grids->Nz*grids->Nspecies*2;
+  N = grids->NxNycNz * grids->Nspecies;
+  Nwrite = grids->Nakx * grids->Naky * grids->Nz * grids->Nspecies * 2;
 
   int retval;
   if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
@@ -684,12 +856,14 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
     int it = 0;
     int itp = it + NK;
     for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
+      int Qp = itp + Nakx * ik;
+      int Rp = ik  + Nyc  * it;
       for (int k=0; k<Nz; k++) {
-        int ig = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-        int ir = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-        int ii = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
+        int ig = Rp + Nx*Nyc*(k + Nz*is);
+
+        int ir = 0 + 2*(k + Nz*(Qp + Nakx*Naky*is));
+        int ii = 1 + 2*(k + Nz*(Qp + Nakx*Naky*is));
+
         fk[ir] = f[ig].x;
         fk[ii] = f[ig].y;
       }
@@ -700,21 +874,21 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
       int itn = NK - it;
       int itm = Nx - it;
       for (int ik=0; ik<Naky; ik++) {
-        int Qp = itp + ik*Nakx;
-        int Rp = ik  + it*Nyc;
+        int Qp = itp + Nakx * ik;
+        int Rp = ik  + Nyc  * it;
   
-        int Qn = itn + ik*Nakx;
-        int Rm = ik  + itm*Nyc;
+        int Qn = itn + Nakx * ik;
+        int Rm = ik  + Nyc  * itm;
         for (int k=0; k<Nz; k++) {
-          int ip = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-          int im = Rm + Nx*Nyc*k + Nx*Nyc*Nz*is;
+          int ip = Rp + Nx*Nyc*(k + Nz*is);
+          int im = Rm + Nx*Nyc*(k + Nz*is);
+
+          int irp = 0 + 2*(k + Nz*(Qp + Nakx*Naky*is));
+          int iip = 1 + 2*(k + Nz*(Qp + Nakx*Naky*is));
   
-          int irp = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-          int iip = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-  
-          int irn = 0 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-          int iin = 1 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-  
+          int irn = 0 + 2*(k + Nz*(Qn + Nakx*Naky*is));
+          int iin = 1 + 2*(k + Nz*(Qn + Nakx*Naky*is));
+
           fk[irp] = f[ip].x;
           fk[iip] = f[ip].y;
   
@@ -830,6 +1004,7 @@ ParticleTempDiagnostic::ParticleTempDiagnostic(Parameters* pars, Grids* grids, G
   if(grids_->m_lo>0) skipWrite = true;
 }
 
+// There is a problem here for a layout with only 1 or 2 Hermites per GPU? 
 void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {

@@ -8,8 +8,13 @@
 #define KXKY <<< dGk, dBk >>>
 #define loop_y <<< dgp, dbp >>> 
 
-Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, Nonlinear* nonlinear) :
-  geo_(geo), fields_old(nullptr), ncdf_(nullptr), ncdf_big_(nullptr), linear_(linear), nonlinear_(nonlinear)
+Diagnostics_GK::Diagnostics_GK(Parameters* pars,
+			       Grids* grids,
+			       Geometry* geo,
+			       Linear* linear,
+			       Nonlinear* nonlinear) :  geo_(geo), fields_old(nullptr),
+							ncdf_(nullptr), ncdf_big_(nullptr),
+							linear_(linear), nonlinear_(nonlinear)
 {
   pars_ = pars;
   grids_ = grids;
@@ -38,7 +43,9 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
     spectraDiagnosticList.push_back(std::make_unique<WgDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<WphiDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<WaparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<WbparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<Apar2Diagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<Bpar2Diagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
   }
 
   // initialize flux spectra diagnostics
@@ -286,17 +293,6 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 //    // Rosenbluth-Hinton diagnostic
 //    if(id -> rh -> write) {get_rh(fields);   id -> write_nc (id->rh, val);}
 //    
-//    /*
-//      if( counter%nw == 0 && id -> Pzt -> write_v_time) {
-//      pzt(G, fields);  // calculate each of P, Z, and T (very very rough diagnostic)
-//      cudaDeviceSynchronize();
-//      
-//      write_nc (id -> Pzt, primary);
-//      write_nc (id -> pZt, secondary);
-//      write_nc (id -> pzT, tertiary);
-//      }
-//    */
-//
 //    // Plot ky=kz=0 components of various quantities as functions of x
 //    id -> write_moment ( id -> vEy,     fields->phi,    vol_fac);
 //    id -> write_moment ( id -> kxvEy,   fields->phi,    vol_fac);
@@ -532,15 +528,6 @@ Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids) :
 //  if (id -> kxvEy -> write_v_time || id -> xykxvEy -> write_v_time) {
 //    cudaMalloc     (&vEk,        sizeof(cuComplex) * grids_->NxNycNz);
 //  }
-//  
-//  /*
-//  if (pars_->diagnosing_pzt) {
-//    primary = (float*) malloc (sizeof(float));    primary[0] = 0.;  
-//    secondary = (float*) malloc (sizeof(float));  secondary[0] = 0.;  
-//    tertiary = (float*) malloc (sizeof(float));    tertiary[0] = 0.;  
-//    cudaMalloc     (&t_bar,     sizeof(cuComplex) * nR * nS);
-//  }
-//  */
 //    
 //  // Remember that delta theta is a constant in this formalism!   
 //

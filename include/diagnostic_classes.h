@@ -63,6 +63,13 @@ class Apar2Diagnostic : public SpectraDiagnostic {
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
+// |Bpar|**2
+class Bpar2Diagnostic : public SpectraDiagnostic {
+ public:
+  Bpar2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
 // Wphi = (1-Gamma0(b_s))|Phi|**2
 class WphiDiagnostic : public SpectraDiagnostic {
  public:
@@ -74,6 +81,13 @@ class WphiDiagnostic : public SpectraDiagnostic {
 class WaparDiagnostic : public SpectraDiagnostic {
  public:
   WaparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+// Wbpar = |Bpar|**2
+class WbparDiagnostic : public SpectraDiagnostic {
+ public:
+  WbparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
