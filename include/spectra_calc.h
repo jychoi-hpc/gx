@@ -176,6 +176,7 @@ class AllSpectraCalcs {
     delete kxt_spectra;
     delete kyt_spectra;
     delete kxkyt_spectra;
+    delete zt_spectra;
     delete kzt_spectra;
 
     delete lst_spectra;
