@@ -347,10 +347,10 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
     bgrad_h[k] = gradpar * pars->eps * sin(theta) * bmag_h[k]; 
 
     gds2_h[k] = 1. + pow((shat * theta - shift * sin(theta)), 2);
-    gds21_h[k] = -shat * (shat * theta - shift * sin(theta));
+    gds21_h[k] = shat * (shat * theta - shift * sin(theta));
     gds22_h[k] = pow(shat,2);
 
-    gbdrift_h[k] = 1. / rmaj * (cos(theta) + (shat * theta - shift * sin(theta)) * sin(theta));
+    gbdrift_h[k] = -1. / rmaj * (cos(theta) + (shat * theta - shift * sin(theta)) * sin(theta));
     cvdrift_h[k] = gbdrift_h[k];
 
     gbdrift0_h[k] = - shat * sin(theta) / rmaj;
