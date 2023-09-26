@@ -1639,7 +1639,7 @@ __global__ void heat_flux_summand(float* qflux,
       }
     
       cuComplex fg = (cuConjf(vPhi_r) * p_bar - vts * cuConjf(vA_r) * q_bar + tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
+      qflux[idxyz] = -fg.x * pres;
 
     } else {
       qflux[idxyz] = 0.;
@@ -1672,7 +1672,7 @@ __global__ void heat_flux_ES_summand(float* qflux, const cuComplex* phi, const c
       }
     
       fg = (cuConjf(vPhi_r) * p_bar) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
+      qflux[idxyz] = -fg.x * pres;
 
     } else {
       qflux[idxyz] = 0.;
@@ -1705,7 +1705,7 @@ __global__ void heat_flux_Apar_summand(float* qflux, const cuComplex* apar, cons
       }
     
       fg = (- vts * cuConjf(vA_r) * q_bar) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
+      qflux[idxyz] = -fg.x * pres;
 
     } else {
       qflux[idxyz] = 0.;
@@ -1738,7 +1738,7 @@ __global__ void heat_flux_Bpar_summand(float* qflux, const cuComplex* bpar, cons
       }
     
       fg = (tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
+      qflux[idxyz] = -fg.x * pres;
 
     } else {
       qflux[idxyz] = 0.;
@@ -1783,7 +1783,7 @@ __global__ void particle_flux_summand(float* pflux,
       }
     
       cuComplex fg = (cuConjf(vPhi_r) * n_bar - vts*cuConjf(vA_r)*u_bar + tzs*cuConjf(vB_r)*uB_bar) * 2. * flxJac[idz];
-      pflux[idxyz] = fg.x * n_s;
+      pflux[idxyz] = -fg.x * n_s;
 
     } else {
       pflux[idxyz] = 0.;
@@ -2728,12 +2728,12 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 	// add drive and conservation terms in low hermite moments
 	if (m==0) {
 	  rhs[globalIdx] = rhs[globalIdx] 
-           + iky_ * phi_ * (
+           - iky_ * phi_ * (
               Jflr(l-1,b_s)*l*tprim_
 	    + Jflr(l,  b_s)*(fprim_ + 2*l*tprim_)
 	    + Jflr(l+1,b_s)*(l+1)*tprim_ 
 	   )
-           + iky_/zt_ * bpar_ * (
+           - iky_/zt_ * bpar_ * (
               JflrB(l-1,b_s)*l*tprim_
 	    + JflrB(l,  b_s)*(fprim_ + 2*l*tprim_)
 	    + JflrB(l+1,b_s)*(l+1)*tprim_ 
