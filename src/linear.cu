@@ -98,6 +98,13 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   dB_all = dim3(nt1, nt2, nt3);
   dG_all = dim3(nb1, nb2, nb3);	 
 
+  nn1 = grids_->Nyc;   nt1 = min(nn1, 16);   nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids_->Nx;    nt2 = min(nn2,  4);   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = grids_->Nz;    nt3 = min(nn3,  4);   nb3 = 1 + (nn3-1)/nt3;
+  
+  dB_x = dim3(nt1, nt2, nt3);
+  dG_x = dim3(nb1, nb2, nb3);
+
   // set up CUDA grids for main linear kernel.  
   // NOTE: nt1 = sharedSize = 32 gives best performance, but using 8 is only 5% worse.
   // this allows use of 4x more LH resolution without changing shared memory layouts
@@ -173,6 +180,12 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   if(grids_->Nz>1) {
     streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
     grad_par->dz(GRhs, GRhs, false);
+
+    // snyder electron model 
+    if(G->snyder) {
+      snyder_streaming_rhs <<< dG_x, dB_x >>> (G->snyder_moms, f->phi, f->snyder_fields, geo_->gradpar, 1/pars_->ti_ov_te, GRhs->snyder_moms);
+      grad_par->dz(GRhs->snyder_moms, GRhs->snyder_moms, false);
+    }
   }
   
   // calculate most of the RHS
@@ -181,6 +194,21 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
 	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+
+  // snyder electron model 
+  if(G->snyder) {
+    snyder_rhs_linear <<< dG_x, dB_x >>> (G->snyder_moms, f->phi, f->snyder_fields, geo_->cv_d, geo_->gb_d, geo_->bgrad, grids_->ky, geo_->gradpar, 1/pars_->ti_ov_te, pars_->fprim_e, pars_->tprim_e, pars_->me_ov_mi, pars_->nu_ei, G->upar_ptr, GRhs->snyder_moms);
+    if(grids_->Nz>1) {
+      // Te = 1/ikz * (RHS of Te equation)
+      grad_par->inv_dz(f->Te_snyder, f->Te_snyder, false);
+
+      // landau damping term
+      if(pars_->me_ov_mi > 0.) {
+        scale_kernel <<< dG_x, dB_x >>> (f->ue_snyder, geo_->gradpar*sqrt(0.5*M_PI/pars_->ti_ov_te*pars_->me_ov_mi));
+        grad_par->abs_dz(GRhs->apar_snyder, f->ue_snyder, true);
+      }
+    }
+  }
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {

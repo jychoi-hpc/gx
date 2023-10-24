@@ -143,6 +143,7 @@ class Parameters {
   int ikpar_init;
   float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;
   float forcing_amp, pos_forcing_amp, neg_forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;
+  float tprim_e, fprim_e;
   float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m, nu_hyper_lm;
   float nu_hyper_z;
   float D_HB, w_osc;

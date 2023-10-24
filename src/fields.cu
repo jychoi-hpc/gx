@@ -41,6 +41,15 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   setval <<< nb, nt >>> (bpar, zero, nn);
   
   bpar_h = (cuComplex*) malloc(size_);
+
+  if (pars_->snyder_electrons) {
+    checkCuda(cudaMalloc((void**) &snyder_fields, 2*size_));
+    checkCuda(cudaMemset(snyder_fields, 0., 2*size_));
+
+    // set pointers
+    ue_snyder = snyder_fields;
+    Te_snyder = snyder_fields + grids_->NxNycNz;
+  }
   
   //if (pars_->beta > 0. || pars_->krehm) {
   //  if (!pars_->krehm) {
@@ -182,6 +191,8 @@ Fields::~Fields() {
   if (phi)     cudaFree(phi);
   if (apar)    cudaFree(apar);
   if (bpar)    cudaFree(bpar);
+
+  if (snyder_fields) cudaFree(snyder_fields);
 
   if (phi_h)   free(phi_h);
   if (apar_h)  free(apar_h);

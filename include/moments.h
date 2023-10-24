@@ -70,6 +70,11 @@ class MomentsG {
   cuComplex * qpar_ptr;
   cuComplex * qprp_ptr;
 
+  cuComplex * snyder_moms{};
+  cuComplex * ne_snyder{};
+  cuComplex * apar_snyder{};
+  bool snyder = false;
+
   cudaStream_t syncStream;
  
  private:
@@ -77,4 +82,5 @@ class MomentsG {
   Grids      * grids_ ;
   Parameters * pars_  ;
   int is_glob_;
+
 };

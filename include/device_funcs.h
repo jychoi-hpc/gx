@@ -125,7 +125,7 @@ __global__ void eig_residual(double* y, double* A, double* x, double* R,
 __global__ void scale_kernel(cuComplex* res, double s);
 __global__ void scale_kernel(cuComplex* res, cuComplex s);
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, cuComplex s);
-__global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, float scalar);
+__global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, double scalar);
 // Should we have some eqfix options in the singlemom_kernels? 
 
 __global__ void add_section(cuComplex *res, const cuComplex *tmp, int ntot);
@@ -140,6 +140,17 @@ __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 					    cuComplex c1, cuComplex* m1,
 					    cuComplex c2, cuComplex* m2);
+__global__ void add_scaled_singlemom_kernel(cuComplex* res,
+					    double c1, const cuComplex* m1,
+					    double c2, const cuComplex* m2,
+					    double c3, const cuComplex* m3,
+					    double c4, const cuComplex* m4);
+__global__ void add_scaled_singlemom_kernel(cuComplex* res,
+					    double c1, const cuComplex* m1,
+					    double c2, const cuComplex* m2,
+					    double c3, const cuComplex* m3,
+					    double c4, const cuComplex* m4,
+					    double c5, const cuComplex* m5);
 
 __global__ void reality_kernel(cuComplex* g, int N);
 
@@ -161,7 +172,7 @@ __global__ void acc(float *a, const float *b);
 
 __global__ void bracket(float* __restrict__ g_res,
 			const float* __restrict__ dg_dx, const float* __restrict__ dJ0phi_dy,
-			const float* __restrict__ dg_dy, const float* __restrict__ dJ0Phi_dx, float kxfac);
+			const float* __restrict__ dg_dy, const float* __restrict__ dJ0Phi_dx, float kxfac, bool accumulate);
 
 __global__ void bracket_cetg(float* __restrict__ g_res,
 			const float* __restrict__ dg_dx, const float* __restrict__ dphi_dy,
@@ -259,6 +270,7 @@ __device__ void    zfts(void *dataOut, size_t offset, cufftComplex element, void
 __device__ void    i_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void    mkz2(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void  abs_kz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
+__device__ void  inv_ikz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void i_kz_1d(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 
 extern __device__ cufftCallbackStoreC zfts_callbackPtr;
@@ -267,6 +279,7 @@ extern __device__ cufftCallbackStoreC mkz2_callbackPtr;
 extern __device__ cufftCallbackStoreC i_kz_1d_callbackPtr;
 extern __device__ cufftCallbackStoreC mkz2_1d_callbackPtr;
 extern __device__ cufftCallbackStoreC abs_kz_callbackPtr;
+extern __device__ cufftCallbackStoreC inv_ikz_callbackPtr;
 
 __global__ void kInit(float* kx, float* ky, float* kz, int* kzm, float* kzp, const float X0, const float Y0, const int Zp, bool dealias_kz);  
 
@@ -297,6 +310,14 @@ __global__ void qneut(cuComplex* Phi, const cuComplex* nbar, const float* denom,
 __global__ void ampere_apar(cuComplex* apar, cuComplex* jbar, float* denom, float fapar);
 __global__ void qneut_and_ampere_perp(cuComplex* Phi, cuComplex* Bpar, const cuComplex* SQ, const cuComplex* SA, 
 		      const float* QPhi, const float* QB, const float* APhi, const float* AB, const float fphi, const float fbpar);
+
+__global__ void ampere_snyder(cuComplex* ue,
+                              cuComplex* apar,
+                              cuComplex* ui,
+                              float* kperp2,
+                              float* bmag,
+                              float beta,
+                              float te_ov_ti);
 
 //__global__ void qneut_fieldlineaveraged(cuComplex *Phi, const cuComplex *nbar, const float *PhiAvgDenom, 
 //					const float *kperp2, const float *jacobian,
@@ -338,6 +359,7 @@ __device__ void   zfts_Linked(void *dataOut, size_t offset, cufftComplex element
 __device__ void    i_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void   mkz2_Linked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __device__ void  abs_kzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
+__device__ void  inv_ikzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr);
 __global__ void init_kzLinked(float* kz, int nLinks, bool dealias);
 
 extern __device__ cufftCallbackStoreC zfts_Linked_callbackPtr;
@@ -345,6 +367,7 @@ extern __device__ cufftCallbackStoreC i_kzLinked_callbackPtr;
 extern __device__ cufftCallbackStoreC hyperkzLinked_callbackPtr;
 extern __device__ cufftCallbackStoreC mkz2_Linked_callbackPtr;
 extern __device__ cufftCallbackStoreC abs_kzLinked_callbackPtr;
+extern __device__ cufftCallbackStoreC inv_ikzLinked_callbackPtr;
 
 __global__ void getPhi (cuComplex *phi, cuComplex *G, float* ky);
 __global__ void rhs_lin_vp(const cuComplex *G, const cuComplex* phi, cuComplex* GRhs, float* ky,
@@ -381,6 +404,30 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   const specie sp_i,
 			   cuComplex* __restrict__ rhs,
 			   bool ei_colls); 
+
+
+__global__ void snyder_streaming_rhs(const cuComplex* snyder_moms,
+				     const cuComplex* phi,
+                                     const cuComplex* snyder_fields,
+			             const float gradpar,
+                                     const float te_ov_ti,
+                                     cuComplex* rhs_par);
+
+__global__ void snyder_rhs_linear(const cuComplex* snyder_moms,
+				  const cuComplex* phi,
+                                  cuComplex* snyder_fields,
+			          const float* cv_d,
+			          const float* gb_d,
+			          const float* bgrad,
+			          const float* ky,
+                                  const float gradpar,
+                                  const float te_ov_ti,
+                                  const float fprim_e,
+                                  const float tprim_e,
+                                  const float me_ov_mi,
+                                  const float nu_ei,
+				  const cuComplex* ui,
+                                  cuComplex* rhs);
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);

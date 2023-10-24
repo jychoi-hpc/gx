@@ -19,6 +19,10 @@ class Fields {
   cuComplex * bpar   ;
   cuComplex * bpar_h ;
 
+  cuComplex * snyder_fields{};
+  cuComplex * ue_snyder{};
+  cuComplex * Te_snyder{};
+
   cuComplex * ne ;
   cuComplex * ue ;
   cuComplex * Te ;

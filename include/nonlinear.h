@@ -63,7 +63,6 @@ class Nonlinear_GK : public Nonlinear {
   float * Gy          ;
   float * dJ0phi_dx   ;
   float * dJ0phi_dy   ;
-  float * dphi_dy     ;
   float * dJ0apar_dx ;
   float * dJ0apar_dy ;
   float * dphi        ;
@@ -73,6 +72,15 @@ class Nonlinear_GK : public Nonlinear {
   float vmax_y[1]     ;
   cuComplex * J0phi   ;
   cuComplex * J0apar ;
+
+  float * dphi_dx{};
+  float * dphi_dy{};
+  float * dapar_dx{};
+  float * dapar_dy{};
+  float * dn_dx{};
+  float * dn_dy{};
+  float * du_dx{};
+  float * du_dy{};
 };
 
 class Nonlinear_KREHM : public Nonlinear {

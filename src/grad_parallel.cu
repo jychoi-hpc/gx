@@ -13,6 +13,7 @@ GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
   cufftCreate(&dz_plan_inverse);
   cufftCreate(&dz2_plan_forward);
   cufftCreate(&abs_dz_plan_forward);
+  cufftCreate(&inv_dz_plan_forward);
 
   int n = grids_->Nz; 			// size of FFT
   int isize = grids_->NxNycNz;		// size of input data
@@ -34,6 +35,8 @@ GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
   cufftMakePlanMany(dz2_plan_forward, dim, &n, &isize, istride, idist, &osize, ostride, odist, CUFFT_C2C, batchsize, &workSize);
   cufftMakePlanMany(abs_dz_plan_forward,
  		                      dim, &n, &isize, istride, idist, &osize, ostride, odist, CUFFT_C2C, batchsize, &workSize);
+  cufftMakePlanMany(inv_dz_plan_forward,
+ 		                      dim, &n, &isize, istride, idist, &osize, ostride, odist, CUFFT_C2C, batchsize, &workSize);
 
   // set up callback functions
   cudaDeviceSynchronize();
@@ -42,14 +45,17 @@ GradParallelPeriodic::GradParallelPeriodic(Grids* grids) :
   cufftCallbackStoreC i_kz_callbackPtr_h;
   cufftCallbackStoreC mkz2_callbackPtr_h;
   cufftCallbackStoreC abs_kz_callbackPtr_h;
+  cufftCallbackStoreC inv_ikz_callbackPtr_h;
   checkCuda(cudaMemcpyFromSymbol(&zfts_callbackPtr_h,   zfts_callbackPtr,   sizeof(zfts_callbackPtr_h)));
   checkCuda(cudaMemcpyFromSymbol(&i_kz_callbackPtr_h,   i_kz_callbackPtr,   sizeof(i_kz_callbackPtr_h)));
   checkCuda(cudaMemcpyFromSymbol(&mkz2_callbackPtr_h,   mkz2_callbackPtr,   sizeof(mkz2_callbackPtr_h)));
   checkCuda(cudaMemcpyFromSymbol(&abs_kz_callbackPtr_h, abs_kz_callbackPtr, sizeof(abs_kz_callbackPtr_h)));
+  checkCuda(cudaMemcpyFromSymbol(&inv_ikz_callbackPtr_h, inv_ikz_callbackPtr, sizeof(inv_ikz_callbackPtr_h)));
 
   checkCuda(cufftXtSetCallback(   zft_plan_forward, (void**)   &zfts_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kz));
   checkCuda(cufftXtSetCallback(    dz_plan_forward, (void**)   &i_kz_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
   checkCuda(cufftXtSetCallback(abs_dz_plan_forward, (void**) &abs_kz_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
+  checkCuda(cufftXtSetCallback(inv_dz_plan_forward, (void**) &inv_ikz_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
   checkCuda(cufftXtSetCallback(   dz2_plan_forward, (void**)   &mkz2_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&grids_->kzp));
   cudaDeviceSynchronize();
 
@@ -77,6 +83,7 @@ GradParallelPeriodic::~GradParallelPeriodic() {
   cufftDestroy( dz_plan_inverse);
   cufftDestroy( dz2_plan_forward);
   cufftDestroy(abs_dz_plan_forward);
+  cufftDestroy(inv_dz_plan_forward);
 }
 
 // Dealias in kz
@@ -177,6 +184,13 @@ void GradParallelPeriodic::abs_dz(cuComplex* mom, cuComplex* res, bool accumulat
   cufftExecC2C(dz_plan_inverse, res, res, CUFFT_INVERSE);
 }
 
+// FFT and 1/(i kz) operator for a single moment
+void GradParallelPeriodic::inv_dz(cuComplex* mom, cuComplex* res, bool accumulate)
+{
+  cufftExecC2C(inv_dz_plan_forward, mom, res, CUFFT_FORWARD);
+  cufftExecC2C(dz_plan_inverse, res, res, CUFFT_INVERSE);
+}
+
 // FFT only for a single moment -- deprecated. Should change to zft, dropping dir parameter
 void GradParallelPeriodic::fft_only(cuComplex* mom, cuComplex* res, int dir)
 {
@@ -217,6 +231,9 @@ void GradParallelLocal::dz(cuComplex* mom, cuComplex* res, bool accumulate) {
 // single moment
 void GradParallelLocal::abs_dz(cuComplex* mom, cuComplex* res, bool accumulate) {
   scale_singlemom_kernel GGP (res, mom, make_cuComplex(kpar,0.));
+}
+void GradParallelLocal::inv_dz(cuComplex* mom, cuComplex* res, bool accumulate) {
+  scale_singlemom_kernel GGP (res, mom, make_cuComplex(0,-1/kpar));
 }
 void GradParallelLocal::dz2(cuComplex* mom, cuComplex* res) {
   scale_singlemom_kernel GGP (res, mom, mkpar2);

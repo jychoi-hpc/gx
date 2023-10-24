@@ -47,6 +47,19 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
   if(l<Nl && m>=grids_->m_lo && m<grids_->m_up) qprp_ptr = G(l,m_local);
 
   int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
+
+  // allocate and use snyder moments only on G[0] for each proc
+  if (pars_->snyder_electrons && is_glob == grids_->is_lo) snyder = true;
+
+  if (snyder) {
+    size_t size = sizeof(cuComplex)*2*grids_->NxNycNz;
+    checkCuda(cudaMalloc((void**) &snyder_moms, size)); 
+    checkCuda(cudaMemset(snyder_moms, 0., size));
+
+    // set pointers
+    ne_snyder = snyder_moms;
+    apar_snyder = snyder_moms + grids_->NxNycNz;
+  }
   
   if (pars_->ks) {
 
@@ -94,11 +107,16 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
 
 MomentsG::~MomentsG() {
   if ( G_lm     ) cudaFree ( G_lm );
+  if (snyder_moms) cudaFree(snyder_moms);
   cudaStreamDestroy(syncStream);
 }
 
 void MomentsG::set_zero(void) {
   cudaMemset(G_lm, 0., grids_->size_G);
+ 
+  if(snyder) {
+    cudaMemset(snyder_moms, 0., 2*grids_->NxNycNz);
+  }
 }
 
 void MomentsG::initVP(double *time) {
@@ -330,8 +348,21 @@ void MomentsG::initialConditions(double* time) {
   DEBUG_PRINT("initial conditions set \n");  
 }
 
-void MomentsG::scale(double    scalar) {scale_kernel GALL (G(), scalar);}
-void MomentsG::scale(cuComplex scalar) {scale_kernel GALL (G(), scalar);}
+void MomentsG::scale(double    scalar) {
+  scale_kernel GALL (G(), scalar);
+
+  if(snyder) {
+    scale_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, snyder_moms, scalar);
+  }
+}
+void MomentsG::scale(cuComplex scalar)
+{
+  scale_kernel GALL (G(), scalar);
+
+  if(snyder) {
+    scale_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, snyder_moms, scalar);
+  }
+}
 void MomentsG::mask(void) {maskG GALL (G());}
 
 void MomentsG::rescale(float * phi_max) {
@@ -342,6 +373,10 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
 			  double c2, MomentsG* G2) {
   bool neqfix = !pars_->eqfix;
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), neqfix);
+
+  if(snyder) {
+    add_scaled_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, c1, G1->snyder_moms, c2, G2->snyder_moms);
+  }
 }
 
 void MomentsG::add_scaled(double c1, MomentsG* G1,
@@ -349,6 +384,10 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
 			  double c3, MomentsG* G3) {
   bool neqfix = !pars_->eqfix;
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), c3, G3->G(), neqfix);
+
+  if(snyder) {
+    add_scaled_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, c1, G1->snyder_moms, c2, G2->snyder_moms, c3, G3->snyder_moms);
+  }
 }
 
 void MomentsG::add_scaled(double c1, MomentsG* G1,
@@ -357,6 +396,10 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
 			  double c4, MomentsG* G4) {
   bool neqfix = !pars_->eqfix;
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), c3, G3->G(), c4, G4->G(), neqfix);
+
+  if(snyder) {
+    add_scaled_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, c1, G1->snyder_moms, c2, G2->snyder_moms, c3, G3->snyder_moms, c4, G4->snyder_moms);
+  }
 }
 
 void MomentsG::add_scaled(double c1, MomentsG* G1,
@@ -367,6 +410,10 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
 {
   bool neqfix = !pars_->eqfix;
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), c3, G3->G(), c4, G4->G(), c5, G5->G(), neqfix);
+
+  if(snyder) {
+    add_scaled_singlemom_kernel <<< 2*grids_->NxNycNz/256 + 1, 256 >>> (snyder_moms, c1, G1->snyder_moms, c2, G2->snyder_moms, c3, G3->snyder_moms, c4, G4->snyder_moms);
+  }
 }
 
 void MomentsG::reality(int ngz) 

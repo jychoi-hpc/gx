@@ -192,18 +192,31 @@ void Parameters::get_nml_vars(char* filename)
   if (nml.contains("KREHM")) tnml = toml::find (nml, "KREHM");
   
   krehm             = toml::find_or <bool>  (tnml, "krehm",     false );
-  if(krehm) gx = false;
-  rho_i             = toml::find_or <float> (tnml, "rho_i",       1.0 );
-  d_e               = toml::find_or <float> (tnml, "d_e",         1.0 );
-  nu_ei             = toml::find_or <float> (tnml, "nu_ei",       0.0 );
-  eta               = toml::find_or <float> (tnml, "eta",         0.0 );
-  zt                = toml::find_or <float> (tnml, "zt",          1.0 );
-  harris_sheet      = toml::find_or <bool>  (tnml, "harris_sheet", false);
-  periodic_equilibrium = toml::find_or <bool> (tnml, "periodic_equilibrium", false);
-  k0                = toml::find_or <float> (tnml, "k0", 10.0);
-  gaussian_tube     = toml::find_or <bool> (tnml, "gaussian_tube", false);
-  rho_s = rho_i*sqrtf(zt/2);
-  if(eta>0.0) nu_ei = eta/d_e/d_e;
+  if(krehm) {
+    gx = false;
+    rho_i             = toml::find_or <float> (tnml, "rho_i",       1.0 );
+    d_e               = toml::find_or <float> (tnml, "d_e",         1.0 );
+    nu_ei             = toml::find_or <float> (tnml, "nu_ei",       0.0 );
+    eta               = toml::find_or <float> (tnml, "eta",         0.0 );
+    zt                = toml::find_or <float> (tnml, "zt",          1.0 );
+    harris_sheet      = toml::find_or <bool>  (tnml, "harris_sheet", false);
+    periodic_equilibrium = toml::find_or <bool> (tnml, "periodic_equilibrium", false);
+    k0                = toml::find_or <float> (tnml, "k0", 10.0);
+    gaussian_tube     = toml::find_or <bool> (tnml, "gaussian_tube", false);
+    rho_s = rho_i*sqrtf(zt/2);
+    if(eta>0.0) nu_ei = eta/d_e/d_e;
+  }
+
+  tnml = nml;
+  if (nml.contains("Snyder electrons")) tnml = toml::find (nml, "Snyder electrons");
+  snyder_electrons  = toml::find_or <bool>  (tnml, "snyder_electrons", false );
+  if(snyder_electrons) {
+    fprim_e              = toml::find_or <float> (tnml, "fprim_e", 0.0 );
+    tprim_e              = toml::find_or <float> (tnml, "tprim_e", 0.0 );
+    ti_ov_te          = toml::find_or <float> (tnml, "ti_ov_te", 1.0 );
+    me_ov_mi          = toml::find_or <float> (tnml, "me_ov_mi", 0.0 );
+    nu_ei             = toml::find_or <float> (tnml, "nu_ei", 0.0 );
+  }
 
   tnml = nml;
   if (nml.contains("Expert")) tnml = toml::find (nml, "Expert");
@@ -404,13 +417,15 @@ void Parameters::get_nml_vars(char* filename)
   if (Btype == "ions")      Boltzmann_opt = BOLTZMANN_IONS;
   if (Btype == "ion" )      Boltzmann_opt = BOLTZMANN_IONS;
 
-  // backward compatibility, sets default overall as tau_fac = unity
-  ti_ov_te = toml::find_or <float> (tnml, "TiTe", 1.0);     
-  // check for new, physically sensible value in the input file
-  tau_fac  = toml::find_or <float> (tnml, "tau_fac", -1.0);
-  
-  if (tau_fac > 0.) ti_ov_te = tau_fac;                 // new definition has priority if it was provided
-  tau_fac = ti_ov_te;                                   // In the body of the code, use tau_fac instead of ti_ov_te
+  if(add_Boltzmann_species) {
+    // backward compatibility, sets default overall as tau_fac = unity
+    ti_ov_te = toml::find_or <float> (tnml, "TiTe", 1.0);     
+    // check for new, physically sensible value in the input file
+    tau_fac  = toml::find_or <float> (tnml, "tau_fac", -1.0);
+    
+    if (tau_fac > 0.) ti_ov_te = tau_fac;                 // new definition has priority if it was provided
+    tau_fac = ti_ov_te;                                   // In the body of the code, use tau_fac instead of ti_ov_te
+  }
   
   // For the Adkins collisional ETG model, tau_fac should be set to Ti/(Te Z) = tau_bar
   

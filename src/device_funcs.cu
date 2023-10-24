@@ -406,6 +406,27 @@ __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 }
 
 __global__ void add_scaled_singlemom_kernel(cuComplex* res,
+					    double c1, const cuComplex* m1,
+					    double c2, const cuComplex* m2,
+					    double c3, const cuComplex* m3,
+					    double c4, const cuComplex* m4)
+{
+  unsigned int idxyz = get_id1();
+  if (idxyz < nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz] + c3*m3[idxyz] + c4*m4[idxyz];
+}
+
+__global__ void add_scaled_singlemom_kernel(cuComplex* res,
+					    double c1, const cuComplex* m1,
+					    double c2, const cuComplex* m2,
+					    double c3, const cuComplex* m3,
+					    double c4, const cuComplex* m4,
+					    double c5, const cuComplex* m5)
+{
+  unsigned int idxyz = get_id1();
+  if (idxyz < nx*nyc*nz) res[idxyz] = c1*m1[idxyz] + c2*m2[idxyz] + c3*m3[idxyz] + c4*m4[idxyz] + c5*m5[idxyz];
+}
+
+__global__ void add_scaled_singlemom_kernel(cuComplex* res,
 					    cuComplex c1, const cuComplex* m1,
 					    cuComplex c2, const cuComplex* m2)
 {
@@ -692,7 +713,7 @@ __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* mom, cuComplex
   if (idxyz < nx*nyc*nz) res[idxyz] = scalar*mom[idxyz];
 }
 
-__global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* mom, float scalar)
+__global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* mom, double scalar)
 {
   unsigned int idxyz = get_id1();
   if (idxyz < nx*nyc*nz) res[idxyz] = scalar*mom[idxyz];
@@ -1140,6 +1161,17 @@ __device__ void abs_kz(void *dataOut, size_t offset, cufftComplex element, void 
   ((cuComplex*)dataOut)[offset] = abs(kz[idz]) * element/nz;
 }
 
+// Multiplies by 1 /(i kz Nz)
+__device__ void inv_ikz(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
+{
+  unsigned int idz = offset / (nx*nyc);
+
+  float *kz = (float*) kzData;
+  cuComplex inv_Ikz = make_cuComplex(0., -1/kz[idz]);
+
+  ((cuComplex*)dataOut)[offset] = inv_Ikz*element/nz;
+}
+
 // Multiplies by ikz / Nz
 __device__ void i_kz_1d(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
 {
@@ -1171,6 +1203,7 @@ __device__ cufftCallbackStoreC mkz2_callbackPtr    = mkz2;
 __device__ cufftCallbackStoreC i_kz_1d_callbackPtr = i_kz_1d;
 __device__ cufftCallbackStoreC mkz2_1d_callbackPtr = mkz2_1d;
 __device__ cufftCallbackStoreC abs_kz_callbackPtr  = abs_kz;
+__device__ cufftCallbackStoreC inv_ikz_callbackPtr  = inv_ikz;
 
 //__global__ void acc(float *a, const float *b)
 //{a[0] = a[0] + b[0];}
@@ -1217,7 +1250,7 @@ __global__ void bracket(      float* __restrict__ g_res,
 			const float* __restrict__ dJ0phi_dy,
 			const float* __restrict__ dg_dy,
 			const float* __restrict__ dJ0phi_dx,
-			float kxfac)
+			float kxfac, bool accumulate)
 {
   unsigned int idxyz = get_id1();
   unsigned int idj   = get_id2();
@@ -1226,7 +1259,11 @@ __global__ void bracket(      float* __restrict__ g_res,
   if (idxyz < nx*ny*nz && idj < nj && idm < nm) {
     unsigned int iphi = idxyz + nx*ny*nz*idj;
     unsigned int ig   = idxyz + nx*ny*nz*(idj + nj*idm);
-    g_res[ig] = ( dg_dx[ig] * dJ0phi_dy[iphi] - dg_dy[ig] * dJ0phi_dx[iphi] ) * kxfac;
+    if(accumulate) {
+      g_res[ig] = g_res[ig] + ( dg_dx[ig] * dJ0phi_dy[iphi] - dg_dy[ig] * dJ0phi_dx[iphi] ) * kxfac;
+    } else {
+      g_res[ig] = ( dg_dx[ig] * dJ0phi_dy[iphi] - dg_dy[ig] * dJ0phi_dx[iphi] ) * kxfac;
+    }
   }
 }
 
@@ -2084,6 +2121,23 @@ __global__ void qneut_and_ampere_perp(cuComplex* Phi,
   }
 }
 
+__global__ void ampere_snyder(cuComplex* ue,
+                              cuComplex* apar,
+                              cuComplex* ui,
+                              float* kperp2,
+                              float* bmag,
+                              float beta,
+                              float te_ov_ti)
+{
+  idXYZ; 
+  
+  if ( unmasked(idx, idy) && idz < nz) {
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+    
+    ue[idxyz] = ui[idxyz] - 2*te_ov_ti/beta*kperp2[idxyz]*bmag[idz]*bmag[idz]*apar[idxyz];
+  }
+}
+
 // compute qneutFacPhi  = sum_s z_s^2*n_s/tau_s*(1- sum_l J_l^2)
 //         qneutFacBpar = -sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})
 //         ampereParFac = kperp2 + beta/2*sum_s z_s^2*n_s/m_s*sum_l J_l^2
@@ -2338,6 +2392,16 @@ __device__ void abs_kzLinked(void *dataOut, size_t offset, cufftComplex element,
   ((cuComplex*)dataOut)[offset] = abs(kz[idz])*element*normalization;
 }
 
+__device__ void inv_ikzLinked(void *dataOut, size_t offset, cufftComplex element, void *kzData, void *sharedPtr)
+{
+  float *kz = (float*) kzData;
+  int nLinks = (int) lrintf(1./(zp*kz[1]));
+  unsigned int idz = offset % (nz*nLinks);
+  cuComplex inv_Ikz = make_cuComplex(0., -1/kz[idz]);
+  float normalization = (float) 1./(nz*nLinks);
+  ((cuComplex*)dataOut)[offset] = inv_Ikz*element*normalization;
+}
+
 __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
 {
   int nzL = nz*nLinks;
@@ -2373,6 +2437,7 @@ __device__ cufftCallbackStoreC   i_kzLinked_callbackPtr = i_kzLinked;
 __device__ cufftCallbackStoreC   hyperkzLinked_callbackPtr = hyperkzLinked;
 __device__ cufftCallbackStoreC  mkz2_Linked_callbackPtr = mkz2_Linked;
 __device__ cufftCallbackStoreC abs_kzLinked_callbackPtr = abs_kzLinked;
+__device__ cufftCallbackStoreC inv_ikzLinked_callbackPtr = inv_ikzLinked;
 
 __global__ void linkedCopy(const cuComplex* __restrict__ G,
 			   cuComplex* __restrict__ G_linked,
@@ -2763,6 +2828,73 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
       } // l loop
     } // m loop
   } // idxyz < NxNycNz
+}
+
+__global__ void snyder_streaming_rhs(const cuComplex* snyder_moms,
+				     const cuComplex* phi,
+                                     const cuComplex* snyder_fields,
+			             const float gradpar,
+                                     const float te_ov_ti,
+                                     cuComplex* rhs_par)
+{
+  idXYZ;
+
+  if (unmasked(idx, idy) && (idz < nz)) {
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+
+    const cuComplex ne_ = snyder_moms[idxyz];
+    const cuComplex phi_ = phi[idxyz];
+    const cuComplex ue_ = snyder_fields[idxyz];
+
+    // ne equation
+    rhs_par[idxyz] = -gradpar*ue_;
+
+    // apar equation
+    rhs_par[idxyz+nyc*nx*nz] = gradpar*(-phi_ + te_ov_ti*ne_);
+  }
+}
+
+__global__ void snyder_rhs_linear(const cuComplex* snyder_moms,
+				  const cuComplex* phi,
+                                  cuComplex* snyder_fields,
+			          const float* cv_d,
+			          const float* gb_d,
+			          const float* bgrad,
+			          const float* ky,
+                                  const float gradpar,
+                                  const float te_ov_ti,
+                                  const float fprim_e,
+                                  const float tprim_e,
+                                  const float me_ov_mi,
+                                  const float nu_ei,
+				  const cuComplex* ui,
+                                  cuComplex* rhs)
+{
+  idXYZ;
+
+  if (unmasked(idx, idy) && (idz < nz)) {
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+
+    const cuComplex ne_ = snyder_moms[idxyz];
+    const cuComplex apar_ = snyder_moms[idxyz+nx*nyc*nz];
+    const cuComplex phi_ = phi[idxyz];
+    const cuComplex ue_ = snyder_fields[idxyz];
+    const cuComplex Te_ = snyder_fields[idxyz+nx*nyc*nz];
+    const cuComplex ui_ = ui[idxyz];
+
+    const float bgrad_ = bgrad[idz];
+    const cuComplex iky_ = make_cuComplex(0, ky[idy]);
+    const cuComplex iwd_ = make_cuComplex(0, cv_d[idxyz] + gb_d[idxyz]);
+
+    // ne equation
+    rhs[idxyz] = rhs[idxyz] + bgrad_*ue_ + iky_*fprim_e*phi_ - 2*iwd_*(phi_ - ne_*te_ov_ti - Te_);
+
+    // apar equation
+    rhs[idxyz+nyc*nx*nz] = rhs[idxyz+nyc*nx*nz] + te_ov_ti*iky_*fprim_e*apar_ + nu_ei*me_ov_mi*(ue_ - ui_);
+
+    // RHS of Te equation (still need to invert grad_parallel)
+    snyder_fields[idxyz+nx*nyc*nz] = -te_ov_ti*tprim_e*iky_*apar_/gradpar;
+  }
 }
 
 __global__ void rhs_linear_krehm(const cuComplex* g,

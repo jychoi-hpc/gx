@@ -27,6 +27,7 @@ class GradParallel {
   //  virtual void zft_inverse(cuComplex* m, cuComplex* res)=0;
   virtual void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false)=0;
   virtual void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false)=0;
+  virtual void inv_dz(cuComplex* m, cuComplex* res, bool accumulate=false)=0;
   virtual void fft_only(cuComplex* m, cuComplex* res, int dir) {};
 };
 
@@ -47,6 +48,7 @@ class GradParallelPeriodic : public GradParallel {
   
   void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false) {};
   void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
+  void inv_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void fft_only(cuComplex* m, cuComplex* res, int dir);
   dim3 dGd, dBd, dGf, dBf;
   
@@ -56,6 +58,7 @@ class GradParallelPeriodic : public GradParallel {
   cufftHandle zft_plan_forward;  cufftHandle dz_plan_forward;  cufftHandle dz2_plan_forward;
   cufftHandle zft_plan_inverse;  cufftHandle dz_plan_inverse;
   cufftHandle abs_dz_plan_forward;
+  cufftHandle inv_dz_plan_forward;
 };
 
 class GradParallelLinked : public GradParallel {
@@ -76,6 +79,7 @@ class GradParallelLinked : public GradParallel {
   
   void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false);
   void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
+  void inv_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void linkPrint();
   void identity(MomentsG* G); // for testing
 
@@ -109,6 +113,7 @@ class GradParallelLinked : public GradParallel {
   cufftHandle * abs_dz_plan_forward;
   cufftHandle * dz2_plan_forward_singlemom;
   cufftHandle * abs_dz_plan_forward_singlemom;
+  cufftHandle * inv_dz_plan_forward_singlemom;
   dim3 * dG;
   dim3 * dB;
 };
@@ -130,6 +135,7 @@ class GradParallelLocal : public GradParallel {
   
   void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false) {};
   void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
+  void inv_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
  private:
   Grids * grids_ ;
 

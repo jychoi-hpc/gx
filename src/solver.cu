@@ -165,6 +165,50 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
     }
     if (pars_->fapar>0.0) ampere_apar  GQN (fields->apar, jparbar, ampereParFac, pars_->fapar);
 
+  } else if(pars_->snyder_electrons) {
+    zero(nbar);
+
+    // sum ion densities and currents
+    for(int is=0; is<grids_->Nspecies; is++) {
+      if(grids_->m_lo == 0) { // only compute density on procs with m=0
+        real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
+      }
+      if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1
+        if(pars_->fapar>0.0) {
+          // jparbar is an offset pointer to a location in nbar
+	  real_space_par_current GQN (jparbar, G[is]->G(), geo_->kperp2, *G[is]->species);
+	}
+      }
+    }
+    if(grids_->nprocs>1) {
+      // factor of 2 in count*2 is from cuComplex -> float conversion
+      // here, "nbar" actually packages nbar, jparbar, and jperpbar
+      if(pars_->use_NCCL) { 
+	// do AllReduce only across procs with m=0
+	if(grids_->iproc_m==0) {
+          checkCuda(ncclAllReduce((void*) nbar, (void*) nbar_tmp, count*2, ncclFloat, ncclSum, grids_->ncclComm_m0, 0));
+	}
+	// broadcast result to all procs
+	checkCuda(ncclBroadcast((void*) nbar_tmp, (void*) nbar, count*2, ncclFloat, 0, grids_->ncclComm_s, 0));
+        cudaStreamSynchronize(0);
+      } else {
+	MPI_Allreduce((void*) nbar_tmp, (void*) nbar, count*2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        CP_ON_GPU(nbar, nbar_tmp, sizeof(cuComplex)*count);
+      }
+    }
+
+    // add electron charge density to nbar
+    add_scaled_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (nbar, 1.0, nbar, -1, G[0]->ne_snyder);
+    // solve quasineutrality for phi
+    qneut GQN (fields->phi, nbar, qneutFacPhi, pars_->fphi);
+
+    // solve ampere for u_e
+    ampere_snyder GQN (fields->ue_snyder, G[0]->apar_snyder, jparbar, geo_->kperp2, geo_->bmag, pars_->beta, 1./pars_->ti_ov_te);
+
+    // copy apar_snyder -> fields->apar
+    CP_ON_GPU(fields->apar, G[0]->apar_snyder, sizeof(cuComplex)*grids_->NxNycNz);
+
+    // note: T_e is solved for in linear.cu
   } else {
 
     // Boltzmann electrons or Boltzmann ions
