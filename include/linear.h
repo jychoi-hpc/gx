@@ -20,6 +20,7 @@ public:
   ~Linear_GK();
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs);
+  void rhs_implicit(MomentsG* G, Fields* f, MomentsG* GRhs);
   void get_max_frequency(double* wmax);
 
   //  int zderiv(MomentsG *G);
