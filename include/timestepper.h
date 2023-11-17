@@ -221,7 +221,7 @@ class SSPRK3 : public Timestepper {
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
  private:
-  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG* GRhs, Fields* f, bool setdt);
   const double dt_max;
  
   Linear       * linear_    ;
@@ -233,7 +233,7 @@ class SSPRK3 : public Timestepper {
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
   MomentsG     ** G2         ;
-  MomentsG     ** GRhs       ;
+  MomentsG      * GRhs       ;
   double dt_;
 };
 
