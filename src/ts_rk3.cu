@@ -60,10 +60,13 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
       if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
       double wmax = 0.;
       for(int i=0; i<3; i++) wmax += omega_max[i];
+      // Print the two quantities before calculating the minimum
+      //std::cout << "cfl_fac*pars_->cfl/wmax: " << cfl_fac * pars_->cfl / wmax << std::endl;
+      //std::cout << "dt_max: " << dt_max << std::endl;
+      //std::cout << "cfl_fac: " << cfl_fac << std::endl;
       dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
     }
 
-    // compute and increment nonlinear term
     Rhs[is]->set_zero();
     if (nonlinear_ != nullptr) {
       nonlinear_->nlps (Gt[is], f, Rhs[is]);
@@ -72,7 +75,7 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
 
     // compute and increment linear term
     Rhs[is]->set_zero();
-    linear_->rhs(Gt[is], f, Rhs[is]);
+    linear_->rhs(Gt[is], f, Rhs[is], dt_);
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
   
     // need to recompute and save Rhs for intermediate steps

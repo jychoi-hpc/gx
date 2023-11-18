@@ -57,29 +57,16 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.5                # coefficient of hermite hypercollisions
+ nu_hyper_m = 0.1                # coefficient of hermite hypercollisions
  p_hyper_m = 6                   # exponent of hermite hypercollisions
- nu_hyper_l = 0.5                # coefficient of laguerre hypercollisions
+ nu_hyper_l = 0.1                # coefficient of laguerre hypercollisions
  p_hyper_l = 6                   # exponent of laguerre hypercollisions
 
 [Diagnostics]
- nwrite = 1000                   # write diagnostics every 1000 timesteps
- omega  = true                   # compute and write growth rates and frequencies
-
-[Wspectra]                       # spectra of W = |G_lm|**2
-species          = false
-hermite          = false
-laguerre         = false
-hermite_laguerre = true          # W(l,m) (summed over kx, ky, z)
-kx               = false
-ky               = true          # W(ky) (summed over kx, z, l, m)
-kxky             = false
-z                = false
-
-[Pspectra]                      # spectra of P = ( 1 - Gamma_0(b_s) ) |Phi|**2
-species          = false
-kx               = false
-ky               = true         # P(ky) (summed over kx, z)
-kxky             = false
-z                = true         # P(z) (summed over kx, ky)
+ nwrite = 1000                  # write diagnostics every nwrite timesteps
+ omega  = true                  # compute and write growth rates and frequencies
+ free_energy = true             # compute and write free energy spectra (Wg, Wphi, Phi**2)
+ fluxes = true                  # compute and write flux spectra (Q, Gamma)
+ fields = true                  # write fields on the grid
+ moments = true                 # write moments on the grid
 

@@ -43,8 +43,9 @@ nca::nca(int N, int Nwrite) :
     }
   }  
 }
-nca::~nca() {
-  if (data  ) cudaFree     ( data   );
+nca::~nca() { 
+  cudaFree (data);
+  //if (data  ) cudaFree     ( data   );
   if (tmp_d ) cudaFree     ( tmp_d  );
   if (tmp   ) free ( tmp    );
   if (cpu   ) free ( cpu    );

@@ -288,6 +288,32 @@ void MomentsG::initialConditions(double* time) {
     case inits::tperp   : if(tprp_ptr) CP_TO_GPU(tprp_ptr, init_h, momsize); break; 
     case inits::qpar    : if(qpar_ptr) CP_TO_GPU(qpar_ptr, init_h, momsize); break;
     case inits::qperp   : if(qprp_ptr) CP_TO_GPU(qprp_ptr, init_h, momsize); break;
+    case inits::all     :
+      if(dens_ptr) {
+        CP_TO_GPU(dens_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (dens_ptr, dens_ptr, pars_->densfac);
+      }
+      if(upar_ptr) {
+        CP_TO_GPU(upar_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (upar_ptr, upar_ptr, pars_->uparfac);
+      }
+      if(tpar_ptr) {
+        CP_TO_GPU(tpar_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (tpar_ptr, tpar_ptr, 1/sqrtf(2.)*pars_->tparfac);
+      }
+      if(tprp_ptr) {
+        CP_TO_GPU(tprp_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (tprp_ptr, tprp_ptr, pars_->tprpfac);
+      }
+      if(qpar_ptr) {
+        CP_TO_GPU(qpar_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (qpar_ptr, qpar_ptr, 1/sqrtf(6.)*pars_->qparfac);
+      }
+      if(qprp_ptr) {
+        CP_TO_GPU(qprp_ptr, init_h, momsize);
+        scale_singlemom_kernel <<< grids_->NxNycNz/256 + 1, 256 >>> (qprp_ptr, qprp_ptr, pars_->qprpfac);
+      }
+      break;
     }
   checkCuda(cudaGetLastError());    
   free(init_h);     
@@ -364,9 +390,9 @@ void MomentsG::reality(int ngz)
   reality_kernel <<< dG, dB >>> (G(), ngz);
 }
 
-void MomentsG::sync()
+void MomentsG::sync(bool blocking)
 {
-  if(pars_->use_NCCL) syncNCCL();
+  if(pars_->use_NCCL) syncNCCL(blocking);
   else syncMPI();
 }
 
@@ -397,7 +423,7 @@ void MomentsG::syncMPI()
   cudaDeviceSynchronize();
 }
 
-void MomentsG::syncNCCL()
+void MomentsG::syncNCCL(bool blocking)
 {
   if(grids_->nprocs_m==1) return;
 
@@ -424,6 +450,10 @@ void MomentsG::syncNCCL()
     ncclRecv(Gm(grids_->Nm), count, ncclFloat, grids_->procRight(), grids_->ncclComm, syncStream);
   }
   ncclGroupEnd();
+
+  if(blocking) {
+    cudaStreamSynchronize(syncStream);
+  }
 }
 
 void MomentsG::restart_write(int ncres, int id_G)

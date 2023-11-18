@@ -13,8 +13,8 @@
 #define loop_M   <<< blocks_m,  threads_m  >>>
 
 
-Reservoir::Reservoir(Parameters* pars, int Min) :
-  pars_(pars), R(nullptr), V(nullptr), W(nullptr), W_in(nullptr), A_in(nullptr), A_col(nullptr),
+Reservoir::Reservoir(Parameters* pars, Grids* grids, int Min) :
+  pars_(pars), grids_(grids), R(nullptr), V(nullptr), W(nullptr), W_in(nullptr), A_in(nullptr), A_col(nullptr),
   R2(nullptr), x(nullptr), invWork(nullptr), B(nullptr), info(nullptr), P(nullptr), fake_G(nullptr)
 {
 
@@ -137,7 +137,7 @@ Reservoir::Reservoir(Parameters* pars, int Min) :
   free(A_j);
 
   if (false) {
-    red = new dBlock_Reduce(N); cudaDeviceSynchronize();
+    red = new Reduction<double>(grids_, {'a'}, {}, N); cudaDeviceSynchronize();
     double *y;      cudaMalloc( &y,      sizeof(double)*N );
     double *x2norm; cudaMalloc( &x2norm, sizeof(double)   );
     double *y2norm; cudaMalloc( &y2norm, sizeof(double)   );

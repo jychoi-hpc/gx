@@ -83,7 +83,9 @@ npol = f['Geometry']['npol']
 psi = f['Geometry']['rhotor']
 path = f['Geometry']['geo_file']
 
-eq = desc.io.load(path)[-1]
+eq = desc.io.load(path)  # loads desc output
+if hasattr(eq, '__len__'):
+    eq = eq[-1]
 
 eq_keys = [
     "iota",

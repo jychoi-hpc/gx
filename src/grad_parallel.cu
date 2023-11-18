@@ -123,7 +123,7 @@ void GradParallelPeriodic::zft_inverse(cuComplex* mom, cuComplex* res)
 */
 
 // FFT and derivative for all moments
-void GradParallelPeriodic::dz(MomentsG* G)
+void GradParallelPeriodic::dz(MomentsG* G, MomentsG* res, bool accumulate)
 {
   // FFT and derivative on parallel term
   // i*kz*G calculated via callback, defined as part of dz_plan_forward
@@ -164,14 +164,14 @@ void GradParallelPeriodic::dz2(cuComplex* mom, cuComplex* res)
 }
 
 // FFT and derivative for a single moment
-void GradParallelPeriodic::dz(cuComplex* mom, cuComplex* res)
+void GradParallelPeriodic::dz(cuComplex* mom, cuComplex* res, bool accumulate)
 {
   cufftExecC2C(dz_plan_forward, mom, res, CUFFT_FORWARD);
   cufftExecC2C(dz_plan_inverse, res, res, CUFFT_INVERSE);
 }
 
 // FFT and |kz| operator for a single moment
-void GradParallelPeriodic::abs_dz(cuComplex* mom, cuComplex* res)
+void GradParallelPeriodic::abs_dz(cuComplex* mom, cuComplex* res, bool accumulate)
 {
   cufftExecC2C(abs_dz_plan_forward, mom, res, CUFFT_FORWARD);
   cufftExecC2C(dz_plan_inverse, res, res, CUFFT_INVERSE);
@@ -193,7 +193,7 @@ GradParallelLocal::GradParallelLocal(Grids* grids) :
   mkpar2 = -kpar/((float) grids_->Zp);
 }
 
-void GradParallelLocal::dz(MomentsG *G)
+void GradParallelLocal::dz(MomentsG *G, MomentsG *res, bool accumulate)
 {
   G->scale(make_cuComplex(0.,kpar));
 }
@@ -211,16 +211,15 @@ void GradParallelLocal::zft_inverse(MomentsG *G) {return;}
 //void GradParallelLocal::zft_inverse(MomentsG *G, cuComplex* res) {return;}
 
 // single moment
-void GradParallelLocal::dz(cuComplex* mom, cuComplex* res) {
+void GradParallelLocal::dz(cuComplex* mom, cuComplex* res, bool accumulate) {
   scale_singlemom_kernel GGP (res, mom, make_cuComplex(0.,kpar));
 }
 // single moment
+void GradParallelLocal::abs_dz(cuComplex* mom, cuComplex* res, bool accumulate) {
+  scale_singlemom_kernel GGP (res, mom, make_cuComplex(kpar,0.));
+}
 void GradParallelLocal::dz2(cuComplex* mom, cuComplex* res) {
   scale_singlemom_kernel GGP (res, mom, mkpar2);
-}
-// single moment
-void GradParallelLocal::abs_dz(cuComplex* mom, cuComplex* res) {
-  scale_singlemom_kernel GGP (res, mom, make_cuComplex(kpar,0.));
 }
 
 GradParallel1D::GradParallel1D(Grids* grids) :

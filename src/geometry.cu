@@ -315,16 +315,16 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   cudaMalloc ((void**) &grho, size);
   cudaMalloc ((void**) &jacobian, size);
   
-  float qsf = pars->qsf;
+  qsf = pars->qsf;
   float beta_e = pars->beta;
-  float rmaj = pars->rmaj;
+  rmaj = pars->rmaj;
   specie* species = pars->species_h;
   
   gradpar = (float) abs(1./(qsf*rmaj));
   zero_shat_ = pars->zero_shat;
   shat = pars->shat;
-  pars->drhodpsi = 1.; 
-  pars->kxfac = 1.;
+  drhodpsi = pars->drhodpsi = 1.; 
+  kxfac = pars->kxfac = 1.;
   
   if(pars->shift < 0.) {
     pars->shift = 0.;
@@ -334,7 +334,7 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
 	(species[s].tprim + species[s].fprim);
     }
   }
-  float shift = pars->shift;
+  shift = pars->shift;
  
   if(grids->iproc==0) DEBUGPRINT("\n\n Using s-alpha geometry: \n\n");
   for(int k=0; k<Nz; k++) {
@@ -377,15 +377,14 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
       if (pars->zero_shat) {
 	gds21_h[k] = 0.0;
 	gds22_h[k] = 1.0;
-	shat = 0.0;
-	pars->shat = 0.0;	
+	shat = pars->shat = 0.0;	
       }
     }
     if(pars->local_limit) { z_h[k] = 2 * M_PI * pars->Zp * (k-Nz/2) / Nz; gradpar = 1.; }
 
     // calculate these derived coefficients after slab overrides
     bmagInv_h[k] = 1./bmag_h[k];
-    jacobian_h[k] = 1. / abs(pars->drhodpsi * gradpar * bmag_h[k]);
+    jacobian_h[k] = 1. / abs(drhodpsi * gradpar * bmag_h[k]);
   }  
 
   CP_TO_GPU (z,        z_h,        size);
@@ -547,28 +546,30 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   
   if (retval = nc_inq_varid(ncgeo, "drhodpsi", &id))     ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
-  pars->drhodpsi = (float) stmp;
-  drhodpsi = pars->drhodpsi;
+  drhodpsi = pars->drhodpsi = (float) stmp;
   
   for (int n=0; n<N; n++) jacobian_h[n] = 1./abs(drhodpsi*gradpar*bmag_h[n]);
       
   if (retval = nc_inq_varid(ncgeo, "kxfac", &id))        ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
-  pars->kxfac = (float) stmp;
+  kxfac = pars->kxfac = (float) stmp;
 
   if (retval = nc_inq_varid(ncgeo, "shat", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
-  pars->shat = (float) stmp;
-  shat = (float) stmp;
+  shat = pars->shat = (float) stmp;
   //  printf("geometry: shat = %f \n",shat);
   
   if (retval = nc_inq_varid(ncgeo, "Rmaj", &id))         ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
-  pars->rmaj = (float) stmp;
+  rmaj = pars->rmaj = (float) stmp;
 
   if (retval = nc_inq_varid(ncgeo, "q", &id))            ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
-  pars->qsf = (float) stmp;
+  qsf = pars->qsf = (float) stmp;
+
+  if (retval = nc_inq_varid(ncgeo, "scale", &id))            ERR(retval);
+  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  theta_scale = (float) stmp;
 
   // close the netcdf file with nc_close
   if (retval = nc_close(ncgeo)) ERR(retval);
@@ -689,13 +690,13 @@ Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
       getline (myfile, datline);  
       stringstream ss(datline);      string element;       
       ss >> element; ntgrid         = stoi(element);    
-      ss >> element; pars->nperiod  = stoi(element);
+      ss >> element; nperiod = pars->nperiod  = stoi(element);
       ss >> element; newNz          = stoi(element);   
-      ss >> element; pars->drhodpsi = stof(element);
-      ss >> element; pars->rmaj     = stof(element);
-      ss >> element; pars->shat     = stof(element);
-      ss >> element; pars->kxfac    = stof(element);       
-      ss >> element; pars->qsf      = stof(element);       
+      ss >> element; drhodpsi = pars->drhodpsi = stof(element);
+      ss >> element; rmaj = pars->rmaj     = stof(element);
+      ss >> element; shat = pars->shat     = stof(element);
+      ss >> element; kxfac = pars->kxfac    = stof(element);       
+      ss >> element; qsf = pars->qsf      = stof(element);       
       if (!ss.eof()) { // newer eik.out files may have additional data
         ss >> element; pars->B_ref    = stof(element);
         ss >> element; pars->a_ref    = stof(element);
@@ -703,8 +704,6 @@ Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
         ss >> element; pars->surfarea = stof(element);
       }
 
-      shat       = pars->shat;
-      drhodpsi   = pars->drhodpsi;
       oldnperiod = pars->nperiod;
 
       newNz = (2*pars->nperiod-1)*newNz;
@@ -849,7 +848,24 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
   init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
 
+  // initialize volume integral weight quantities needed for some diagnostics
+  float volDenom = 0.;  
+  vol_fac_h = (float*) malloc (sizeof(float) * grids->Nz);
+  cudaMalloc (&vol_fac, sizeof(float) * grids->Nz);
+  for (int i=0; i < grids->Nz; i++) volDenom   += jacobian_h[i]; 
+  for (int i=0; i < grids->Nz; i++) vol_fac_h[i]  = jacobian_h[i] / volDenom;
+  CP_TO_GPU(vol_fac, vol_fac_h, sizeof(float)*grids->Nz);
+
+  // volume integrals for fluxes contain a factor of 1/grho == 1/|\nabla x|
+  float fluxDenom = 0.;  
+  flux_fac_h = (float*) malloc (sizeof(float) * grids->Nz);
+  cudaMalloc(&flux_fac, sizeof(float)*grids->Nz);
+  for (int i=0; i<grids->Nz; i++) fluxDenom   += jacobian_h[i]*grho_h[i];
+  for (int i=0; i<grids->Nz; i++) flux_fac_h[i]  = jacobian_h[i] / fluxDenom;
+  CP_TO_GPU(flux_fac, flux_fac_h, sizeof(float)*grids->Nz);
+
   // compute max values of gbdrift, cvdrift, gbdrift0, cvdrift0
+  bmag_max = 0.;
   gbdrift_max = 0.;
   gbdrift0_max = 0.;
   cvdrift_max = 0.;
@@ -859,6 +875,7 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
     gbdrift0_max = max(gbdrift0_max, abs(gbdrift0_h[i]));
     cvdrift_max = max(cvdrift_max, abs(cvdrift_h[i]));
     cvdrift0_max = max(cvdrift0_max, abs(cvdrift0_h[i]));
+    bmag_max = max(bmag_max, abs(bmag_h[i]));
   }
 
   /*

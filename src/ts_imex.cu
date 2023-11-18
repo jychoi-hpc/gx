@@ -41,7 +41,7 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
     grad_par = new GradParallelPeriodic(grids_);
   }
   else {
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    grad_par = new GradParallelLinked(pars_, grids_);
   }
   
   int nxkyz = grids_->NxNycNz;
@@ -70,10 +70,10 @@ void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, boo
     A[is]->set_zero();
     if(is == ielectron) {
       // compute explicit part of electron linear rhs
-      linear_->rhs_nonstreaming(G[is], f, A[is]);
+      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
     } else {
       // handle entire ion linear rhs explicitly
-      linear_->rhs(G[is], f, A[is]);
+      linear_->rhs(G[is], f, A[is], dt_);
     }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
@@ -89,7 +89,7 @@ void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
     B[is]->set_zero();
     if(is == ielectron) { // electrons
       // compute implicit part of electron linear rhs
-      linear_->rhs_streaming(G[is], f, B[is]);
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
     }
   }
 }

@@ -8,11 +8,11 @@ from netCDF4 import Dataset
 plt.figure(0)
 for fname in sys.argv[1:]:
   data = Dataset(fname, mode='r')
-  t = data.variables['time'][:]
-  ky = data.variables['ky'][:]
-  kx = data.variables['kx'][:]
-  dkx = abs(kx[1]-kx[0])
-  Akxky0t = data.groups['Spectra'].variables['Phi2kxkyt'][:,0,:]
+  t = data.groups['Grids'].variables['time'][:]
+  kx = data.groups['Grids'].variables['kx'][:]
+  ky = data.groups['Grids'].variables['ky'][:]
+  dkx = kx[1] - kx[0]
+  Akxky0t = data.groups['Diagnostics'].variables['Phi2_zonal_kxt'][:,:]
   Akx = np.mean(Akxky0t[-int(len(t)/2):], axis=0)/dkx
   plt.plot(kx, Akx, 'o-')
 

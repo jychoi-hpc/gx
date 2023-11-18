@@ -9,9 +9,9 @@ from netCDF4 import Dataset
 
 def particle_flux(data, ispec=0, navgfac=0.5, label=None, plot=True, fig=None, Lref="a", refsp=None):
     # read data from file
-    t = data.variables['time'][:]
+    t = data.groups['Grids'].variables['time'][:]
     try:
-        p = data.groups['Fluxes'].variables['pflux'][:,ispec]
+        p = data.groups['Diagnostics'].variables['ParticleFlux_st'][:,ispec]
     except:
         print('Error: particle flux data was not written. Make sure to use \'fluxes = true\' in the input file.')
     species_type = data.groups['Inputs'].groups['Species'].variables['species_type'][ispec]
@@ -62,5 +62,5 @@ if __name__ == "__main__":
     
     plt.xlim(0)
     # uncomment this line to save a PNG image of the plot
-    #plt.savefig("particle_flux.png")
+    plt.savefig("particle_flux.png", dpi=300)
     plt.show()

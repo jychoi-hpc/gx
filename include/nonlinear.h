@@ -15,6 +15,12 @@ class Nonlinear {
   virtual void nlps(MomentsG* G, Fields* f, MomentsG* G_res) = 0;
   virtual double cfl(Fields *f, double dt_max) = 0;
   virtual void get_max_frequency(Fields *f, double *wmax) {};
+  GradPerp* get_grad_perp_f() {return grad_perp_f;}
+  float* get_fXY() {return fXY;}
+
+ protected:
+  GradPerp *grad_perp_f;
+  float *fXY;
 };
 
 class Nonlinear_GK : public Nonlinear {
@@ -41,13 +47,12 @@ class Nonlinear_GK : public Nonlinear {
   Grids             * grids_          ;  
   Geometry          * geo_            ;
   
-  Red               * red             ; 
+  Reduction<float>         * red             ; 
   LaguerreTransform * laguerre        ;
   LaguerreTransform * laguerre_single ;
   GradPerp          * grad_perp_G     ;
   GradPerp          * grad_perp_G_single ;
   GradPerp          * grad_perp_J0f ;
-  GradPerp          * grad_perp_f   ;
 
   MomentsG * G_tmp;
   cuComplex * tmp_c   ;
@@ -89,8 +94,7 @@ class Nonlinear_KREHM : public Nonlinear {
   Parameters        * pars_           ;
   Grids             * grids_          ;  
   
-  Red               * red             ; 
-  GradPerp          * grad_perp_f     ;
+  Reduction<float>         * red             ; 
   GradPerp          * grad_perp_G     ;
 
   float * dg_dx       ;
@@ -130,8 +134,7 @@ class Nonlinear_cetg : public Nonlinear {
   Parameters        * pars_           ;
   Grids             * grids_          ;  
   
-  Red               * red             ; 
-  GradPerp          * grad_perp_f     ;
+  Reduction<float>         * red             ; 
   GradPerp          * grad_perp_G     ;
 
   float * dg_dx       ;
@@ -192,7 +195,6 @@ class Nonlinear_VP : public Nonlinear {
   Grids             * grids_          ;  
   
   GradPerp          * grad_perp_G     ;
-  GradPerp          * grad_perp_f   ;
 
   float * Gy          ;
   float * dphi_dy     ;

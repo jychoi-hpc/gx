@@ -23,3 +23,6 @@ unit_tests/unit_tests
 geometry_modules/vmec/convert_VMEC_to_GX
 src/version.c
 *.log
+*.tmp
+unit_tests/test_*
+*.png

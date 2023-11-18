@@ -26,7 +26,7 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-enum class inits {density, upar, tpar, tperp, qpar, qperp};
+enum class inits {density, upar, tpar, tperp, qpar, qperp, all};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
 enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2}; 
 enum class Closure {none, beer42, smithperp, smithpar};
@@ -87,6 +87,8 @@ enum Phi2Spectra {PHI2SPECTRA_t,
 #define BOLTZMANN_IONS 1
 #define BOLTZMANN_ELECTRONS 2
 
+class NcDims;
+
 class Parameters {
 
  public:
@@ -102,7 +104,7 @@ class Parameters {
   const int ngam_spectra = 7;  // should match # of elements in PSpectra
   const int nphi2_spectra = 7;  // should match # of elements in PSpectra
   void get_nml_vars(char* file);
-  void store_ncdf(int ncid);
+  void store_ncdf(int ncid, NcDims* nc_dims);
 
   void init_species(specie* species);
   void set_jtwist_x0(float* shat, float *gds21, float *gds22);
@@ -110,12 +112,13 @@ class Parameters {
   int nczid, nzid, ncresid, ncbid;
   int nc_geo, nc_time, nc_ks, nc_vp, nc_rst, nc_dom, nc_diag, nc_krehm, nc_cetg;
   int nc_expert, nc_resize, nc_con, nc_frc, nc_bz, nc_ml, nc_sp, nc_spec;
-  int p_HB, p_hyper_l, p_hyper_m, irho, nwrite, navg, nsave, igeo, nreal;
+  int p_HB, p_hyper_l, p_hyper_m, p_hyper_lm, irho, nwrite, nwrite_big, navg, nsave, igeo, nreal;
+  int p_hyper_z;
   int nz_in, nperiod, Zp, bishop, scan_number, icovering;
   int nx_in, ny_in, jtwist, nm_in, nl_in, nstep, nspec_in, nspec;
   int x0_mult, y0_mult, z0_mult, nx_mult, ny_mult, ntheta_mult;
   int nm_add, nl_add, ns_add;
-  int forcing_index, smith_par_q, smith_perp_q;
+  int forcing_index, smith_par_q, smith_perp_q, forcing_kz, forcing_k2min, forcing_k2max;
   int equilibrium_type, source_option, inlpm, p_hyper, iphi00;
   int dorland_phase_ifac, ivarenna, iflr, i_share;
   int iky_single, ikx_single, iky_fixed, ikx_fixed;
@@ -138,8 +141,10 @@ class Parameters {
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
   float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;
   int ikpar_init;
-  float forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;
-  float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m;
+  float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;
+  float forcing_amp, pos_forcing_amp, neg_forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;
+  float dnlpm, dnlpm_dens, dnlpm_tprp, nu_hyper_l, nu_hyper_m, nu_hyper_lm;
+  float nu_hyper_z;
   float D_HB, w_osc;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
@@ -151,19 +156,23 @@ class Parameters {
   float eps_ks;
   float vp_nu, vp_nuh;
   int vp_alpha, vp_alpha_h;
-  float vtmax, tzmax, etamax;
+  float vtmax, tzmax, etamax, vtmin;
   float delrho, p_prime_input, invLp_input, alpha_input;
   float B_ref, a_ref, grhoavg, surfarea;
   float t_max, t_add;
+  float zero_shat_threshold;
 
   // parameters for KREHM system
   bool krehm;
   float rho_s, rho_i, d_e, zt;
   bool harris_sheet;
-  
+  bool periodic_equilibrium;
+  float k0; 
+  bool gaussian_tube;
   cuComplex phi_test, smith_perp_w0;
 
   specie *species_h;
+  float ne, Te;
 
   bool adiabatic_electrons, snyder_electrons, stationary_ions, dorland_qneut;
   bool all_kinetic, ks, gx, add_Boltzmann_species, write_ks, random_init;
@@ -183,7 +192,8 @@ class Parameters {
   bool write_xyApar; 
 
   bool nonlinear_mode, linear, iso_shear, secondary, local_limit, hyper, HB_hyper;
-  bool no_landau_damping, turn_off_gradients_test, slab, hypercollisions;
+  bool hyperz;
+  bool no_landau_damping, turn_off_gradients_test, slab, hypercollisions_const, hypercollisions_kz;
   bool write_netcdf, write_omega, write_rh, write_phi, restart, save_for_restart;
   bool fixed_amplitude, write_fields, write_eigenfuncs; 
   bool append_old, no_omegad, eqfix, write_pzt, collisions, domain_change;
@@ -205,12 +215,13 @@ class Parameters {
   bool Reservoir, ResFakeData, ResWrite, ResBatch;
   bool dealias_kz;
   bool hegna;  // bb6126 - hegna test
-  bool ei_colls;
+  bool ei_colls, coll_conservation;
   bool efit_eq, dfit_eq, gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, transp_eq, gs2d_eq;
   //  bool tpar_omegad_corrections, tperp_omegad_corrections, qpar_gradpar_corrections ;
   //  bool qpar_bgrad_corrections, qperp_gradpar_corrections, qperp_bgrad_corrections ;
   bool use_NCCL;
   bool long_wavelength_GK;
+  float damp_ends_widthfrac, damp_ends_amp;
     
   char *scan_type;
   char *equilibrium_option, *nlpm_option;
@@ -218,6 +229,8 @@ class Parameters {
 
   int specs[1]; // dims for netcdf species variable arrays
   size_t is_start[1], is_count[1]; 
+
+  bool energy_spectra, flux_spectra;
 
   int aspecdim[1]; // dimension of control structure for spectral plots (adiabatic species)
   int pspecdim[1]; // dimension of control structure for spectral plots (1-Gamma_0) Phi**2

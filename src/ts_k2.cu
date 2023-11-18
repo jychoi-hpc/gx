@@ -34,7 +34,7 @@ K2::~K2()
 void K2::EulerStep(MomentsG** G_q1, MomentsG** GRhs, Fields* f, bool setdt)
 {  
   for(int is=0; is<grids_->Nspecies; is++) {
-    linear_->rhs(G_q1[is], f, GRhs[is]);
+    linear_->rhs(G_q1[is], f, GRhs[is], dt_);
 
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G_q1[is], f, GRhs[is]);
@@ -49,7 +49,7 @@ void K2::EulerStep(MomentsG** G_q1, MomentsG** GRhs, Fields* f, bool setdt)
 void K2::FinalStep(MomentsG** G_q1, MomentsG** G_q2, MomentsG** GRhs, Fields* f)
 {  
   for(int is=0; is<grids_->Nspecies; is++) {
-    linear_->rhs(G_q1[is], f, GRhs[is]);
+    linear_->rhs(G_q1[is], f, GRhs[is], dt_);
     if(nonlinear_ != nullptr) nonlinear_->nlps(G_q1[is], f, GRhs[is]);
 
     double sm1 = (double) stages_ - 1;  

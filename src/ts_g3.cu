@@ -30,7 +30,7 @@ G3::~G3()
 void G3::EulerStep(MomentsG** G_u, MomentsG** GRhs, Fields* f, bool setdt)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
-    linear_->rhs(G_u[is], f, GRhs[is]);
+    linear_->rhs(G_u[is], f, GRhs[is], dt_);
 
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G_u[is], f, GRhs[is]);

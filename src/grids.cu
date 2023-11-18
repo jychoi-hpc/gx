@@ -131,15 +131,16 @@ Grids::Grids(Parameters* pars) :
 
   checkCuda(cudaDeviceSynchronize());
 
+  DEBUGPRINT("Initializing NCCL comms...\n");
   //cudaStreamCreate(&ncclStream);
   if(iproc == 0) ncclGetUniqueId(&ncclId);
   if(nprocs > 1) {
     MPI_Bcast((void *)&ncclId, sizeof(ncclId), MPI_BYTE, 0, MPI_COMM_WORLD);
   }
   // set up some additional ncclIds
-  if(iproc == 0) ncclGetUniqueId(&ncclId_m);
+  if(iproc == 0) ncclGetUniqueId(&ncclId_m0);
   if(nprocs > 1) {
-    MPI_Bcast((void *)&ncclId_m, sizeof(ncclId_m), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast((void *)&ncclId_m0, sizeof(ncclId_m0), MPI_BYTE, 0, MPI_COMM_WORLD);
   }
   ncclId_s.resize(nprocs_s);
   for(int i=0; i<nprocs_s; i++) {
@@ -148,17 +149,29 @@ Grids::Grids(Parameters* pars) :
       MPI_Bcast((void *)&ncclId_s[i], sizeof(ncclId_s[i]), MPI_BYTE, 0, MPI_COMM_WORLD);
     }
   }
+  ncclId_m.resize(nprocs_m);
+  for(int i=0; i<nprocs_m; i++) {
+    if(iproc == 0) ncclGetUniqueId(&ncclId_m[i]);
+    if(nprocs > 1) {
+      MPI_Bcast((void *)&ncclId_m[i], sizeof(ncclId_m[i]), MPI_BYTE, 0, MPI_COMM_WORLD);
+    }
+  }
+
+  DEBUGPRINT("Got NCCL IDs\n");
 
   checkCuda(ncclCommInitRank(&ncclComm, nprocs, ncclId, iproc));
   // set up NCCL communicator that is per-species
   checkCuda(ncclCommInitRank(&ncclComm_s, nprocs_m, ncclId_s[iproc_s], iproc_m));
+  // set up NCCL communicator that is per-m block
+  checkCuda(ncclCommInitRank(&ncclComm_m, nprocs_s, ncclId_m[iproc_m], iproc_s));
   // set up NCCL communicator that involves only GPUs containing m=0, i.e. grids_->proc(0, iproc_s)
   if(iproc_m == 0) {
     if(nprocs_m > 1)
-      checkCuda(ncclCommInitRank(&ncclComm_m0, nprocs_s, ncclId_m, iproc_s));
+      checkCuda(ncclCommInitRank(&ncclComm_m0, nprocs_s, ncclId_m0, iproc_s));
     else
       ncclComm_m0 = ncclComm;
   }
+  DEBUGPRINT("Finished initializaing NCCL comms.\n");
 }
 
 Grids::~Grids() {
@@ -183,6 +196,7 @@ Grids::~Grids() {
  
   ncclCommDestroy(ncclComm);
   ncclCommDestroy(ncclComm_s);
+  ncclCommDestroy(ncclComm_m);
   if(nprocs_m > 1 && iproc_m == 0) ncclCommDestroy(ncclComm_m0);
 }
 
@@ -262,6 +276,7 @@ void Grids::init_ks_and_coords()
   kx_max = kx_h[(Nx-1)/3];
   ky_max = ky_h[(Ny-1)/3];
   kz_max = kz_h[Nz/2];
+  kperp_min = min(kx_h[1], ky_h[1]);
   delete hermite;
   delete laguerre;
 }

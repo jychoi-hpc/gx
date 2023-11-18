@@ -63,7 +63,7 @@ void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
 
     // compute and increment linear term
     Rhs[is]->set_zero();
-    linear_->rhs(Gt[is], f, Rhs[is]);
+    linear_->rhs(Gt[is], f, Rhs[is], dt_);
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
   
     // need to recompute and save Rhs for intermediate steps
@@ -106,7 +106,7 @@ void RungeKutta4::advance(double *t, MomentsG** G, Fields* f)
     G[is]->add_scaled(1., G[is], 1., GRhs[is], dt_/6., GStar[is]);
 
     GStar[is]->set_zero();
-    linear_->rhs(G_q1[is], f, GStar[is]);
+    linear_->rhs(G_q1[is], f, GStar[is], dt_);
     
     G[is]->add_scaled(1., G[is], dt_/6., GStar[is]);
 

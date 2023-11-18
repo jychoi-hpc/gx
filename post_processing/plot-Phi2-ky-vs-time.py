@@ -6,17 +6,28 @@ import sys
 from netCDF4 import Dataset
 
 plt.figure(0)
-for fname in sys.argv[1:]:
+if sys.argv[-1].isnumeric():
+  iky = int(sys.argv[-1])
+  files = sys.argv[1:-1]
+else:
+  iky = None
+  files = sys.argv[1:]
+
+for fname in files:
   data = Dataset("%s"%fname, mode='r')
-  t = data.variables['time'][:]
-  ky = data.variables['ky'][:]
-  for i in np.arange(0, len(ky)):
-    y = data.groups['Spectra'].variables['Phi2kyt'][:,i]
-    if i==0:
-       fmt = '--'
-    else:
-       fmt = '-'
-    plt.plot(t, y, fmt, label='ky = %.3f' % ky[i])
+  t = data.groups['Grids'].variables['time'][:]
+  ky = data.groups['Grids'].variables['ky'][:]
+  if iky is None:
+    for i in np.arange(0, len(ky)):
+      y = data.groups['Diagnostics'].variables['Phi2_kyt'][:,i]
+      if i==0:
+         fmt = '--'
+      else:
+         fmt = '-'
+      plt.plot(t, y, fmt, label='ky = %.3f' % ky[i])
+  else:
+    y = data.groups['Diagnostics'].variables['Phi2_kyt'][:,iky]
+    plt.plot(t, y, '-', label='ky = %.3f' % ky[iky])
 
     #fit = stats.linregress(t[int(len(t)/2):-1], np.log(y[int(len(t)/2):-1]))
     ##plt.plot(t, np.exp(fit.intercept + fit.slope*t), '--', label=r'%s, ky = %.3f: $\gamma = $%.5f' % (fname, ky[i], fit.slope/2))

@@ -12,19 +12,21 @@ class GradParallel {
   GradParallel() {};
   virtual ~GradParallel() {};
 
-  virtual void dz(MomentsG* G)=0;
-  virtual void dz(cuComplex* m, cuComplex* res)=0;
+  virtual void dz(MomentsG* G, MomentsG* res, bool accumulate=false)=0;
+  virtual void dz(cuComplex* m, cuComplex* res, bool accumulate=false)=0;
+  virtual void hyperz(MomentsG* G, MomentsG* res, float nu, bool accumulate=false) {printf("hyperz not yet implemented\n"); exit(1);};
   virtual void dz2(MomentsG* G)=0;
   virtual void dz2(cuComplex* m, cuComplex* res)=0;
   virtual void zft(MomentsG* G)=0;
   virtual void zft(cuComplex* m, cuComplex* res)=0;
   virtual void dealias(MomentsG* G) {};
   virtual void dealias(cuComplex* f) {};
-  virtual void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2) {};
+  virtual void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2, double dt) {};
   
   virtual void zft_inverse(MomentsG* G)=0;
   //  virtual void zft_inverse(cuComplex* m, cuComplex* res)=0;
-  virtual void abs_dz(cuComplex* m, cuComplex* res)=0;
+  virtual void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false)=0;
+  virtual void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false)=0;
   virtual void fft_only(cuComplex* m, cuComplex* res, int dir) {};
 };
 
@@ -35,14 +37,16 @@ class GradParallelPeriodic : public GradParallel {
 
   void dealias(MomentsG* G);
   void dealias(cuComplex* f);
-  void  dz(MomentsG* G);   void dz(cuComplex* m, cuComplex* res);
+  void  dz(MomentsG* G, MomentsG* res, bool accumulate=false);   
+  void  dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void dz2(MomentsG* G);  void dz2(cuComplex* m, cuComplex* res);
   void zft(MomentsG* G);  void zft(cuComplex* m, cuComplex* res);
 
   void zft_inverse(MomentsG* G);
   //  void zft_inverse(cuComplex* m, cuComplex* res);
   
-  void abs_dz(cuComplex* m, cuComplex* res);
+  void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false) {};
+  void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void fft_only(cuComplex* m, cuComplex* res, int dir);
   dim3 dGd, dBd, dGf, dBf;
   
@@ -56,24 +60,27 @@ class GradParallelPeriodic : public GradParallel {
 
 class GradParallelLinked : public GradParallel {
  public:
-  GradParallelLinked(Grids* grids, int jtwist);
+  GradParallelLinked(Parameters* pars, Grids* grids);
   ~GradParallelLinked();
 
   void dealias(MomentsG* G);
   void dealias(cuComplex* f);
-  void  dz(MomentsG* G);     void dz(cuComplex* m, cuComplex* res);
+  void dz(MomentsG* G, MomentsG* res, bool accumulate=false);     void dz(cuComplex* m, cuComplex* res, bool accumulate=false);
+  void hyperz(MomentsG* G, MomentsG* res, float nu, bool accumulate=false);
   void dz2(MomentsG* G);    void dz2(cuComplex* m, cuComplex* res);
   void zft(MomentsG* G);   void zft(cuComplex* m, cuComplex* res);
-  void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2);
+  void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2, double dt);
 
   void zft_inverse(MomentsG* G);
   //  void zft_inverse(cuComplex* m, cuComplex* res);
   
-  void abs_dz(cuComplex* m, cuComplex* res);
+  void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false);
+  void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void linkPrint();
   void identity(MomentsG* G); // for testing
 
  private:
+  Parameters * pars_;
   Grids * grids_ ;
   
   int get_nClasses(int *idxRight, int *idxLeft, int *linksR, int *linksL, int *n_k, int naky, int ntheta0, int jshift0);
@@ -92,12 +99,14 @@ class GradParallelLinked : public GradParallel {
 
   cufftHandle * zft_plan_forward;  cufftHandle * dz_plan_forward;  cufftHandle * dz2_plan_forward; 
   cufftHandle * zft_plan_inverse;  cufftHandle * dz_plan_inverse;
+  cufftHandle * hyperz_plan_forward; cufftHandle * hyperz_plan_inverse;
 
   cufftHandle * zft_plan_forward_singlemom;
   cufftHandle * zft_plan_inverse_singlemom;
 
-  cufftHandle *  dz_plan_forward_singlemom;
-  cufftHandle *  dz_plan_inverse_singlemom;
+  cufftHandle * dz_plan_forward_singlemom;
+  cufftHandle * dz_plan_inverse_singlemom;
+  cufftHandle * abs_dz_plan_forward;
   cufftHandle * dz2_plan_forward_singlemom;
   cufftHandle * abs_dz_plan_forward_singlemom;
   dim3 * dG;
@@ -109,8 +118,8 @@ class GradParallelLocal : public GradParallel {
   GradParallelLocal(Grids* grids);
   ~GradParallelLocal() {};
 
-  void dz(MomentsG* G);
-  void dz(cuComplex* m, cuComplex* res);
+  void dz(MomentsG* G, MomentsG* res, bool accumulate=false);
+  void dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void dz2(MomentsG* G);
   void dz2(cuComplex* m, cuComplex* res);
   void zft(MomentsG* G);
@@ -119,7 +128,8 @@ class GradParallelLocal : public GradParallel {
   void zft_inverse(MomentsG* G);
   //  void zft_inverse(cuComplex* m, cuComplex* res);
   
-  void abs_dz(cuComplex* m, cuComplex* res);
+  void abs_dz(MomentsG* G, MomentsG* res, bool accumulate=false) {};
+  void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
  private:
   Grids * grids_ ;
 

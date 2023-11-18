@@ -27,19 +27,14 @@ void gx_get_fluxes_(trin_parameters_struct* tpars, trin_fluxes_struct* tfluxes, 
 	     grids->Nx, grids->Ny, grids->Nz, grids->Nl, grids->Nm, grids->Nspecies);
 
   Geometry    * geo         = nullptr;
-  Diagnostics_GK * diagnostics = nullptr;
 
   geo = init_geo(pars, grids);
 
-  DEBUGPRINT("Initializing diagnostics...\n");
-  diagnostics = new Diagnostics_GK(pars, grids, geo);
-  CUDA_DEBUG("Initializing diagnostics: %s \n");    
-  
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
   // run gx calculation using (updated) parameters
-  run_gx(pars, grids, geo, diagnostics);
+  run_gx(pars, grids, geo);
 
   // copy time-averaged fluxes to trinity
   copy_fluxes_to_trinity(pars, geo, tfluxes);
@@ -47,7 +42,6 @@ void gx_get_fluxes_(trin_parameters_struct* tpars, trin_fluxes_struct* tfluxes, 
   delete pars;
   delete grids;
   delete geo;
-  delete diagnostics;
 }
 
 void set_from_trinity(Parameters *pars, trin_parameters_struct *tpars)

@@ -27,6 +27,8 @@ class Geometry {
   float * cvdrift0_h ;
   float * gbdrift0_h ;
   float * jacobian_h ;
+  float * vol_fac_h;
+  float * flux_fac_h;
 
   float * z ;
   float * gbdrift ;
@@ -41,6 +43,8 @@ class Geometry {
   float * cvdrift0 ;
   float * gbdrift0 ;
   float * jacobian ;
+  float * vol_fac;
+  float * flux_fac;
 
   float * gradpar_arr ;
   float * Rplot ;
@@ -58,6 +62,12 @@ class Geometry {
   float bi;
   float aminor;
   float shat;
+  float qsf;
+  float kxfac;
+  float shift;
+  float rmaj;
+  float theta_scale = 1.0;
+  int nperiod;
   bool zero_shat_; 
   
   cuComplex * bmag_complex ;
@@ -70,6 +80,7 @@ class Geometry {
   float * gb_d ; 
   float * kperp2_h ;
   float gbdrift_max, cvdrift_max, gbdrift0_max, cvdrift0_max;
+  float bmag_max;
   
   void initializeOperatorArrays(Parameters* pars, Grids* grids);
   void calculate_bgrad(Grids* grids); // MFM

@@ -10,14 +10,18 @@
 //===========================================
 Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
-  red(nullptr), laguerre(nullptr), laguerre_single(nullptr), grad_perp_G(nullptr),
-  grad_perp_J0f(nullptr), grad_perp_f(nullptr), grad_perp_G_single(nullptr)
+  red(nullptr), laguerre(nullptr), laguerre_single(nullptr)
 {
 
   tmp_c      = nullptr;  G_tmp      = nullptr;  dG         = nullptr;  dg_dx       = nullptr;  dg_dy      = nullptr;  val1        = nullptr;
   Gy         = nullptr;  dJ0phi_dx  = nullptr;  dJ0phi_dy   = nullptr;  dJ0apar_dx = nullptr;
   dJ0apar_dy = nullptr;  dphi       = nullptr;  dchi = nullptr;  g_res       = nullptr;  
   J0phi      = nullptr;  J0apar     = nullptr;  dphi_dy     = nullptr;
+
+  grad_perp_f = nullptr;
+  grad_perp_G = nullptr;
+  grad_perp_J0f = nullptr;
+  grad_perp_G_single = nullptr;
 
   if (grids_ -> Nl < 2) {
     printf("\n");
@@ -29,7 +33,10 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   laguerre = new LaguerreTransform(grids_, grids_->Nm);
   laguerre_single = new LaguerreTransform(grids_, 1);
   int nR = grids_->NxNyNz;
-  red = new Block_Reduce(nR); cudaDeviceSynchronize();
+  std::vector<int32_t> modes{'r', 'x', 'z'};
+  std::vector<int32_t> modesRed{};
+  red = new Reduction<float>(grids_, modes, modesRed); 
+  cudaDeviceSynchronize();
   
   nBatch = grids_->Nz*grids_->Nl*grids_->Nm; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl*grids_->Nm); 
@@ -264,7 +271,6 @@ void Nonlinear_GK::get_max_frequency(Fields *f, double *omega_max)
 {
   float vpar_max = grids_->vpar_max*pars_->vtmax; // estimate of max vpar on grid
   float muB_max = grids_->muB_max*pars_->tzmax; 
-
   grad_perp_f -> dxC2R(f->phi, dphi); 
   abs <<<dGx.x,dBx.x>>> (dphi, grids_->NxNyNz);
 
@@ -278,6 +284,7 @@ void Nonlinear_GK::get_max_frequency(Fields *f, double *omega_max)
     abs <<<dGx.x,dBx.x>>> (dchi, grids_->NxNyNz);
     add_scaled_singlemom_kernel <<<dGx.x,dBx.x>>> (dphi, 1., dphi, muB_max, dchi);
   }
+  //printf("dphi, val1 = %lf %lf", dphi, val1);
   red->Max(dphi, val1); 
   CP_TO_CPU(vmax_y, val1, sizeof(float));
 
@@ -293,9 +300,10 @@ void Nonlinear_GK::get_max_frequency(Fields *f, double *omega_max)
     abs <<<dGx.x,dBx.x>>> (dchi, grids_->NxNyNz);
     add_scaled_singlemom_kernel <<<dGx.x,dBx.x>>> (dphi, 1., dphi, muB_max, dchi);
   }
+  //printf("dphi, val1 = %lf %lf", dphi, val1);
   red->Max(dphi, val1); 
   CP_TO_CPU(vmax_x, val1, sizeof(float));
-
+  //printf("vpar_max = %lf, muB_max = %lf \n", vpar_max, muB_max);
   double scale = 0.5;  // normalization scaling factor for C2R FFT
   omega_max[0] = max(omega_max[0], pars_->kxfac*(grids_->kx_max*vmax_x[0])*scale);
   omega_max[1] = max(omega_max[1], pars_->kxfac*(grids_->ky_max*vmax_y[0])*scale);
@@ -306,7 +314,7 @@ void Nonlinear_GK::get_max_frequency(Fields *f, double *omega_max)
 // object for handling non-linear terms in KREHM
 //==============================================
 Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
-  pars_(pars), grids_(grids), red(nullptr), grad_perp_f(nullptr), grad_perp_G(nullptr)
+  pars_(pars), grids_(grids), red(nullptr)
 {
   tmp_c = nullptr;
   dG = nullptr;
@@ -317,6 +325,8 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   dchi_dx = nullptr;
   dchi_dy = nullptr;
   G_tmp = nullptr;
+
+  grad_perp_f = grad_perp_G = nullptr;
   
   nBatch = grids_->Nz*grids_->Nm; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nm); 
@@ -325,7 +335,8 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   grad_perp_f = new GradPerp(grids_, nBatch, grids_->NxNycNz);
   
   int nR = grids_->NxNyNz;
-  red = new Block_Reduce(nR); cudaDeviceSynchronize();
+  red = new Reduction<float>(grids_, {'r', 'x', 'z'}, {}); 
+  cudaDeviceSynchronize();
   
   checkCuda(cudaMalloc(&tmp_c, sizeof(cuComplex)*grids_->NxNycNz));
   G_tmp = new MomentsG(pars_, grids_);
@@ -338,6 +349,8 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   checkCuda(cudaMalloc(&dphi_dy,  sizeof(float)*grids_->NxNyNz));
   checkCuda(cudaMalloc(&dchi_dx,  sizeof(float)*grids_->NxNyNz));
   checkCuda(cudaMalloc(&dchi_dy,  sizeof(float)*grids_->NxNyNz));
+
+  fXY = dphi_dx; // this is just a pointer for use in diagnostics
 
   checkCuda(cudaMalloc(&val1,  sizeof(float)));
   cudaMemset(val1, 0., sizeof(float));
@@ -454,6 +467,7 @@ void Nonlinear_KREHM::get_max_frequency(Fields *f, double *omega_max)
   grad_perp_f -> dxC2R(f->apar, dchi_dx); 
   abs <<<dGx.x,dBx.x>>> (dchi_dx, grids_->NxNyNz);
   add_scaled_singlemom_kernel <<<dGx.x,dBx.x>>> (dphi_dx, 1., dphi_dx, vpar_max, dchi_dx);
+  //printf("val1 = %lf, dphi_dx = %lf\n", val1, dphi_dx);
   red->Max(dphi_dx, val1); 
   CP_TO_CPU(vmax_y, val1, sizeof(float));
 
@@ -462,12 +476,15 @@ void Nonlinear_KREHM::get_max_frequency(Fields *f, double *omega_max)
   grad_perp_f -> dyC2R(f->apar, dchi_dy); 
   abs <<<dGx.x,dBx.x>>> (dchi_dy, grids_->NxNyNz);
   add_scaled_singlemom_kernel <<<dGx.x,dBx.x>>> (dphi_dy, 1., dphi_dy, vpar_max, dchi_dy);
+  //printf("val1 = %lf, dphi_dy = %lf\n", val1, dphi_dy);
   red->Max(dphi_dy, val1); 
   CP_TO_CPU(vmax_x, val1, sizeof(float));
-
+  //printf("vpar_max = %lf\n\n", vpar_max);
   double scale = 1.0;  // normalization scaling factor for C2R FFT
   omega_max[0] = max(omega_max[0], (grids_->kx_max*vmax_x[0])*scale);
   omega_max[1] = max(omega_max[1], (grids_->ky_max*vmax_y[0])*scale);
+  //printf("omega_max[0]= %lf \n omega_max[1]= %lf\n", omega_max[0], omega_max[1]);
+  //printf("kx_max*vmax_x[0] = %lf \n  grids_->ky_max*vmax_x[0] = %lf \n\n", (grids_->kx_max*vmax_x[0])*scale, (grids_->ky_max*vmax_y[0])*scale);
 }
 
 //==============================================
@@ -475,7 +492,7 @@ void Nonlinear_KREHM::get_max_frequency(Fields *f, double *omega_max)
 // object for handling non-linear terms in cetg
 //==============================================
 Nonlinear_cetg::Nonlinear_cetg(Parameters* pars, Grids* grids) :
-  pars_(pars), grids_(grids), red(nullptr), grad_perp_f(nullptr), grad_perp_G(nullptr)
+  pars_(pars), grids_(grids), red(nullptr)
 {
   dG = nullptr;
   dg_dx = nullptr;
@@ -490,7 +507,9 @@ Nonlinear_cetg::Nonlinear_cetg(Parameters* pars, Grids* grids) :
   grad_perp_f = new GradPerp(grids_, nBatch, grids_->NxNycNz);
   
   int nR = grids_->NxNyNz;
-  red = new Block_Reduce(nR); cudaDeviceSynchronize();
+  std::vector<int32_t> modes{'r', 'x', 'z'};
+  std::vector<int32_t> modesRed{};
+  red = new Reduction<float>(grids_, modes, modesRed); 
   
   checkCuda(cudaMalloc(&dG,    sizeof(float)*2*grids_->NxNyNz));  cudaMemset(dG,    0., 2*grids_->NxNyNz);
   checkCuda(cudaMalloc(&dg_dx, sizeof(float)*2*grids_->NxNyNz));  cudaMemset(dg_dx, 0., 2*grids_->NxNyNz);
@@ -658,7 +677,7 @@ double Nonlinear_KS::cfl(Fields *f, double dt_max)
 // object for handling non-linear terms in VP
 //===========================================
 Nonlinear_VP::Nonlinear_VP(Parameters* pars, Grids* grids) :
-  pars_(pars), grids_(grids), grad_perp_G(nullptr), grad_perp_f(nullptr)
+  pars_(pars), grids_(grids)
 {
 
   Gy          = nullptr;  dphi_dy     = nullptr;  g_res       = nullptr;  

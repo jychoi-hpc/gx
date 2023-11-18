@@ -1,6 +1,6 @@
 #include "run_gx.h"
 
-void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnostics)
+void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 {
   double time = 0;
 
@@ -8,6 +8,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   Solver    * solver    = nullptr;
   Linear    * linear    = nullptr;
   Nonlinear * nonlinear = nullptr;
+  Diagnostics * diagnostics = nullptr;
   MomentsG  ** G = (MomentsG**) malloc(sizeof(void*)*grids->Nspecies);
   for(int is=0; is<grids->Nspecies; is++) {
     G[is] = nullptr;
@@ -27,6 +28,11 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   // Initialize eqs              // 
   //                             //
   /////////////////////////////////
+  // GX is set up to solve a handful of different equation sets.
+  // Some have a geometry associated with them, some do not.
+  // Presently the options are "gx", "krehm", "vp", "ks", and "cetg"
+  // Most equation sets are undocumented, as they are exploratory or pedagogical in nature
+  // 
   if (pars->gx) {
     linear = new Linear_GK(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_GK(pars, grids, geo); 
@@ -36,10 +42,12 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     checkCudaErrors(cudaGetLastError());
 
     if (pars->forcing_init) {
+      std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;
       if (pars->forcing_type == "Kz")        forcing = new KzForcing(pars);        
       if (pars->forcing_type == "KzImpulse") forcing = new KzForcingImpulse(pars); 
       if (pars->forcing_type == "general")   forcing = new genForcing(pars);       
-    }
+      if (pars->forcing_type == "HeliInj")   forcing = new HeliInjForcing(pars, grids); 
+   }
 
     // set up initial conditions
     for(int is=0; is<grids->Nspecies; is++) {
@@ -47,9 +55,14 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
       G[is] -> set_zero();
       if(!pars->restart && pars->init_electrons_only && pars->species_h[is_glob].type!=1) continue;
       G[is] -> initialConditions(&time);   
-      G[is] -> sync();
+      G[is] -> sync(true);
     }
-    solver -> fieldSolve(G, fields);
+    solver -> fieldSolve(G, fields);                
+
+    // set up diagnostics
+    if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");
+    diagnostics = new Diagnostics_GK(pars, grids, geo, linear, nonlinear);
+    if(grids->iproc==0) CUDA_DEBUG("Initializing diagnostics: %s \n");    
     checkCudaErrors(cudaGetLastError());    
   }
 
@@ -61,15 +74,24 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   if (pars->krehm) {
     linear = new Linear_KREHM(pars, grids);          
     if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
-
+    if (pars->forcing_init) {
+      std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;
+      if (pars->forcing_type == "Kz")        forcing = new KzForcing(pars);
+      if (pars->forcing_type == "KzImpulse") forcing = new KzForcingImpulse(pars);
+      if (pars->forcing_type == "general")   forcing = new genForcing(pars);
+      if (pars->forcing_type == "HeliInj")   forcing = new HeliInjForcing(pars, grids);
+   }
     solver = new Solver_KREHM(pars, grids);
 
     // set up initial conditions
     G[0] -> set_zero();
     G[0] -> initialConditions(&time);   
-    if(pars->harris_sheet) solver -> set_equilibrium_current(G[0], fields);
-    G[0] -> sync();
+    if(pars->harris_sheet or pars->periodic_equilibrium or pars->gaussian_tube) solver -> set_equilibrium_current(G[0], fields);
+    G[0] -> sync(true);
     solver -> fieldSolve(G, fields);                
+
+    // set up diagnostics
+    diagnostics = new Diagnostics_KREHM(pars, grids, geo, linear, nonlinear);
   }
   checkCudaErrors(cudaGetLastError());
   
@@ -217,7 +239,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
   }  
   
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
-  printf("Total runtime = %f s (%f s / timestep)\n", timer/1000., timer/1000./counter);
+  printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);
 
   diagnostics->finish(G, fields, time);
 
@@ -225,6 +247,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo, Diagnostics *diagnost
     if (G[is])         delete G[is];
   }
   free(G);
+  if (diagnostics) delete diagnostics;
   if (linear)    delete linear;
   if (nonlinear) delete nonlinear;
   if (timestep)  delete timestep;

@@ -67,7 +67,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   //  }
   //}
 
-  if (pars_->harris_sheet) {
+  if (pars_->harris_sheet && !pars_->restart) {
 
     assert((pars_->fapar > 0.) && "Harris sheet equilibrium requires setting fapar = 1.0");
     
@@ -115,7 +115,68 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   //  }
     //grad_perp->qvar(apar_ext, grids_->NxNycNz); 
   }
-}
+  if (pars_->periodic_equilibrium && !pars_->restart) {
+    int nBatch = grids_->Nz;
+    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+
+    //set up periodic Apar in real space   
+    for(int idz = 0; idz < grids_->Nz; idz++) {
+      for(int idx = 0; idx < grids_->Nx; idx++) {
+        for(int idy = 0; idy < grids_->Ny; idy++) {
+           float x = grids_->x_h[idx];
+           float y = grids_->y_h[idy];
+           int index = idy + idx * grids_->Ny + idz * grids_->NxNy;
+           float A0 = 0.25; // this was recommended by Lucio
+           apar_ext_realspace_h[index] = A0*cos(pars_->k0 * (x - M_PI*pars_->x0))*cos(pars_->k0 * (y-M_PI*pars_->y0));
+        }
+      }
+    }
+
+    //copy apar_ext to GPU and do Fourier transformation
+    CP_TO_GPU(apar_ext_realspace, apar_ext_realspace_h, sizeof(float) * grids_->NxNyNz);
+    grad_perp->R2C(apar_ext_realspace, apar_ext, true);
+
+    delete grad_perp;
+
+    //debug part
+
+    //grad_perp->qvar(apar_ext_realspace, grids_->NxNyNz); 
+    //CP_TO_CPU(apar_ext_h, apar_ext, sizeof(cuComplex) * grids_->NxNycNz);
+  //  for(int idz = 0; idz < grids_->Nz; idz++){
+  //    for(int idx = 0; idx < grids_->Nx; idx++){
+  //      for(int idy = 0; idy < grids_->Nyc; idy++){
+  //         unsigned int idxyz = idy + grids_->Nyc *(idx + grids_->Nx*idz); 
+  //         printf("idxyz%d:",idxyz);
+  //         printf("%f\n",apar_ext_h[idxyz].x);
+  //      }
+  //    }
+  //  }
+    //grad_perp->qvar(apar_ext, grids_->NxNycNz); 
+  }
+  if (pars_->gaussian_tube && !pars_->restart) {
+    int nBatch = grids_->Nz;
+    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    
+    //set up Gaussian tube in real space   
+    for(int idz = 0; idz < grids_->Nz; idz++) {
+      for(int idx = 0; idx < grids_->Nx; idx++) {
+        for(int idy = 0; idy < grids_->Ny; idy++) {
+           float x = grids_->x_h[idx];
+           float y = grids_->y_h[idy];
+           int index = idy + idx * grids_->Ny + idz * grids_->NxNy;
+           float A0 = 0.5829; // this value makes B_eq_max = 1
+           apar_ext_realspace_h[index] = A0*exp(-pow((x - M_PI*pars_->x0)/(M_PI*pars_->x0),2)-pow((y - M_PI*pars_->y0)/(M_PI*pars_->y0),2)); // Need to multiply x0, y0 by 2pi. Shift Gaussian to the center, decrease width by 2.
+        }
+      }
+    }   
+    //copy apar_ext to GPU and do Fourier transformation
+    CP_TO_GPU(apar_ext_realspace, apar_ext_realspace_h, sizeof(float) * grids_->NxNyNz); 
+    grad_perp->R2C(apar_ext_realspace, apar_ext, true);
+    
+    delete grad_perp;
+  }
+  }
+
 
 Fields::~Fields() {
   if (phi)     cudaFree(phi);

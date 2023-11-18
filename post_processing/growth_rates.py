@@ -11,10 +11,10 @@ from netCDF4 import Dataset
 def growth_rates(fname, ikx=0, navgfac=0.5, label=None, plot=True, ax=None, Lref="a", refsp="i"):
     # read data from file
     data = Dataset(fname, mode='r')
-    t = data.variables['time'][:]
-    ky = data.variables['ky'][1:]
-    omegas = data.groups['Special'].variables['omega_v_time'][:,1:,ikx,0]
-    gams = data.groups['Special'].variables['omega_v_time'][:,1:,ikx,1]
+    t = data.groups['Grids'].variables['time'][:]
+    ky = data.groups['Grids'].variables['ky'][1:]
+    omegas = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,ikx,0]
+    gams = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,ikx,1]
 
     # compute time-average 
     istart_avg = int(len(t)*navgfac)
@@ -39,10 +39,19 @@ def growth_rates(fname, ikx=0, navgfac=0.5, label=None, plot=True, ax=None, Lref
         
         ax[0].set_xlim(left=0)
         ax[1].set_xlim(left=0)
+        bottom, top = ax[0].get_ylim()
+        if bottom > 0:
+            bottom = 0
+            ax[0].set_ylim(bottom, top)
+        bottom, top = ax[1].get_ylim()
+        if bottom > 0:
+            bottom = 0
+            ax[1].set_ylim(bottom, top)
         ax[0].set_ylabel(r"$\gamma\ %s / v_{t%s}$"%(Lref, refsp))
         ax[1].set_ylabel(r"$\omega\ %s / v_{t%s}$"%(Lref, refsp))
         ax[1].set_xlabel(r"$k_y \rho_%s$"%refsp)
-        ax[1].legend()
+        legend = ax[1].legend()
+        legend.set_in_layout(False)
         plt.tight_layout()
 
     return omavg, gamavg

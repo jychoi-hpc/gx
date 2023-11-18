@@ -22,7 +22,7 @@
  nonlinear_mode = true           # this is a nonlinear calculation
 
 [Time]
- t_max = 500.0        # run to t = t_max (units of L_ref/vt_ref)
+ t_max = 200.0        # run to t = t_max (units of L_ref/vt_ref)
  dt = 0.1             # maximum timestep (units of L_ref/vt_ref), will be adapted dynamically
  cfl = 1.0            # safety cushion factor on timestep size
  scheme = "rk3"       # use SSPx3 timestepping scheme
@@ -77,30 +77,10 @@
  save_for_restart = true
 
 [Diagnostics]
- nwrite = 20                     # write diagnostics every nwrite timesteps
- fluxes = true                   # compute and write heat and particle fluxes
-
-[Wspectra]                       # spectra of W = |G_lm|**2
-species          = false
-hermite          = false
-laguerre         = false
-hermite_laguerre = true          # W(l,m) (summed over kx, ky, z)
-kx               = false
-ky               = true          # W(ky) (summed over kx, z, l, m)
-kxky             = false
-z                = false
-
-[Pspectra]                      # spectra of P = ( 1 - Gamma_0(b_s) ) |Phi|**2
-species          = false
-kx               = false
-ky               = true         # P(ky) (summed over kx, z)
-kxky             = false
-z                = true         # P(z) (summed over kx, ky)
-
-[Qspectra]                      # spectra of Q (heat flux)
-kx               = false
-ky               = true         # Q(ky) (summed over kx, z)
-kxky             = true
-z                = true         # Q(z) (summed over kx, ky)
+ nwrite = 50                    # write diagnostics every nwrite timesteps
+ free_energy = true             # compute and write free energy spectra (Wg, Wphi, Phi**2)
+ fluxes = true                  # compute and write flux spectra (Q, Gamma)
+ fields = true                  # write fields on the grid
+ moments = true                 # write moments on the grid
 
 

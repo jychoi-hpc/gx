@@ -9,7 +9,7 @@
 
 class Reservoir {
  public:
-  Reservoir(Parameters *pars, int m);
+  Reservoir(Parameters *pars, Grids *grids, int m);
   ~Reservoir();
   void conclude_training(void);
   void add_data(float* G);
@@ -48,6 +48,6 @@ private:
   // local private copies
   Parameters * pars_  ;
   Grids      * grids_ ;
-  Red        * red    ; 
-  Red        * dense  ; 
+  Reduction<double> * red;
+  DenseM * dense;
 };

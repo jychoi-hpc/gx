@@ -28,7 +28,7 @@ Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if(pars_->dealias_kz) {
     if (pars_->local_limit)                     { grad_par = new GradParallelLocal(grids_);
     } else if (pars_->boundary_option_periodic) { grad_par = new GradParallelPeriodic(grids_);
-    } else {                                      grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    } else {                                      grad_par = new GradParallelLinked(pars_, grids_);
     }
   }
 }
@@ -66,7 +66,7 @@ void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fi
 
     // compute and increment linear term
     GRhs[is]->set_zero();
-    linear_->rhs(G_q1[is], f, GRhs[is]);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
+    linear_->rhs(G_q1[is], f, GRhs[is], dt_);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
 
     G_q1[is]->add_scaled(1., Gtmp, dt_/6., GRhs[is]);
   }
@@ -112,7 +112,7 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
 
     // compute and increment linear term
     G[is]->set_zero();
-    linear_->rhs(G_q1[is], f, G[is]);
+    linear_->rhs(G_q1[is], f, G[is], dt_);
     if (pars_->dealias_kz) grad_par->dealias(G[is]);
     G[is]->add_scaled(1., Gtmp, 0.1*dt_, G[is]);
     

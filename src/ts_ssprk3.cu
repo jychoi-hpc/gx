@@ -23,7 +23,7 @@ SSPRK3::SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     grad_par = new GradParallelPeriodic(grids_);
   }
   else {
-    grad_par = new GradParallelLinked(grids_, pars_->jtwist);
+    grad_par = new GradParallelLinked(pars_, grids_);
   }
   
 }
@@ -44,7 +44,7 @@ void SSPRK3::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, b
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     GRhs->set_zero();
-    linear_->rhs(G[is], f, GRhs);  if (pars_->dealias_kz) grad_par->dealias(GRhs);
+    linear_->rhs(G[is], f, GRhs, dt_);  if (pars_->dealias_kz) grad_par->dealias(GRhs);
 
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, GRhs);
