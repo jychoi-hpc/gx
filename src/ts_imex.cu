@@ -4,7 +4,7 @@
 IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in)
+  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1)
 {
   
   // new objects for temporaries
@@ -23,7 +23,16 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
     B1[is] = new MomentsG (pars_, grids_, is);
     B2[is] = new MomentsG (pars_, grids_, is);
     G1[is] = new MomentsG (pars_, grids_, is);
+    
+    // get species index of electrons
+    if(pars_->species_h[is].type == 1) {
+      ielectron = is;
+      vte = A0[ielectron]->species->vt;
+      zte = A0[ielectron]->species->zt;
+    }
   }
+
+  f1 = new Fields(pars_, grids_);
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -34,6 +43,12 @@ IMEX_SSPRK3_DIRK::IMEX_SSPRK3_DIRK(Linear *linear, Nonlinear *nonlinear, Solver 
   else {
     grad_par = new GradParallelLinked(grids_, pars_->jtwist);
   }
+  
+  int nxkyz = grids_->NxNycNz;
+  int nbx = min(32, nxkyz);
+  int ngx = 1 + (nxkyz-1)/nbx;
+  dB = dim3(nbx, 1, 1);
+  dG = dim3(ngx, 1, 1);
   
 }
 
@@ -49,29 +64,34 @@ IMEX_SSPRK3_DIRK::~IMEX_SSPRK3_DIRK()
   if (grad_par) delete grad_par;
 }
 
-void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt)
+void IMEX_SSPRK3_DIRK::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool setdt)
 {
-  int ielectron = 1; //temp
   for (int is=0; is<grids_->Nspecies; is++) {
-    G1[is]->set_zero();
+    A[is]->set_zero();
     if(is == ielectron) {
       // compute explicit part of electron linear rhs
-//      linear_->rhs_explicit(G[is], f, G1[is]);
+      linear_->rhs_nonstreaming(G[is], f, A[is]);
     } else {
       // handle entire ion linear rhs explicitly
-      linear_->rhs(G[is], f, G1[is]);
+      linear_->rhs(G[is], f, A[is]);
     }
     if(nonlinear_ != nullptr) {
-      nonlinear_->nlps(G[is], f, G1[is]);
+      nonlinear_->nlps(G[is], f, A[is]);
       if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
   }
   // compute nonlinear terms explicitly for all species
 }
 
-void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG** G1, MomentsG** G, Fields* f)
+void IMEX_SSPRK3_DIRK::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
-  // TBI
+  for (int is=0; is<grids_->Nspecies; is++) {
+    B[is]->set_zero();
+    if(is == ielectron) { // electrons
+      // compute implicit part of electron linear rhs
+      linear_->rhs_streaming(G[is], f, B[is]);
+    }
+  }
 }
 
 void IMEX_SSPRK3_DIRK::invert_implicit_terms(MomentsG** G1, double rdt)
@@ -98,10 +118,22 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
   explicit_terms(A0, G, f, true);
   // compute B0 = F_implicit(G)
   implicit_terms(B0, G, f);
-  // G1 = G + dt*A0 + q_*dt*B0
+  // G1_i = G_i + dt*A0_i + q_*dt*B0_i
   for(int is=0; is<grids_->Nspecies; is++) {
-    G1[is] -> add_scaled(1., G[is], dt_, A0[is], q_*dt_, B0[is]);
+    if(is == ielectron) { // electrons
+      G1[is]->set_zero();
+    } else {
+      G1[is]->add_scaled(1., G[is], dt_, A0[is], q_*dt_, B0[is]);
+    }
   }
+  // compute Phi_i
+  solver_->fieldSolve(G1, f);         
+  // G1_e = G_e + dt*A0_e + q_*dt*B0_e
+  G1[ielectron]->add_scaled(1., G[ielectron], dt_, A0[ielectron], q_*dt_, B0[ielectron]);
+  // compute grad_par Phi_i
+  grad_par->dz(f->phi, f1->phi);
+  // G_01e = G01_e - r_*dt*vte*zte*grad_par(Phi_i)
+  add_scaled_singlemom_kernel <<<dG, dB>>> (G1[ielectron]->G(0,1), 1., G1[ielectron]->G(0,1), -r_*dt_*vte*zte, f1->phi);
 
   // G1 = inv(I - r_*dt*F_implicit)*G1
   invert_implicit_terms(G1, r_*dt_);

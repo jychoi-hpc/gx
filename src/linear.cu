@@ -153,19 +153,16 @@ Linear_GK::~Linear_GK()
   if (t_bar)      cudaFree(t_bar);
   if (vol_fac)    cudaFree(vol_fac);
 }
-
-void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
-  // finish Hermite ghost exchange
-  cudaStreamSynchronize(G->syncStream);
-
+void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs) {
+  // Free-streaming requires parallel FFTs, so do that first
+//  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+  grad_par->dz(GRhs);
+}
+void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
   if (pars_->collisions) conservation_terms <<< nb1, nt1 >>>
 			  (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
-  
-  // Free-streaming requires parallel FFTs, so do that first
-  streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
-  grad_par->dz(GRhs);
   
   // calculate most of the RHS
   cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
@@ -215,6 +212,17 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
   // a damping operator to the RHS near the boundaries of extended domain.
   if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2);
 }
+
+// note: this subroutine *accumulates into* GRhs. 
+// so if the linear terms are the first part of the timestep, 
+// might want to call GRhs->set_zero() prior to calling rhs.
+void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs) {
+  // finish Hermite ghost exchange
+  cudaStreamSynchronize(G->syncStream);
+  rhs_streaming(G, f, GRhs);
+  rhs_nonstreaming(G, f, GRhs);
+}
+
 
 void Linear_GK::get_max_frequency(double *omega_max)
 {

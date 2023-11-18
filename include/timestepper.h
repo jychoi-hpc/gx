@@ -266,7 +266,12 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   MomentsG     ** B0         ;
   MomentsG     ** B1         ;
   MomentsG     ** B2         ;
+  Fields	* f1	     ;
   double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  dim3 dG, dB;
 };
 
 class G3 : public Timestepper {
