@@ -259,7 +259,6 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
-  MomentsG     ** G2         ;
   MomentsG     ** A0         ;
   MomentsG     ** A1         ;
   MomentsG     ** A2         ;

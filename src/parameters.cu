@@ -115,6 +115,7 @@ void Parameters::get_nml_vars(char* filename)
   ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     (long) kpar_init  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
+  drift_kinetic_electrons = toml::find_or <bool> (tnml, "drift_kinetic_electrons",     false);
   densfac = toml::find_or <float> (tnml, "densfac", 1.0);
   uparfac = toml::find_or <float> (tnml, "uparfac", 1.0);
   tparfac = toml::find_or <float> (tnml, "tparfac", 1.0);
@@ -954,7 +955,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_con, "collisions",            NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_con, "init_field_dum",        NC_INT,   0, NULL, &ivar)) ERR(retval);  
   if (retval = nc_put_att_text (nc_con, ivar, "value", init_field.size(), init_field.c_str())) ERR(retval);
-  if (retval = nc_def_var (nc_con, "init_electrons_only",   NC_INT,   0, NULL, &ivar)) ERR(retval);  
+  if (retval = nc_def_var (nc_con, "init_electrons_only",   NC_INT,   0, NULL, &ivar)) ERR(retval); 
+  if (retval = nc_def_var (nc_con, "drift_kinetic_electrons",   NC_INT,   0, NULL, &ivar)) ERR(retval);   
 
   if (retval = nc_def_var (nc_con, "ikpar_init",             NC_INT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_con, "random_init",            NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1269,6 +1271,7 @@ void Parameters::init_species(specie* species)
     species[s].tz   = species[s].temp / species[s].z;
     species[s].zt   = species[s].z / species[s].temp;
     species[s].rho2 = species[s].temp * species[s].mass / (species[s].z * species[s].z); // note this does not have a factor of 1/B**2
+    if(species[s].type==1 && drift_kinetic_electrons) species[s].rho2 = 0.;
     species[s].nt    = species[s].dens * species[s].temp;
     species[s].nz    = species[s].dens * species[s].z;
     species[s].jparfac = species[s].nz * species[s].vt * beta / 2.;

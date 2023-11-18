@@ -124,7 +124,7 @@ void IMEX_SSPRK3_DIRK::advance(double *t, MomentsG** G, Fields* f)
 //  double s_ = 1./6.;
 //  double t_ = -1./3.;
 //  double u_ = 2./3.;
-
+  // 3s3pInfKimplicitLinearPair
   double q_ = (3. - sqrtf(3.))/6.;
   double r_ = (3. + sqrtf(3.))/6.;
   double s_ = (3. - sqrtf(3.))/24.;
