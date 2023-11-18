@@ -246,7 +246,7 @@ class IMEX_SSPRK3_DIRK : public Timestepper {
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, double rdt);
+  void invert_implicit_terms(MomentsG** G1, Fields *f, double rdt);
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;

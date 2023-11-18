@@ -28,7 +28,7 @@
 
 enum class inits {density, upar, tpar, tperp, qpar, qperp, all};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
-enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2}; 
+enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2, ssprk3, imex}; 
 enum class Closure {none, beer42, smithperp, smithpar};
 enum WSpectra {WSPECTRA_species,
 	       WSPECTRA_kx,

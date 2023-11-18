@@ -13,6 +13,7 @@ class Solver {
  public:
   virtual ~Solver() {};
   virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
+  virtual float* getQneutDenom() {return nullptr;};
   virtual void set_equilibrium_current(MomentsG* G, Fields* fields) {};
 };
 
@@ -24,6 +25,7 @@ class Solver_GK : public Solver {
   void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
+  float* getQneutDenom() {return qneutDenom;};
   
   cuComplex * nbar ;
   cuComplex * nbar_tmp ;
@@ -38,6 +40,7 @@ private:
   int count;
 
   float * phiavgdenom ;
+  float * qneutDenom;
   float * ampereParFac;
   float * qneutFacPhi;
   float * qneutFacBpar;

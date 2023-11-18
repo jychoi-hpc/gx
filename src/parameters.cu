@@ -738,6 +738,8 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "rk3")   scheme_opt = Tmethod::rk3;
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
+  if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
+  if (scheme == "imex") scheme_opt = Tmethod::imex;
 
   if (eqfix && iproc==0 && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
     printf("\n");
