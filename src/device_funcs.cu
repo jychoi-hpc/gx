@@ -1424,9 +1424,11 @@ __global__ void rescale_kernel(cuComplex* f, float* phi_max, int N)
   unsigned int idlms = get_id3();
   
   if (idxy < nyc*nx && idz < nz && idlms < N) {
-    float fac = 1./phi_max[idxy];
-    unsigned int ig = idxy + nyc*nx*(idz + nz*idlms);
-    f[ig] = fac * f[ig];
+    if(phi_max[idxy]>0.) {	
+      float fac = 1./phi_max[idxy];
+      unsigned int ig = idxy + nyc*nx*(idz + nz*idlms);
+      f[ig] = fac * f[ig];
+    }
   }
 }
 
@@ -2347,6 +2349,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
     } else {
       kz[i] = (float) (i-nzL)/(zp*nLinks);
     }
+    printf("kzLink[%d] = %f\n", i, kz[i]);
     if (dealias_kz) {
       if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
     }
@@ -2819,6 +2822,62 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const f
     }
   }
 }
+
+__global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const float kz, const float* qneutDenom, const specie sp, const double sdtvt)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    float Q = 0.0f;
+    for(int iz=0; iz<nz; iz++) {
+      // compute z avg of qneutDenom so that the z dependence does not break things in k space
+      Q += qneutDenom[idxy + nxnyc*iz];
+    }
+    // the actual coefficient needed is Z^2*n/T/<qneutDenom>
+    Q = sp.nz*sp.zt*nz/Q;
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*sqrtf(idm);
+      // a[m]
+      cuComplex am = sdtvt*ikz*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      if(idm==1 && idz==idzl) {
+        am = am + sdtvt*ikz*Q;
+	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
+      }
+
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+    }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+  }
+}
+
 
 __global__ void rhs_linear_krehm(const cuComplex* g,
 				 const cuComplex* phi,
