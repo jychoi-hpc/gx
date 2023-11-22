@@ -36,7 +36,7 @@ def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spect
             print("{:} -- WARNING: Inconsistent reference species.".format(simulation_key.name))
             continue
 
-        # Extracting fluxes and averaging
+        # Extracting spectra and averaging
         try:
             spectrum_plot = simulation['Spectra'][str(spectrum)]
             plot_range    = simulation['Dimensions'][str(spectrum_range)]
@@ -59,7 +59,7 @@ def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spect
         # Plotting time-averaged spectra
         if spectrum in electromagnetic_spectra_list:
 
-            print(r"%s -- maximum at %s = %.4g" % (simulation_key.name, spectrum_range, plot_range[np.argmax(spectrum_time_avg[:])]))
+            print(r"%s -- maximum at %s = %.4g" % (simulation_key.name, spectrum_range, plot_range[np.argmax(spectrum_time_avg[1:])]))
 
             plot_label = simulation_key.name
 

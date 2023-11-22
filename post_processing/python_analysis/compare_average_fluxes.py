@@ -188,10 +188,10 @@ def compare_average_fluxes(simuilations, flux, flux_label, defaults = True, aver
         for species_index, species in enumerate(species_list):
             if grouping is not None:
                 for grouping_index, grouping in enumerate(groupings):
-                    plt.errorbar(data[grouping][variable_str], data[grouping]["flux_average"][:, species_index], label=r"%s = %.1f" % (grouping_str, grouping), \
+                    ax1.errorbar(data[grouping][variable_str], data[grouping]["flux_average"][:, species_index], label=r"%s = %.1f" % (grouping_str, grouping), \
                                 marker=markers_dict[species], markersize=10, color=plot_color[grouping_index], linestyle="solid", linewidth=2,  xerr=None, yerr=data[grouping]['flux_error'][:, species_index], elinewidth=3)
             else:
-                plt.errorbar(data[variable_str], data["flux_average"], label=None, \
+                ax1.errorbar(data[variable_str], data["flux_average"], label=None, \
                             marker=markers_dict[species], markersize=10, color=plot_color[0], linestyle="solid", linewidth=2,  xerr=None, yerr=data["flux_error"], elinewidth=3)
 
         ax1.set_xscale(xscale)

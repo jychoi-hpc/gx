@@ -29,6 +29,8 @@ def load_files(filenames, groups = ['Inputs', 'Geometry', 'Special', 'Spectra', 
         for line in file_open:
             if line[0] == r'#':
                 continue
+            elif line[0] == '':
+                continue
             else:
                 filenames.append(pathlib.Path(line.replace('"','').replace("'",'').replace('\n','')))
 
