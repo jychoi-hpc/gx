@@ -77,4 +77,5 @@ class MomentsG {
   Grids      * grids_ ;
   Parameters * pars_  ;
   int is_glob_;
+  friend class GXVector;
 };
