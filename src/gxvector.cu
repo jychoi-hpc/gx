@@ -53,7 +53,7 @@ void GXVector::setConst( double c )
 {
 	for( auto &m : array )
 	{
-		set_constant_kernel <<< dG_all, dB_all >>> ( m.G(), c );
+		set_constant_kernel <<< m.dG_all, m.dB_all >>> ( m.G(), c );
 	}
 }
 
@@ -93,7 +93,7 @@ void GXVector::SetInv( GXVector const & other )
 	assert( other.array.size() == array.size() );
 	for( int i = 0; i < array.size(); ++i )
 	{
-		set_inv_kernel <<< dG_all, dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
 	}
 }
 
@@ -114,7 +114,7 @@ void GXVector::SetAbs( GXVector const & other )
 	assert( other.array.size() == array.size() );
 	for( int i = 0; i < array.size(); ++i )
 	{
-		set_abs_kernel <<< dG_all, dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
 	}
 }
 
