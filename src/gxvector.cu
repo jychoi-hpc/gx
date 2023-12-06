@@ -1,5 +1,6 @@
 
 #include "gxvector.h"
+#include <cuComplex.h>
 
 /*
 	This file provides the GXVector class, which is the building block of the custom NVector implementation
@@ -28,4 +29,92 @@ GXVector::GXVector( GXVector const& other )
 	}
 }
 
+void GXVector::setZero() 
+{
+	for( auto &m : array )
+	{
+		m.set_zero();
+	}
+}
+
+__global__ void set_constant_kernel( cuComplex* res, double x )
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+      res[ig] = x;
+  }
+}
+
+void GXVector::setConst( double c )
+{
+	for( auto &m : array )
+	{
+		set_constant_kernel <<< dG_all, dB_all >>> ( m.G(), c );
+	}
+}
+
+GXVector & GXVector::operator=( GXVector const & other )
+{
+	assert( other.array.size() == array.size() );
+	for( int i = 0; i < array.size(); ++i )
+		array[ i ].copyFrom( &other.array[ i ] );
+	return *this;
+}
+
+void GXVector::SetScaled( double c, GXVector const & other )
+{
+	*this = other;
+	this->Scale( c );
+}
+
+void GXVector::Scale( double c )
+{
+	for( auto &m : array )
+		m.scale( c );
+}
+
+__global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] = 1.0 / in[ig];
+  }
+}
+
+void GXVector::SetInv( GXVector const & other )
+{
+	assert( other.array.size() == array.size() );
+	for( int i = 0; i < array.size(); ++i )
+	{
+		set_inv_kernel <<< dG_all, dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+	}
+}
+
+__global__ void set_abs_kernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ].x = cuCabsf( in[ ig ] );
+	 res[ ig ].y = 0.0f;
+  }
+}
+
+void GXVector::SetAbs( GXVector const & other )
+{
+	assert( other.array.size() == array.size() );
+	for( int i = 0; i < array.size(); ++i )
+	{
+		set_abs_kernel <<< dG_all, dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+	}
+}
 

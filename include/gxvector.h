@@ -34,10 +34,12 @@ class GXVector {
 		void Prod( GXVector const&, GXVector const& );
 
 		void SetScaled( double, GXVector const& );
+		void Scale( double );
 		void SetAbs( GXVector const& );
 		void SetInv( GXVector const& );
 
 		GXVector & operator+=( GXVector const & );
+		GXVector & operator=( GXVector const & );
 
 		double MaxNorm() const;
 		double WrmsNorm( GXVector const & ) const;
