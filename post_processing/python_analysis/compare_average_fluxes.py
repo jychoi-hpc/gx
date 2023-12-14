@@ -168,7 +168,8 @@ def compare_average_fluxes(simuilations, flux, flux_label, defaults = True, aver
 
     # Sorting data be in ascending order within the groupings
     if grouping is not None:
-        groupings = list(set(list(data.keys()))) # Extract unique groupings
+        groupings = list(set(list(data.keys())))  # Extract unique groupings and sort
+        groupings.sort() 
         for grouping in groupings:
             sorted_indices = np.argsort(data[grouping][variable_str])
             for key in data[grouping].keys():
@@ -229,7 +230,7 @@ if __name__ == "__main__":
         font = {'family' : 'serif',
         'serif'  : ['Computer Modern Roman'],
         'weight' : 'bold',
-        'size'   : 18} # Use 40 with latex for papers, 18 otherwise
+        'size'   : 38} # Use 40 with latex for papers, 18 otherwise
 
         matplotlib.rc('font', **font)
         matplotlib.rc('text', usetex=True)
