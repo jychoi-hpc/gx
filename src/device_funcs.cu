@@ -2854,8 +2854,8 @@ __global__ void lorentz_rhs(const cuComplex* __restrict__ g,
         int sm = m_local + m_ghost; // offset to get past ghosts
 	if(m_ghost==0) sm+=2;
   
-        rhs[globalIdx] = rhs[globalIdx] 
-	  + nu_ * ( -(l + m + 2*l*m) * S_H(sl,sm) + (l+1)*sqrtf(m*(m-1)) * S_H(sl+1,sm-2)
+        rhs[globalIdx] = 
+	   nu_ * ( -(l + m + 2*l*m) * S_H(sl,sm) + (l+1)*sqrtf(m*(m-1)) * S_H(sl+1,sm-2)
                      + l*sqrtf((m+1)*(m+2)) * S_H(sl-1,sm+2)
                   );
       }

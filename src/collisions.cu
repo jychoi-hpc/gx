@@ -84,7 +84,7 @@ void LorentzCollisionOperator::rhs(MomentsG* G, Fields* f, Geometry* geo, Moment
   cudaFuncSetAttribute(lorentz_rhs, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
   lorentz_rhs<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, f-> bpar, geo->kperp2, 
-	*(G->species), tmpG->G());
+	*(G->species), tmpG->G()); // no accumulate!
 
   applyCollisionMatrix(tmpG->G(), GRhs->G(), accumulate);
 }
