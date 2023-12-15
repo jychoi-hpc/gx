@@ -510,6 +510,7 @@ void Parameters::get_nml_vars(char* filename)
   beta = toml::find_or <float> (tnml, "beta",    0.0 );
   if (beta == 0.0 && beta_geo > 0.0) beta = beta_geo; 
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    nonlinear_mode );  linear = !nonlinear_mode;
+  collision_model = toml::find_or <string> (tnml, "collision_model", "dougherty");
   ExBshear = toml::find_or <bool> (tnml, "ExBshear",    ExBshear_domain );
   g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);

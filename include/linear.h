@@ -5,6 +5,7 @@
 #include "moments.h"
 #include "grad_parallel.h"
 #include "closures.h"
+#include "collisions.h"
 #include "get_error.h"
 
 class Linear {
@@ -41,6 +42,7 @@ public:
   GradParallel   * grad_par ;
   Closures       * closures ;
   MomentsG       * tmpG ;
+  CollisionOperator * coll;
 
 
   // Hammett-Belli hyper

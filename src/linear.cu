@@ -35,6 +35,10 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     grad_par = new GradParallelLinked(pars_, grids_);
   }
 
+  if(pars_->collision_model == "lorentz") {
+    coll = new LorentzCollisionOperator(pars_, grids_);
+  }
+
   switch (pars_->closure_model_opt)
     {
     case Closure::none      :
@@ -166,7 +170,7 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
 
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
-  if (pars_->collisions && pars_->coll_conservation)  conservation_terms <<< nb1, nt1 >>>
+  if (pars_->collisions && pars_->collision_model == "dougherty" && pars_->coll_conservation)  conservation_terms <<< nb1, nt1 >>>
 			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
 
   // Free-streaming requires parallel FFTs, so do that first
@@ -180,7 +184,11 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
-	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->collision_model == "dougherty", pars_->ei_colls);
+
+  if(pars_->collision_model != "dougherty") {
+    coll->rhs(G, f, geo_, GRhs, true);
+  }
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {

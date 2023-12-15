@@ -2610,6 +2610,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   const specie sp,
 			   const specie sp_i,
 			   cuComplex* __restrict__ rhs,
+                           bool dougherty,
 			   bool ei_colls)
 {
   extern __shared__ cuComplex s_h[]; // aliased below by macro S_H, defined above
@@ -2718,8 +2719,11 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
           - vt_ * bgrad_ * ( - sqrtf(m+1)*(l+1)*S_H(sl,sm+1) - sqrtf(m+1)* l   *S_H(sl-1,sm+1)  
                              + sqrtf(m  )* l   *S_H(sl,sm-1) + sqrtf(m  )*(l+1)*S_H(sl+1,sm-1) )
 	  - icv_d_s * ( sqrtf((m+1)*(m+2))*S_H(sl,sm+2) + (2*m+1)*S_H(sl,sm) + sqrtf(m*(m-1))*S_H(sl,sm-2) )
-	  - igb_d_s * (              (l+1)*S_H(sl+1,sm) + (2*l+1)*S_H(sl,sm)              + l*S_H(sl-1,sm) )
-	  - (nu_ + nuei_) * ( b_s + 2*l + m ) * ( S_H(sl,sm) );
+	  - igb_d_s * (              (l+1)*S_H(sl+1,sm) + (2*l+1)*S_H(sl,sm)              + l*S_H(sl-1,sm) );
+        if(dougherty) {
+          rhs[globalIdx] = rhs[globalIdx] 
+          - (nu_ + nuei_) * ( b_s + 2*l + m ) * ( S_H(sl,sm) );
+        }
 
 	// add drive and conservation terms in low hermite moments
 	if (m==0) {
@@ -2733,9 +2737,13 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
               JflrB(l-1,b_s)*l*tprim_
 	    + JflrB(l,  b_s)*(fprim_ + 2*l*tprim_)
 	    + JflrB(l+1,b_s)*(l+1)*tprim_ 
-	   )
-	   + nu_ * sqrtf(b_s) * JflrB(l, b_s) * uperp_bar_
-	   + ( nu_ + nuei_ ) * 2. * ( l*Jflr(l-1,b_s) + 2.*l*Jflr(l,b_s) + (l+1)*Jflr(l+1,b_s) ) * t_bar_; 
+	   );
+           
+          if(dougherty) { 
+            rhs[globalIdx] = rhs[globalIdx] 
+	    + nu_ * sqrtf(b_s) * JflrB(l, b_s) * uperp_bar_
+	    + ( nu_ + nuei_ ) * 2. * ( l*Jflr(l-1,b_s) + 2.*l*Jflr(l,b_s) + (l+1)*Jflr(l+1,b_s) ) * t_bar_; 
+          }
 	}
 
 	if (m==1) {
@@ -2747,13 +2755,20 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 	    + Jflr(l,  b_s)*(fprim_ + (2*l+1)*tprim_)
 	    + Jflr(l+1,b_s)*(l+1)*tprim_ 
 	   )
-      	   + Jflr(l,b_s) * (nu_*upar_bar_ + nuei_*vt_i/vt_*upar_bar_i)
            + phi_ * Jflr(l,b_s) * uprim_ * iky_ / vt_; // need to set uprim_ more carefully; this is a placeholder
+          if(dougherty) { 
+            rhs[globalIdx] = rhs[globalIdx] 
+      	   + Jflr(l,b_s) * (nu_*upar_bar_ + nuei_*vt_i/vt_*upar_bar_i);
+          }
 	}
 	if (m==2) {
 	  rhs[globalIdx] = rhs[globalIdx] + iky_*phi_*Jflr(l,b_s)/sqrtf(2.)*tprim_ 
-	     + iky_/zt_*bpar_*JflrB(l, b_s)/sqrtf(2.)*tprim_ 
+	     + iky_/zt_*bpar_*JflrB(l, b_s)/sqrtf(2.)*tprim_;
+
+          if(dougherty) { 
+            rhs[globalIdx] = rhs[globalIdx] 
 	     + ( nu_ + nuei_ ) * sqrtf(2.) * Jflr(l,b_s) * t_bar_;
+          }
 	}  
 
 	if (m==3) {
@@ -2763,6 +2778,89 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
       } // l loop
     } // m loop
   } // idxyz < NxNycNz
+}
+
+__global__ void lorentz_rhs(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const float* __restrict__ kperp2,
+			   const specie sp,
+			   cuComplex* __restrict__ rhs)
+{
+  extern __shared__ cuComplex s_h[]; // aliased below by macro S_H, defined above
+  
+  const unsigned int idxyz = get_id1();
+  const unsigned int idy = idxyz % nyc; 
+  const unsigned int idx = idxyz / nyc % nx;
+  const unsigned int idz = idxyz / (nx*nyc);
+  if (unmasked(idx, idy) && idz < nz) {
+    const unsigned int sidxyz = threadIdx.x;
+    
+    // shared memory blocks of size blockDim.x * (nl+2) * (nm+4)
+    const int sDimx = blockDim.x;
+    const int sDimy = nl+2;
+  
+    // read these values into (hopefully) register memory. 
+    // local to each thread (i.e. each idxyz).
+    // since idxyz is linear, these accesses are coalesced.
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+  
+    unsigned int nR = nyc * nx * nz;
+    
+    // species-specific constants
+    const float vt_ = sp.vt;
+    const float zt_ = sp.zt;
+    const float tz_ = sp.tz;
+    const float nu_ = sp.nu_ss; 
+    const float kperp2_ = kperp2[idxyz];
+    const float b_s = kperp2_ * sp.rho2;
+    
+    // read tile of g into shared mem
+    // each thread in the block reads in multiple values of l and m
+    // blockIdx for y and z and both of size unity in the kernel invocation
+    int nm_shared = nm+2*m_ghost;
+    if(m_ghost==0) nm_shared+=4;
+    int nl_shared = nl+2;
+    int ghost = m_ghost==0 ? 2 : m_ghost;
+    for (int sm = threadIdx.z; sm < nm_shared; sm += blockDim.z) {
+      for (int sl = threadIdx.y; sl < nl_shared; sl += blockDim.y) {
+        int globalIdx = idxyz + nR*((sl-1) + nl*(sm-ghost));
+        int l = sl-1;
+        int m = sm-ghost+m_lo;
+        if(m<0 || m>=nm_glob || l<0 || l>=nl) {
+          S_H(sl, sm) = make_cuComplex(0., 0.);
+        } else {
+          S_H(sl, sm) = g[globalIdx];
+          // add phi term for m=0 to change g into h
+          if (m==0) S_H(sl, sm) = S_H(sl, sm) + zt_*Jflr(l, b_s)*phi_ + JflrB(l, b_s)*bpar_;
+          // add apar term for m=1 (this is only needed in the formulation without dA/dt)
+          if (m==1) S_H(sl, sm) = S_H(sl, sm) - zt_*vt_*Jflr(l, b_s)*apar_;
+        }
+      }
+    }
+     
+    __syncthreads();
+    
+    // stencil (on non-ghost cells)
+    // blockIdx for y and z are unity in the kernel invocation
+    for (int m = threadIdx.z + m_lo; m < m_up; m += blockDim.z) {
+      for (int l = threadIdx.y; l < nl; l += blockDim.y) {
+        int m_local = m - m_lo;
+        int globalIdx = idxyz + nR*(l + nl*m_local);
+        int sl = l + 1;             // offset to get past ghosts
+        int sm = m_local + m_ghost; // offset to get past ghosts
+	if(m_ghost==0) sm+=2;
+  
+        rhs[globalIdx] = rhs[globalIdx] 
+	  + nu_ * ( -(l + m + 2*l*m) * S_H(sl,sm) + (l+1)*sqrtf(m*(m-1)) * S_H(sl+1,sm-2)
+                     + l*sqrtf((m+1)*(m+2)) * S_H(sl-1,sm+2)
+                  );
+      }
+    }
+  }
 }
 
 __global__ void rhs_linear_krehm(const cuComplex* g,

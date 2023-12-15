@@ -380,7 +380,16 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   const specie sp,
 			   const specie sp_i,
 			   cuComplex* __restrict__ rhs,
+                           bool dougherty,
 			   bool ei_colls); 
+
+__global__ void lorentz_rhs(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const float* __restrict__ kperp2,
+			   const specie sp,
+			   cuComplex* __restrict__ rhs);
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);
