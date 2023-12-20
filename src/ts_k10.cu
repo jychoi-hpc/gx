@@ -67,8 +67,14 @@ void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fi
     // compute and increment linear term
     GRhs[is]->set_zero();
     linear_->rhs(G_q1[is], f, GRhs[is], dt_);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
-
     G_q1[is]->add_scaled(1., Gtmp, dt_/6., GRhs[is]);
+
+    // compute and increment collision terms
+    if (collisions_[is] != nullptr) {
+      GRhs[is]->set_zero();
+      collisions_[is]->rhs(G_q1[is], f, GRhs[is], true);
+      G_q1[is]->add_scaled(1., Gtmp, dt_/6., GRhs[is]);
+    }
   }
 
   solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -115,6 +121,13 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
     linear_->rhs(G_q1[is], f, G[is], dt_);
     if (pars_->dealias_kz) grad_par->dealias(G[is]);
     G[is]->add_scaled(1., Gtmp, 0.1*dt_, G[is]);
+
+    // compute and increment collision terms
+    if (collisions_[is] != nullptr) {
+      G[is]->set_zero();
+      collisions_[is]->rhs(G_q1[is], f, G[is], true);
+      G[is]->add_scaled(1., Gtmp, 0.1*dt_, G[is]);
+    }
     
     if (forcing_ != nullptr) forcing_->stir(G[is]);
   }

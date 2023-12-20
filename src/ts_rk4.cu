@@ -65,6 +65,13 @@ void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     Rhs[is]->set_zero();
     linear_->rhs(Gt[is], f, Rhs[is], dt_);
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+
+    // compute and increment collision terms
+    if (collisions_[is] != nullptr) {
+      Rhs[is]->set_zero();
+      collisions_[is]->rhs(Gt[is], f, Rhs[is], true);
+      Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+    }
   
     // need to recompute and save Rhs for intermediate steps
     Rhs[is]->add_scaled(1./(adt*dt_), Gnew[is], -1./(adt*dt_), G[is]);
@@ -107,8 +114,14 @@ void RungeKutta4::advance(double *t, MomentsG** G, Fields* f)
 
     GStar[is]->set_zero();
     linear_->rhs(G_q1[is], f, GStar[is], dt_);
-    
     G[is]->add_scaled(1., G[is], dt_/6., GStar[is]);
+
+    // compute and increment collision terms
+    if (collisions_[is] != nullptr) {
+      GStar[is]->set_zero();
+      collisions_[is]->rhs(G_q1[is], f, GStar[is], true);
+      G[is]->add_scaled(1., G[is], dt_/6., GStar[is]);
+    }
 
     /*
     partial(G, G_q2, f, G_q1, GStar, 1., false);

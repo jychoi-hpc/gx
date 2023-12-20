@@ -41,6 +41,10 @@ void K2::EulerStep(MomentsG** G_q1, MomentsG** GRhs, Fields* f, bool setdt)
       if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
 
+    if(collisions_[is] != nullptr) {
+      collisions_[is]->rhs(G_q1[is], f, GRhs[is], true);
+    }
+
     G_q1[is]->add_scaled(1., G_q1[is], dt_*sm1inv, GRhs[is]);
   }
   solver_->fieldSolve(G_q1, f);    

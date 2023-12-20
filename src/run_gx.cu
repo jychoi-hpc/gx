@@ -252,8 +252,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
   for(int is=0; is<grids->Nspecies; is++) {
     if (G[is])         delete G[is];
+    if (collisions[is]) delete collisions[is];
   }
   free(G);
+  free(collisions);
   if (diagnostics) delete diagnostics;
   if (linear)    delete linear;
   if (nonlinear) delete nonlinear;

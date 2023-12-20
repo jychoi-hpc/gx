@@ -79,8 +79,11 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
 
     // compute and increment collision terms
-    collisions_[is]->rhs(Gt[is], f, Rhs[is], false);
-    Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+    if (collisions_[is] != nullptr) {
+      Rhs[is]->set_zero();
+      collisions_[is]->rhs(Gt[is], f, Rhs[is], true);
+      Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+    }
   
     // need to recompute and save Rhs for intermediate steps
     Rhs[is]->add_scaled(1./(adt*dt_), Gnew[is], -1./(adt*dt_), G[is]);

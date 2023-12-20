@@ -56,8 +56,14 @@ void SSPx2::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bo
     // compute and increment linear term
     GRhs->set_zero();
     linear_->rhs(G[is], f, GRhs, dt_); 
-
     G1[is]->add_scaled(1., G1[is], adt*dt_, GRhs);
+
+    // compute and increment collision terms
+    if (collisions_[is] != nullptr) {
+      GRhs->set_zero();
+      collisions_[is]->rhs(G[is], f, GRhs, true);
+      G1[is]->add_scaled(1., G1[is], adt*dt_, GRhs);
+    }
   }
 }
 
