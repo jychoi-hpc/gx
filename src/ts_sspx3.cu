@@ -14,9 +14,9 @@ The notes in the PDF above are from math student Federico Pasqualotto.
 */
 
 // ======= SSPx3 =======
-SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **collisions,
 	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), collisions_(collisions), grids_(grids), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr), G3(nullptr)
 {
   

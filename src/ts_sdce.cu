@@ -20,9 +20,9 @@ This is the main reason for carrying this commented file forward.
 
 /*
 // ============= SDC, forward Euler ========
-SDCe::SDCe(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+SDCe::SDCe(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **collisions,
 	    Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids),
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), collisions_(collisions), pars_(pars), grids_(grids),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in)
 {
   // set up storage 

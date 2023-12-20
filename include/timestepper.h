@@ -7,6 +7,7 @@
 #include "nonlinear.h"
 #include "solver.h"
 #include "forcing.h"
+#include "collisions.h"
 #include "grad_parallel.h"
 
 class Timestepper {
@@ -18,7 +19,7 @@ class Timestepper {
 
 class RungeKutta2 : public Timestepper {
  public:
-  RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~RungeKutta2();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -35,6 +36,7 @@ class RungeKutta2 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
@@ -44,7 +46,7 @@ class RungeKutta2 : public Timestepper {
 
 class RungeKutta3 : public Timestepper {
  public:
-  RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~RungeKutta3();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -61,6 +63,7 @@ class RungeKutta3 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
@@ -72,7 +75,7 @@ class RungeKutta3 : public Timestepper {
 
 class RungeKutta4 : public Timestepper {
  public:
-  RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~RungeKutta4();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -89,6 +92,7 @@ class RungeKutta4 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
@@ -100,7 +104,7 @@ class RungeKutta4 : public Timestepper {
 
 class Ketcheson10 : public Timestepper {
  public:
-  Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~Ketcheson10();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -114,6 +118,7 @@ class Ketcheson10 : public Timestepper {
   Linear       * linear_    ;
   Nonlinear    * nonlinear_ ;
   Solver       * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters   * pars_      ;
   Grids        * grids_     ;
   GradParallel * grad_par   ;
@@ -125,7 +130,7 @@ class Ketcheson10 : public Timestepper {
 
 class K2 : public Timestepper {
  public:
-  K2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  K2(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~K2();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -143,6 +148,7 @@ class K2 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
@@ -153,7 +159,7 @@ class K2 : public Timestepper {
 
 class SSPx2 : public Timestepper {
  public:
-  SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~SSPx2();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -170,6 +176,7 @@ class SSPx2 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
@@ -180,7 +187,7 @@ class SSPx2 : public Timestepper {
 
 class SSPx3 : public Timestepper {
  public:
-  SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
 	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~SSPx3();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -201,6 +208,7 @@ class SSPx3 : public Timestepper {
   Linear       * linear_    ;
   Nonlinear    * nonlinear_ ;
   Solver       * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters   * pars_      ;
   Grids        * grids_     ;
   Forcing      * forcing_   ;
@@ -214,7 +222,7 @@ class SSPx3 : public Timestepper {
 
 class G3 : public Timestepper {
  public:
-  G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  G3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **colls,
      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~G3();
   void advance(double* t, MomentsG** G, Fields* fields);
@@ -228,6 +236,7 @@ class G3 : public Timestepper {
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
   Solver     * solver_    ;
+  CollisionOperator ** collisions_;
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;

@@ -413,5 +413,18 @@ __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, cons
 				const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, cuComplex* rhs, const float vt);
 __global__ void hypercollisions_kz(const cuComplex* g, const float nu, const int p, cuComplex* res);
 
+__global__ void GtoH(cuComplex* gh,
+		     const cuComplex* __restrict__ phi,
+		     const cuComplex* __restrict__ apar,
+		     const cuComplex* __restrict__ bpar,
+		     const float* __restrict__ kperp2,
+		     const specie sp);
+
+__global__ void HtoG(cuComplex* gh,
+		     const cuComplex* __restrict__ phi,
+		     const cuComplex* __restrict__ apar,
+		     const cuComplex* __restrict__ bpar,
+		     const float* __restrict__ kperp2,
+		     const specie sp);
 
 

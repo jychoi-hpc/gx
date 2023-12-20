@@ -2,9 +2,9 @@
 // #include "get_error.h"
 
 // ======= RK2 =======
-RungeKutta2::RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+RungeKutta2::RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **collisions,
 			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), collisions_(collisions), grids_(grids), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr)
 {
   // new objects for temporaries

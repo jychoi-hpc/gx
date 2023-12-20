@@ -2780,6 +2780,66 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
+__global__ void GtoH(cuComplex* gh,
+		     const cuComplex* __restrict__ phi,
+		     const cuComplex* __restrict__ apar,
+		     const cuComplex* __restrict__ bpar,
+		     const float* __restrict__ kperp2,
+		     const specie sp)
+{
+  const unsigned int idxyz = get_id1();
+  const unsigned int idl = get_id2();
+
+  if (idxyz < nx*nyc*nz && idl < nl) {
+    const float vt_ = sp.vt;
+    const float zt_ = sp.zt;
+    const float tz_ = sp.tz;
+    const float nu_ = sp.nu_ss; 
+    const float kperp2_ = kperp2[idxyz];
+    const float b_s = kperp2_ * sp.rho2;
+
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+
+    int globalIdx_m0 = idxyz + nx*nyc*nz*(idl + nl*0);
+    int globalIdx_m1 = idxyz + nx*nyc*nz*(idl + nl*1);
+
+    if(m_lo == 0) gh[globalIdx_m0] = gh[globalIdx_m0] + zt_*Jflr(idl, b_s)*phi_ + JflrB(idl, b_s)*bpar_;
+    if(m_lo >= 1 && m_up < 2) gh[globalIdx_m1] = gh[globalIdx_m1] - zt_*vt_*Jflr(idl, b_s)*apar_;
+  }
+}
+
+__global__ void HtoG(cuComplex* gh,
+		     const cuComplex* __restrict__ phi,
+		     const cuComplex* __restrict__ apar,
+		     const cuComplex* __restrict__ bpar,
+		     const float* __restrict__ kperp2,
+		     const specie sp)
+{
+  const unsigned int idxyz = get_id1();
+  const unsigned int idl = get_id2();
+
+  if (idxyz < nx*nyc*nz && idl < nl) {
+    const float vt_ = sp.vt;
+    const float zt_ = sp.zt;
+    const float tz_ = sp.tz;
+    const float nu_ = sp.nu_ss; 
+    const float kperp2_ = kperp2[idxyz];
+    const float b_s = kperp2_ * sp.rho2;
+
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+
+    int globalIdx_m0 = idxyz + nx*nyc*nz*(idl + nl*0);
+    int globalIdx_m1 = idxyz + nx*nyc*nz*(idl + nl*1);
+
+    if(m_lo == 0) gh[globalIdx_m0] = gh[globalIdx_m0] - (zt_*Jflr(idl, b_s)*phi_ + JflrB(idl, b_s)*bpar_);
+    if(m_lo >= 1 && m_up < 2) gh[globalIdx_m1] = gh[globalIdx_m1] + (zt_*vt_*Jflr(idl, b_s)*apar_);
+  }
+}
+
 __global__ void lorentz_rhs(const cuComplex* __restrict__ g,
 			   const cuComplex* __restrict__ phi,
 			   const cuComplex* __restrict__ apar,

@@ -35,10 +35,6 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     grad_par = new GradParallelLinked(pars_, grids_);
   }
 
-  if(pars_->collision_model == "lorentz") {
-    coll = new LorentzCollisionOperator(pars_, grids_);
-  }
-
   switch (pars_->closure_model_opt)
     {
     case Closure::none      :
@@ -185,10 +181,6 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
 	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->collision_model == "dougherty", pars_->ei_colls);
-
-  if(pars_->collision_model != "dougherty") {
-    coll->rhs(G, f, geo_, GRhs, true);
-  }
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {

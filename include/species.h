@@ -20,4 +20,5 @@ typedef struct {
   float jparfac;
   float jperpfac;
   int type;
+  float nu[10];
 } specie;

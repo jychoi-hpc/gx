@@ -644,6 +644,13 @@ void Parameters::get_nml_vars(char* filename)
       string stype        = toml::find <string> (nml, "species", "type",  is);
       species_h[is].type = stype == "ion" ? 0 : 1;
     }
+    for (int a=0; a < nspec_in; a++) {
+      for (int b=0; b < nspec_in; b++) {
+        specie sa = species_h[a];
+        specie sb = species_h[b];
+        species_h[a].nu[b] = sa.nu_ss * sb.z * sb.z * sb.dens / sa.dens;
+      }
+    }
   } else if(krehm) {
     species_h[0].temp = 1.0;
     species_h[0].mass = 1.0;

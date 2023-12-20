@@ -1,9 +1,9 @@
 #include "timestepper.h"
 // #include "get_error.h"
 
-G3::G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+G3::G3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **collisions,
        Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), collisions_(collisions), pars_(pars), grids_(grids), 
   forcing_(forcing), dt_max(dt_in), dt_(dt_in),
   G_u1(nullptr), G_u2(nullptr)
 {

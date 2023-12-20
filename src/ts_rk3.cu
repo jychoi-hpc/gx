@@ -3,9 +3,9 @@
 
 // ============= RK3 =============
 // Heun's method
-RungeKutta3::RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+RungeKutta3::RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver, CollisionOperator **collisions,
 			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), collisions_(collisions), grids_(grids), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in),
   GRhs1(nullptr), GRhs2(nullptr), G_q1(nullptr), G_q2(nullptr)
 {
@@ -76,6 +76,10 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     // compute and increment linear term
     Rhs[is]->set_zero();
     linear_->rhs(Gt[is], f, Rhs[is], dt_);
+    Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+
+    // compute and increment collision terms
+    collisions_[is]->rhs(Gt[is], f, Rhs[is], false);
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
   
     // need to recompute and save Rhs for intermediate steps
