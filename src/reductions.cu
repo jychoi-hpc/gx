@@ -234,4 +234,5 @@ void DenseM::MatVec(double* Res, double* Mat, double* Vec)
 
 template class Reduction<float>;
 template class Reduction<double>;
+template class Reduction<cuComplex>;
 

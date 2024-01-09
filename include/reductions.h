@@ -7,6 +7,7 @@
 #include <vector>
 #include <iterator>
 #include "grids.h"
+#include <type_traits>
 
 // Handle cuTENSOR errors
 #define HANDLE_ERROR(x) {                                                              \
@@ -17,6 +18,11 @@
 
 template <class T> static cutensorComputeType_t computeType();
 template <> cutensorComputeType_t computeType<float>()
+{
+  return CUTENSOR_COMPUTE_32F;
+}
+
+template <> cutensorComputeType_t computeType<cuComplex>()
 {
   return CUTENSOR_COMPUTE_32F;
 }
@@ -32,10 +38,18 @@ template <> cudaDataType_t dataType<float>()
   return CUDA_R_32F;
 }
 
+template <> cudaDataType_t dataType<cuComplex>()
+{
+  return CUDA_C_32F;
+}
+
 template <> cudaDataType_t dataType<double>()
 {
   return CUDA_R_64F;
 }
+
+template<typename T>
+using floatType = typename std::conditional<std::is_same<T, float>::value || std::is_same<T, cuComplex>::value, float, double>::type;
 
 template <class T> class Reduction {
  public:
@@ -53,8 +67,8 @@ template <class T> class Reduction {
   cutensorHandle_t handle; 
   cutensorContractionFind_t find;
     
-  T alpha = 1.0;
-  T beta  = 0.0;
+  floatType<T> alpha = (floatType<T>) 1.0;
+  floatType<T> beta  = (floatType<T>) 0.0;
   
   Grids *grids_;
   bool initialized_Sum = false;

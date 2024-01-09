@@ -123,7 +123,11 @@ __global__ void eig_residual(double* y, double* A, double* x, double* R,
 			     double* r2, double eval, int K, int N);
   
 __global__ void scale_kernel(cuComplex* res, double s);
+__global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, float* s);
+__global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, cuComplex* s);
+__global__ void inv_scale_by_k_kernel(cuComplex* res, cuComplex* g, float* s);
 __global__ void scale_kernel(cuComplex* res, cuComplex s);
+__global__ void multiply_kernel(cuComplex* res, cuComplex* m1, cuComplex* m2);
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, cuComplex s);
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* m, float scalar);
 // Should we have some eqfix options in the singlemom_kernels? 
@@ -426,5 +430,7 @@ __global__ void HtoG(cuComplex* gh,
 		     const cuComplex* __restrict__ bpar,
 		     const float* __restrict__ kperp2,
 		     const specie sp);
+
+__global__ void abel_conservation_moment(cuComplex* cons, const float* alpha, const float* kperp2, const specie sp);
 
 

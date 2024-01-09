@@ -43,8 +43,12 @@ class MomentsG {
   void add_scaled(double c1, MomentsG* G1, double c2, MomentsG* G2, double c3, MomentsG* G3,
 		  double c4, MomentsG* G4, double c5, MomentsG* G5);
 
+  void multiply(MomentsG* G1, MomentsG* G2);
   void scale(double scalar);
   void scale(cuComplex scalar);
+  void scale_by_k(float* scalar, MomentsG* G1);
+  void scale_by_k(cuComplex* scalar, MomentsG* G1);
+  void inv_scale_by_k(float* scalar, MomentsG* G1);
   void mask(void);
   void set_zero(void);
 
@@ -71,10 +75,19 @@ class MomentsG {
   cuComplex * qprp_ptr;
 
   cudaStream_t syncStream;
+
+//  // cuTensor descriptors
+//  cudaDataType_t tensorType = CUDA_C_32F;
+//  // vector of modes for tensor
+//  std::vector<int> tensorModes{'x', 'y', 'z', 'l', 'm'};
+//
+//  cutensorTensorDescriptor_t tensorDescriptor;
+//  uint32_t tensorAlignmentRequirement;
  
  private:
   cuComplex  * G_lm   ;
   Grids      * grids_ ;
   Parameters * pars_  ;
   int is_glob_;
+
 };

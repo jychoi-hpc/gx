@@ -10,7 +10,7 @@
 
  nhermite = 16		# number of hermite moments (v_parallel resolution)
  nlaguerre = 4		# number of laguerre moments (mu B resolution)
- nspecies = 2		# number of evolved kinetic species
+ nspecies = 1		# number of evolved kinetic species
 
 [Domain]
  y0 = 100.0		# controls box length in y (in units of rho_ref) and minimum ky, so that ky_min*rho_ref = 1/y0 
@@ -20,8 +20,11 @@
  beta = 0.001			# reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi)). 
  nonlinear_mode = false         # this is a linear calculation
  ei_colls = false
- collision_model = "lorentz"
- #coll_conservation = false
+ collision_model = "abel"
+ abel_include_lorentz = true
+ abel_include_ediff = false
+ abel_include_flr = false
+ coll_conservation = false
 
 [Time]
  t_max = 25.0           # end time (in units of L_ref/vt_ref)
@@ -32,7 +35,7 @@
  ikpar_init = 0                  # parallel wavenumber of initial perturbation
  init_field = "all"          # initial condition set in density
  init_amp = 1.0              # amplitude of initial condition
- densfac = 0.1
+ densfac = -0.2
  uparfac = 0.0
  tparfac = 1.5
  tprpfac = 0.5
@@ -47,6 +50,11 @@
 [Geometry]
  geo_option = "slab"    # use slab geometry
  shat = 1.0e-8          # magnetic shear
+
+[Boltzmann]
+ add_Boltzmann_species = true    # use a Boltzmann species
+ Boltzmann_type = "electrons"    # the Boltzmann species will be electrons
+ tau_fac = 1.0                   # temperature ratio, T_i/T_e
 
 # it is okay to have extra species data here; only the first nspecies elements of each item are used
 

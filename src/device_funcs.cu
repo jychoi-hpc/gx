@@ -686,6 +686,53 @@ __global__ void scale_kernel(cuComplex* res, const cuComplex scalar)
   }
 }
 
+__global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, float* scalar)
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3(); 
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    
+    res[ig] = scalar[idxy+nx*nyc*idz]*g[ig];
+  }
+}
+
+__global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, cuComplex* scalar)
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3(); 
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    
+    res[ig] = scalar[idxy+nx*nyc*idz]*g[ig];
+  }
+}
+
+__global__ void inv_scale_by_k_kernel(cuComplex* res, cuComplex* g, float* scalar)
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3(); 
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    
+    res[ig] = 1./scalar[idxy+nx*nyc*idz]*g[ig];
+  }
+}
+
+__global__ void multiply_kernel(cuComplex* res, cuComplex* m1, cuComplex* m2)
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3(); 
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] = m1[ig]*m2[ig];
+  }
+}
+
 __global__ void scale_singlemom_kernel(cuComplex* res, cuComplex* mom, cuComplex scalar)
 {
   unsigned int idxyz = get_id1();
@@ -3277,6 +3324,30 @@ __global__ void conservation_terms(cuComplex* upar_bar,
 	}
       }
       uperp_bar[idxyz] = uperp_bar[idxyz]*sqrtf(b_s);
+    }
+  }
+}
+
+__global__ void abel_conservation_moment(cuComplex* cons, const float* alpha, const float* kperp2, const specie sp)
+{
+  unsigned int idxyz = get_id1();
+  
+  unsigned int idy = idxyz % nyc;
+  unsigned int idx = (idxyz / nyc) % nx;
+
+  if ( unmasked(idx, idy) && idxyz < nx*nyc*nz) {
+    const float b_s = kperp2[idxyz] * sp.rho2;
+    unsigned int l = get_id2();                                                                
+    if (l<nl) {
+      unsigned int m = get_id3() + m_lo;
+      if (m>=m_lo && m<m_up) {                                                                 
+        int m_local = m - m_lo;
+        int globalIdx = idxyz + nx*nyc*nz*(l + nl*m_local);                                    
+        cons[globalIdx] = make_cuComplex(0., 0.);
+        for (unsigned int n=0; n < nl; n++) {
+          cons[globalIdx].x += alpha[l + m*nl + nl*nm*n]*Jflr(n, b_s);
+        }
+      }
     }
   }
 }

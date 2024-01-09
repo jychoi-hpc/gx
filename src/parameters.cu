@@ -524,6 +524,9 @@ void Parameters::get_nml_vars(char* filename)
   }
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
   coll_conservation = toml::find_or <bool> (tnml, "coll_conservation", true);
+  abel_include_lorentz = toml::find_or <bool> (tnml, "abel_include_lorentz", true);
+  abel_include_ediff = toml::find_or <bool> (tnml, "abel_include_ediff", true);
+  abel_include_flr = toml::find_or <bool> (tnml, "abel_include_flr", true);
 
   gx = (!ks && !vp && !krehm && !cetg);
   assert (!(ks && vp));

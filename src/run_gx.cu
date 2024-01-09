@@ -46,6 +46,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     for(int is=0; is<grids->Nspecies; is++) {
       int is_glob = is+grids->is_lo;
       if (pars->collision_model == "lorentz") collisions[is] = new LorentzCollisionOperator(pars, grids, geo, *(G[is]->species), is_glob);
+      if (pars->collision_model == "abel") collisions[is] = new AbelCollisionOperator(pars, grids, geo, *(G[is]->species), is_glob);
     }
 
     if (pars->forcing_init) {

@@ -90,6 +90,37 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
 
   cudaStreamCreateWithFlags(&syncStream, cudaStreamNonBlocking);
   checkCuda(cudaGetLastError());
+
+//  // create cuTensor descriptor for data
+//  // define extents
+//  std::unordered_map<int, int64_t> extent;
+//  extent['x'] = grids_->Nx;
+//  extent['y'] = grids_->Nyc;
+//  extent['z'] = grids_->Nz;
+//  extent['l'] = grids_->Nl;
+//  extent['m'] = grids_->Nm;
+//
+//  // create vector of extents
+//  std::vector<int64_t> extentVec;
+//  for(auto mode : tensorModes)
+//      extentVec.push_back(extent[mode]);
+//
+//  // initialize cuTENSOR handle
+//  HANDLE_ERROR( cutensorInit(&tensorHandle) );
+//
+//  // Create Tensor Descriptor
+//  HANDLE_ERROR( cutensorInitTensorDescriptor( &tensorHandle,
+//              &tensorDescriptor,
+//              tensorModes.size(),
+//              extentVec.data(),
+//              NULL,/*stride*/
+//              tensorType, CUTENSOR_OP_IDENTITY ) );
+//
+//  // Retrieve the memory alignment for tensor
+//  HANDLE_ERROR( cutensorGetAlignmentRequirement( &tensorHandle,
+//             G_lm,
+//             &tensorDescriptor,
+//             &tensorAlignmentRequirement) );
 }
 
 MomentsG::~MomentsG() {
@@ -332,6 +363,18 @@ void MomentsG::initialConditions(double* time) {
 
 void MomentsG::scale(double    scalar) {scale_kernel GALL (G(), scalar);}
 void MomentsG::scale(cuComplex scalar) {scale_kernel GALL (G(), scalar);}
+void MomentsG::scale_by_k(float* scalar, MomentsG* G1) {
+  scale_by_k_kernel GALL (G(), G1->G(), scalar);
+}
+void MomentsG::scale_by_k(cuComplex* scalar, MomentsG* G1) {
+  scale_by_k_kernel GALL (G(), G1->G(), scalar);
+}
+void MomentsG::multiply(MomentsG* G1, MomentsG* G2) {
+  multiply_kernel GALL (G(), G1->G(), G2->G());
+}
+void MomentsG::inv_scale_by_k(float* scalar, MomentsG* G1) {
+  inv_scale_by_k_kernel GALL (G(), G1->G(), scalar);
+}
 void MomentsG::mask(void) {maskG GALL (G());}
 
 void MomentsG::rescale(float * phi_max) {
@@ -368,6 +411,7 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
   bool neqfix = !pars_->eqfix;
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), c3, G3->G(), c4, G4->G(), c5, G5->G(), neqfix);
 }
+
 
 void MomentsG::reality(int ngz) 
 {

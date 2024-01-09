@@ -7,10 +7,8 @@ LorentzCollisionOperator::LorentzCollisionOperator(Parameters* pars, Grids* grid
   cudaMalloc ((void**) &collMat, sizeof(cuComplex)*Nlm*Nlm);
   cuComplex *collMat_h = (cuComplex*) malloc(sizeof(cuComplex)*Nlm*Nlm);
 
-  initCollisionMatrix(collMat_h);
+  init_collision_matrix(collMat_h);
   CP_TO_GPU (collMat, collMat_h, sizeof(cuComplex)*Nlm*Nlm);
-
-  tmpG = new MomentsG (pars, grids);
 
   if (collMat_h) free(collMat_h);
 
@@ -25,11 +23,10 @@ LorentzCollisionOperator::LorentzCollisionOperator(Parameters* pars, Grids* grid
 LorentzCollisionOperator::~LorentzCollisionOperator()
 {
   if (collMat) cudaFree(collMat);
-  if (tmpG) delete tmpG;
   cublasDestroy(handle);
 }
 
-void LorentzCollisionOperator::initCollisionMatrix(cuComplex* testMat)
+void LorentzCollisionOperator::init_collision_matrix(cuComplex* testMat)
 {
   // read from netcdf
   char fname[1000];
@@ -94,24 +91,24 @@ void LorentzCollisionOperator::initCollisionMatrix(cuComplex* testMat)
       extentB.push_back(extent[mode]);
 
   // initialize cuTENSOR library
-  HANDLE_ERROR( cutensorInit(&handleT) );
+  HANDLE_ERROR( cutensorInit(&cutensorHandle) );
 
   // Create Tensor Descriptors
-  HANDLE_ERROR( cutensorInitTensorDescriptor( &handleT,
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &cutensorHandle,
               &descA,
               nmodeA,
               extentA.data(),
               NULL,/*stride*/
               typeA, CUTENSOR_OP_IDENTITY ) );
 
-  HANDLE_ERROR( cutensorInitTensorDescriptor( &handleT,
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &cutensorHandle,
               &descB,
               nmodeB,
               extentB.data(),
               NULL,/*stride*/
               typeB, CUTENSOR_OP_IDENTITY ) );
 
-  HANDLE_ERROR( cutensorInitTensorDescriptor( &handleT,
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &cutensorHandle,
               &descC,
               nmodeC,
               extentC.data(),
@@ -122,7 +119,7 @@ void LorentzCollisionOperator::initCollisionMatrix(cuComplex* testMat)
   
 }
   
-void LorentzCollisionOperator::applyCollisionMatrix_cublas(cuComplex* G_in, cuComplex* G_res, bool accumulate)
+void LorentzCollisionOperator::apply_collision_matrix_cublas(cuComplex* G_in, cuComplex* G_res, bool accumulate)
 {
   int m = Nk;
   int n = Nlm;
@@ -146,7 +143,7 @@ void LorentzCollisionOperator::applyCollisionMatrix_cublas(cuComplex* G_in, cuCo
      &beta, G_res, ldc);
 }
 
-void LorentzCollisionOperator::applyCollisionMatrix_cutensor(cuComplex* G_in, cuComplex* G_res, bool accumulate)
+void LorentzCollisionOperator::apply_collision_matrix_cutensor(cuComplex* G_in, cuComplex* G_res, bool accumulate)
 {
   cuComplex alpha; alpha.x = 1.0; alpha.y = 0.0;
   cuComplex beta; 
@@ -158,23 +155,23 @@ void LorentzCollisionOperator::applyCollisionMatrix_cutensor(cuComplex* G_in, cu
 
   if(first) {
     //Retrieve the memory alignment for each tensor
-    HANDLE_ERROR( cutensorGetAlignmentRequirement( &handleT,
+    HANDLE_ERROR( cutensorGetAlignmentRequirement( &cutensorHandle,
                G_in,
                &descA,
                &alignmentRequirementA) );
 
-    HANDLE_ERROR( cutensorGetAlignmentRequirement( &handleT,
+    HANDLE_ERROR( cutensorGetAlignmentRequirement( &cutensorHandle,
                collMat,
                &descB,
                &alignmentRequirementB) );
 
-    HANDLE_ERROR( cutensorGetAlignmentRequirement( &handleT,
+    HANDLE_ERROR( cutensorGetAlignmentRequirement( &cutensorHandle,
                G_res,
                &descC,
                &alignmentRequirementC) );
 
     // Create the Contraction Descriptor
-    HANDLE_ERROR( cutensorInitContractionDescriptor( &handleT,
+    HANDLE_ERROR( cutensorInitContractionDescriptor( &cutensorHandle,
                 &desc,
                 &descA, modeA.data(), alignmentRequirementA,
                 &descB, modeB.data(), alignmentRequirementB,
@@ -184,11 +181,11 @@ void LorentzCollisionOperator::applyCollisionMatrix_cutensor(cuComplex* G_in, cu
 
     // Set the algorithm to use
     HANDLE_ERROR( cutensorInitContractionFind(
-                &handleT, &find,
+                &cutensorHandle, &find,
                 CUTENSOR_ALGO_DEFAULT) );
 
     // Query workspace
-    HANDLE_ERROR( cutensorContractionGetWorkspace(&handleT,
+    HANDLE_ERROR( cutensorContractionGetWorkspace(&cutensorHandle,
                 &desc,
                 &find,
                 CUTENSOR_WORKSPACE_RECOMMENDED, &worksize ) );
@@ -204,7 +201,7 @@ void LorentzCollisionOperator::applyCollisionMatrix_cutensor(cuComplex* G_in, cu
     }
 
     // Create Contraction Plan
-    HANDLE_ERROR( cutensorInitContractionPlan(&handleT,
+    HANDLE_ERROR( cutensorInitContractionPlan(&cutensorHandle,
                                               &plan,
                                               &desc,
                                               &find,
@@ -213,7 +210,7 @@ void LorentzCollisionOperator::applyCollisionMatrix_cutensor(cuComplex* G_in, cu
   }
 
   // Execute the tensor contraction
-  cutensorStatus_t err = cutensorContraction(&handleT,
+  cutensorStatus_t err = cutensorContraction(&cutensorHandle,
                             &plan,
                      (void*)&alpha, G_in,
                                     collMat,
@@ -232,7 +229,7 @@ void LorentzCollisionOperator::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, bool 
 {
   GtoH<<<dimGrid, dimBlock>>>(G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
 
-  applyCollisionMatrix_cutensor(G->G(), GRhs->G(), accumulate);
+  apply_collision_matrix_cutensor(G->G(), GRhs->G(), accumulate);
 
   HtoG<<<dimGrid, dimBlock>>>(G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));
 }
