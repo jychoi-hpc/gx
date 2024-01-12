@@ -254,14 +254,14 @@ void Linear_GK::get_max_frequency(double *omega_max)
   }
   omega_max[1] = pars_->tzmax*grids_->ky_max*
     (grids_->vpar_max*grids_->vpar_max*geo_->cvdrift_max + grids_->muB_max*geo_->gbdrift_max);
-//  if(pars_->linear && pars_->etamax < 1e5) {omega_max[1] = (omega_max[1] + grids_->ky_max*
-//	     (1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));}
+  if(pars_->linear && pars_->etamax < 1e5) {omega_max[1] = (omega_max[1] + grids_->ky_max*
+	     (1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));}
   float beta = pars_->beta;
   float nte = pars_->ne*pars_->Te;
   float mime = pars_->vtmax*pars_->vtmax/pars_->vtmin/pars_->vtmin;
   float kperprho2 = grids_->kperp_min*grids_->kperp_min/geo_->bmag_max/geo_->bmag_max;
   omega_max[2] = pars_->vtmax*grids_->kz_max*geo_->gradpar * 
-                 max(grids_->vpar_max, pars_->nspec_in > 1 ? grids_->vpar_max/sqrt(beta*nte/2*mime + kperprho2): 0.);
+                 max(grids_->vpar_max, pars_->nspec_in > 1 ? 1/sqrt(beta*nte/2*mime + kperprho2): 0.);
   
 }
 

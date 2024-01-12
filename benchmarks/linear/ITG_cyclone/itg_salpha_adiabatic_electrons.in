@@ -26,7 +26,7 @@
  scheme = "rk4"         # use RK4 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
- ikpar_init = 0                  # parallel wavenumber of initial perturbation
+ gaussian_init = true            # initial perturbation is a gaussian in theta
  init_field = "density"          # initial condition set in density
  init_amp = 1.0e-10              # amplitude of initial condition
 
@@ -57,10 +57,6 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.1                # coefficient of hermite hypercollisions
- p_hyper_m = 6                   # exponent of hermite hypercollisions
- nu_hyper_l = 0.1                # coefficient of laguerre hypercollisions
- p_hyper_l = 6                   # exponent of laguerre hypercollisions
 
 [Diagnostics]
  nwrite = 1000                  # write diagnostics every nwrite timesteps
