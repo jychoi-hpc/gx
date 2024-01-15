@@ -16,16 +16,16 @@ from netCDF4 import Dataset
 
 stem = sys.argv[1]
 
-data = Dataset("%s.nc" % stem, mode='r')
-t = data.variables['time'][:]
-ky = data.variables['ky'][1]
-Pky = data.groups['Spectra'].variables['Pkyst'][:,0,1]
+data = Dataset("%s.out.nc" % stem, mode='r')
+t = data.groups['Grids'].variables['time'][:]
+ky = data.groups['Grids'].variables['ky'][:]
+Pky = data.groups['Diagnostics'].variables['Phi2_kyt'][:,1]
 plt.plot(t, Pky, label='GX')
 
-check = Dataset("%s_correct.nc" % stem, mode='r')
-t = check.variables['time'][:]
-ky = check.variables['ky'][1]
-check_Pky = check.groups['Spectra'].variables['Pkyst'][:,0,1]
+check = Dataset("%s_correct.out.nc" % stem, mode='r')
+t = data.groups['Grids'].variables['time'][:]
+ky = data.groups['Grids'].variables['ky'][:]
+check_Pky = data.groups['Diagnostics'].variables['Phi2_kyt'][:,1]
 plt.plot(t, check_Pky, label='correct')
 
 dt = t[1]-t[0]

@@ -151,7 +151,7 @@ void write_eiktest_in(Parameters *pars, Grids *grids) {
   sprintf(fname, "%s.eik.in", pars->run_name);
   fptr = fopen(fname, "w");
   fprintf(fptr, "&stuff\n");
-  fprintf(fptr, " ntheta = %d\n", pars->nz_in);
+  fprintf(fptr, " ntheta = %d\n", pars->nz_in/(2*pars->nperiod-1));
   fprintf(fptr, " nperiod = %d\n", pars->nperiod);
   fprintf(fptr, " geoType = %d\n", pars->geoType);
   fprintf(fptr, " rmaj = %.9e\n", pars->rmaj);

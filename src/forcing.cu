@@ -68,7 +68,7 @@ void HeliInjForcing::stir(MomentsG *G) {
   int kx, ky;
   kx = rand() % (k2max + 1);
   ky = rand() % (k2max + 1);
-  std::cout << "Perturbed mode: (" << kx << ", " << ky << ")" << std::endl;
+  //std::cout << "Perturbed mode: (" << kx << ", " << ky << ")" << std::endl;
   heli_generate_random_numbers (&random_real, &random_imag, pos_forcing_amp_, neg_forcing_amp_, pars_->dt);
   rf.x = random_real;
   rf.y = random_imag;

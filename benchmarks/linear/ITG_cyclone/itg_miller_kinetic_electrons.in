@@ -27,7 +27,7 @@
  scheme = "rk4"         # use RK4 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
- ikpar_init = 0                  # parallel wavenumber of initial perturbation
+ gaussian_init = true            # initial perturbation is a gaussian in theta
  init_field = "density"          # initial condition set in density
  init_amp = 1.0e-10              # amplitude of initial condition
  init_electrons_only = true      # only set up initial pertubation in electrons
@@ -61,16 +61,11 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.1                # coefficient of hermite hypercollisions
- p_hyper_m = 6                   # exponent of hermite hypercollisions
- nu_hyper_l = 0.1                # coefficient of laguerre hypercollisions
- p_hyper_l = 6                   # exponent of laguerre hypercollisions
 
 [Diagnostics]
  nwrite = 100                   # write diagnostics every nwrite timesteps
  omega  = true                  # compute and write growth rates and frequencies
  free_energy = true             # compute and write free energy spectra (Wg, Wphi, Phi**2)
- fluxes = true                  # compute and write flux spectra (Q, Gamma)
  fields = true                  # write fields on the grid
  moments = true                 # write moments on the grid
 

@@ -176,6 +176,8 @@ class Parameters {
 
   bool adiabatic_electrons, snyder_electrons, stationary_ions, dorland_qneut;
   bool all_kinetic, ks, gx, add_Boltzmann_species, write_ks, random_init;
+  bool gaussian_init;
+  float gaussian_width;
   bool vp, vp_closure;
   bool cetg;  
   bool write_all_kmom, write_kmom, write_xymom, write_all_xymom, write_avgz, write_all_avgz;
