@@ -200,7 +200,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
     t_ = 1./sqrtf(8.);
     u_ = 1.-1./sqrtf(2.);
   }
-  
+  checkCudaErrors(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
     if(is == ielectron && p_!=0.) {
@@ -217,7 +217,8 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
     invert_implicit_terms(G1[ielectron], f, p_*dt_);
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
-  } 
+  }
+  checkCudaErrors(cudaGetLastError()); 
   // stage 2
   // compute A1 = A(G1)
   explicit_terms(A1, G1, f, true);
@@ -240,6 +241,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   invert_implicit_terms(G1[ielectron], f, r_*dt_);
   solver_->fieldSolve(G1, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  checkCudaErrors(cudaGetLastError());
 
   // stage 3
   // compute A2 = A(G1)
@@ -259,6 +261,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   // G1_e = G_e + a31*A1_e + a32*A2_e + s_*dt*B1_e + t_*dt*B2_e
   G1[ielectron]->add_scaled(1., G[ielectron], a31*dt_, A1[ielectron], a32*dt_, A2[ielectron], 
 		            s_*dt_, B1[ielectron], t_*dt_, B2[ielectron]);
+  checkCudaErrors(cudaGetLastError());
   // G1 = inv(I - u_*dt*B)*G1
   invert_implicit_terms(G1[ielectron], f, u_*dt_);
   solver_->fieldSolve(G1, f);         
@@ -282,6 +285,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   *t += dt_;
+  checkCudaErrors(cudaGetLastError());
 }
 // ======= 4-stage addivte RK IMEX methods =======
 IMEX_4stage::IMEX_4stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,

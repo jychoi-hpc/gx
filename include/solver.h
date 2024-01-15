@@ -25,7 +25,9 @@ class Solver_GK : public Solver {
   void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
-  float* getQneutDenom() {return qneutDenom;};
+//  float* getQneutDenom() {return qneutDenom;};
+  float* getQneutDenom() {return qneutFacPhi;};
+
   
   cuComplex * nbar ;
   cuComplex * nbar_tmp ;
