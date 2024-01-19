@@ -3,6 +3,7 @@
 #include "device_funcs.h"
 #include "get_error.h"
 #include "nccl.h"
+#include "cal.h"
 
 class Grids {
 
@@ -48,6 +49,7 @@ class Grids {
   ncclUniqueId ncclId, ncclId_m0;
   std::vector<ncclUniqueId> ncclId_s, ncclId_m;
   cudaStream_t ncclStream;
+  cal_comm_t cal_comm;
 
   int iproc, nprocs;
   int iproc_m, nprocs_m;

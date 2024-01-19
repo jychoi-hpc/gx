@@ -24,7 +24,6 @@ int main(int argc, char* argv[])
   MPI_Comm_rank(mpcom, &iproc);
   MPI_Comm_size(mpcom, &nprocs);
   
-  int devid = 0; // This should be determined (optionally) on the command line
   int nGPUs = 0;
   checkCuda(cudaGetDeviceCount(&nGPUs));
   checkCuda(cudaSetDevice(iproc%nGPUs));

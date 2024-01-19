@@ -15,9 +15,8 @@ Parameters::Parameters(int iproc_in, int nprocs_in, MPI_Comm mpcom_in) {
   mpcom = mpcom_in;
 
   // some cuda parameters (not from input file)
-  int dev; 
-  cudaGetDevice(&dev);
-  if (false) printf("device id = %d \n",dev);
+  cudaGetDevice(&devid);
+  if (false) printf("device id = %d \n",devid);
 }
 
 Parameters::~Parameters() {
@@ -1275,6 +1274,7 @@ void Parameters::init_species(specie* species)
   vtmin = 1000000000;
   tzmax = -1.;
   etamax = -1.;
+  is_ion = -1;
   for(int s=0; s<nspec_in; s++) {
     species[s].vt   = sqrt(species[s].temp / species[s].mass);
     species[s].tz   = species[s].temp / species[s].z;
@@ -1310,6 +1310,9 @@ void Parameters::init_species(specie* species)
       ne = species[s].dens;
       Te = species[s].temp;
     }
+
+    // save index of first ion species
+    if(species[s].type == 0 && is_ion < 0) is_ion = s;
   }
 }
 

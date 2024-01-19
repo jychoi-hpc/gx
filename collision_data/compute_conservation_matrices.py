@@ -19,6 +19,8 @@ lib.alphaParD_proj.restype = ctypes.c_double
 lib.alphaParD_proj.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_double), ctypes.c_void_p)
 lib.alphaPerpD_proj.restype = ctypes.c_double
 lib.alphaPerpD_proj.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_double), ctypes.c_void_p)
+lib.alphaEi_proj.restype = ctypes.c_double
+lib.alphaEi_proj.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_double), ctypes.c_void_p)
 
 def alphaE_proj_C(l, m, n):
     data = (ctypes.c_int*3)()
@@ -170,6 +172,36 @@ def compute_alphaPerpD_matrix(NL, NM):
     
     return alphaPerpD
 
+def alphaEi_proj_C(l, m, n):
+    data = (ctypes.c_int*3)()
+    data[0] = l
+    data[1] = m
+    data[2] = n
+    user_data = ctypes.cast(ctypes.pointer(data), ctypes.c_void_p)
+    
+    func = LowLevelCallable(lib.alphaEi_proj, user_data)
+    
+    return integrate.dblquad(func, -1, 1, 0, np.inf, epsrel=1e-5)[0]
+
+def compute_alphaEi_matrix(NL, NM):
+    sys.stdout.flush()
+    
+    mat = np.zeros((perrank, NM, NL))
+    alphaEi = np.zeros((NL, NM, NL))
+
+    for l in range(rank*perrank, (rank+1)*perrank):
+       for m in range(NM):
+          for n in range(NL):
+             val = alphaEi_proj_C(l, m, n)
+             if rank == size-1:
+                print("alphaEi", l, m, n, val)
+                sys.stdout.flush()
+             mat[l-rank*perrank,m,n] = val
+
+    comm.Gather(mat, alphaEi, root=0)
+    
+    return alphaEi
+
 from netCDF4 import Dataset
         
 NL=16
@@ -186,6 +218,7 @@ alphaParL = compute_alphaParL_matrix(NL, NM)
 alphaParD = compute_alphaParD_matrix(NL, NM)
 alphaPerpL = compute_alphaPerpL_matrix(NL, NM)
 alphaPerpD = compute_alphaPerpD_matrix(NL, NM)
+alphaEi = compute_alphaEi_matrix(NL, NM)
 
 comm.Barrier()
 
@@ -216,6 +249,8 @@ if rank==0:
     var = nc.createVariable('alphaPerpD', 'float32', ('l', 'm', 'n'))
     var[:,:,:] = alphaPerpD
 
+    var = nc.createVariable('alphaEi', 'float32', ('l', 'm', 'n'))
+    var[:,:,:] = alphaEi
 
 
 

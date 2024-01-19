@@ -2,6 +2,59 @@
 #include "hermite_transform.h"
 #include "laguerre_transform.h"
 
+#define CAL_CHECK(call)                                                                                                \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        calError_t status = call;                                                                                      \
+        if (status != CAL_OK)                                                                                          \
+        {                                                                                                              \
+            fprintf(stderr, "CAL error at %s:%d : %d\n", __FILE__, __LINE__, status);                                  \
+            exit(EXIT_FAILURE);                                                                                        \
+        }                                                                                                              \
+    } while (0)
+
+calError_t allgather(void* src_buf, void* recv_buf, size_t size, void* data, void** request)
+{
+    MPI_Request req;
+    int err = MPI_Iallgather(src_buf, size, MPI_BYTE, recv_buf, size, MPI_BYTE, (MPI_Comm)(data), &req);
+    if (err != MPI_SUCCESS)
+    {
+        return CAL_ERROR;
+    }
+    *request = (void*)req;
+    return CAL_OK;
+}
+
+calError_t request_test(void* request)
+{
+    MPI_Request req = (MPI_Request)(request);
+    int         completed;
+    int         err = MPI_Test(&req, &completed, MPI_STATUS_IGNORE);
+    if (err != MPI_SUCCESS)
+    {
+        return CAL_ERROR;
+    }
+    return completed ? CAL_OK : CAL_ERROR_INPROGRESS;
+}
+
+calError_t request_free(void* request)
+{
+    return CAL_OK;
+}
+
+calError_t cal_comm_create_mpi(MPI_Comm mpi_comm, int rank, int nranks, int local_device, cal_comm_t* comm)
+{
+    cal_comm_create_params_t params;
+    params.allgather = allgather;
+    params.req_test = request_test;
+    params.req_free = request_free;
+    params.data = (void*)mpi_comm;
+    params.rank = rank;
+    params.nranks = nranks;
+    params.local_device = local_device;
+    return cal_comm_create(params, comm);
+}
+
 Grids::Grids(Parameters* pars) :
   // copy from input parameters
   Nx       ( pars->nx_in       ),
@@ -172,6 +225,8 @@ Grids::Grids(Parameters* pars) :
       ncclComm_m0 = ncclComm;
   }
   DEBUGPRINT("Finished initializaing NCCL comms.\n");
+
+  CAL_CHECK(cal_comm_create_mpi(MPI_COMM_WORLD, iproc, nprocs, pars_->devid, &cal_comm));
 }
 
 Grids::~Grids() {

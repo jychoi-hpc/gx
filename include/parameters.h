@@ -95,7 +95,7 @@ class Parameters {
   Parameters(int iproc=0, int nprocs=1, MPI_Comm mpcom=MPI_COMM_WORLD);
   ~Parameters(void);
   
-  int iproc, nprocs;
+  int iproc, nprocs, devid;
   MPI_Comm mpcom;
   const int nw_spectra = 10; // should match # of elements in WSpectra
   const int np_spectra = 7;  // should match # of elements in PSpectra
@@ -148,6 +148,7 @@ class Parameters {
   float D_HB, w_osc;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
+  int is_ion;
   float avail_cpu_time, margin_cpu_time;
   //  float NLdensfac, NLuparfac, NLtparfac, NLtprpfac, NLqparfac, NLqprpfac;
   float tp_t0, tp_tf, tprim0, tprimf;

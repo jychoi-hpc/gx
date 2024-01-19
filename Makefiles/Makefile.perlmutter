@@ -29,6 +29,8 @@ HDF5_ROOT = ${HDF5_DIR}
 NETCDF_INC = -I ${NETCDF_ROOT}/include
 NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -lnetcdff -L${HDF5_ROOT}/lib -lhdf5
 
+NVHPC_ROOT = ${NVIDIA_PATH}
+
 # paths to mpich
 # MPICH_DIR is defined by cray-mpich module
 MPI_ROOT = ${MPICH_DIR}
@@ -37,11 +39,10 @@ MPI_LIB = -L ${MPI_ROOT}/lib -lmpi
 
 # paths to cuda 
 # NVIDIA_PATH is defined by nvhpc-mixed module
-NVHPC_ROOT = ${NVIDIA_PATH}
 # NCCL_HOME is defined by nccl module
 NCCL_ROOT = ${NCCL_HOME}
-CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
-CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+CUDA_INC = -I /global/homes/n/nmandell/cuda/12/cublasmp/include -I /global/homes/n/nmandell/cuda/12/cal/include -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include 
+CUDA_LIB = -L /global/homes/n/nmandell/cuda/12/cal/lib -lcal -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt -L /global/homes/n/nmandell/cuda/12/cublasmp/lib -lcublasmp 
 
 # paths to gsl 
 # GSL_ROOT is defined by gsl module
@@ -59,7 +60,7 @@ CXX = CC
 
 NVCC   = nvcc
 CFLAGS = -fPIC
-NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true -fpermissive -DUSE_CUBLASMP
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

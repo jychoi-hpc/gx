@@ -3352,6 +3352,22 @@ __global__ void abel_conservation_moment(cuComplex* cons, const float* alpha, co
   }
 }
 
+__global__ void calc_uparbar_i_from_He_and_apar(cuComplex* uparbar_i, const cuComplex* He, const cuComplex* apar, const float* kperp2_ov_B2, const float* bmag, const specie sp_e, const specie sp_i)
+{
+  unsigned int idxyz = get_id1();
+  unsigned int idz = idxyz / (nx*nyc);
+  if (idxyz < nx*nyc*nz) {
+    const float kperp2_ = kperp2_ov_B2[idxyz] * bmag[idz] * bmag[idz];
+    const float b_e = kperp2_ov_B2[idxyz] * sp_e.rho2;
+    const cuComplex apar_ = apar[idxyz];
+    cuComplex uparbar_e = make_cuComplex(0., 0.);
+    for(int l=0; l<nl; l++) {
+      uparbar_e = uparbar_e + Jflr(l, b_e)*He[idxyz + l*nx*nyc*nz + 1*nl*nx*nyc*nz];
+    }
+    uparbar_i[idxyz] = (kperp2_*apar_ - sp_e.jparfac*uparbar_e)/sp_i.jparfac*sp_i.vt/sp_e.vt;
+  }
+}
+
 __global__ void Wphi_summand_cetg(float* p2, const cuComplex* phi, const float* volJac)
 {
   idXYZ;

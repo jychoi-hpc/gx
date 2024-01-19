@@ -432,5 +432,6 @@ __global__ void HtoG(cuComplex* gh,
 		     const specie sp);
 
 __global__ void abel_conservation_moment(cuComplex* cons, const float* alpha, const float* kperp2, const specie sp);
+__global__ void calc_uparbar_i_from_He_and_apar(cuComplex* uparbar_i, const cuComplex* He, const cuComplex* apar, const float* kperp2_ov_B2, const float* bmag, const specie sp_e, const specie sp_i);
 
 

@@ -180,7 +180,7 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
-	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->collision_model == "dougherty", pars_->ei_colls);
+	grids_->ky, *(G->species), pars_->species_h[pars_->is_ion], GRhs->G(), pars_->collision_model == "dougherty", pars_->ei_colls);
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {
@@ -254,8 +254,8 @@ void Linear_GK::get_max_frequency(double *omega_max)
   }
   omega_max[1] = pars_->tzmax*grids_->ky_max*
     (grids_->vpar_max*grids_->vpar_max*geo_->cvdrift_max + grids_->muB_max*geo_->gbdrift_max);
-  if(pars_->linear && pars_->etamax < 1e5) {omega_max[1] = (omega_max[1] + grids_->ky_max*
-	     (1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));}
+//  if(pars_->linear && pars_->etamax < 1e5) {omega_max[1] = (omega_max[1] + grids_->ky_max*
+//	     (1 + pars_->etamax*(grids_->vpar_max*grids_->vpar_max/2 + grids_->muB_max - 1.5)));}
   float beta = pars_->beta;
   float nte = pars_->ne*pars_->Te;
   float mime = pars_->vtmax*pars_->vtmax/pars_->vtmin/pars_->vtmin;

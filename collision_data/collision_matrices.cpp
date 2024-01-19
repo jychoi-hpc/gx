@@ -280,3 +280,17 @@ double alphaPerpD_proj(int n_, double *x, void *user_data) {
     *u*u*sqrt(8)
     *Dnu(u);
 }
+
+extern "C"
+double alphaEi_proj(int n_, double *x, void *user_data) {
+  double u = x[0];
+  double xi = x[1];
+
+  int l = ((int*)user_data)[0];
+  int m = ((int*)user_data)[1];
+  int n = ((int*)user_data)[2];
+
+  double val = laguerreProj(n, u*u*(1-xi*xi))
+    *laguerreExpd(l, u*u*(1-xi*xi))*hermiteExpd(m, xi*u*sqrt(2))
+    *4*xi;
+}

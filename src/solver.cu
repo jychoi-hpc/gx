@@ -125,6 +125,7 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
   if (pars_->all_kinetic) {
     zero(nbar);
 
+    // sum over species on local proc to compute charge and current densities
     for(int is=0; is<grids_->Nspecies; is++) {
       if(grids_->m_lo == 0) { // only compute density on procs with m=0
         real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
@@ -141,6 +142,7 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
       }
     }
 
+    // allreduce to sum charge and current densities over species across other procs
     if(grids_->nprocs>1) {
       // factor of 2 in count*2 is from cuComplex -> float conversion
       // here, "nbar" actually packages nbar, jparbar, and jperpbar
