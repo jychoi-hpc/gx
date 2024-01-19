@@ -226,7 +226,10 @@ Grids::Grids(Parameters* pars) :
   }
   DEBUGPRINT("Finished initializaing NCCL comms.\n");
 
-  CAL_CHECK(cal_comm_create_mpi(MPI_COMM_WORLD, iproc, nprocs, pars_->devid, &cal_comm));
+  // create an MPI communicator that is per-species
+  MPI_Comm_split(MPI_COMM_WORLD, iproc_s, iproc, &mpcom_s);
+  // use the split mpcom to create the cal communicator (for use in cublasMp routines)
+  CAL_CHECK(cal_comm_create_mpi(mpcom_s, iproc_m, nprocs_m, pars_->devid, &cal_comm));
 }
 
 Grids::~Grids() {
@@ -253,6 +256,8 @@ Grids::~Grids() {
   ncclCommDestroy(ncclComm_s);
   ncclCommDestroy(ncclComm_m);
   if(nprocs_m > 1 && iproc_m == 0) ncclCommDestroy(ncclComm_m0);
+  CAL_CHECK(cal_comm_destroy(cal_comm));
+  MPI_Comm_free(&mpcom_s);
 }
 
 void Grids::init_ks_and_coords()
