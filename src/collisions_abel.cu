@@ -115,7 +115,13 @@ AbelCollisionOperator::~AbelCollisionOperator()
   if (tmpG) delete tmpG;
   if (tmpF) cudaFree(tmpF);
 #ifdef USE_CUBLASMP
+  cublasMpMatrixDescriptorDestroy(cublasHandle, descA);
+  cublasMpMatrixDescriptorDestroy(cublasHandle, descB);
+  cublasMpMatrixDescriptorDestroy(cublasHandle, descC);
+  cublasMpGridDestroy(cublasHandle, cublasGrid);
   cublasMpDestroy(cublasHandle);
+  if(d_work) cudaFree(d_work);
+  if(h_work) free(h_work);
 #else
   cublasDestroy(cublasHandle);
 #endif
