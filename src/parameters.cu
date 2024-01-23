@@ -203,10 +203,13 @@ void Parameters::get_nml_vars(char* filename)
   zt                = toml::find_or <float> (tnml, "zt",          1.0 );
   harris_sheet      = toml::find_or <bool>  (tnml, "harris_sheet", false);
   periodic_equilibrium = toml::find_or <bool> (tnml, "periodic_equilibrium", false);
+  island_coalesce = toml::find_or <bool> (tnml, "island_coalesce", false);
   k0                = toml::find_or <float> (tnml, "k0", 10.0);
   gaussian_tube     = toml::find_or <bool> (tnml, "gaussian_tube", false);
   rho_s = rho_i*sqrtf(zt/2);
   if(eta>0.0) nu_ei = eta/d_e/d_e;
+  // allow hypercollisions = true to give correct behavior for KREHM (which always uses const option)
+  if(krehm && hypercollisions_kz) {hypercollisions_const = true; hypercollisions_kz = false;}
 
   tnml = nml;
   if (nml.contains("Expert")) tnml = toml::find (nml, "Expert");

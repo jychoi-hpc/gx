@@ -714,7 +714,7 @@ FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear
   count[1] = grids->Ny;
   count[2] = grids->Nx;
   count[3] = grids->Nz;
-
+   
   int retval;
   for(int i=0; i<3; i++) {
     if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);

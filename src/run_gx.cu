@@ -86,7 +86,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     // set up initial conditions
     G[0] -> set_zero();
     G[0] -> initialConditions(&time);   
-    if(pars->harris_sheet or pars->periodic_equilibrium or pars->gaussian_tube) solver -> set_equilibrium_current(G[0], fields);
+    if(pars->harris_sheet or pars->periodic_equilibrium or pars->island_coalesce or pars->gaussian_tube) solver -> set_equilibrium_current(G[0], fields);
     G[0] -> sync(true);
     solver -> fieldSolve(G, fields);                
 

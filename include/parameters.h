@@ -167,6 +167,7 @@ class Parameters {
   float rho_s, rho_i, d_e, zt;
   bool harris_sheet;
   bool periodic_equilibrium;
+  bool island_coalesce;
   float k0; 
   bool gaussian_tube;
   cuComplex phi_test, smith_perp_w0;

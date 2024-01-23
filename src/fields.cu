@@ -153,6 +153,37 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   //  }
     //grad_perp->qvar(apar_ext, grids_->NxNycNz); 
   }
+  if (pars_->island_coalesce && !pars_->restart) {
+    int nBatch = grids_->Nz;
+    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+
+    for(int idz = 0; idz < grids_->Nz; idz++) {
+      for(int idx = 0; idx < grids_->Nx; idx++) {
+        for(int idy = 0; idy < grids_->Ny; idy++) {
+           float x = grids_->x_h[idx];
+           float y = grids_->y_h[idy];
+           int index = idy + idx * grids_->Ny + idz * grids_->NxNy;
+
+           //float B0 = 0.5;
+	   //float lambda = 0.5;
+	   //float epsilon = 0.4;
+           //apar_ext_realspace_h[index] = B0*lambda*log(epsilon * cos((x - M_PI*pars_->x0)/lambda) + cosh((y - M_PI*pars_->y0)/lambda)) - 0.1*B0*lambda*cos((x - M_PI*pars_->x0)/lambda) * cos((y - M_PI*pars_->y0)/lambda);
+	   float A0 = 0.7772;
+	   float Lx = 2*M_PI*pars_->x0;
+           float Ly = 2*M_PI*pars_->y0;
+	   apar_ext_realspace_h[index] = A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.27*Lx)),2) - pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.73*Lx)),2)-pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2));
+           
+           //apar_ext_realspace_h[index] = A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.26*Lx)),2) - pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.74*Lx)),2)-pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + 0.1*A0*sin(x-0.5*Lx)*sin(y-0.5*Ly);
+	   //apar_ext_realspace_h[index] = 0.1 * A0 * sin(x-0.5*Lx) * sin(y-0.5*Ly);
+        }
+      }
+    }
+    
+    CP_TO_GPU(apar_ext_realspace, apar_ext_realspace_h, sizeof(float) * grids_->NxNyNz);
+    grad_perp->R2C(apar_ext_realspace, apar_ext, true);
+
+    delete grad_perp;
+  }
   if (pars_->gaussian_tube && !pars_->restart) {
     int nBatch = grids_->Nz;
     GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
