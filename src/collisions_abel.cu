@@ -264,12 +264,13 @@ void AbelCollisionOperator::init_conservation(MomentsG* uparLConsG, MomentsG* up
   for(int j=0; j<grids_->Nl; j++) {
     for(int k=0; k<grids_->Nm; k++) {
       for(int l=0; l<grids_->Nl; l++) {
-        alphaE_h[j + grids_->Nl*k + Nlm*l] = alphaE_data[j][k][l];
-        alphaParL_h[j + grids_->Nl*k + Nlm*l] = alphaParL_data[j][k][l];
-        alphaParD_h[j + grids_->Nl*k + Nlm*l] = alphaParD_data[j][k][l];
-        alphaPerpL_h[j + grids_->Nl*k + Nlm*l] = alphaPerpL_data[j][k][l];
-        alphaPerpD_h[j + grids_->Nl*k + Nlm*l] = alphaPerpD_data[j][k][l];
-        alphaEi_h[j + grids_->Nl*k + Nlm*l] = alphaEi_data[j][k][l];
+        int k_glob = k + grids_->iproc_m*grids_->Nm;
+        alphaE_h[j + grids_->Nl*k + Nlm*l] = alphaE_data[j][k_glob][l];
+        alphaParL_h[j + grids_->Nl*k + Nlm*l] = alphaParL_data[j][k_glob][l];
+        alphaParD_h[j + grids_->Nl*k + Nlm*l] = alphaParD_data[j][k_glob][l];
+        alphaPerpL_h[j + grids_->Nl*k + Nlm*l] = alphaPerpL_data[j][k_glob][l];
+        alphaPerpD_h[j + grids_->Nl*k + Nlm*l] = alphaPerpD_data[j][k_glob][l];
+        alphaEi_h[j + grids_->Nl*k + Nlm*l] = alphaEi_data[j][k_glob][l];
       }
     }
   }
@@ -391,7 +392,7 @@ void AbelCollisionOperator::ei_drag(MomentsG* H_in, MomentsG* consG, Fields* f_i
   }
   if(grids_->nprocs_m > 1) {
     // broadcast current to other procs with other m's
-    checkCuda(ncclBroadcast((void*) tmpF, (void*) tmpF, grids_->NxNycNz*2, ncclFloat, 0, grids_->ncclComm_m, 0));
+    checkCuda(ncclBroadcast((void*) tmpF, (void*) tmpF, grids_->NxNycNz*2, ncclFloat, 0, grids_->ncclComm_s, 0));
   }
 
   // tmpG = tmpF . consG

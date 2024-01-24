@@ -35,6 +35,8 @@ template<class T> Reduction<T>::Reduction(Grids *grids, std::vector<int32_t> mod
 
   // create a vector of extents for the reduced tensor
   nelementsReduced = 1;
+  // account for cuComplex -> float conversion if necessary
+  if(dataType<T>() == CUDA_C_32F) nelementsReduced = 2;
   for (auto mode : modeReduced_) {
     extentReduced.push_back(extent[mode]);;
     nelementsReduced *= extent[mode];
@@ -85,12 +87,12 @@ template<class T> void Reduction<T>::Sum(T* dataFull, T* dataReduced)
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclSum, grids_->ncclComm, 0);
   }
   // reduce across parallelized m blocks
-  if(reduce_m && grids_->nprocs_m > 1 && grids_->nprocs > 1) {
+  else if(reduce_m && grids_->nprocs_m > 1 && grids_->nprocs > 1) {
     // ncclComm_s is the per-species communicator
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclSum, grids_->ncclComm_s, 0);
   }
   // reduce across parallelized s blocks
-  if(reduce_s && grids_->nprocs_s > 1 && grids_->nprocs > 1) {
+  else if(reduce_s && grids_->nprocs_s > 1 && grids_->nprocs > 1) {
     // ncclComm_m is the per-m-block communicator
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclSum, grids_->ncclComm_m, 0);
   }
@@ -128,12 +130,12 @@ template<class T> void Reduction<T>::Max(T* dataFull, T* dataReduced)
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclMax, grids_->ncclComm, 0);
   }
   // reduce across parallelized m blocks
-  if(reduce_m && grids_->nprocs_m > 1) {
+  else if(reduce_m && grids_->nprocs_m > 1) {
     // ncclComm_s is the per-species communicator
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclMax, grids_->ncclComm_s, 0);
   }
   // reduce across parallelized s blocks
-  if(reduce_s && grids_->nprocs_s > 1) {
+  else if(reduce_s && grids_->nprocs_s > 1) {
     // ncclComm_m is the per-m-block communicator
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclMax, grids_->ncclComm_m, 0);
   }

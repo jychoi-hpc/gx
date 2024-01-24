@@ -3339,10 +3339,9 @@ __global__ void abel_conservation_moment(cuComplex* cons, const float* alpha, co
     const float b_s = kperp2[idxyz] * sp.rho2;
     unsigned int l = get_id2();                                                                
     if (l<nl) {
-      unsigned int m = get_id3() + m_lo;
-      if (m>=m_lo && m<m_up) {                                                                 
-        int m_local = m - m_lo;
-        int globalIdx = idxyz + nx*nyc*nz*(l + nl*m_local);                                    
+      unsigned int m = get_id3();
+      if (m<nm) {
+        int globalIdx = idxyz + nx*nyc*nz*(l + nl*m);                                    
         cons[globalIdx] = make_cuComplex(0., 0.);
         for (unsigned int n=0; n < nl; n++) {
           cons[globalIdx].x += alpha[l + m*nl + nl*nm*n]*Jflr(n, b_s);
