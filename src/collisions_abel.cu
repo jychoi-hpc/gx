@@ -388,7 +388,7 @@ void AbelCollisionOperator::ei_drag(MomentsG* H_in, MomentsG* consG, Fields* f_i
 {
   // tmpF = upar_i
   if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1
-    calc_uparbar_i_from_He_and_apar<<<256, grids_->NxNycNz/256 + 1>>>(tmpF, H_in->G(), f_in->apar, geo_->kperp2, geo_->bmag, *(H_in->species), pars_->species_h[pars_->is_ion]);
+    calc_uparbar_i_from_He_and_apar<<<grids_->NxNycNz/256 + 1, 256>>>(tmpF, H_in->G(), f_in->apar, geo_->kperp2, geo_->bmag, *(H_in->species), pars_->species_h[pars_->is_ion]);
   }
   if(grids_->nprocs_m > 1) {
     // broadcast current to other procs with other m's

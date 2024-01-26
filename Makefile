@@ -91,7 +91,7 @@ obj/geo/%.o: %.cpp $(VMEC_GEO_HEADERS)
 # main program
 gx: obj/main.o libgx.a
 	$(NVCC) -dlink $(NVCCFLAGS) -o obj/gx.o $< -L. -lgx $(LIBS) 
-	$(CXX) -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) 
+	$(CXX) $(CFLAGS) -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) 
 	@rm src/version.c
 
 libgx.a: $(addprefix obj/, $(OBJS)) $(HEADERS) $(addprefix obj/geo/, $(VMEC_GEO_OBJS)) $(VMEC_GEO_HEADERS)
@@ -99,7 +99,7 @@ libgx.a: $(addprefix obj/, $(OBJS)) $(HEADERS) $(addprefix obj/geo/, $(VMEC_GEO_
 
 libgx.so: $(addprefix obj/, $(OBJS)) $(HEADERS) $(addprefix obj/geo/, $(VMEC_GEO_OBJS)) $(VMEC_GEO_HEADERS)
 	$(NVCC) -dlink $(NVCCFLAGS) -o obj/device.o $(addprefix obj/, $(OBJS)) $(addprefix obj/geo/, $(VMEC_GEO_OBJS))
-	$(CXX) -shared -o libgx.so obj/device.o $(addprefix obj/, $(OBJS)) $(addprefix obj/geo/, $(VMEC_GEO_OBJS))
+	$(CXX) $(CFLAGS) -shared -o libgx.so obj/device.o $(addprefix obj/, $(OBJS)) $(addprefix obj/geo/, $(VMEC_GEO_OBJS))
 
 geometry_modules/vmec/convert_VMEC_to_GX: obj/geo/main.o $(addprefix obj/geo/, $(VMEC_GEO_OBJS)) $(VMEC_GEO_HEADERS)
 	$(CXX) -o $@ $< $(addprefix obj/geo/, $(VMEC_GEO_OBJS)) $(LIBS)

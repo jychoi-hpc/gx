@@ -63,7 +63,8 @@ CFLAGS = -fPIC
 NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true -fpermissive -DUSE_CUBLASMP
 
 ifeq ($(debug),on)
-  NVCCFLAGS += -g -G 
+  NVCCFLAGS += -g -G -O0
+  CFLAGS += -g -O0
 else
   NVCCFLAGS += -O3
 endif

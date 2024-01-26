@@ -701,9 +701,11 @@ __global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, float* scalar)
 __global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, cuComplex* scalar)
 {
   unsigned int idxy = get_id1(); 
+  unsigned int idx = idxy / nyc;
+  unsigned int idy = idxy % nyc;
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3(); 
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+  if (idxy < nx*nyc && unmasked(idx,idy) && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     
     res[ig] = scalar[idxy+nx*nyc*idz]*g[ig];
@@ -713,9 +715,11 @@ __global__ void scale_by_k_kernel(cuComplex* res, cuComplex* g, cuComplex* scala
 __global__ void inv_scale_by_k_kernel(cuComplex* res, cuComplex* g, float* scalar)
 {
   unsigned int idxy = get_id1(); 
+  unsigned int idx = idxy / nyc;
+  unsigned int idy = idxy % nyc;
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3(); 
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+  if (idxy < nx*nyc && unmasked(idx,idy) && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     
     res[ig] = 1./scalar[idxy+nx*nyc*idz]*g[ig];
