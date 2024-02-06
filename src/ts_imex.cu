@@ -1,5 +1,5 @@
 #include "timestepper.h"
-
+#include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
@@ -34,9 +34,9 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
-  else if (pars_->boundary_option_periodic) {
-    grad_par = new GradParallelPeriodic(grids_);
-  }
+//  else if (pars_->boundary_option_periodic) {
+//    grad_par = new GradParallelPeriodic(grids_);
+//  }
   else {
     grad_par = new GradParallelLinked(pars_, grids_);
   }
@@ -132,7 +132,9 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   //     ( w1   w2   w3 )
   double a21, a31, a32, w1, w2, w3;
   double p_, q_, r_, s_, t_, u_;
-  std::string scheme = "pareschi_russo_ssp2_332";
+//  std::string scheme = "pareschi_russo_ssp2_332";
+  std::string scheme = "conde_3s3p";
+
   // Pareschi-Russo SSP2(3,3,2)
   if(scheme == "pareschi_russo_ssp2_332") {
     a21 = 0.5;
@@ -323,9 +325,9 @@ IMEX_4stage::IMEX_4stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
-  else if (pars_->boundary_option_periodic) {
-    grad_par = new GradParallelPeriodic(grids_);
-  }
+//  else if (pars_->boundary_option_periodic) {
+//    grad_par = new GradParallelPeriodic(grids_);
+//  }
   else {
     grad_par = new GradParallelLinked(pars_, grids_);
   }
