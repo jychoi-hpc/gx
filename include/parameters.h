@@ -115,7 +115,7 @@ class Parameters {
   int p_HB, p_hyper_l, p_hyper_m, p_hyper_lm, irho, nwrite, nwrite_big, navg, nsave, igeo, nreal;
   int p_hyper_z;
   int nz_in, nperiod, Zp, bishop, scan_number, icovering;
-  int nx_in, ny_in, jtwist, nm_in, nl_in, nstep, nspec_in, nspec;
+  int nx_in, ny_in, jtwist, nm_in, nl_in, nstep, nstep_restart, nspec_in, nspec;
   int x0_mult, y0_mult, z0_mult, nx_mult, ny_mult, ntheta_mult;
   int nm_add, nl_add, ns_add;
   int forcing_index, smith_par_q, smith_perp_q, forcing_kz, forcing_k2min, forcing_k2max;
