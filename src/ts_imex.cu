@@ -16,13 +16,14 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   B3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
   for(int is=0; is<grids_->Nspecies; is++) {
-    A1[is] = new MomentsG (pars_, grids_, is);
-    A2[is] = new MomentsG (pars_, grids_, is);
-    A3[is] = new MomentsG (pars_, grids_, is);
-    B1[is] = new MomentsG (pars_, grids_, is);
-    B2[is] = new MomentsG (pars_, grids_, is);
-    B3[is] = new MomentsG (pars_, grids_, is);
-    G1[is] = new MomentsG (pars_, grids_, is);
+    int is_glob = is+grids->is_lo;
+    A1[is] = new MomentsG (pars_, grids_, is_glob);
+    A2[is] = new MomentsG (pars_, grids_, is_glob);
+    A3[is] = new MomentsG (pars_, grids_, is_glob);
+    B1[is] = new MomentsG (pars_, grids_, is_glob);
+    B2[is] = new MomentsG (pars_, grids_, is_glob);
+    B3[is] = new MomentsG (pars_, grids_, is_glob);
+    G1[is] = new MomentsG (pars_, grids_, is_glob);
     
     // get species index of electrons
     if(pars_->species_h[is].type == 1) {

@@ -76,6 +76,5 @@ class MomentsG {
   cuComplex  * G_lm   ;
   Grids      * grids_ ;
   Parameters * pars_  ;
-  const int is_;
   int is_glob_;
 };

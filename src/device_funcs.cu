@@ -1424,11 +1424,9 @@ __global__ void rescale_kernel(cuComplex* f, float* phi_max, int N)
   unsigned int idlms = get_id3();
   
   if (idxy < nyc*nx && idz < nz && idlms < N) {
-    if(phi_max[idxy]>0.) {	
-      float fac = 1./phi_max[idxy];
-      unsigned int ig = idxy + nyc*nx*(idz + nz*idlms);
-      f[ig] = fac * f[ig];
-    }
+    float fac = 1./phi_max[idxy];
+    unsigned int ig = idxy + nyc*nx*(idz + nz*idlms);
+    f[ig] = fac * f[ig];
   }
 }
 
