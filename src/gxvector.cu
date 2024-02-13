@@ -1,5 +1,6 @@
 
 #include "gxvector.h"
+#include "device_funcs.h"
 #include <cuComplex.h>
 
 /*

@@ -5,6 +5,22 @@
 	API backend to wrap the memebr functions of GXVector into SUNDIAL NVector
  */
 
+realtype GXV_MinReal( N_Vector z );
+realtype GXV_WrmsNorm( N_Vector z, N_Vector w );
+realtype GXV_MaxNorm( N_Vector z );
+realtype GXV_MaxNorm( N_Vector z );
+void GXV_AddConst( N_Vector x, realtype b, N_Vector out );
+void GXV_Inv( N_Vector in, N_Vector out );
+void GXV_Abs( N_Vector in, N_Vector out );
+void GXV_Scale( realtype c, N_Vector x, N_Vector z );
+void GXV_Prod( N_Vector x, N_Vector y, N_Vector z );
+void GXV_Div( N_Vector x, N_Vector y, N_Vector z );
+void GXV_Const( realtype c, N_Vector z );
+void GXV_LinearSum( realtype a, N_Vector v, realtype b, N_Vector w, N_Vector out );
+N_Vector GXV_Clone( N_Vector other );
+void GXV_Destroy( N_Vector v );
+N_Vector_ID GXV_GetVectorID( N_Vector );
+
 struct _generic_N_Vector_Ops GXVOps = {
    .nvgetvectorid = GXV_GetVectorID,
    .nvclone = GXV_Clone,
