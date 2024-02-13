@@ -49,7 +49,7 @@ class GXVector {
 
 	private:
 		VecType array;
-}
+};
 
 
 
