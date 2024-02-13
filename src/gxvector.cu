@@ -139,7 +139,7 @@ float GXVector::MaxNorm()
 	// Take max over elements of tmp
 	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
 	float cpuMaxElem;
-	CP_TO_CPU( &cpuMaxElem, MaxElement );
+	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
 	cudaFree( &MaxElement );
@@ -189,7 +189,7 @@ float GXVector::WrmsNorm( GXVector const & w )
 	
 	reducer.Sum( tmp.array[ 0 ].G(), SumResult );
 	float cpuSumResult;
-	CP_TO_CPU( &cpuSumResult, SumResult );
+	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(float) );
 
 	// Clean up
 	cudaFree( &SumResult );
@@ -235,7 +235,7 @@ float GXVector::MinReal()
 	// so max of tmp is min of *this
 	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
 	float cpuMaxElem;
-	CP_TO_CPU( &cpuMaxElem, MaxElement );
+	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
 	cudaFree( &MaxElement );
