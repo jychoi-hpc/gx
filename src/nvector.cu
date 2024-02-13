@@ -58,8 +58,8 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvlinearsumvectorarray = nullptr,
    .nvscalevectorarray = nullptr,
    .nvconstvectorarray = nullptr,
-   .nvwrmsnomrvectorarray = nullptr,
-   .nvwrmsnomrmaskvectorarray = nullptr,
+   .nvwrmsnormvectorarray = nullptr,
+   .nvwrmsnormmaskvectorarray = nullptr,
    .nvscaleaddmultivectorarray = nullptr,
    .nvlinearcombinationvectorarray = nullptr,
    .nvdotprodlocal = nullptr,
@@ -78,11 +78,11 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvbufunpack = nullptr,
 };
 
-N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids )
+N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext * ctx )
 {
 	N_Vector z = N_VNewEmpty( ctx );
 	z.ops = &GXVOps;
-	z.content = new GXVector( pars, grids );
+	z.content = new GXVector( pars, grids, ctx );
 	return z;
 }
 

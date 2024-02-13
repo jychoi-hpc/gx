@@ -23,7 +23,7 @@ class GXVector {
 
 		explicit GXVector( GXVector const& ); // Cloning constructor. THIS IS NOT A COPY CONSTRUCTOR (hence the 'explicit')
 
-		static N_Vector CreateNVector( Parameters*, Grids* );
+		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext * );
 
 		void setZero();
 
