@@ -37,7 +37,7 @@ void GXVector::setZero()
 	}
 }
 
-__global__ void set_constant_kernel( cuComplex* res, double x )
+__global__ void set_constant_kernel( cuComplex* res, float x )
 {
   unsigned int idxy = get_id1(); 
   unsigned int idz  = get_id2();
@@ -49,7 +49,7 @@ __global__ void set_constant_kernel( cuComplex* res, double x )
   }
 }
 
-void GXVector::setConst( double c )
+void GXVector::setConst( float c )
 {
 	for( auto &m : array )
 	{
@@ -65,13 +65,13 @@ GXVector & GXVector::operator=( GXVector const & other )
 	return *this;
 }
 
-void GXVector::SetScaled( double c, GXVector const & other )
+void GXVector::SetScaled( float c, GXVector const & other )
 {
 	*this = other;
 	this->Scale( c );
 }
 
-void GXVector::Scale( double c )
+void GXVector::Scale( float c )
 {
 	for( auto &m : array )
 		m.scale( c );
@@ -118,3 +118,128 @@ void GXVector::SetAbs( GXVector const & other )
 	}
 }
 
+float GXVector::MaxNorm()
+{
+	// Reduction object
+	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
+	std::vector<int32_t> modesRed{};
+	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
+
+	// allocate g-sized temporary object
+	GXVector tmp( *this );
+
+	// tmp[i] = ||this[i]||
+	tmp.SetAbs( *this );
+
+	// Allocate space for answer
+	float *MaxElement;
+	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
+	cudaMemset(MaxElement, 0., sizeof(float));
+
+	// Take max over elements of tmp
+	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
+	float cpuMaxElem;
+	CP_TO_CPU( &cpuMaxElem, MaxElement );
+
+	// Clean up
+	cudaFree( &MaxElement );
+
+	return cpuMaxElem;
+}
+
+// Set res_i = w_i * |g_i|^2
+__global__ void wrmsKernel(cuComplex* res, cuComplex* g, cuComplex* w)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 // We know w is real, so w[ ig ].y == 0
+	 res[ ig ].x = w[ ig ].x * cuCabsf( g[ ig ] );
+	 res[ ig ].y = 0.0f;
+  }
+}
+
+float GXVector::WrmsNorm( GXVector const & w )
+{
+	assert( w.array.size() == array.size() );
+	// allocate g-sized temporary object
+	GXVector tmp( *this );
+
+	// Reduction object
+	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
+	std::vector<int32_t> modesRed{};
+	Reduction<float> reducer(tmp.array[ 0 ].grids_, modes, modesRed);
+
+	// Allocate space on GPU for answer
+	float *SumResult;
+	checkCuda(cudaMalloc(&SumResult,  sizeof(float)));
+	cudaMemset(SumResult, 0., sizeof(float));
+
+
+	// do tmp_i = w_i||g_i||^2 on GPU
+	for( int i = 0; i < array.size(); ++i )
+	{
+		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
+	}
+
+	// tmp now contains {w_i ||g_i||^2 }
+	// Sum all of tmp to get the answer
+	
+	reducer.Sum( tmp.array[ 0 ].G(), SumResult );
+	float cpuSumResult;
+	CP_TO_CPU( &cpuSumResult, SumResult );
+
+	// Clean up
+	cudaFree( &SumResult );
+
+	return cpuSumResult;
+}
+
+__global__ void minRealKernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ].x = -in[ ig ].x;
+	 res[ ig ].y = 0.0f;
+  }
+}
+
+// Return minimum real part of all elements of g
+float GXVector::MinReal()
+{
+	// Reduction object
+	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
+	std::vector<int32_t> modesRed{};
+	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
+
+	// allocate g-sized temporary object
+	GXVector tmp( *this );
+
+	// Allocate space for answer
+	float *MaxElement;
+	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
+	cudaMemset(MaxElement, 0., sizeof(float));
+
+	// do tmp_i = -this[i] on GPU
+	for( int i = 0; i < array.size(); ++i )
+	{
+		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
+	}
+
+	// tmp now contains -this
+	// so max of tmp is min of *this
+	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
+	float cpuMaxElem;
+	CP_TO_CPU( &cpuMaxElem, MaxElement );
+
+	// Clean up
+	cudaFree( &MaxElement );
+
+	// flip sign once again
+	return -cpuMaxElem;
+}

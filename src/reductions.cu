@@ -6,6 +6,7 @@ template<class T> Reduction<T>::Reduction(Grids *grids, std::vector<int32_t> mod
 {
   Addwork = nullptr;     sizeWork = 0;         sizeAdd = 0;
   Maxwork = nullptr;     sizeMaxWork = 0;      sizeMax = 0;
+  reducer->
 
   // initialize all possible extents
   extent['y'] = grids_->Nyc;
