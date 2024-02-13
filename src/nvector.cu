@@ -5,10 +5,67 @@
 	API backend to wrap the memebr functions of GXVector into SUNDIAL NVector
  */
 
+struct _generic_N_Vector_Ops GXVOps = {
+   .nvgetvectorid = GXV_GetVectorID,
+   .nvclone = GXV_Clone,
+   .nvcloneempty = nullptr,
+   .nvdestroy = GXV_Destroy,
+   .nvspace = nullptr,
+   .nvgetarraypointer = nullptr,
+   .nvgetdevicearraypointer = nullptr,
+   .nvsetarraypointer = nullptr,
+   .nvgetcommunicator = nullptr,
+   .nvgetlength = nullptr,
+   .nvgetlocallength = nullptr,
+   .nvlinearsum = GXV_LinearSum,
+   .nvconst = GXV_Const,
+   .nvprod = GXV_Prod,
+   .nvdiv = GXV_Div,
+   .nvscale = GXV_Scale,
+   .nvabs = GXV_Abs,
+   .nvinv = GXV_Inv,
+   .nvaddconst = GXV_AddConst,
+   .nvdotprod = nullptr,
+   .nvmaxnorm = GXV_MaxNorm,
+   .nvwrmsnorm = GXV_WrmsNorm,
+   .nvwrmsnormmask = nullptr,
+   .nvmin = GXV_MinReal,
+   .nvwl2norm = nullptr,
+   .nvl1norm = nullptr,
+   .nvcompare = nullptr,
+   .nvinvtest = nullptr,
+   .nvconstrmask = nullptr,
+   .nvminquotient = nullptr,
+   .nvlinearcombination = nullptr,
+   .nvscaleaddmulti = nullptr,
+   .nvdotprodmulti = nullptr,
+   .nvlinearsumvectorarray = nullptr,
+   .nvscalevectorarray = nullptr,
+   .nvconstvectorarray = nullptr,
+   .nvwrmsnomrvectorarray = nullptr,
+   .nvwrmsnomrmaskvectorarray = nullptr,
+   .nvscaleaddmultivectorarray = nullptr,
+   .nvlinearcombinationvectorarray = nullptr,
+   .nvdotprodlocal = nullptr,
+   .nvmaxnormlocal = nullptr,
+   .nvminlocal = nullptr,
+   .nvl1normlocal = nullptr,
+   .nvinvtestlocal = nullptr,
+   .nvconstrmasklocal = nullptr,
+   .nvminquotientlocal = nullptr,
+   .nvwsqrsumlocal = nullptr,
+   .nvwsqrsummasklocal = nullptr,
+   .nvdotprodmultilocal = nullptr,
+   .nvdotprodmultiallreduce = nullptr,
+   .nvbufsize = nullptr,
+   .nvbufpack = nullptr,
+   .nvbufunpack = nullptr,
+};
+
 N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids )
 {
-	N_Vector z = N_VNewEmpty();
-	z.ops = &GXVops;
+	N_Vector z = N_VNewEmpty( ctx );
+	z.ops = &GXVOps;
 	z.content = new GXVector( pars, grids );
 	return z;
 }
@@ -22,7 +79,7 @@ N_Vector_ID GXV_GetVectorID( N_Vector )
 
 N_Vector GXV_Clone( N_Vector other )
 {
-	N_Vector new_vector = N_VNewEmpty();
+	N_Vector new_vector = N_VNewEmpty( ctx );
 	new_vector.ops = &GXVops;
 	new_vector.content = new GXVector( *GXV( other ) );
 	return new_vector;
@@ -95,59 +152,4 @@ realtype GXV_MinReal( N_Vector z )
 	return GXV( z )->MinReal();
 }
 
-struct _generic_N_Vector_Ops GXVOps  = {
-   .nvgetvectorid = GXV_GetVectorID,
-   .nvclone = GXV_Clone,
-   .nvcloneempty = nullptr,
-   .nvdestroy = GXV_Destroy,
-   .nvspace = nullptr,
-   .nvgetarraypointer = nullptr,
-   .nvgetdevicearraypointer = nullptr,
-   .nvsetarraypointer = nullptr,
-   .nvgetcommunicator = nullptr,
-   .nvgetlength = nullptr,
-   .nvgetlocallength = nullptr,
-   .nvlinearsum = GXV_LinearSum,
-   .nvconst = GXV_Const,
-   .nvprod = GXV_Prod,
-   .nvdiv = GXV_Div,
-   .nvscale = GXV_Scale,
-   .nvabs = GXV_Abs,
-   .nvinv = GXV_Inv,
-   .nvaddconst = GXV_AddConst,
-   .nvdotprod = nullptr,
-   .nvmaxnorm = GXV_MaxNorm,
-   .nvwrmsnorm = GXV_WrmsNorm,
-   .nvwrmsnormmask = nullptr,
-   .nvmin = GXV_MinReal,
-   .nvwl2norm = nullptr,
-   .nvl1norm = nullptr,
-   .nvcompare = nullptr,
-   .nvinvtest = nullptr,
-   .nvconstrmask = nullptr,
-   .nvminquotient = nullptr,
-   .nvlinearcombination = nullptr,
-   .nvscaleaddmulti = nullptr,
-   .nvdotprodmulti = nullptr,
-   .nvlinearsumvectorarray = nullptr,
-   .nvscalevectorarray = nullptr,
-   .nvconstvectorarray = nullptr,
-   .nvwrmsnomrvectorarray = nullptr,
-   .nvwrmsnomrmaskvectorarray = nullptr,
-   .nvscaleaddmultivectorarray = nullptr,
-   .nvlinearcombinationvectorarray = nullptr,
-   .nvdotprodlocal = nullptr,
-   .nvmaxnormlocal = nullptr,
-   .nvminlocal = nullptr,
-   .nvl1normlocal = nullptr,
-   .nvinvtestlocal = nullptr,
-   .nvconstrmasklocal = nullptr,
-   .nvminquotientlocal = nullptr,
-   .nvwsqrsumlocal = nullptr,
-   .nvwsqrsummasklocal = nullptr,
-   .nvdotprodmultilocal = nullptr,
-   .nvdotprodmultiallreduce = nullptr,
-   .nvbufsize = nullptr,
-   .nvbufpack = nullptr,
-   .nvbufunpack = nullptr,
-};
+

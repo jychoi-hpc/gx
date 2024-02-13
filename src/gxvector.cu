@@ -9,7 +9,8 @@
 	Author: Ian Abel (2023)
 */
 
-GXVector::GXVector( Parameters *p, Grids *g )
+GXVector::GXVector( Parameters *p, Grids *g, SUNContext* pContext )
+	: ctx( pContext )
 {
 	for( int i = 0; i < g->Nspecies; ++i )
 	{

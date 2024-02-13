@@ -19,7 +19,7 @@ class GXVector {
 
 		MomentsG& operator[]( SizeType i ) { return array[ i ]; };
 
-		GXVector( Parameters* , Grids* ); // Construct underlying MomentsG from settings
+		GXVector( Parameters* , Grids*, SUNContext * ); // Construct underlying MomentsG from settings
 
 		explicit GXVector( GXVector const& ); // Cloning constructor. THIS IS NOT A COPY CONSTRUCTOR (hence the 'explicit')
 
@@ -48,6 +48,7 @@ class GXVector {
 		float MinReal() const;
 
 	private:
+		SUNContext *ctx;
 		VecType array;
 };
 
