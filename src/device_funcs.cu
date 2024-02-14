@@ -3217,7 +3217,9 @@ __global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    res[ig] = 1.0 / in[ig];
+	 float abs2 = in[ ig ].x * in[ ig ].x + in[ ig ].y * in[ ig ].y;
+    res[ig].x = in[ ig ].x / abs2;
+    res[ig].y = -in[ ig ].y / abs2;
   }
 }
 
