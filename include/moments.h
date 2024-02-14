@@ -19,10 +19,22 @@ class MomentsG {
     // glm[ky, kx, z]
   }
   
+  const cuComplex* G(int l=0, int m=0) const {
+    assert(l<grids_->Nl && "Invalid moment requested: l out of bounds");
+    assert(m<grids_->Nm+grids_->m_ghost && m>=-grids_->m_ghost && "Invalid moment requested: m out of bounds");
+    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*(m+grids_->m_ghost))]; // note shift by m_ghost! 
+    // glm[ky, kx, z]
+  }
+
   cuComplex * Gm(int m_loc) {   return G(0,m_loc);   }
+  const cuComplex * Gm(int m_loc) const {   return G(0,m_loc);   }
 
   // accessor to G array including ghosts (never used) 
   cuComplex * Gghost(int l=0, int m=0) {
+    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*m)];
+  }
+
+  const cuComplex * Gghost(int l=0, int m=0) const {
     return &G_lm[grids_->NxNycNz*(l + grids_->Nl*m)];
   }
 
