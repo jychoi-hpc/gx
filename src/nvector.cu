@@ -96,7 +96,7 @@ N_Vector_ID GXV_GetVectorID( N_Vector )
 N_Vector GXV_Clone( N_Vector other )
 {
 	N_Vector new_vector = N_VNewEmpty( ctx );
-	new_vector->ops = &GXVops;
+	new_vector->ops = &GXVOps;
 	new_vector->content = new GXVector( *GXV( other ) );
 	return new_vector;
 }
