@@ -70,6 +70,7 @@ void GXVector::Scale( float c )
 void GXVector::SetInv( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
+	MomentsG& m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
@@ -79,6 +80,7 @@ void GXVector::SetInv( GXVector const & other )
 void GXVector::SetAbs( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
+	MomentsG& m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
@@ -132,6 +134,7 @@ float GXVector::WrmsNorm( GXVector const & w )
 
 
 	// do tmp_i = w_i||g_i||^2 on GPU
+	MomentsG& m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
@@ -167,6 +170,7 @@ float GXVector::MinReal()
 	cudaMemset(MaxElement, 0., sizeof(float));
 
 	// do tmp_i = -this[i] on GPU
+	MomentsG& m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );

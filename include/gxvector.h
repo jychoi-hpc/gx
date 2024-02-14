@@ -27,6 +27,7 @@ class GXVector {
 		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext );
 
 		void setZero();
+		void setConst( float c );
 
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
 		void SetConst( float );
