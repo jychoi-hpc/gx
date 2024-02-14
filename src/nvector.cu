@@ -95,7 +95,7 @@ N_Vector_ID GXV_GetVectorID( N_Vector )
 
 N_Vector GXV_Clone( N_Vector other )
 {
-	N_Vector new_vector = N_VNewEmpty( ctx );
+	N_Vector new_vector = N_VNewEmpty( GXV( other )->ctx );
 	new_vector->ops = &GXVOps;
 	new_vector->content = new GXVector( *GXV( other ) );
 	return new_vector;
@@ -103,7 +103,7 @@ N_Vector GXV_Clone( N_Vector other )
 
 void GXV_Destroy( N_Vector v )
 {
-	delete v.content;
+	delete v->content;
 	v->content = nullptr;
 	v->ops = nullptr;
 	N_VFreeEmpty( v );

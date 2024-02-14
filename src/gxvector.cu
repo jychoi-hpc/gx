@@ -22,6 +22,7 @@ GXVector::GXVector( Parameters *p, Grids *g, SUNContext Context )
 
 GXVector::GXVector( GXVector const& other )
 {
+	ctx = other.ctx;
 	for( int i = 0; i < other.array.size(); ++i )
 	{
 		MomentsG const& element = other[i];

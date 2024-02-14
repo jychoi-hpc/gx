@@ -48,9 +48,9 @@ class GXVector {
 
 
 		float MinReal() const;
+		SUNContext ctx;
 
 	private:
-		SUNContext ctx;
 		VecType array;
 };
 
