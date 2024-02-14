@@ -1,7 +1,8 @@
 
 #include "gxvector.h"
 #include "device_funcs.h"
-#include <cuComplex.h>
+#include "reductions.h"
+
 
 /*
 	This file provides the GXVector class, which is the building block of the custom NVector implementation
@@ -88,7 +89,7 @@ void GXVector::SetAbs( GXVector const & other )
 	}
 }
 
-float GXVector::MaxNorm()
+float GXVector::MaxNorm() const
 {
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
@@ -117,7 +118,7 @@ float GXVector::MaxNorm()
 	return cpuMaxElem;
 }
 
-float GXVector::WrmsNorm( GXVector const & w )
+float GXVector::WrmsNorm( GXVector const & w ) const
 {
 	assert( w.array.size() == array.size() );
 	// allocate g-sized temporary object

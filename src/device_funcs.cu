@@ -3210,7 +3210,7 @@ __global__ void set_constant_kernel( cuComplex* res, float x )
   }
 }
 
-__global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
+__global__ void set_inv_kernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
@@ -3223,7 +3223,7 @@ __global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
   }
 }
 
-__global__ void set_abs_kernel(cuComplex* res, cuComplex* in)
+__global__ void set_abs_kernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
@@ -3236,7 +3236,7 @@ __global__ void set_abs_kernel(cuComplex* res, cuComplex* in)
 }
 
 // Set res_i = w_i * |g_i|^2
-__global__ void wrmsKernel(cuComplex* res, cuComplex* g, cuComplex* w)
+__global__ void wrmsKernel(cuComplex* res, const cuComplex* g, const cuComplex* w)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
@@ -3249,7 +3249,7 @@ __global__ void wrmsKernel(cuComplex* res, cuComplex* g, cuComplex* w)
   }
 }
 
-__global__ void minRealKernel(cuComplex* res, cuComplex* in)
+__global__ void minRealKernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
