@@ -78,11 +78,11 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvbufunpack = nullptr,
 };
 
-N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext * ctx )
+N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx )
 {
 	N_Vector z = N_VNewEmpty( ctx );
-	z.ops = &GXVOps;
-	z.content = new GXVector( pars, grids, ctx );
+	z->ops = &GXVOps;
+	z->content = new GXVector( pars, grids, ctx );
 	return z;
 }
 
@@ -96,16 +96,16 @@ N_Vector_ID GXV_GetVectorID( N_Vector )
 N_Vector GXV_Clone( N_Vector other )
 {
 	N_Vector new_vector = N_VNewEmpty( ctx );
-	new_vector.ops = &GXVops;
-	new_vector.content = new GXVector( *GXV( other ) );
+	new_vector->ops = &GXVops;
+	new_vector->content = new GXVector( *GXV( other ) );
 	return new_vector;
 }
 
 void GXV_Destroy( N_Vector v )
 {
 	delete v.content;
-	v.content = nullptr;
-	v.ops = nullptr;
+	v->content = nullptr;
+	v->ops = nullptr;
 	N_VFreeEmpty( v );
 }
 
