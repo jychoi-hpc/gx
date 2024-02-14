@@ -3194,3 +3194,68 @@ __global__ void heat_flux_summand_cetg(float* qflux,
 // J''' == l J(l-1) * 2l J(l) + (l+1) J(l+1)
 // We should keep H around for both uperp and tperp
 // finally, we take t_bar to be a weighted sum of tpar_bar and tperp_bar.
+
+// New Kernels for gxvector (IGA)
+
+__global__ void set_constant_kernel( cuComplex* res, float x )
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+      res[ig].x = x;
+		res[ig].y = 0.0;
+  }
+}
+
+__global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] = 1.0 / in[ig];
+  }
+}
+
+__global__ void set_abs_kernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ].x = cuCabsf( in[ ig ] );
+	 res[ ig ].y = 0.0f;
+  }
+}
+
+// Set res_i = w_i * |g_i|^2
+__global__ void wrmsKernel(cuComplex* res, cuComplex* g, cuComplex* w)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 // We know w is real, so w[ ig ].y == 0
+	 res[ ig ].x = w[ ig ].x * cuCabsf( g[ ig ] );
+	 res[ ig ].y = 0.0f;
+  }
+}
+
+__global__ void minRealKernel(cuComplex* res, cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ].x = -in[ ig ].x;
+	 res[ ig ].y = 0.0f;
+  }
+}
+

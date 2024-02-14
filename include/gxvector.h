@@ -18,6 +18,7 @@ class GXVector {
 		using SizeType = VecType::size_type;
 
 		MomentsG& operator[]( SizeType i ) { return array[ i ]; };
+		MomentsG const & operator[]( SizeType i ) const { return array[ i ]; };
 
 		GXVector( Parameters* , Grids*, SUNContext ); // Construct underlying MomentsG from settings
 

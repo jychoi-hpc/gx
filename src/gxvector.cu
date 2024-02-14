@@ -24,7 +24,7 @@ GXVector::GXVector( GXVector const& other )
 {
 	for( int i = 0; i < other.array.size(); ++i )
 	{
-		MomentsG& element = other[i];
+		MomentsG const& element = other[i];
 		// This creates a new MomentsG, so allocates a new G_lm with the same parameters / grids / species indices
 		// which is what the 'Clone' NVector op requires -- new memory, uninitialised, same everything else
 		array.emplace_back( element.pars_, element.grids_, element.is_glob_ );
@@ -37,18 +37,6 @@ void GXVector::setZero()
 	{
 		m.set_zero();
 	}
-}
-
-__global__ void set_constant_kernel( cuComplex* res, float x )
-{
-  unsigned int idxy = get_id1(); 
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-      res[ig] = x;
-  }
 }
 
 void GXVector::setConst( float c )
@@ -79,17 +67,6 @@ void GXVector::Scale( float c )
 		m.scale( c );
 }
 
-__global__ void set_inv_kernel(cuComplex* res, cuComplex* in)
-{
-  unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    res[ig] = 1.0 / in[ig];
-  }
-}
-
 void GXVector::SetInv( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
@@ -97,18 +74,6 @@ void GXVector::SetInv( GXVector const & other )
 	{
 		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
 	}
-}
-
-__global__ void set_abs_kernel(cuComplex* res, cuComplex* in)
-{
-  unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x = cuCabsf( in[ ig ] );
-	 res[ ig ].y = 0.0f;
-  }
 }
 
 void GXVector::SetAbs( GXVector const & other )
@@ -149,20 +114,6 @@ float GXVector::MaxNorm()
 	return cpuMaxElem;
 }
 
-// Set res_i = w_i * |g_i|^2
-__global__ void wrmsKernel(cuComplex* res, cuComplex* g, cuComplex* w)
-{
-  unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 // We know w is real, so w[ ig ].y == 0
-	 res[ ig ].x = w[ ig ].x * cuCabsf( g[ ig ] );
-	 res[ ig ].y = 0.0f;
-  }
-}
-
 float GXVector::WrmsNorm( GXVector const & w )
 {
 	assert( w.array.size() == array.size() );
@@ -197,18 +148,6 @@ float GXVector::WrmsNorm( GXVector const & w )
 	cudaFree( &SumResult );
 
 	return cpuSumResult;
-}
-
-__global__ void minRealKernel(cuComplex* res, cuComplex* in)
-{
-  unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x = -in[ ig ].x;
-	 res[ ig ].y = 0.0f;
-  }
 }
 
 // Return minimum real part of all elements of g
