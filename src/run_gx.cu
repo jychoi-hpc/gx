@@ -185,6 +185,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+    case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+
     }
 
   fflush(stdout);
@@ -204,7 +206,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   checkCudaErrors(cudaGetLastError());
   
   while(counter<pars->nstep && time<pars->t_max) {
-
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     timestep -> advance(&time, G, fields);
     if (checkstop) break;

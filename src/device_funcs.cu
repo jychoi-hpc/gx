@@ -2559,6 +2559,103 @@ __global__ void linkedFilterEnds(cuComplex* G, int ifilter,
   }
 }
 
+__global__ void fields_rhs(const cuComplex* __restrict__ g,
+			      const cuComplex* __restrict__ phi,
+			      const cuComplex* __restrict__ apar,
+			      const cuComplex* __restrict bpar,
+			      const float* __restrict__ kperp2, 
+			      const float gradpar,
+			      const specie sp,
+			      cuComplex* __restrict__ rhs_par)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  if (unmasked(idx, idy) && (idzl < nz*nl)) {
+    unsigned int idz = idzl % nz;     
+    unsigned int l   = idzl / nz;
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+
+    const float b_s = sp.rho2 * kperp2[idxyz];
+    const float zt_ = sp.zt;
+    const float vt_ = sp.vt;
+    int globalIdx;
+
+    for (int m = m_lo; m < m_up; m++) {
+      int m_local = m - m_lo;
+      globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local)));	
+      int mp1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local+1)));
+      int mm1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local-1)));
+      cuComplex gmp1 = make_cuComplex(0.,0.);
+      cuComplex gmm1 = make_cuComplex(0.,0.);
+      if(m>0) gmm1 = g[mm1];
+      if(m<nm_glob-1) gmp1 = g[mp1];
+            
+      // field terms
+      if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] - Jflr(l, b_s) * phi_ * zt_ * vt_ * gradpar
+		   - JflrB(l, b_s) * bpar_ * vt_ * gradpar; // m = 1 has Phi & Bpar terms
+      // the following Apar terms are only needed in the formulation without dA/dt
+      // These terms might be important, but considering electrostatic for now
+//      if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] + Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 0 has Apar term
+//      if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] + sqrtf(2.) * Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 2 has Apar term
+    }
+  }
+}
+
+__global__ void streaming_no_fields_rhs(const cuComplex* __restrict__ g,
+			      const cuComplex* __restrict__ phi,
+			      const cuComplex* __restrict__ apar,
+			      const cuComplex* __restrict bpar,
+			      const float* __restrict__ kperp2, 
+			      const float gradpar,
+			      const specie sp,
+			      cuComplex* __restrict__ rhs_par)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  if (unmasked(idx, idy) && (idzl < nz*nl)) {
+    unsigned int idz = idzl % nz;     
+    unsigned int l   = idzl / nz;
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+
+    const float b_s = sp.rho2 * kperp2[idxyz];
+    const float zt_ = sp.zt;
+    const float vt_ = sp.vt;
+    int globalIdx;
+
+    for (int m = m_lo; m < m_up; m++) {
+      int m_local = m - m_lo;
+      globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local)));	
+      int mp1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local+1)));
+      int mm1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local-1)));
+      cuComplex gmp1 = make_cuComplex(0.,0.);
+      cuComplex gmm1 = make_cuComplex(0.,0.);
+      if(m>0) gmm1 = g[mm1];
+      if(m<nm_glob-1) gmp1 = g[mp1];
+      
+      rhs_par[globalIdx] = rhs_par[globalIdx] -vt_ * (sqrtf(m+1)*gmp1 + sqrtf(m)*gmm1) * gradpar;
+      
+      // field terms
+//      if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] - Jflr(l, b_s) * phi_ * zt_ * vt_ * gradpar
+//		   - JflrB(l, b_s) * bpar_ * vt_ * gradpar; // m = 1 has Phi & Bpar terms
+      // the following Apar terms are only needed in the formulation without dA/dt
+//      if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] + Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 0 has Apar term
+//      if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] + sqrtf(2.) * Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 2 has Apar term
+    }
+  }
+}
+
+
+
 __global__ void streaming_rhs(const cuComplex* __restrict__ g,
 			      const cuComplex* __restrict__ phi,
 			      const cuComplex* __restrict__ apar,
@@ -2780,7 +2877,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
-__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt)
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gc, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
@@ -2803,6 +2900,16 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const f
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
+//    cuComplex rm = gc[globalIdx];
+//    printf("rm re: %f, rm im: %f\n", rm.x, rm.y);
+//    printf("g re: %f, g im: %f\n", g[globalIdx].x, g[globalIdx].y);
+//    if(rm.x == g[globalIdx].x && rm.y == g[globalIdx].y){
+//      printf("EQUAL");
+//    }
+//    else{
+//      printf("re diff is %f\n", rm.x - g[globalIdx].x);
+//      printf("im diff is %f\n", rm.y - g[globalIdx].y);
+//    }
     g[globalIdx] = g[globalIdx]/bet;
     for(idm=1; idm<nm; idm++) {
       globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
@@ -2813,11 +2920,12 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const f
       // a[m]
       cuComplex am = sdtvt*ikz*sqrtf(idm);
       // RHS vector
+//      rm = gc[globalIdx];
       cuComplex rm = g[globalIdx];
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       if(idm==1 && idz==idzl) {
         am = am + sdtvt*ikz*Q;
-	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
+//	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
       }
             
       // decomposition and forward substitution

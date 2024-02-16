@@ -166,6 +166,25 @@ void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt)
     grad_par->dz(GRhs, GRhs, false);
   }
 }
+
+void Linear_GK::rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
+  // Free-streaming requires parallel FFTs, so do that first
+  if(grids_->Nz>1) {
+    streaming_no_fields_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+    grad_par->dz(GRhs, GRhs, false);
+  }
+}
+
+
+void Linear_GK::rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
+  // Evaluate only the field terms on the rhs
+  if(grids_->Nz>1) {
+    fields_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+    grad_par->dz(GRhs, GRhs, false);
+  }
+}
+
+
 void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
 
   // calculate conservation terms for collision operator

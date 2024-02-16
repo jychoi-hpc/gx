@@ -14,7 +14,9 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   B1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
   B2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
   B3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
+  G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  Gi = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   for(int is=0; is<grids_->Nspecies; is++) {
     int is_glob = is+grids->is_lo;
     A1[is] = new MomentsG (pars_, grids_, is_glob);
@@ -24,6 +26,9 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     B2[is] = new MomentsG (pars_, grids_, is_glob);
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
+    Gi[is] = new MomentsG (pars_, grids_, is_glob);
+    Gc[is] = new MomentsG (pars_, grids_, is_glob);
+
     
     // get species index of electrons
     if(pars_->species_h[is].type == 1) {
@@ -62,16 +67,26 @@ IMEX_3stage::~IMEX_3stage()
   if (grad_par) delete grad_par;
 }
 
-void IMEX_3stage::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool setdt)
+void IMEX_3stage::explicit_terms(MomentsG** A, MomentsG** G, MomentsG** Gi, Fields* f, bool setdt, bool full_phi)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
+    Gi[is]->copyFrom(G[is]);
     A[is]->set_zero();
     if(is == ielectron) {
+//      Gi[is]->set_zero();
       // compute explicit part of electron linear rhs
+//      linear_->rhs_fields(Gi[is], f, A[is], dt_);
       linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
     } else {
-      // handle entire ion linear rhs explicitly
-      linear_->rhs(G[is], f, A[is], dt_);
+      Gi[ielectron]->set_zero();
+      if(full_phi){
+        linear_->rhs(G[is], f, A[is], dt_);
+      } else{
+        solver_->fieldSolve(Gi, f);
+        // handle entire ion linear rhs explicitly
+        linear_->rhs(G[is], f, A[is], dt_);
+        solver_->fieldSolve(G, f);
+      }
     }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
@@ -87,12 +102,14 @@ void IMEX_3stage::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
     B[is]->set_zero();
     if(is == ielectron) { // electrons
       // compute implicit part of electron linear rhs
+//      linear_->rhs_streaming_no_fields(G[is], f, B[is], dt_);
       linear_->rhs_streaming(G[is], f, B[is], dt_);
+
     }
   }
 }
 
-void IMEX_3stage::invert_implicit_terms(MomentsG* G1e, Fields *f, double sdt)
+void IMEX_3stage::invert_implicit_terms(MomentsG* G1e, MomentsG* Gce, Fields *f, double sdt)
 {
   // FFT Phi_i
   grad_par->zft(f->phi, f->phi);
@@ -103,9 +120,9 @@ void IMEX_3stage::invert_implicit_terms(MomentsG* G1e, Fields *f, double sdt)
   if(pars_->local_limit) {
     tridiag_streaming_local<<<dG, dB>>>(G1e->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   } else if (pars_->boundary_option_periodic) {
-    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
+    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), Gce->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   } else {
-    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
+    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), Gce->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   }
   grad_par->zft_inverse(G1e);
 }
@@ -217,14 +234,16 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G1, f);
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
-    invert_implicit_terms(G1[ielectron], f, p_*dt_);
+    Gc[ielectron]->copyFrom(G1[ielectron]);
+    invert_implicit_terms(G1[ielectron], Gc[ielectron], f, p_*dt_);
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
   }
   checkCudaErrors(cudaGetLastError()); 
   // stage 2
   // compute A1 = A(G1)
-  explicit_terms(A1, G1, f, true);
+  //the following is a shitty way to compute the ion contribution to phi.  
+  explicit_terms(A1, G1, Gi, f, true, true);
   // compute B1 = B(G1)
   implicit_terms(B1, G1, f);
   // G1_i = G_i + a21*dt*A1_i
@@ -240,15 +259,24 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G1, f);         
   // G1_e = G_e + a21*dt*A1_e + q_*dt*B1_e
   G1[ielectron]->add_scaled(1., G[ielectron], a21*dt_, A1[ielectron], q_*dt_, B1[ielectron]);
+  Gc[ielectron]->copyFrom(G1[ielectron]);
   // G1_e = inv(I - r_*dt*B)*G1_e
-  invert_implicit_terms(G1[ielectron], f, r_*dt_);
-  solver_->fieldSolve(G1, f);         
+  invert_implicit_terms(G1[ielectron], Gc[ielectron], f, r_*dt_);
+  //corrector step for the ions?
+//  explicit_terms(A1, G1, Gi, f, true, true);
+//  for(int is=0; is<grids_->Nspecies; is++) {
+//    if(is != ielectron) { // electrons
+//      G1[is]->add_scaled(1., G[is], a21*dt_, A1[is]);
+//    }  
+//  }
+
+  solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   checkCudaErrors(cudaGetLastError());
 
   // stage 3
   // compute A2 = A(G1)
-  explicit_terms(A2, G1, f, false);
+  explicit_terms(A2, G1, Gi, f, false, true);
   // compute B2 = B(G1)
   implicit_terms(B2, G1, f);
   // G1_i = G_i + a31*A1_i + a32*A2_i + s_*dt*B1_i + t_*dt*B2_i
@@ -265,13 +293,22 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   G1[ielectron]->add_scaled(1., G[ielectron], a31*dt_, A1[ielectron], a32*dt_, A2[ielectron], 
 		            s_*dt_, B1[ielectron], t_*dt_, B2[ielectron]);
   checkCudaErrors(cudaGetLastError());
+  Gc[ielectron]->copyFrom(G1[ielectron]);
   // G1 = inv(I - u_*dt*B)*G1
-  invert_implicit_terms(G1[ielectron], f, u_*dt_);
-  solver_->fieldSolve(G1, f);         
+  invert_implicit_terms(G1[ielectron], Gc[ielectron], f, u_*dt_);
+  //corrector step for the ions?
+//  explicit_terms(A2, G1, Gi, f, false, true);
+//  for (int is=0; is<grids_->Nspecies; is++) {
+//    if(is != ielectron) { // electrons
+//      G1[is]->add_scaled(1., G[is], a31*dt_, A1[is], a32*dt_, A2[is], s_*dt_, B1[is], t_*dt_, B2[is]);
+//    }  
+//  }
+
+  solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   // combine stage
   // compute A3 = A(G1)
-  explicit_terms(A3, G1, f, false);
+  explicit_terms(A3, G1, Gi, f, false, true);
   // compute B3 = B(G1)
   implicit_terms(B3, G1, f);
   // G = G + w1*A1 + w2*A2 + w3*A3 + w1*B1 + w2*B2 + w3*B3
@@ -393,9 +430,9 @@ void IMEX_4stage::invert_implicit_terms(MomentsG* G1e, Fields* f, double sdt)
   if(pars_->local_limit) {
     tridiag_streaming_local<<<dG, dB>>>(G1e->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   } else if (pars_->boundary_option_periodic) {
-    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
+//    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   } else {
-    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
+//    tridiag_streaming_periodic<<<dG, dB>>>(G1e->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1e->species), sdtvt);
   }
   grad_par->zft_inverse(G1e);
 }

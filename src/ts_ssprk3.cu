@@ -19,9 +19,9 @@ SSPRK3::SSPRK3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
-  else if (pars_->boundary_option_periodic) {
-    grad_par = new GradParallelPeriodic(grids_);
-  }
+//  else if (pars_->boundary_option_periodic) {
+//    grad_par = new GradParallelPeriodic(grids_);
+//  }
   else {
     grad_par = new GradParallelLinked(pars_, grids_);
   }

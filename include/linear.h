@@ -12,6 +12,8 @@ class Linear {
   virtual ~Linear() {};
   virtual void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) = 0;
   virtual void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
+  virtual void rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt){}
+  virtual void rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
   virtual void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
   virtual void get_max_frequency(double *wmax) {};
   // conservation terms
@@ -27,6 +29,8 @@ public:
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
+  void rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
+  void rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void get_max_frequency(double* wmax);
 
