@@ -84,7 +84,7 @@ class MomentsG {
 
   cudaStream_t syncStream;
 
-  size_t getSize() const { return grids_->sizeG; };
+  size_t getSize() const { return grids_->size_G; };
  
  private:
   cuComplex  * G_lm   ;
