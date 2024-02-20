@@ -26,13 +26,14 @@ class GXVector {
 
 		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext );
 
-		void setZero();
-		void setConst( float c );
+		void SetZero();
 
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
 		void SetConst( float );
 
+		// Elementwise division ; this[i] = a[i]/b[i]
 		void Div( GXVector const&, GXVector const& );
+		// Elementwise product  ; this[i] = a[i]*b[i]
 		void Prod( GXVector const&, GXVector const& );
 
 		void SetScaled( float, GXVector const& );

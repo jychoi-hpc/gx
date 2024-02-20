@@ -3271,3 +3271,35 @@ __global__ void minusRealKernel(float* res, const cuComplex* in)
   }
 }
 
+__global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] = in1 / in2;
+  }
+}
+
+__global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] = in1 * in2;
+  }
+}
+
+__global__ void accumulate_kernel(cuComplex* res, const cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    res[ig] += in[ ig ];
+  }
+}

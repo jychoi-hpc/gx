@@ -52,7 +52,7 @@ GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
 
 # SUNDIALS_DIR should be set already
 SUNDIALS_INC = -I${SUNDIALS_DIR}/include
-SUNDIALS_LIB = -L${SUNDIALS_DIR}/lib64 
+SUNDIALS_LIB = -L${SUNDIALS_DIR}/lib64 -lsundials_arkode
 
 # additional c libraries required for linking. these are already in LD_LIBRARY_PATH
 C_LIB = -lm -lpthread -ldl

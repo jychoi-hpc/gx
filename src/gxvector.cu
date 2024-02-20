@@ -33,7 +33,7 @@ GXVector::GXVector( GXVector const& other )
 	}
 }
 
-void GXVector::setZero() 
+void GXVector::SetZero() 
 {
 	for( auto &m : array )
 	{
@@ -41,7 +41,7 @@ void GXVector::setZero()
 	}
 }
 
-void GXVector::setConst( float c )
+void GXVector::SetConst( float c )
 {
 	for( auto &m : array )
 	{
@@ -233,3 +233,42 @@ float GXVector::MinReal() const
 	return -cpuMaxElem;
 }
 
+void GXVector::Div( GXVector const& x, GXVector const& y )
+{
+	MomentsG const & m = array[ 0 ];
+	for( int i = 0; i < array.size(); ++i )
+	{
+		elem_div_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G(), y.array[ i ].G() )
+	}
+}
+
+void GXVector::Prod( GXVector const& x, GXVector const& y )
+{
+	MomentsG const & m = array[ 0 ];
+	for( int i = 0; i < array.size(); ++i )
+	{
+		elem_prod_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G(), y.array[ i ].G() )
+	}
+}
+
+// Sets the current object to be a*x + b*y
+void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y )
+{
+	MomentsG const & m = array[ 0 ];
+	for( int i = 0; i < array.size(); ++i )
+	{
+		// Note the last argument is true to force-ignore any eqfix nonsense
+		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), a, x.array[ i ].G(), b, y.array[ i ].G(), true )
+	}
+}
+
+GXVector & GXVector::LinearSum( GXVector const& other )
+{
+	MomentsG const & m = array[ 0 ];
+	for( int i = 0; i < array.size(); ++i )
+	{
+		// Note the last argument is true to force-ignore any eqfix nonsense
+		acumulate_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G() )
+	}
+	return *this;
+}
