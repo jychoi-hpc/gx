@@ -83,6 +83,8 @@ class MomentsG {
   cuComplex * qprp_ptr;
 
   cudaStream_t syncStream;
+
+  size_t getSize() const { return grids_->sizeG; };
  
  private:
   cuComplex  * G_lm   ;
