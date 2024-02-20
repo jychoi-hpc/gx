@@ -136,7 +136,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 
 
 	// do tmp_i = w_i||g_i||^2 on GPU
-	MomentsG& m = array[ 0 ];
+	MomentsG const & m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
@@ -156,7 +156,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 }
 
 // Return minimum real part of all elements of g
-float GXVector::MinReal()
+float GXVector::MinReal() const
 {
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
