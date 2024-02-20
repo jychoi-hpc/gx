@@ -3278,7 +3278,7 @@ __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuCo
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    res[ig] = in1 / in2;
+    res[ig] = in1[ ig ] / in2[ ig ];
   }
 }
 
@@ -3289,7 +3289,7 @@ __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuC
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    res[ig] = in1 * in2;
+    res[ig] = in1[ ig ] * in2[ ig ];
   }
 }
 
