@@ -3300,6 +3300,7 @@ __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in)
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    res[ig] += in[ ig ];
+	 res[ ig ].x += in[ ig ].x;
+	 res[ ig ].y += in[ ig ].y;
   }
 }
