@@ -124,7 +124,7 @@ float GXVector::MaxNorm() const
 	}
 
 	// Take max over elements of tmp
-	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
+	reducer.Max( tmp, MaxElement );
 	float cpuMaxElem;
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
@@ -194,14 +194,17 @@ float GXVector::MinReal() const
 
 	// allocate temporary object for real components
 	float *tmp;
+	
+	// Bytes in a G
+	size_t size_G = array[0].getSize();
 	// Number of floats needed for a G
-	size_t NfloatsG = grids_->size_G / sizeof(cuComplex);
-	// Number of bytes needed for a G
+	size_t NfloatsG = size_G / sizeof(cuComplex);
+	// Number of bytes needed for a G-sized set of floats
 	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
 	// there may be padding for memory alignment.
-	size_t real_size_G = grids_->size_G * sizeof(float); 
+	size_t real_size_G = size_G * sizeof(float); 
 
-	checkCuda(cudaMalloc((void**) &tmp, real_size_G * grids->Nspecies )); 
+	checkCuda(cudaMalloc((void**) &tmp, real_size_G * array.size() )); 
 
 	// Allocate space for answer
 	float *MaxElement;
@@ -209,7 +212,7 @@ float GXVector::MinReal() const
 	cudaMemset(MaxElement, 0., sizeof(float));
 
 	// do tmp_i = - Re( this[i] ) on GPU
-	MomentsG& m = array[ 0 ];
+	MomentsG const & m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * NfloatsG;
