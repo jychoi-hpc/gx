@@ -268,7 +268,7 @@ GXVector & GXVector::operator+=( GXVector const& other )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		// Note the last argument is true to force-ignore any eqfix nonsense
-		acumulate_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G() );
+		accumulate_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G() );
 	}
 	return *this;
 }
