@@ -408,8 +408,9 @@ __global__ void hypercollisions_kz(const cuComplex* g, const float nu, const int
 // Kernels for GXVector API (IGA)
 //
 
-__global__ void minRealKernel(cuComplex* res, const cuComplex* in);
-__global__ void wrmsKernel(cuComplex* res, const cuComplex* g, const cuComplex* w);
+__global__ void minRealKernel(float* res, const cuComplex* in);
+__global__ void wrmsKernel(float* res, const cuComplex* g, const cuComplex* w);
+__global__ void absValKernel(float* res, const cuComplex* in);
 __global__ void set_abs_kernel(cuComplex* res, const cuComplex* in);
 __global__ void set_inv_kernel(cuComplex* res, const cuComplex* in);
 __global__ void set_constant_kernel( cuComplex* res, float x );

@@ -96,16 +96,29 @@ float GXVector::MaxNorm() const
 	std::vector<int32_t> modesRed{};
 	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
 
-	// allocate g-sized temporary object
-	GXVector tmp( *this );
+	// allocate temporary object for |g_i|
+	float *tmp;
+	// Number of floats needed for a G
+	size_t NfloatsG = grids_->size_G / sizeof(cuComplex);
+	// Number of bytes needed for a G
+	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
+	// there may be padding for memory alignment.
+	size_t real_size_G = grids_->size_G * sizeof(float); 
 
-	// tmp[i] = ||this[i]||
-	tmp.SetAbs( *this );
+	checkCuda(cudaMalloc((void**) &tmp, real_size_G * grids->Nspecies )); 
 
-	// Allocate space for answer
+	// Allocate space on GPU for answer
 	float *MaxElement;
 	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
 	cudaMemset(MaxElement, 0., sizeof(float));
+
+	// do tmp_i = ||g_i|| on GPU
+	MomentsG const & m = array[ 0 ];
+	for( int i = 0; i < array.size(); ++i )
+	{
+		float *tmp_species_i = tmp + i * NfloatsG;
+		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G() );
+	}
 
 	// Take max over elements of tmp
 	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
@@ -129,6 +142,18 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	std::vector<int32_t> modesRed{};
 	Reduction<float> reducer(tmp.array[ 0 ].grids_, modes, modesRed);
 
+
+	// allocate temporary object for w_i |g_i|^2
+	float *tmp;
+	// Number of floats needed for a G
+	size_t NfloatsG = grids_->size_G / sizeof(cuComplex);
+	// Number of bytes needed for a G
+	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
+	// there may be padding for memory alignment.
+	size_t real_size_G = grids_->size_G * sizeof(float); 
+
+	checkCuda(cudaMalloc((void**) &tmp, real_size_G * grids->Nspecies )); 
+
 	// Allocate space on GPU for answer
 	float *SumResult;
 	checkCuda(cudaMalloc(&SumResult,  sizeof(float)));
@@ -139,18 +164,20 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	MomentsG const & m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
-		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
+		float *tmp_species_i = tmp + i * NfloatsG;
+		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G(), w.array[ i ].G() );
 	}
 
 	// tmp now contains {w_i ||g_i||^2 }
 	// Sum all of tmp to get the answer
 	
-	reducer.Sum( tmp.array[ 0 ].G(), SumResult );
+	reducer.Sum( tmp, SumResult );
 	float cpuSumResult;
 	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(float) );
 
 	// Clean up
 	cudaFree( &SumResult );
+	cudaFree( &tmp );
 
 	return cpuSumResult;
 }
@@ -163,30 +190,41 @@ float GXVector::MinReal() const
 	std::vector<int32_t> modesRed{};
 	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
 
-	// allocate g-sized temporary object
-	GXVector tmp( *this );
+	// allocate temporary object for real components
+	float *tmp;
+	// Number of floats needed for a G
+	size_t NfloatsG = grids_->size_G / sizeof(cuComplex);
+	// Number of bytes needed for a G
+	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
+	// there may be padding for memory alignment.
+	size_t real_size_G = grids_->size_G * sizeof(float); 
+
+	checkCuda(cudaMalloc((void**) &tmp, real_size_G * grids->Nspecies )); 
 
 	// Allocate space for answer
 	float *MaxElement;
 	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
 	cudaMemset(MaxElement, 0., sizeof(float));
 
-	// do tmp_i = -this[i] on GPU
+	// do tmp_i = - Re( this[i] ) on GPU
 	MomentsG& m = array[ 0 ];
 	for( int i = 0; i < array.size(); ++i )
 	{
-		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp.array[ i ].G(), array[ i ].G(), w.array[ i ].G() );
+		float *tmp_species_i = tmp + i * NfloatsG;
+		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G() );
 	}
 
 	// tmp now contains -this
 	// so max of tmp is min of *this
-	reducer.Max( tmp.array[ 0 ].G(), MaxElement );
+	reducer.Max( tmp, MaxElement );
 	float cpuMaxElem;
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
 	cudaFree( &MaxElement );
+	cudaFree( &tmp );
 
-	// flip sign once again
+	// flip sign -- we want minimum not maximum element
 	return -cpuMaxElem;
 }
+

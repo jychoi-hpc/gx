@@ -3235,8 +3235,19 @@ __global__ void set_abs_kernel(cuComplex* res, const cuComplex* in)
   }
 }
 
+__global__ void absValKernel(float* res, const cuComplex* in)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ] = cuCabsf( in[ ig ] );
+  }
+}
+
 // Set res_i = w_i * |g_i|^2
-__global__ void wrmsKernel(cuComplex* res, const cuComplex* g, const cuComplex* w)
+__global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
@@ -3244,20 +3255,19 @@ __global__ void wrmsKernel(cuComplex* res, const cuComplex* g, const cuComplex* 
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
 	 // We know w is real, so w[ ig ].y == 0
-	 res[ ig ].x = w[ ig ].x * cuCabsf( g[ ig ] );
-	 res[ ig ].y = 0.0f;
+	 res[ ig ] = w[ ig ].x * cuCabsf( g[ ig ] );
   }
 }
 
-__global__ void minRealKernel(cuComplex* res, const cuComplex* in)
+// Needed to calc min { Re[ x ] }, by doing max{ -Re[x] }
+__global__ void minusRealKernel(float* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x = -in[ ig ].x;
-	 res[ ig ].y = 0.0f;
+	 res[ ig ] = -in[ ig ].x;
   }
 }
 
