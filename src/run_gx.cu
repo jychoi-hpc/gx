@@ -183,6 +183,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+
+    case Tmethod::rk4gxv: timestep = new GXVRK4(linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     }
 
   fflush(stdout);
