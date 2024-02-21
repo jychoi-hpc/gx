@@ -9,6 +9,8 @@
 #include "forcing.h"
 #include "grad_parallel.h"
 
+#include <sundials/sundials_context.h>
+
 class Timestepper {
  public:
   virtual ~Timestepper() {};
@@ -262,18 +264,19 @@ class SDCe : public Timestepper {
 }
 */
 
-/*
+
 class GXVRK4 : public Timestepper {
  public:
   GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
   ~GXVRK4();
   void advance(double* t, MomentsG** G, Fields* fields);
-  void partial(MomentsG** G, MomentsG** Gt, Fields *f,
-	       MomentsG** Rhs, MomentsG **Gnew, double adt, bool setdt);
+  void partial(GXVector & G, GXVector & Gt, Fields *f, 
+		         GXVector & Rhs, GXVector & Gnew, double adt, bool setdt);
   double get_dt() {return dt_;};
 
  private:
+  sundials::Context ctx;
   const double dt_max;
   double dt_;
   const double cfl_fac = 2.82;
@@ -285,10 +288,10 @@ class GXVRK4 : public Timestepper {
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
-  MomentsG  ** GStar      ;
-  MomentsG  ** GRhs       ;
-  MomentsG  ** G_q1       ;
-  MomentsG  ** G_q2       ;
+  GXVector GStar;
+  GXVector GRhs;
+  GXVector G_q1;
+  GXVector G_q2;
 }
-*/
+
 

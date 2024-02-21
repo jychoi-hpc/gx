@@ -61,9 +61,20 @@ class GXVector {
 
 
 		float MinReal() const;
-		SUNContext ctx;
+
+		explicit GXVector( MomentsG **G, SUNContext ctx_ ) :
+			ctx(ctx_),owns_data(false)
+		{ 
+			array.resize( G[0]->grids_->Nspecies );
+			for( int i = 0; i < array.size(); ++i )
+				array[ i ] = G[ i ];
+		};
+
+		void sync();
+		void update_tprim( double );
 
 	private:
+		SUNContext ctx;
 		bool owns_data;
 		VecType array;
 };

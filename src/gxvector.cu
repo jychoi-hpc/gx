@@ -271,3 +271,20 @@ GXVector & GXVector::operator+=( GXVector const& other )
 	}
 	return *this;
 }
+
+void GXVector::sync()
+{
+	int Nspecies = array[ 0 ]->grids_->Nspecies;
+	for( int is = 0; is < Nspecies; ++is ) {
+		array[ is ]->sync();
+	}
+}
+
+void GXVector::update_tprim( double t )
+{
+	int Nspecies = array[ 0 ]->grids_->Nspecies;
+	for( int is = 0; is < Nspecies; ++is ) {
+		array[ is ]->update_tprim( t );
+	}
+}
+
