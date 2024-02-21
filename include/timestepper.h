@@ -293,6 +293,6 @@ class GXVRK4 : public Timestepper {
   GXVector GRhs;
   GXVector G_q1;
   GXVector G_q2;
-}
+};
 
 
