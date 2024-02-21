@@ -169,7 +169,7 @@ grad_psi_dot_grad_alpha = grad_psi * grad_alpha_r * data['g^rr'] + grad_psi * gr
 #calculate gds*
 shat = -rho/iotas * shear[0]
 gds2 = grad_alpha**2 * Lref**2 *psi
-gds21 = shat/Bref * grad_psi_dot_grad_alpha
+gds21 = -iotas/np.abs(iotas) * shat/Bref * grad_psi_dot_grad_alpha
 gds22 = (shat/(Lref*Bref))**2 /psi * grad_psi**2*data['g^rr']
 
 #calculate gbdrift0 and cvdrift0
@@ -178,7 +178,7 @@ B_z = data['B_zeta']
 dB_t = data['|B|_t']
 dB_z = data['|B|_z']
 jac = data['sqrt(g)']
-gbdrift0 = psib/np.abs(psib)*shat * 2 / modB**3 / rho*(B_t*dB_z - B_z*dB_t)*psib/jac * 2 * rho
+gbdrift0 = -iotas/np.abs(iotas) * -psib/np.abs(psib)*shat * 2 / modB**3 / rho*(B_t*dB_z - B_z*dB_t)*psib/jac * 2 * rho
 cvdrift0 = gbdrift0
 
 #calculate gbdrift and cvdrift
@@ -187,7 +187,7 @@ dB_r = data['|B|_r']
 
 #iota = iota_data['iota'][0]
 gbdrift_norm = 2*Bref*Lref**2/modB**3*rho
-gbdrift = psib/np.abs(psib)*gbdrift_norm/jac*(B_r*dB_t*(lmbda_z - iota) + B_t*dB_z*(lmbda_r - (zeta-zeta_center)*shear[0]) + B_z*dB_r*(1+lmbda_t) - B_z*dB_t*(lmbda_r - (zeta-zeta_center)*shear[0]) - B_t*dB_r*(lmbda_z - iota) - B_r*dB_z*(1+lmbda_t))
+gbdrift = -psib/np.abs(psib)*gbdrift_norm/jac*(B_r*dB_t*(lmbda_z - iota) + B_t*dB_z*(lmbda_r - (zeta-zeta_center)*shear[0]) + B_z*dB_r*(1+lmbda_t) - B_z*dB_t*(lmbda_r - (zeta-zeta_center)*shear[0]) - B_t*dB_r*(lmbda_z - iota) - B_r*dB_z*(1+lmbda_t))
 Bsa = 1/jac * (B_z*(1+lmbda_t) - B_t*(lmbda_z - iota))
 p_r = data['p_r']
 cvdrift = gbdrift + 2*Bref*Lref**2/modB**2 * rho*mu_0/modB**2*p_r*Bsa
