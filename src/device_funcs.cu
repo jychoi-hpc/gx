@@ -315,7 +315,7 @@ __global__ void equilibrium_current_krehm (cuComplex *G1, float* kx, float* ky, 
     unsigned int idxyz = get_idxyz(idx, idy, idz);
 
     float kperp2 = kx[idx]*kx[idx] + ky[idy]*ky[idy];
-
+    //printf("apar_ext[%d]: %f + %fi\n", idxyz, apar_ext[idxyz].x, apar_ext[idxyz].y);
     G1[idxyz] = G1[idxyz] - (1. + d_e*d_e*kperp2)*apar_ext[idxyz]/(rho_s*d_e);
   }
 }
@@ -1830,22 +1830,36 @@ __global__ void turbulent_heating_summand(float* heat, const cuComplex* phi, con
     cuComplex n_bar = make_cuComplex(0.,0.);
     cuComplex u_bar = make_cuComplex(0.,0.);
     cuComplex uB_bar = make_cuComplex(0.,0.);
+    cuComplex n_bar_old = make_cuComplex(0.,0.);
+    cuComplex u_bar_old = make_cuComplex(0.,0.);
+    cuComplex uB_bar_old = make_cuComplex(0.,0.);
 
-    for (int il=0; il < nl; il++) {
+    for (int il=0; il < nl; il++) { 
       unsigned int idxyz_l0 = idxyz + nx*nyc*nz*(il + nl*(0 - m_lo));
       unsigned int idxyz_l1 = idxyz + nx*nyc*nz*(il + nl*(1 - m_lo));
-      cuComplex H_l0 = g_old[idxyz_l0] + zt_*Jflr(il, b_s)*phi_ + JflrB(il, b_s)*bpar_;
-      cuComplex H_l1 = g_old[idxyz_l1] - zt_*vt_*Jflr(il, b_s)*apar_;
-
+      cuComplex H_l0_old = g_old[idxyz_l0] + zt_*Jflr(il, b_s)*phi_old_ + JflrB(il, b_s)*bpar_old_;
+      cuComplex H_l1_old = g_old[idxyz_l1] - zt_*vt_*Jflr(il, b_s)*apar_old_;
+      
+      cuComplex H_l0 = g[idxyz_l0] + zt_*Jflr(il, b_s)*phi_ + JflrB(il, b_s)*bpar_;
+      cuComplex H_l1 = g[idxyz_l1] - zt_*vt_*Jflr(il, b_s)*apar_;
+      
+      n_bar_old = n_bar_old + Jflr(il, b_s)*H_l0_old;
+      u_bar_old = u_bar_old + Jflr(il, b_s)*H_l1_old;
+      uB_bar_old = uB_bar_old + JflrB(il, b_s)*H_l0_old;
+      
       n_bar = n_bar + Jflr(il, b_s)*H_l0;
       u_bar = u_bar + Jflr(il, b_s)*H_l1;
       uB_bar = uB_bar + JflrB(il, b_s)*H_l0;
     }
+    cuComplex dn_bardt = (n_bar - n_bar_old)/dt;
+    cuComplex du_bardt = (u_bar - u_bar_old)/dt;
+    cuComplex duB_bardt = (uB_bar - uB_bar_old)/dt;
     
     float fac = 2.0;
     if (idy==0) fac = 1.0;
-    cuComplex fg = (cuConjf(dPhidt) * n_bar - vt_*cuConjf(dAdt)*u_bar + tz_*cuConjf(dBdt)*uB_bar) * fac * volJac[idz];
-    heat[idxyz] = fg.x * nz_;
+    cuComplex h_dchidt = (cuConjf(dPhidt) * n_bar_old - vt_*cuConjf(dAdt)*u_bar_old + tz_*cuConjf(dBdt)*uB_bar_old) * fac * volJac[idz];
+    cuComplex chi_dhdt = (cuConjf(phi_old_) * dn_bardt - vt_*cuConjf(apar_old_)*du_bardt + tz_*cuConjf(bpar_old_)*duB_bardt) * fac * volJac[idz];
+    heat[idxyz] = 0.5 * (h_dchidt.x - chi_dhdt.x) * nz_;
   }
 }
 

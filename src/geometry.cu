@@ -78,6 +78,21 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
       geo = new Eik_geo(pars, grids);
     }
   }
+  else if(geo_option=="pyvmec") {
+    // call python geometry module to write an eik.out geo file
+    // GX_PATH is defined at compile time via a -D flag
+    pars->geofilename = std::string(pars->run_name) + ".eik.nc";
+    if(grids->iproc == 0) {
+      char command[300];
+      sprintf(command, "python %s/geometry_modules/pyvmec/gx_geo_vmec.py %s.in %s", GX_PATH, pars->run_name, pars->geofilename.c_str(), pars->run_name);
+      printf("Using pyvmec geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
+      system(command);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // now read the eik nc file that was generated
+    geo = new geo_nc(pars, grids);
+  } 
   else if(geo_option=="desc") {
     // call python geometry module to write an eik.out geo file
     // GX_PATH is defined at compile time via a -D flag
@@ -151,7 +166,7 @@ void write_eiktest_in(Parameters *pars, Grids *grids) {
   sprintf(fname, "%s.eik.in", pars->run_name);
   fptr = fopen(fname, "w");
   fprintf(fptr, "&stuff\n");
-  fprintf(fptr, " ntheta = %d\n", pars->nz_in);
+  fprintf(fptr, " ntheta = %d\n", pars->nz_in/(2*pars->nperiod-1));
   fprintf(fptr, " nperiod = %d\n", pars->nperiod);
   fprintf(fptr, " geoType = %d\n", pars->geoType);
   fprintf(fptr, " rmaj = %.9e\n", pars->rmaj);
@@ -570,6 +585,17 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   if (retval = nc_inq_varid(ncgeo, "scale", &id))            ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   theta_scale = (float) stmp;
+
+  if (retval = nc_inq_varid(ncgeo, "nfp", &id))            ERR(retval);
+  if (retval = nc_get_var  (ncgeo, id, &nfp))           ERR(retval);
+
+  if (retval = nc_inq_varid(ncgeo, "alpha", &id))            ERR(retval);
+  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  alpha = (float) stmp;
+
+  if (retval = nc_inq_varid(ncgeo, "zeta_center", &id))            ERR(retval);
+  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  zeta_center = (float) stmp;
 
   // close the netcdf file with nc_close
   if (retval = nc_close(ncgeo)) ERR(retval);

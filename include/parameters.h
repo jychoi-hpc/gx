@@ -115,7 +115,7 @@ class Parameters {
   int p_HB, p_hyper_l, p_hyper_m, p_hyper_lm, irho, nwrite, nwrite_big, navg, nsave, igeo, nreal;
   int p_hyper_z;
   int nz_in, nperiod, Zp, bishop, scan_number, icovering;
-  int nx_in, ny_in, jtwist, nm_in, nl_in, nstep, nspec_in, nspec;
+  int nx_in, ny_in, jtwist, nm_in, nl_in, nstep, nstep_restart, nspec_in, nspec;
   int x0_mult, y0_mult, z0_mult, nx_mult, ny_mult, ntheta_mult;
   int nm_add, nl_add, ns_add;
   int forcing_index, smith_par_q, smith_perp_q, forcing_kz, forcing_k2min, forcing_k2max;
@@ -167,8 +167,11 @@ class Parameters {
   float rho_s, rho_i, d_e, zt;
   bool harris_sheet;
   bool periodic_equilibrium;
+  bool island_coalesce;
   float k0; 
   bool gaussian_tube;
+  float kc; 
+  bool random_gaussian;
   cuComplex phi_test, smith_perp_w0;
 
   specie *species_h;
@@ -176,6 +179,8 @@ class Parameters {
 
   bool adiabatic_electrons, snyder_electrons, stationary_ions, dorland_qneut;
   bool all_kinetic, ks, gx, add_Boltzmann_species, write_ks, random_init;
+  bool gaussian_init;
+  float gaussian_width;
   bool vp, vp_closure;
   bool cetg;  
   bool write_all_kmom, write_kmom, write_xymom, write_all_xymom, write_avgz, write_all_avgz;

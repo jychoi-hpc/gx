@@ -1,0 +1,55 @@
+# Makefile for summit (ORNL)
+# Maintainer: Noah Mandell (nmandell@pppl.gov)
+#
+# add and uncomment the following in your .profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# export GK_SYSTEM=summit
+# module load nvhpc/23.9
+# module load cuda/12.2.0
+# module load hdf5_perf/1.10.6.gcc
+# module load gsl
+#
+
+# paths to netcdf and hdf5
+NETCDF_ROOT = /ccs/home/nmandell/netcdf-4.9.2
+HDF5_ROOT = ${OLCF_HDF5_ROOT}
+NETCDF_INC = -I ${NETCDF_ROOT}/include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5_hl -lhdf5 -lm -lz -lbz2 -lxml2 -lcurl
+
+# paths to mpi
+MPI_ROOT = ${OMPI_DIR}
+MPI_INC = -I ${MPI_ROOT}/include
+MPI_LIB = -L ${MPI_ROOT}/lib  -lmpi_ibm
+
+# paths to cuda 
+# NVIDIA_PATH is defined by nvhpc-mixed module
+NVHPC_ROOT = ${OLCF_NVHPC_ROOT}
+# NCCL_HOME is defined by nccl module
+NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/nccl
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+
+# paths to gsl 
+# GSL_ROOT is defined by gsl module
+GSL_ROOT = ${OLCF_GSL_ROOT}
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+
+# additional c libraries required for linking. these are already in LD_LIBRARY_PATH
+C_LIB = -lpthread -ldl
+
+# V100 is compute architecture 7.0
+CUDAARCH=70
+
+CXX = mpic++
+
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif
+

@@ -100,6 +100,7 @@ void Parameters::get_nml_vars(char* filename)
   if (nml.contains("Time")) tnml = toml::find (nml, "Time");
   dt      = toml::find_or <float> (tnml, "dt",       0.05 );
   nstep   = toml::find_or <int>   (tnml, "nstep",   2e9 );
+  nstep_restart   = toml::find_or <int>   (tnml, "nstep_restart",   -1 );
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
   cfl = toml::find_or <float> (tnml, "cfl", 0.9);
   stages = toml::find_or <int>    (tnml, "stages",  10   );
@@ -114,6 +115,8 @@ void Parameters::get_nml_vars(char* filename)
   kpar_init  = toml::find_or <float>  (tnml, "kpar_init",     0.0   );
   ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     (long) kpar_init  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
+  gaussian_init = toml::find_or <bool> (tnml, "gaussian_init", false);
+  gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     1.0   );
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
   densfac = toml::find_or <float> (tnml, "densfac", 1.0);
   uparfac = toml::find_or <float> (tnml, "uparfac", 1.0);
@@ -200,10 +203,15 @@ void Parameters::get_nml_vars(char* filename)
   zt                = toml::find_or <float> (tnml, "zt",          1.0 );
   harris_sheet      = toml::find_or <bool>  (tnml, "harris_sheet", false);
   periodic_equilibrium = toml::find_or <bool> (tnml, "periodic_equilibrium", false);
+  island_coalesce = toml::find_or <bool> (tnml, "island_coalesce", false);
   k0                = toml::find_or <float> (tnml, "k0", 10.0);
   gaussian_tube     = toml::find_or <bool> (tnml, "gaussian_tube", false);
+  random_gaussian   = toml::find_or <bool> (tnml, "random_gaussian", false);
+  kc                = toml::find_or <float> (tnml, "kc", 25.0);
   rho_s = rho_i*sqrtf(zt/2);
   if(eta>0.0) nu_ei = eta/d_e/d_e;
+  // allow hypercollisions = true to give correct behavior for KREHM (which always uses const option)
+  if(krehm && hypercollisions_kz) {hypercollisions_const = true; hypercollisions_kz = false;}
 
   tnml = nml;
   if (nml.contains("Expert")) tnml = toml::find (nml, "Expert");
@@ -1483,10 +1491,10 @@ void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
     // check consistency of boundary and geo_option
     printf(ANSI_COLOR_RED);
     if(boundary == "continuous drifts" || boundary == "fix aspect") {
-      if(geo_option != "vmec") printf("Warning: boundary option \"%s\" is only available with the VMEC geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
     }
     if(boundary == "exact periodic") {
-      if(geo_option != "vmec") printf("Warning: boundary option \"%s\" is only available with the VMEC geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
     }
     printf(ANSI_COLOR_RESET);
   }

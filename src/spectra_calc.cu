@@ -542,3 +542,61 @@ SpectraCalc_zt::SpectraCalc_zt(Grids* grids, NcDims *nc_dims)
 
   allocate();
 }
+
+SpectraCalc_kxkyzt::SpectraCalc_kxkyzt(Grids* grids, NcDims *nc_dims)
+{
+  grids_ = grids;
+  tag = "_kxkyzt";
+  reduced_modes = {'y', 'x', 'z'};
+  ndim = 4;
+
+  dims[0] = nc_dims->time;
+  dims[1] = nc_dims->z;
+  dims[2] = nc_dims->ky;
+  dims[3] = nc_dims->kx;
+
+  count[0] = 1; // each write is a single time slice
+  count[1] = grids->Nz;
+  count[2] = grids->Naky;
+  count[3] = grids->Nakx;
+
+  field_reduce = new Reduction<float>(grids, field_modes, reduced_modes);
+  moments_reduce = new Reduction<float>(grids, moment_modes, reduced_modes);
+
+  N = grids->Nx*grids->Nyc*grids->Nz;
+  Nwrite = grids->Nakx*grids->Naky*grids->Nz; // only write de-aliased modes
+
+  allocate();
+}
+
+void SpectraCalc_kxkyzt::dealias_and_reorder(float *fold, float *fnew)
+{
+  int NK = grids_->Nakx/2;
+  int NX = grids_->Nx; 
+  for (int iz = 0; iz < grids_->Nz; iz++) {
+    int it = 0;
+    int itp = it + NK;
+    for (int ik = 0; ik < grids_->Naky; ik++) {
+      int Qp = itp + grids_->Nakx*(ik + grids_->Naky*(iz));
+      int Rp = ik  + grids_->Nyc*(it + grids_->Nx*(iz));
+      fnew[Qp] = fold[Rp];
+    }	
+    for (int it = 1; it < NK+1; it++) {
+      int itp = NK + it;
+      int itn = NK - it;
+      int itm = NX - it;
+      
+      for (int ik = 0; ik < grids_->Naky; ik++) {
+
+        int Qp = itp + grids_->Nakx*(ik + grids_->Naky*(iz));
+        int Rp = ik  + grids_->Nyc*(it + grids_->Nx*(iz));
+
+        int Qn = itn + grids_->Nakx*(ik + grids_->Naky*(iz));
+        int Rm = ik  + grids_->Nyc*(itm + grids_->Nx*(iz));
+
+        fnew[Qp] = fold[Rp];
+        fnew[Qn] = fold[Rm];
+      }
+    }
+  }
+}

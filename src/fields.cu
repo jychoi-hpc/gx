@@ -1,6 +1,8 @@
 #include "fields.h"
 #include "get_error.h"
 #include "grad_perp.h"
+#include <cmath> // Include cmath for mathematical functions
+#include <iostream>
 
 Fields::Fields(Parameters* pars, Grids* grids) :
   size_(sizeof(cuComplex)*grids->NxNycNz), sizeReal_(sizeof(float)*grids->NxNyNz), N(grids->NxNycNz), pars_(pars), grids_(grids),
@@ -152,6 +154,75 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   //    }
   //  }
     //grad_perp->qvar(apar_ext, grids_->NxNycNz); 
+  }
+  if (pars_->island_coalesce && !pars_->restart) {
+    int nBatch = grids_->Nz;
+    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+
+    for(int idz = 0; idz < grids_->Nz; idz++) {
+      for(int idx = 0; idx < grids_->Nx; idx++) {
+        for(int idy = 0; idy < grids_->Ny; idy++) {
+           float x = grids_->x_h[idx];
+           float y = grids_->y_h[idy];
+           int index = idy + idx * grids_->Ny + idz * grids_->NxNy;
+
+           //float B0 = 0.5;
+	   //float lambda = 0.5;
+	   //float epsilon = 0.4;
+           //apar_ext_realspace_h[index] = B0*lambda*log(epsilon * cos((x - M_PI*pars_->x0)/lambda) + cosh((y - M_PI*pars_->y0)/lambda)) - 0.1*B0*lambda*cos((x - M_PI*pars_->x0)/lambda) * cos((y - M_PI*pars_->y0)/lambda);
+	   float A0 = 0.7772;
+	   float Lx = 2*M_PI*pars_->x0;
+           float Ly = 2*M_PI*pars_->y0;
+	   apar_ext_realspace_h[index] = A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.27*Lx)),2) - pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.73*Lx)),2)-pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2));
+           
+           //apar_ext_realspace_h[index] = A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.26*Lx)),2) - pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + A0*exp(-pow((2.0*M_PI*1.5/Lx*(x-0.74*Lx)),2)-pow((2.0*M_PI*1.5/Ly*(y-0.5*Ly)),2)) + 0.1*A0*sin(x-0.5*Lx)*sin(y-0.5*Ly);
+	   //apar_ext_realspace_h[index] = 0.1 * A0 * sin(x-0.5*Lx) * sin(y-0.5*Ly);
+        }
+      }
+    }
+    
+    CP_TO_GPU(apar_ext_realspace, apar_ext_realspace_h, sizeof(float) * grids_->NxNyNz);
+    grad_perp->R2C(apar_ext_realspace, apar_ext, true);
+
+    delete grad_perp;
+  }
+  if (pars_->random_gaussian && !pars_->restart) {
+     std::cout << "Random Gaussian being placed" << std::endl;
+     int NKX = grids_->Nx/2;
+     int Nx = grids_->Nx;
+     int Nyc = grids_->Nyc;
+     int Nz = grids_->Nz;
+     for (int idz = 0; idz < Nz; idz++) {
+       for (int ikx = 0; ikx < Nx; ikx++){
+         int kx = (ikx > NKX ? NKX-ikx : ikx);
+         for (int iky = 0; iky < Nyc; iky++){
+              int ky = iky;
+              unsigned int idxyz = iky + ikx * Nyc + Nx * Nyc * idz;
+              int kc = pars_->kc;
+              int kc2 = kc*kc;
+              float A0 = 1e-2 / kc2;
+              int k2 = kx*kx+ky*ky;
+              float phase = M_PI * (2.0 * static_cast<float>(rand()) / (static_cast<float>(RAND_MAX) + 1.0) - 1.0);
+              apar_ext_h[idxyz].x = -A0*k2*cos(phase);
+              apar_ext_h[idxyz].y = -A0*k2*sin(phase);
+              //apar_ext_h[idxyz].x = 1;
+	      if (k2<=kc2) {
+		apar_ext_h[idxyz].x = -A0*k2*cos(phase);
+		apar_ext_h[idxyz].y = -A0*k2*sin(phase);
+              }
+              else {
+                //printf("k2=%d, kc2 = %d\n",k2,kc2);
+                apar_ext_h[idxyz].x = -A0*k2*cos(phase)*exp(1 - static_cast<float>(k2) / (kc * kc));
+                apar_ext_h[idxyz].y = -A0*k2*sin(phase)*exp(1 - static_cast<float>(k2) / (kc * kc));
+            }
+          }
+        }
+     }
+     CP_TO_GPU(apar_ext, apar_ext_h, size_);
+     //CP_TO_CPU(apar_ext_h, apar_ext, size_);
+     //printf("\n");
+     //for (int j=0; j<N; j++) printf("apar_h(%d) = (%e, %e) \n",j, apar_ext_h[j].x, apar_ext_h[j].y);
+     //printf("\n");
   }
   if (pars_->gaussian_tube && !pars_->restart) {
     int nBatch = grids_->Nz;

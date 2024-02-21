@@ -110,15 +110,6 @@ Diagnostics_GK::~Diagnostics_GK()
 bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
 {
   bool stop = false;
-  if(counter % pars_->nwrite == 0 || time + dt > pars_->t_max) {
-    fields_old->copyPhiFrom(fields);
-    fields_old->copyAparFrom(fields);
-    fields_old->copyBparFrom(fields);
-    for(int is=0; is<grids_->Nspecies; is++) {
-      G_old[is]->copyFrom(G[is]);
-    }
-  }
-
   if(counter % pars_->nwrite == 1 || time > pars_->t_max) {
     if(grids_->iproc == 0) printf("%s: Step %7d: Time = %10.5f  dt = %.3e   ", pars_->run_name, counter, time, dt);          // To screen
     for(int i=0; i<spectraDiagnosticList.size(); i++) {
@@ -151,6 +142,16 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 
     ncdf_big_->nc_grids->write_time(time);
     ncdf_big_->sync();
+  }
+
+  // save fields for growth rate calculation in next timestep
+  if(counter % pars_->nwrite == 0 || time + dt > pars_->t_max) {
+    fields_old->copyPhiFrom(fields);
+    fields_old->copyAparFrom(fields);
+    fields_old->copyBparFrom(fields);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      G_old[is]->copyFrom(G[is]);
+    }
   }
 
 //  int retval;

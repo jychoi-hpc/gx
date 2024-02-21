@@ -50,10 +50,6 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.5                # coefficient of hermite hypercollisions
- p_hyper_m = 6                   # exponent of hermite hypercollisions
- nu_hyper_l = 0.5                # coefficient of laguerre hypercollisions
- p_hyper_l = 6                   # exponent of laguerre hypercollisions
  
 [Diagnostics]
  nwrite = 10                    # write diagnostics every nwrite timesteps

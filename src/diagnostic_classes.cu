@@ -61,6 +61,7 @@ Phi2Diagnostic::Phi2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, Ne
   add_spectra(allSpectra->kyt_spectra);
   add_spectra(allSpectra->kxkyt_spectra);
   add_spectra(allSpectra->zt_spectra);
+  //add_spectra(allSpectra->kxkyzt_spectra);
 }
 
 void Phi2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -250,7 +251,7 @@ HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry*
   add_spectra(allSpectra->kyst_spectra);
   add_spectra(allSpectra->kxkyst_spectra);
   add_spectra(allSpectra->zst_spectra);
-  add_spectra(allSpectra->kxkyzst_spectra);
+  //add_spectra(allSpectra->kxkyzst_spectra);
 }
 
 void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -261,6 +262,9 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
     float p_s = pars_->species_h[is_glob].nt;
     float vts = pars_->species_h[is_glob].vt;
     float tzs = pars_->species_h[is_glob].tz;
+    if(grids_->Nm <= 2) {
+      G[is]->sync(true);
+    }
     heat_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
   }
   write_spectra(tmpf);
@@ -411,6 +415,8 @@ TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* 
   varname = "TurbulentHeating";
   description = "Turbulent heating from collisions in gyroBohm units"; 
   isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // heating data, so skip the write from these procs
   set_kernel_dims();
 
   add_spectra(allSpectra->st_spectra);
@@ -425,11 +431,11 @@ TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* 
 void TurbulentHeatingDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
-    turbulent_heating_summand <<<dG, dB>>> (&tmpG[grids_->NxNycNz*grids_->Nmoms*is], f->phi, f->apar, f->bpar, 
+    turbulent_heating_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, 
                                             f_old_->phi, f_old_->apar, f_old_->bpar, 
                                             G[is]->G(), G_old_[is]->G(), geo_->vol_fac, geo_->kperp2, *(G[is]->species), dt_);
   }
-  write_spectra(tmpG);
+  write_spectra(tmpf);
 
   // get Heat(t) data to write to screen
   float *heat = spectraList[0]->get_data();
@@ -711,7 +717,7 @@ FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear
   count[1] = grids->Ny;
   count[2] = grids->Nx;
   count[3] = grids->Nz;
-
+   
   int retval;
   for(int i=0; i<3; i++) {
     if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);

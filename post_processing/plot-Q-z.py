@@ -8,9 +8,16 @@ import glob
 
 from netCDF4 import Dataset
 
+if sys.argv[-1].isnumeric():
+  sidx = int(sys.argv[-1])
+  files = sys.argv[1:-1]
+else:
+  sidx = 0
+  files = sys.argv[1:]
+
 i=0
 plt.figure(0)
-for fname in sys.argv[1:]:
+for fname in files:
   data = Dataset(fname, mode='r')
   t = data.groups['Grids'].variables['time'][:]
   z = data.groups['Grids'].variables['theta'][:]
@@ -27,7 +34,7 @@ for fname in sys.argv[1:]:
     except:
       print("no theta_scale data. assuming theta_scale = 1")
       scale = 1
-  Qt = data.groups['Diagnostics'].variables['HeatFlux_zst'][:,0,:]
+  Qt = data.groups['Diagnostics'].variables['HeatFlux_zst'][:,sidx,:]
   Q = np.mean(Qt[int(len(t)/2):,:], axis=(0))/dz
   plt.plot(z*scale, Q, '-', label=fname)
 

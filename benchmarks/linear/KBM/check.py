@@ -2,8 +2,8 @@
 # Usage:
 # > python check.py [input file stem]
 # Example:
-# > python check.py kbm_miller
-# This will check kbm_miller.nc against kbm_miller_correct.nc
+# > python check.py itg_miller_adiabatic_electrons
+# This will check itg_miller_adiabatic_electrons.nc against itg_miller_adiabatic_electrons_correct.nc
 # The script will print to screen the maximum relative differences in growth rates and real frequencies,
 # and also generate a plot comparing the results.
 
@@ -22,21 +22,21 @@ stem = sys.argv[1]
 kmax = None
 
 # read gx data
-data = Dataset("%s.nc" % stem, mode='r')
-t = data.variables['time'][:]
-ky = data.variables['ky'][1:]
-omegas = data.groups['Special'].variables['omega_v_time'][:,1:,0,0]
-gams = data.groups['Special'].variables['omega_v_time'][:,1:,0,1]
+data = Dataset("%s.out.nc" % stem, mode='r')
+t = data.groups['Grids'].variables['time'][:]
+ky = data.groups['Grids'].variables['ky'][1:]
+omegas = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,0,0]
+gams = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,0,1]
 omavg = np.mean(omegas[int(len(t)/2):, :], axis=0)
 gamavg = np.mean(gams[int(len(t)/2):, :], axis=0)
 ax1.plot(ky[:kmax], gamavg[:kmax], 'o', fillstyle='none')
 ax2.plot(ky[:kmax], omavg[:kmax], 'o', fillstyle='none', label='GX')
 
-check = Dataset("%s_correct.nc" % stem, mode='r')
-t = check.variables['time'][:]
-ky = check.variables['ky'][1:]
-check_omegas = check.groups['Special'].variables['omega_v_time'][:,1:,0,0]
-check_gams = check.groups['Special'].variables['omega_v_time'][:,1:,0,1]
+check = Dataset("%s_correct.out.nc" % stem, mode='r')
+t = data.groups['Grids'].variables['time'][:]
+ky = data.groups['Grids'].variables['ky'][1:]
+check_omegas = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,0,0]
+check_gams = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,0,1]
 check_omavg = np.mean(check_omegas[int(len(t)/2):, :], axis=0)
 check_gamavg = np.mean(check_gams[int(len(t)/2):, :], axis=0)
 ax1.plot(ky[:kmax], check_gamavg[:kmax], 's', fillstyle='none')
