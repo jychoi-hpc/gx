@@ -12,8 +12,12 @@
 class Timestepper {
  public:
   virtual ~Timestepper() {};
-  virtual void advance(double* t, MomentsG** G, Fields* fields) = 0;
+  virtual void advance(double* t, void* state, Fields* fields) = 0;
   virtual double get_dt() = 0;
+};
+
+class MGTimestepper : public Timestepper {
+	public:
 };
 
 class RungeKutta2 : public Timestepper {
@@ -257,3 +261,31 @@ class SDCe : public Timestepper {
   double dt_;
 }
 */
+
+class GXVRK4 : public Timestepper {
+ public:
+  RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~RungeKutta4();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  void partial(MomentsG** G, MomentsG** Gt, Fields *f,
+	       MomentsG** Rhs, MomentsG **Gnew, double adt, bool setdt);
+  double get_dt() {return dt_;};
+
+ private:
+  const double dt_max;
+  double dt_;
+  const double cfl_fac = 2.82;
+  double omega_max[3];
+
+  Linear     * linear_    ;
+  Nonlinear  * nonlinear_ ;
+  Solver     * solver_    ;
+  Parameters * pars_      ;
+  Grids      * grids_     ;
+  Forcing    * forcing_   ;
+  MomentsG  ** GStar      ;
+  MomentsG  ** GRhs       ;
+  MomentsG  ** G_q1       ;
+  MomentsG  ** G_q2       ;
+}

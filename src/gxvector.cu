@@ -17,7 +17,7 @@ GXVector::GXVector( Parameters *p, Grids *g, SUNContext Context )
 	for( int i = 0; i < g->Nspecies; ++i )
 	{
 		int i_global = i + g->is_lo; // add local index offset
-		array.emplace_back( p, g, i_global ); // construct MomentsG in place
+		array.emplace_back( new MomentsG( p, g, i_global ) ); // construct MomentsG in place
 	}
 }
 
@@ -29,7 +29,7 @@ GXVector::GXVector( GXVector const& other )
 		MomentsG const& element = other[i];
 		// This creates a new MomentsG, so allocates a new G_lm with the same parameters / grids / species indices
 		// which is what the 'Clone' NVector op requires -- new memory, uninitialised, same everything else
-		array.emplace_back( element.pars_, element.grids_, element.is_glob_ );
+		array.emplace_back( new MomentsG( element.pars_, element.grids_, element.is_glob_ ) );
 	}
 }
 
@@ -37,7 +37,7 @@ void GXVector::SetZero()
 {
 	for( auto &m : array )
 	{
-		m.set_zero();
+		m->set_zero();
 	}
 }
 
@@ -45,7 +45,7 @@ void GXVector::SetConst( float c )
 {
 	for( auto &m : array )
 	{
-		set_constant_kernel <<< m.dG_all, m.dB_all >>> ( m.G(), c );
+		set_constant_kernel <<< m->dG_all, m->dB_all >>> ( *m, c );
 	}
 }
 
@@ -66,26 +66,26 @@ void GXVector::SetScaled( float c, GXVector const & other )
 void GXVector::Scale( float c )
 {
 	for( auto &m : array )
-		m.scale( c );
+		m->scale( c );
 }
 
 void GXVector::SetInv( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
-	MomentsG& m = array[ 0 ];
+	MomentsG& m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 	}
 }
 
 void GXVector::SetAbs( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
-	MomentsG& m = array[ 0 ];
+	MomentsG& m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 	}
 }
 
@@ -116,11 +116,11 @@ float GXVector::MaxNorm() const
 	cudaMemset(MaxElement, 0., sizeof(float));
 
 	// do tmp_i = ||g_i|| on GPU
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * NfloatsG;
-		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G() );
+		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
 	}
 
 	// Take max over elements of tmp
@@ -140,13 +140,13 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
-	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
+	Reduction<float> reducer(array[ 0 ]->grids_, modes, modesRed);
 
 	// allocate temporary object for w_i |g_i|^2
 	float *tmp;
 	
 	// Bytes in a G
-	size_t size_G = array[0].getSize();
+	size_t size_G = array[0]->getSize();
 	// Number of floats needed for a G
 	size_t NfloatsG = size_G / sizeof(cuComplex);
 	// Number of bytes needed for a G-sized set of floats
@@ -163,11 +163,11 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 
 
 	// do tmp_i = w_i||g_i||^2 on GPU
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * NfloatsG;
-		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G(), w.array[ i ].G() );
+		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
 	}
 
 	// tmp now contains {w_i ||g_i||^2 }
@@ -190,13 +190,13 @@ float GXVector::MinReal() const
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
-	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
+	Reduction<float> reducer(array[ 0 ]->grids_, modes, modesRed);
 
 	// allocate temporary object for real components
 	float *tmp;
 	
 	// Bytes in a G
-	size_t size_G = array[0].getSize();
+	size_t size_G = array[0]->getSize();
 	// Number of floats needed for a G
 	size_t NfloatsG = size_G / sizeof(cuComplex);
 	// Number of bytes needed for a G-sized set of floats
@@ -212,11 +212,11 @@ float GXVector::MinReal() const
 	cudaMemset(MaxElement, 0., sizeof(float));
 
 	// do tmp_i = - Re( this[i] ) on GPU
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * NfloatsG;
-		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, array[ i ].G() );
+		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
 	}
 
 	// tmp now contains -this
@@ -235,39 +235,39 @@ float GXVector::MinReal() const
 
 void GXVector::Div( GXVector const& x, GXVector const& y )
 {
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		elem_div_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G(), y.array[ i ].G() );
+		elem_div_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
 	}
 }
 
 void GXVector::Prod( GXVector const& x, GXVector const& y )
 {
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		elem_prod_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), x.array[ i ].G(), y.array[ i ].G() );
+		elem_prod_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
 	}
 }
 
 // Sets the current object to be a*x + b*y
 void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y )
 {
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
 		// Note the last argument is true to force-ignore any eqfix nonsense
-		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), a, x.array[ i ].G(), b, y.array[ i ].G(), true );
+		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), a, *(x.array[ i ]), b, *(y.array[ i ]), true );
 	}
 }
 
 GXVector & GXVector::operator+=( GXVector const& other )
 {
-	MomentsG const & m = array[ 0 ];
+	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		accumulate_kernel<<< m.dG_all, m.dB_all >>> ( array[ i ].G(), other.array[ i ].G() );
+		accumulate_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 	}
 	return *this;
 }

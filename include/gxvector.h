@@ -14,15 +14,27 @@
 
 class GXVector {
 	public:
-		using VecType = std::vector<MomentsG>;
+		using VecType = std::vector<MomentsG*>;
 		using SizeType = VecType::size_type;
 
-		MomentsG& operator[]( SizeType i ) { return array[ i ]; };
-		MomentsG const & operator[]( SizeType i ) const { return array[ i ]; };
+		MomentsG* operator[]( SizeType i ) { return array[ i ]; };
+		MomentsG const * operator[]( SizeType i ) const { return array[ i ]; };
+
+		virtual ~GXVector() { 
+			if( owns_data ) {
+				for( auto m_ptr : array ) {
+					delete m_ptr;
+				}
+			}
+		}
 
 		GXVector( Parameters* , Grids*, SUNContext ); // Construct underlying MomentsG from settings
 
 		explicit GXVector( GXVector const& ); // Cloning constructor. THIS IS NOT A COPY CONSTRUCTOR (hence the 'explicit')
+
+		operator MomentsG** () { return array.data(); };
+
+		explicit GXVector( MomentsG **data );
 
 		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext );
 
@@ -52,6 +64,7 @@ class GXVector {
 		SUNContext ctx;
 
 	private:
+		bool owns_data;
 		VecType array;
 };
 

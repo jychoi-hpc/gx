@@ -26,6 +26,9 @@ class MomentsG {
     // glm[ky, kx, z]
   }
 
+  operator cuComplex*() { return &G_lm[grids_->NxNycNz*grids_->Nl*grids_->m_ghost]; };
+  operator const cuComplex*() const { return &G_lm[grids_->NxNycNz*grids_->Nl*grids_->m_ghost]; };
+
   cuComplex * Gm(int m_loc) {   return G(0,m_loc);   }
   const cuComplex * Gm(int m_loc) const {   return G(0,m_loc);   }
 
