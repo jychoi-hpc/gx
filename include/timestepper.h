@@ -262,11 +262,12 @@ class SDCe : public Timestepper {
 }
 */
 
+/*
 class GXVRK4 : public Timestepper {
  public:
-  RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
-  ~RungeKutta4();
+  ~GXVRK4();
   void advance(double* t, MomentsG** G, Fields* fields);
   void partial(MomentsG** G, MomentsG** Gt, Fields *f,
 	       MomentsG** Rhs, MomentsG **Gnew, double adt, bool setdt);
@@ -289,3 +290,5 @@ class GXVRK4 : public Timestepper {
   MomentsG  ** G_q1       ;
   MomentsG  ** G_q2       ;
 }
+*/
+
