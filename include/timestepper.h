@@ -12,7 +12,7 @@
 class Timestepper {
  public:
   virtual ~Timestepper() {};
-  virtual void advance(double* t, void* state, Fields* fields) = 0;
+  virtual void advance(double* t, MomentsG **, Fields* fields) = 0;
   virtual double get_dt() = 0;
 };
 
