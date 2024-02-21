@@ -33,7 +33,7 @@ GSL_LIB = -lgsl -lgslcblas
 
 SUNDIALS_DIR = /home/iabel/projects/sundials/install
 SUNDIALS_INC = -I${SUNDIALS_DIR}/include
-SUNDIALS_LIB = -L${SUNDIALS_DIR}/lib64 -lsundials_arkode
+SUNDIALS_LIB = -L${SUNDIALS_DIR}/lib -Wl,-rpath $(SUNDIALS_LIB)/lib -lsundials_arkode
 
 C_LIB = -ldl -lm -lpthread
 
