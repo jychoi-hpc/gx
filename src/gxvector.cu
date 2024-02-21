@@ -53,7 +53,7 @@ GXVector & GXVector::operator=( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
 	for( int i = 0; i < array.size(); ++i )
-		array[ i ]->copyFrom( &other.array[ i ] );
+		array[ i ]->copyFrom( other.array[ i ] );
 	return *this;
 }
 
