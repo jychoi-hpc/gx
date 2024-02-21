@@ -26,7 +26,7 @@ GXVector::GXVector( GXVector const& other )
 	ctx = other.ctx;
 	for( int i = 0; i < other.array.size(); ++i )
 	{
-		MomentsG const& element = other[i];
+		MomentsG const& element = *(other[i]);
 		// This creates a new MomentsG, so allocates a new G_lm with the same parameters / grids / species indices
 		// which is what the 'Clone' NVector op requires -- new memory, uninitialised, same everything else
 		array.emplace_back( new MomentsG( element.pars_, element.grids_, element.is_glob_ ) );
@@ -53,7 +53,7 @@ GXVector & GXVector::operator=( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
 	for( int i = 0; i < array.size(); ++i )
-		array[ i ].copyFrom( &other.array[ i ] );
+		array[ i ]->copyFrom( &other.array[ i ] );
 	return *this;
 }
 
@@ -94,13 +94,13 @@ float GXVector::MaxNorm() const
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
-	Reduction<float> reducer(array[ 0 ].grids_, modes, modesRed);
+	Reduction<float> reducer(array[ 0 ]->grids_, modes, modesRed);
 
 	// allocate temporary object for |g_i|
 	float *tmp;
 	
 	// Bytes in a G
-	size_t size_G = array[0].getSize();
+	size_t size_G = array[ 0 ]->getSize();
 	// Number of floats needed for a G
 	size_t NfloatsG = size_G / sizeof(cuComplex);
 	// Number of bytes needed for a G-sized set of floats
