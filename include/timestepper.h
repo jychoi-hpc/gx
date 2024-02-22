@@ -296,3 +296,25 @@ class GXVRK4 : public Timestepper {
 };
 
 
+class SundialsStepper : public Timestepper {
+ public:
+  SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~SundialsStepper();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt() {return dt_;};
+
+ private:
+  sundials::Context ctx;
+  const double dt_max;
+  double dt_;
+  const double cfl_fac = 2.82;
+  double omega_max[3];
+
+  Linear     * linear_    ;
+  Nonlinear  * nonlinear_ ;
+  Solver     * solver_    ;
+  Parameters * pars_      ;
+  Grids      * grids_     ;
+  Forcing    * forcing_   ;
+}
