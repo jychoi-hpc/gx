@@ -1,4 +1,5 @@
 #include "timestepper.h"
+#include <iostream>
 // #include "get_error.h"
 
 // ============= RK4 =============
@@ -8,7 +9,7 @@ GXVRK4::GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   forcing_(forcing), dt_max(dt_in), dt_(dt_in),
   ctx(), GStar(pars, grids, ctx), GRhs(pars, grids, ctx), G_q1(pars, grids, ctx), G_q2(pars, grids, ctx)
 {
-
+	std::cout << "Using potentially dodgy IGA-code. You have Been Warned" << std::endl;
 }
 
 GXVRK4::~GXVRK4()
