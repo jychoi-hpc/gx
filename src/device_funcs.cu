@@ -2925,7 +2925,7 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gc, cuComple
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       if(idm==1 && idz==idzl) {
         am = am + sdtvt*ikz*Q;
-//	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
+	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
       }
             
       // decomposition and forward substitution

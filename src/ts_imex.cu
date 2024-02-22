@@ -44,6 +44,7 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 //    grad_par = new GradParallelPeriodic(grids_);
 //  }
   else {
+    printf("USING GRADPARALLELLINKED!!!\n");
     grad_par = new GradParallelLinked(pars_, grids_);
   }
   

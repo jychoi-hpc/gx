@@ -719,6 +719,9 @@ void GradParallelLinked::set_callbacks()
     checkCuda(cufftXtSetCallback(    zft_plan_forward[c],
 		       (void**)   &zfts_Linked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));
 
+    checkCuda(cufftXtSetCallback(    zft_plan_forward_singlemom[c],
+                       (void**)   &zfts_Linked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));
+
     checkCuda(cufftXtSetCallback(    dz_plan_forward[c],
 		       (void**)   &i_kzLinked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));
 
