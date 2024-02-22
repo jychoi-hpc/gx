@@ -12,7 +12,7 @@
 */
 
 GXVector::GXVector( Parameters *p, Grids *g, SUNContext Context )
-	: ctx( Context )
+	: ctx( Context ), owns_data( true )
 {
 	for( int i = 0; i < g->Nspecies; ++i )
 	{
@@ -22,6 +22,7 @@ GXVector::GXVector( Parameters *p, Grids *g, SUNContext Context )
 }
 
 GXVector::GXVector( GXVector const& other )
+	: owns_data( true )
 {
 	ctx = other.ctx;
 	for( int i = 0; i < other.array.size(); ++i )
