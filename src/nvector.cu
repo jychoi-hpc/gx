@@ -86,6 +86,14 @@ N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx
 	return z;
 }
 
+N_Vector GXVector::asNVector();
+{
+	N_Vector z = N_VNewEmpty( ctx );
+	z->ops = &GXVOps;
+	z->content = this;
+	return z;
+}
+
 #define GXV( nv ) reinterpret_cast<GXVector*>( nv->content )
 
 N_Vector_ID GXV_GetVectorID( N_Vector )

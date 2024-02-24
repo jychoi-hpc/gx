@@ -37,6 +37,10 @@ class GXVector {
 		explicit GXVector( MomentsG **data );
 
 		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext );
+		static N_Vector CreateEmptyNVector( SUNContext );
+
+		N_Vector asNVector();
+
 
 		void SetZero();
 
