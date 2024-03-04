@@ -7,7 +7,7 @@ from load_files import load_files
 from extract_species import extract_species
 
 
-def plot_hermite_laguerre_spectra(simulations, average_fraction=0.5, time_plots=False):
+def plot_hermite_laguerre_spectra(simulations, average_fraction=0.5, time=False):
 
     plt.close("all")
 
@@ -73,7 +73,7 @@ def plot_hermite_laguerre_spectra(simulations, average_fraction=0.5, time_plots=
             ax2.plot(laguerre_spectrum_avg[species_index, :], label=plot_label, linewidth=2, linestyle=linestyles_dict[species], marker='o', color=plot_color[simulation_index])
 
         # Plotting Hermite-Laguerre spectra as a function of time 
-        if time_plots:
+        if time:
             fig, ((ax3), (ax4)) = plt.subplots(1, 2)
             fig.canvas.manager.set_window_title("Hermite-laguerre spectra (%s)" % simulation_key.name)
 
@@ -141,12 +141,12 @@ if __name__ == "__main__":
         print("")
         print("Using LaTeX")
 
-    time_plots = False
+    time = False
 
-    if "time_plots" in filenames:
-        filenames.remove("time_plots")
-        time_plots = True
+    if "time" in filenames:
+        filenames.remove("time")
+        time = True
 
     simulations = load_files(filenames, groups = ['Inputs', 'Spectra'], spectra = ['Wmst', 'Wlst', 'Wlmst'])
     
-    plot_hermite_laguerre_spectra(simulations, time_plots=time_plots)
+    plot_hermite_laguerre_spectra(simulations, time=time)

@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 from itertools import cycle, islice
 from extract_species import extract_species
 
-def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spectrum_range_label, spectrum_xscale, spectrum_yscale, average_fraction=0.5, absolute_value=False, time_plots=False):
+def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spectrum_range_label, spectrum_xscale, spectrum_yscale, average_fraction=0.5, absolute_value=False, time=False):
 
     plt.close("all")
 
     # print("")
-    print("Taking reference species from first simulation provided.")
+    # print("Taking reference species from first simulation provided.")
     print('─' * 100)
 
     ref_species_list = []
@@ -80,7 +80,7 @@ def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spect
                     ax1.plot(plot_range, spectrum_time_avg[species_index, :], label=plot_label, linewidth=2, linestyle=linestyles_dict[species], marker='o', color=plot_color[simulation_index])
 
         # Plotting the spectrum as a function of time
-        if time_plots:
+        if time:
             fig, (ax2) = plt.subplots(1, 1)
             fig.canvas.manager.set_window_title("One-dimensional spectra (%s)" % simulation_key.name)
 
