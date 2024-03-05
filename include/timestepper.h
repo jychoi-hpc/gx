@@ -15,8 +15,12 @@
 class Timestepper {
  public:
   virtual ~Timestepper() {};
-  virtual void advance(double* t, MomentsG **, Fields* fields) = 0;
+  void SetInitialG( MomentsG **G_ ) { G_internal = G_; };
+  virtual void advance(double* t, Fields* fields) { return advance( t, G_internal, fields ) };
+  virtual void advance(double* t, MomentsG **, Fields* fields) { throw std::runtime_error("Unimplemented advance function"); };
   virtual double get_dt() = 0;
+ protected:
+  MomentsG **G_internal;
 };
 
 class MGTimestepper : public Timestepper {
@@ -294,6 +298,41 @@ class GXVRK4 : public Timestepper {
   GXVector G_q1;
   GXVector G_q2;
 };
+
+class SundialsTimestepper : public Timestepper {
+ public:
+  SundialsTimestepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+  ~SundialsTimestepper();
+
+  void SetInitialG( MomentsG **G_ );
+  void advance(double* t, MomentsG** G, Fields* fields);
+
+  // Wrapper around the rhs of dy/dt = F(y,t)
+  static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
+
+ private:
+  sundials::Context ctx;
+  void *ERKStepMem;
+
+  const double dt_max;
+  double dt_;
+  const double cfl_fac = 2.82;
+  double omega_max[3];
+
+  Linear     * linear_    ;
+  Nonlinear  * nonlinear_ ;
+  Solver     * solver_    ;
+  Parameters * pars_      ;
+  Grids      * grids_     ;
+  Forcing    * forcing_   ;
+
+  GXVector g0;
+  N_Vector g0nv;
+
+
+};
+
 
 
 class SundialsStepper : public Timestepper {
