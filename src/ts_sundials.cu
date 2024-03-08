@@ -105,7 +105,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	}
 
 	// compute and accumulate linear term
-	for( int i = 0; i < grids_->Nspecies; ++i)
+	for( int is = 0; is < grids_->Nspecies; ++is)
 		linear_->rhs( (*g)[is], fields_, (*gdot)[is], dt_ );
 
 }
