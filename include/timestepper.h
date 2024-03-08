@@ -304,6 +304,7 @@ class SundialsStepper : public Timestepper {
   int SundialsRHS( double t, GXVector const* g, GXVector* gDot );
 
  private:
+  Initialise( MomentsG**, double );
   sundials::Context ctx;
   void *ERKStepMem;
   GXVector *gInternal;
