@@ -1,6 +1,8 @@
 #include "timestepper.h"
 #include <iostream>
 
+#include <stdexceot>
+
 #include <arkode/arkode_erkstep.h>
 
 // #include "get_error.h"
@@ -37,7 +39,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 
 	gInternalNV = gInternal->asNVector();
 
-	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, *t, gInternalNV, ctx );
+	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 	if( ERKStepMem == nullptr )
 		throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
 
@@ -81,14 +83,14 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 	}
 }
 
-static int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
+int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
 {
 	GXVector *g = reinterpret_cast<GXVector*>( y->content );
 	GXVector *gdot = reinterpret_cast<GXVector*>( ydot->content );
 	return reinterpret_cast<SundialsStepper*>( userdata )->SundialsRHS( t, g, gdot );
 }
 
-int SundialsStepper::SundialsRHS( double time, GXVector const *g, GXVector const* gdot )
+int SundialsStepper::SundialsRHS( double time, GXVector const *g, GXVector * gdot )
 {
 	// Make sure fields are evaluated at this current g
 	solver_->fieldSolve( *g, fields_ );
@@ -98,13 +100,13 @@ int SundialsStepper::SundialsRHS( double time, GXVector const *g, GXVector const
 
 	if (nonlinear_ != nullptr) {
 		for( int is = 0; is < grids_->Nspecies; ++is ) {
-			nonlinear_->nlps (Gt[is], fields_, gdot[is]);
+			nonlinear_->nlps ( (*g)[is], fields_, (*gdot)[is]);
 		}
 	}
 
 	// compute and accumulate linear term
 	for( int i = 0; i < grids_->Nspecies; ++i)
-		linear_->rhs(Gt[i], fields_, gdot[i], dt_);
+		linear_->rhs( (*g)[is], fields_, (*gdot)[is], dt_ );
 
 }
 
