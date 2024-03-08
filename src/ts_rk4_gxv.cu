@@ -44,16 +44,11 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 		}
 	}
 
-	Gnew.LinearSum(1., G, adt*dt_, Rhs);
-
-	// compute and increment linear term
-	Rhs.SetZero();
+	// compute and accumulate linear term
 	for( int i = 0; i < grids_->Nspecies; ++i)
 		linear_->rhs(Gt[i], f, Rhs[i], dt_);
-	Gnew.LinearSum(1., Gnew, adt*dt_, Rhs);
 
-	// need to recompute and save Rhs for intermediate steps
-	Rhs.LinearSum(1./(adt*dt_), Gnew, -1./(adt*dt_), G);
+	Gnew.LinearSum(1., G, adt*dt_, Rhs);
 
 	// compute new fields
 	solver_->fieldSolve(Gnew, f);

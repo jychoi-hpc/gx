@@ -311,17 +311,17 @@ class SundialsStepper : public Timestepper {
 
   // Wrapper around the rhs of dy/dt = F(y,t)
   static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
+  int SundialsRHS( double t, GXVector const* g, GXVector* gDot );
 
  private:
   sundials::Context ctx;
   void *ERKStepMem;
-  GXVector g0;
-  N_Vector g0nv;
+  GXVector *gInternal;
+  N_Vector gInternalNV;
 
-  const double dt_max;
-  double dt_;
-  const double cfl_fac = 2.82;
-  double omega_max[3];
+  const double dt_;
+  const double reltol = 1e-3;
+  const double abstol = 1e-3;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
@@ -329,5 +329,6 @@ class SundialsStepper : public Timestepper {
   Parameters * pars_      ;
   Grids      * grids_     ;
   Forcing    * forcing_   ;
+  Fields	 * fields_    ;
 }
 

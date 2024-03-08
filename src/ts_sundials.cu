@@ -1,77 +1,108 @@
 #include "timestepper.h"
 #include <iostream>
+
+#include <arkode/arkode_erkstep.h>
+
 // #include "get_error.h"
 
 // ============= RK4 =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in),
-  ctx()
+  forcing_(forcing), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
 	std::cout << "Using SUNDIALS for tiemstepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
-	// Set up over-arching SUNDIALS objects here
 }
 
 SundialsStepper::~SundialsStepper()
 {
-	// Free SUNDIALS Cruft
+	if( ERKStepMem != nullptr )
+		ERKStepFree( &ERKStepMem );
+	if( gInternal != nullptr )
+		delete gInternal;
 }
 
-// ======== rk4  ==============
 
-// We rely on the fact that G is the same one we were told about at the beginning.
+void SundialsStepper::Initialise( MomentsG** g0, double t0 )
+{
+	if( ERKStepMem != nullptr ) {
+		throw std::runtime_error("Double Initialisation of Sundials Tiemstepper. Aborting.");
+	}
+	
+	// This creates a GXVector that is a view of the data in the MomentsG** but 
+	// does not *own* the data. Thus deleting this pointer will not free the underlying MomentsG
+	gInternal = new GXVector( g0, ctx );
+
+	// Wrap GXVector in an NVector
+
+	gInternalNV = gInternal->asNVector();
+
+	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, *t, gInternalNV, ctx );
+	if( ERKStepMem == nullptr )
+		throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
+
+	int retval;
+
+	retval = ERKStepSStolerances( ERKStepMem, reltol, abstol );
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
+	}
+	
+	// Use the Shu-Osher 3rd order SSP method, with embedding
+	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_SHU_OSHER_3_2_3 );
+
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
+	}
+
+	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
+}
+
+
+
+// We rely on the fact that G is the same one we were told about initially
 void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 {
-	// Wrap MomentsG** in a GXVector
-	GXVector G( G_, ctx );
+	if( ERKStepMem == nullptr ) {
+		// First timestep. Do initialisation.
+		Initialise( G_, *t );
+	}
 
-	// update the gradients if they are evolving
-	G.update_tprim( *t ); 
-	G_q1.update_tprim( *t );
-	G_q2.update_tprim( *t );
-	// end updates
+	double t_out = *t + dt_; // Try to advance one `time step', possibly using multiple internal steps
 
-	partial(G, G,    f, GRhs,  G_q1, 0.5, true);
-	partial(G, G_q1, f, GStar, G_q2, 0.5, false);
+	int retval;
 
-	// Do a partial accumulation of final update to save memory
-	GRhs.LinearSum(dt_/6., GRhs, dt_/3., GStar);
+	fields_ = f;
 
-	partial(G, G_q2, f, GStar, G_q1, 1., false);
+	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, t );
 
-	// This update is just to improve readability
-	// start sync first, so that we can overlap it with computation below
-	G_q1.sync();
+	if( retval != ARK_SUCCESS ) {
+		throw runtime_error("Error in ERKStepEvolve.");
+	}
+}
 
-	GRhs.LinearSum(1., GRhs, dt_/3., GStar);
+static int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
+{
+	GXVector *g = reinterpret_cast<GXVector*>( y->content );
+	GXVector *gdot = reinterpret_cast<GXVector*>( ydot->content );
+	return reinterpret_cast<SundialsStepper*>( userdata )->SundialsRHS( t, g, gdot );
+}
 
-	GStar.SetZero();
+int SundialsStepper::SundialsRHS( double time, GXVector const *g, GXVector const* gdot )
+{
+	// Make sure fields are evaluated at this current g
+	solver_->fieldSolve( *g, fields_ );
 
-	if(nonlinear_ != nullptr) {
+	// compute nonlinear term
+	gdot->SetZero();
+
+	if (nonlinear_ != nullptr) {
 		for( int is = 0; is < grids_->Nspecies; ++is ) {
-			nonlinear_->nlps(G_q1[is], f, GStar[is]);     
+			nonlinear_->nlps (Gt[is], fields_, gdot[is]);
 		}
 	}
 
-	G += GRhs;
-	G.LinearSum(1., G, dt_/6., GStar);
 
-	GStar.SetZero();
 
-	for( int is = 0; is < grids_->Nspecies; ++is ) {
-		linear_->rhs(G_q1[is], f, GStar[is], dt_);
-	}
-
-	G.LinearSum(1., G, dt_/6., GStar);
-
-	if (forcing_ != nullptr) {
-		for( int is = 0; is < grids_->Nspecies; ++is ) {
-			forcing_->stir(G[is]);
-		}
-	}
-
-	solver_->fieldSolve(G, f);
-	*t += dt_;
 }
 
