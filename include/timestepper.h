@@ -299,8 +299,6 @@ class SundialsStepper : public Timestepper {
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
 
-  void advance(double* t, MomentsG** G, Fields* fields);
-
   // Wrapper around the rhs of dy/dt = F(y,t)
   static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
   int SundialsRHS( double t, GXVector const* g, GXVector* gDot );
