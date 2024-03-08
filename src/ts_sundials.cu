@@ -79,7 +79,7 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, t );
 
 	if( retval != ARK_SUCCESS ) {
-		throw runtime_error("Error in ERKStepEvolve.");
+		throw std::runtime_error("Error in ERKStepEvolve.");
 	}
 }
 
@@ -90,7 +90,7 @@ int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* 
 	return reinterpret_cast<SundialsStepper*>( userdata )->SundialsRHS( t, g, gdot );
 }
 
-int SundialsStepper::SundialsRHS( double time, GXVector const *g, GXVector * gdot )
+int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 {
 	// Make sure fields are evaluated at this current g
 	solver_->fieldSolve( *g, fields_ );
