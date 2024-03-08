@@ -35,6 +35,8 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 		dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
 	}
 
+	solver_->fieldSolve(Gt, f);
+
 	// compute and increment nonlinear term
 	Rhs.SetZero();
 
