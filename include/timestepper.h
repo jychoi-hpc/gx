@@ -240,13 +240,13 @@ class SSPRK3 : public Timestepper {
 class IMEX_3stage : public Timestepper {
  public:
   IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar);
   ~IMEX_3stage();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
-  void explicit_terms(MomentsG** G1, MomentsG** G, MomentsG** Gi, Fields* f, bool setdt, bool full_phi);
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG* G1, MomentsG* G1c, Fields *f, double rdt);
+  void invert_implicit_terms(MomentsG* G1, Fields *f, double rdt, const float gradpar);
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;
@@ -273,6 +273,7 @@ class IMEX_3stage : public Timestepper {
   int ielectron;
   double vte;
   double zte;
+  const float gradpar_;
   dim3 dG, dB;
 };
 

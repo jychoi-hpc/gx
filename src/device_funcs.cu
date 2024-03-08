@@ -877,8 +877,10 @@ __global__ void init_omegad(float* omegad,
   if ( unmasked(idx, idy) && idz < nz) {
     unsigned int idxyz = get_idxyz(idx, idy, idz);
 
-    if (shat == 0.0) {
-
+    //pk: Ian mentioned a concern with shat small vs shat exactly 0. Maybe worth double checking
+    //the logic here.
+//    if (shat == 0.0) {
+      if (shat < 1.0e-6){
       cv_d[idxyz] = ky[idy] * cv[idz] + kx[idx] * cv0[idz] ;     
       gb_d[idxyz] = ky[idy] * gb[idz] + kx[idx] * gb0[idz] ;
       omegad[idxyz] = cv_d[idxyz] + gb_d[idxyz];
@@ -2877,7 +2879,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
-__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gc, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt)
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
@@ -2900,32 +2902,21 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gc, cuComple
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
-//    cuComplex rm = gc[globalIdx];
-//    printf("rm re: %f, rm im: %f\n", rm.x, rm.y);
-//    printf("g re: %f, g im: %f\n", g[globalIdx].x, g[globalIdx].y);
-//    if(rm.x == g[globalIdx].x && rm.y == g[globalIdx].y){
-//      printf("EQUAL");
-//    }
-//    else{
-//      printf("re diff is %f\n", rm.x - g[globalIdx].x);
-//      printf("im diff is %f\n", rm.y - g[globalIdx].y);
-//    }
     g[globalIdx] = g[globalIdx]/bet;
     for(idm=1; idm<nm; idm++) {
       globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
       unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
       // compute matrix coefficients
       // c[m-1]
-      cuComplex cmm1 = sdtvt*ikz*sqrtf(idm);  
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
       // a[m]
-      cuComplex am = sdtvt*ikz*sqrtf(idm);
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
       // RHS vector
-//      rm = gc[globalIdx];
       cuComplex rm = g[globalIdx];
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       if(idm==1 && idz==idzl) {
-        am = am + sdtvt*ikz*Q;
-	rm = rm - sdtvt*ikz*sp.zt*phi[idxy + nxnyc*idz];
+        am = am + sdtvt*ikz*gradpar*Q;
+	rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];
       }
             
       // decomposition and forward substitution
@@ -2963,6 +2954,7 @@ __global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const floa
     Q = sp.nz*sp.zt*nz/Q;
     int idm = 0; // this cannot be unsigned (see below)
     unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+//    printf("kz is %f\n", kz);
     cuComplex ikz = make_cuComplex(0.0f, kz);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
