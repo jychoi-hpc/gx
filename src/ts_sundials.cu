@@ -76,7 +76,7 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 
 	fields_ = f;
 
-	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, t );
+	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, t, ARK_NORMAL );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Error in ERKStepEvolve.");
