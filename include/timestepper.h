@@ -15,16 +15,8 @@
 class Timestepper {
  public:
   virtual ~Timestepper() {};
-  void SetInitialG( MomentsG **G_ ) { G_internal = G_; };
-  virtual void advance(double* t, Fields* fields) { return advance( t, G_internal, fields ) };
-  virtual void advance(double* t, MomentsG **, Fields* fields) { throw std::runtime_error("Unimplemented advance function"); };
+  virtual void advance(double* t, MomentsG** G, Fields* fields) = 0;
   virtual double get_dt() = 0;
- protected:
-  MomentsG **G_internal;
-};
-
-class MGTimestepper : public Timestepper {
-	public:
 };
 
 class RungeKutta2 : public Timestepper {
@@ -330,5 +322,5 @@ class SundialsStepper : public Timestepper {
   Grids      * grids_     ;
   Forcing    * forcing_   ;
   Fields	 * fields_    ;
-}
+};
 

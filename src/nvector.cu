@@ -86,7 +86,7 @@ N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx
 	return z;
 }
 
-N_Vector GXVector::asNVector();
+N_Vector GXVector::asNVector()
 {
 	N_Vector z = N_VNewEmpty( ctx );
 	z->ops = &GXVOps;
