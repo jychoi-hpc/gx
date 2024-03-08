@@ -1,7 +1,7 @@
 #include "timestepper.h"
 #include <iostream>
 
-#include <stdexceot>
+#include <stdexcept>
 
 #include <arkode/arkode_erkstep.h>
 
