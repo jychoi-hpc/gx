@@ -226,7 +226,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   // stage 2
   // compute A1 = A(G1)
   //the following is a shitty way to compute the ion contribution to phi.  
-  explicit_terms(A1, G1, f, true);
+  explicit_terms(A1, G1, f, false);
   // compute B1 = B(G1)
   implicit_terms(B1, G1, f);
   // G1_i = G_i + a21*dt*A1_i
