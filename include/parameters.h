@@ -170,6 +170,8 @@ class Parameters {
   bool island_coalesce;
   float k0; 
   bool gaussian_tube;
+  float kc; 
+  bool random_gaussian;
   cuComplex phi_test, smith_perp_w0;
 
   specie *species_h;

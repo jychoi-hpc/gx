@@ -61,6 +61,7 @@ Phi2Diagnostic::Phi2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, Ne
   add_spectra(allSpectra->kyt_spectra);
   add_spectra(allSpectra->kxkyt_spectra);
   add_spectra(allSpectra->zt_spectra);
+  //add_spectra(allSpectra->kxkyzt_spectra);
 }
 
 void Phi2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)

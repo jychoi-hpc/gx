@@ -136,6 +136,14 @@ class SpectraCalc_zt : public SpectraCalc {
   SpectraCalc_zt(Grids *grids, NcDims *nc_dims);
 };
 
+// class for calculating and writing spectra of form f(kx, ky, z, t)
+class SpectraCalc_kxkyzt : public SpectraCalc {
+ public:
+  SpectraCalc_kxkyzt(Grids *grids, NcDims *nc_dims);
+  void dealias_and_reorder(float *fold, float *fnew);
+};
+
+
 // class that packages and initialzes all spectra calculator classes
 class AllSpectraCalcs {
  public:
@@ -152,6 +160,7 @@ class AllSpectraCalcs {
     kyt_spectra = new SpectraCalc_kyt(grids, nc_dims);
     kxkyt_spectra = new SpectraCalc_kxkyt(grids, nc_dims);
     zt_spectra = new SpectraCalc_zt(grids, nc_dims);
+    kxkyzt_spectra = new SpectraCalc_kxkyzt(grids, nc_dims);
 
     lst_spectra = new SpectraCalc_lst(grids, nc_dims);
     mst_spectra = new SpectraCalc_mst(grids, nc_dims);
@@ -163,12 +172,14 @@ class AllSpectraCalcs {
     delete kyst_spectra;
     delete kxkyst_spectra;
     delete zst_spectra;
+    delete kxkyzst_spectra;
 
     delete t_spectra;
     delete kxt_spectra;
     delete kyt_spectra;
     delete kxkyt_spectra;
     delete zt_spectra;
+    delete kxkyzt_spectra;
 
     delete lst_spectra;
     delete mst_spectra;
@@ -187,6 +198,7 @@ class AllSpectraCalcs {
   SpectraCalc * kyt_spectra;
   SpectraCalc * kxkyt_spectra;
   SpectraCalc * zt_spectra;
+  SpectraCalc * kxkyzt_spectra;
 
   SpectraCalc * lst_spectra;
   SpectraCalc * mst_spectra;

@@ -11,15 +11,6 @@ class MomentsG {
   ~MomentsG();
 
   // accessor function to get pointer to specific l,m,s of G array
-  // calling with no arguments gives pointer to beginning of G_lm
-//  cuComplex* G(int l=0, int m=0) {
-//    assert(l<grids_->Nl && "Invalid moment requested: l out of bounds");
-//    assert(m<grids_->Nm+grids_->m_ghost && m>=-grids_->m_ghost && "Invalid moment requested: m out of bounds");
-//    return &G_lm[grids_->NxNycNz*(l + grids_->Nl*(m+grids_->m_ghost))]; // note shift by m_ghost! 
-//    // glm[ky, kx, z]
-//  }
-
-  // accessor function to get pointer to specific l,m,s of G array
   // calling with two arguments checks bounds for (l,m) in 2D
   cuComplex* G(int l, int m) {
     assert(l<grids_->Nl && "Invalid moment requested: l out of bounds");
@@ -33,11 +24,10 @@ class MomentsG {
   // value is here and not on the 2-argument declaration
   cuComplex* G(int moment_idx = 0) {
     assert( moment_idx >= 0 && moment_idx < grids_->Nmoms && "Invalid moment requested: moment index out of bounds" );
-    return &G_lm[grids_->NxNycNz*(moment_idx + grids_->Nl * grids_->m_ghost)]; // note shift by m_ghost!
+    return &G_lm[grids_->NxNycNz*(moment_idx + grids_->Nl * grids_->m_ghost)]; // note shift by m_ghost! 
     // glm[ky, kx, z]
   }
 
-  
   cuComplex * Gm(int m_loc) {   return G(0,m_loc);   }
 
   // accessor to G array including ghosts (never used) 

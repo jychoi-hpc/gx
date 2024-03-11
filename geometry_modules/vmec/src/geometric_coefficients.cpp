@@ -336,7 +336,7 @@ Geometric_coefficients::Geometric_coefficients(char *nml_file, VMEC_variables *v
   if(verbose) std::cout << "]\n\n";
 
   // Creating zeta grid based on input alpha = theta - iota*zeta or zeta_center = -alpha/iota
-  double zeta_center  = toml::find_or <double> (tnml, "zeta_center", 0.0);
+  zeta_center  = toml::find_or <double> (tnml, "zeta_center", 0.0);
   alpha  = toml::find_or <double> (tnml, "alpha", -iota*zeta_center);
   shift_grad_alpha = toml::find_or <bool> (tnml, "shift_grad_alpha", true);
 
@@ -1671,7 +1671,12 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   if (retval = nc_def_var(ncgeo, "q", NC_DOUBLE, 0, NULL, &id_q))                       ERR(retval);
   int id_scale;
   if (retval = nc_def_var(ncgeo, "scale", NC_DOUBLE, 0, NULL, &id_scale))               ERR(retval);
-
+  int id_alpha;
+  if (retval = nc_def_var(ncgeo, "alpha", NC_DOUBLE, 0, NULL, &id_alpha))               ERR(retval);
+  int id_zeta_center;
+  if (retval = nc_def_var(ncgeo, "zeta_center", NC_DOUBLE, 0, NULL, &id_zeta_center))               ERR(retval);
+  int id_nfp;
+  if (retval = nc_def_var(ncgeo, "nfp", NC_INT, 0, NULL, &id_nfp))               ERR(retval);
 
   // write vmec file name as an attribute
   int id_vmec;
@@ -1730,7 +1735,9 @@ void Geometric_coefficients::write_geo_arrays_to_nc(double* theta_grid, double* 
   double q = safety_factor_q;
   if (retval = nc_put_var(ncgeo, id_q, &q))                             ERR(retval);
   if (retval = nc_put_var(ncgeo, id_scale, &domain_scaling_factor))     ERR(retval);
-
+  if (retval = nc_put_var(ncgeo, id_alpha, &alpha))     ERR(retval);
+  if (retval = nc_put_var(ncgeo, id_zeta_center, &zeta_center))     ERR(retval);
+  if (retval = nc_put_var(ncgeo, id_nfp, &vmec->nfp))     ERR(retval);
   
   if (retval = nc_put_vara(ncgeo, id_theta,    start, count, theta_grid))  ERR(retval);
   if (retval = nc_put_vara(ncgeo, id_gradpar,  start, count, gradpar))     ERR(retval);

@@ -1,6 +1,8 @@
 #include "fields.h"
 #include "get_error.h"
 #include "grad_perp.h"
+#include <cmath> // Include cmath for mathematical functions
+#include <iostream>
 
 Fields::Fields(Parameters* pars, Grids* grids) :
   size_(sizeof(cuComplex)*grids->NxNycNz), sizeReal_(sizeof(float)*grids->NxNyNz), N(grids->NxNycNz), pars_(pars), grids_(grids),
@@ -183,6 +185,44 @@ Fields::Fields(Parameters* pars, Grids* grids) :
     grad_perp->R2C(apar_ext_realspace, apar_ext, true);
 
     delete grad_perp;
+  }
+  if (pars_->random_gaussian && !pars_->restart) {
+     std::cout << "Random Gaussian being placed" << std::endl;
+     int NKX = grids_->Nx/2;
+     int Nx = grids_->Nx;
+     int Nyc = grids_->Nyc;
+     int Nz = grids_->Nz;
+     for (int idz = 0; idz < Nz; idz++) {
+       for (int ikx = 0; ikx < Nx; ikx++){
+         int kx = (ikx > NKX ? NKX-ikx : ikx);
+         for (int iky = 0; iky < Nyc; iky++){
+              int ky = iky;
+              unsigned int idxyz = iky + ikx * Nyc + Nx * Nyc * idz;
+              int kc = pars_->kc;
+              int kc2 = kc*kc;
+              float A0 = 1e-2 / kc2;
+              int k2 = kx*kx+ky*ky;
+              float phase = M_PI * (2.0 * static_cast<float>(rand()) / (static_cast<float>(RAND_MAX) + 1.0) - 1.0);
+              apar_ext_h[idxyz].x = -A0*k2*cos(phase);
+              apar_ext_h[idxyz].y = -A0*k2*sin(phase);
+              //apar_ext_h[idxyz].x = 1;
+	      if (k2<=kc2) {
+		apar_ext_h[idxyz].x = -A0*k2*cos(phase);
+		apar_ext_h[idxyz].y = -A0*k2*sin(phase);
+              }
+              else {
+                //printf("k2=%d, kc2 = %d\n",k2,kc2);
+                apar_ext_h[idxyz].x = -A0*k2*cos(phase)*exp(1 - static_cast<float>(k2) / (kc * kc));
+                apar_ext_h[idxyz].y = -A0*k2*sin(phase)*exp(1 - static_cast<float>(k2) / (kc * kc));
+            }
+          }
+        }
+     }
+     CP_TO_GPU(apar_ext, apar_ext_h, size_);
+     //CP_TO_CPU(apar_ext_h, apar_ext, size_);
+     //printf("\n");
+     //for (int j=0; j<N; j++) printf("apar_h(%d) = (%e, %e) \n",j, apar_ext_h[j].x, apar_ext_h[j].y);
+     //printf("\n");
   }
   if (pars_->gaussian_tube && !pars_->restart) {
     int nBatch = grids_->Nz;

@@ -47,11 +47,11 @@ file_idx = 42 #random number to identify your output file
 # read parameters from input file
 input_file = sys.argv[1]
 if len(sys.argv) > 2:
-    stem = input_file.split(".")[0]
+    stem = input_file[:-3]
     eikfile = sys.argv[2]
     eiknc = eikfile[-8:] + ".eiknc.nc"
 else:
-    stem = input_file.split(".")[0]
+    stem = input_file[:-3]
     eikfile = stem + ".eik.out"
     eiknc = stem + ".eiknc.nc"
 

@@ -80,7 +80,7 @@ f = toml.load(input_file)
 # note: this script assumes irho=2, so rhoc = r/a
 nzgrid = int(f['Dimensions']['ntheta']/2)
 npol = f['Geometry']['npol']
-psi = f['Geometry']['rhotor']
+rho = f['Geometry']['rhotor']
 path = f['Geometry']['geo_file']
 
 eq = desc.io.load(path)  # loads desc output
@@ -109,12 +109,13 @@ flux_tube_keys = [
 
 data_eq = eq.compute(eq_keys)
 
+psi = rho**2
 
 fi = interp1d(data_eq['rho'],data_eq['iota'])
 fs = interp1d(data_eq['rho'],data_eq['iota_r'])
 
-iotas = fi(np.sqrt(psi))
-shears = fs(np.sqrt(psi))
+iotas = fi(rho)
+shears = fs(rho)
 
 zeta_center = f['Geometry'].get('zeta_center', 0.0)
 alpha = f['Geometry'].get('alpha', -iotas*zeta_center)
@@ -128,7 +129,6 @@ iota = iotas * np.ones(len(zeta))
 shear = shears * np.ones(len(zeta))
 thetas = iotas/np.abs(iotas)*alpha*np.ones(len(zeta)) + iota*zeta
 
-rho = np.sqrt(psi)
 rhoa = rho*np.ones(len(zeta))
 c = np.vstack([rhoa,thetas,zeta]).T
 coords = eq.compute_theta_coords(c,tol=1e-10,maxiter=50)
@@ -167,8 +167,7 @@ grad_alpha = np.sqrt(grad_alpha_r**2 * data['g^rr'] + grad_alpha_t**2 * data['g^
 grad_psi_dot_grad_alpha = grad_psi * grad_alpha_r * data['g^rr'] + grad_psi * grad_alpha_t * data['g^rt'] + grad_psi * grad_alpha_z * data['g^rz']
 
 #calculate gds*
-x = Lref * rho
-shat = -x/iotas * shear[0]/Lref
+shat = -rho/iotas * shear[0]
 gds2 = grad_alpha**2 * Lref**2 *psi
 gds21 = shat/Bref * grad_psi_dot_grad_alpha
 gds22 = (shat/(Lref*Bref))**2 /psi * grad_psi**2*data['g^rr']

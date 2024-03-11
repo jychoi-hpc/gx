@@ -213,6 +213,7 @@ class Geometric_coefficients {
   std::string out_path;
   std::string file_tag;
   double alpha = 0.0;
+  double zeta_center = 0.0;
   int nzgrid = 16;
   int nzgrid_cut = 16;
   double npol = 1;

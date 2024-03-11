@@ -287,6 +287,9 @@ class NcGeo {
     if (retval = nc_def_var (geo_id, "kxfac",  NC_FLOAT, 0, NULL, &kxfac))     ERR(retval);
     if (retval = nc_def_var (geo_id, "drhodpsi",  NC_FLOAT, 0, NULL, &drhodpsi))     ERR(retval);
     if (retval = nc_def_var (geo_id, "theta_scale",  NC_FLOAT, 0, NULL, &theta_scale))     ERR(retval);
+    if (retval = nc_def_var (geo_id, "nfp",  NC_INT, 0, NULL, &nfp))     ERR(retval);
+    if (retval = nc_def_var (geo_id, "alpha",  NC_FLOAT, 0, NULL, &alpha))     ERR(retval);
+    if (retval = nc_def_var (geo_id, "zeta_center",  NC_FLOAT, 0, NULL, &zeta_center))     ERR(retval);
 
     // write variables
     if (retval = nc_put_var(geo_id, bmag,     geo->bmag_h))     ERR(retval);
@@ -310,13 +313,17 @@ class NcGeo {
     if (retval = nc_put_var(geo_id, kxfac, &geo->kxfac))   ERR(retval);
     if (retval = nc_put_var(geo_id, drhodpsi, &geo->drhodpsi))   ERR(retval);
     if (retval = nc_put_var(geo_id, theta_scale, &geo->theta_scale))   ERR(retval);
+    if (retval = nc_put_var(geo_id, nfp, &geo->nfp))   ERR(retval);
+    if (retval = nc_put_var(geo_id, alpha, &geo->alpha))   ERR(retval);
+    if (retval = nc_put_var(geo_id, zeta_center, &geo->zeta_center))   ERR(retval);
   }
   ~NcGeo() {};
   int geo_id; // ncdf id for geo group
   // ncdf ids for geo variables
   int bmag, bgrad, gbdrift, gbdrift0, cvdrift, cvdrift0;
   int gds2, gds21, gds22, grho, jacobian, gradpar;
-  int q, shat, shift, kxfac, rmaj, aminor, drhodpsi, theta_scale, nperiod;
+  int q, shat, shift, kxfac, rmaj, aminor, drhodpsi, theta_scale, nperiod, nfp;
+  int alpha, zeta_center;
 };
 
 class NcDiagnostics {

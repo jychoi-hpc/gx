@@ -315,7 +315,7 @@ __global__ void equilibrium_current_krehm (cuComplex *G1, float* kx, float* ky, 
     unsigned int idxyz = get_idxyz(idx, idy, idz);
 
     float kperp2 = kx[idx]*kx[idx] + ky[idy]*ky[idy];
-
+    //printf("apar_ext[%d]: %f + %fi\n", idxyz, apar_ext[idxyz].x, apar_ext[idxyz].y);
     G1[idxyz] = G1[idxyz] - (1. + d_e*d_e*kperp2)*apar_ext[idxyz]/(rho_s*d_e);
   }
 }
