@@ -2879,7 +2879,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
-__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar)
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
@@ -2891,12 +2891,21 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const f
   if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
-    for(int iz=0; iz<nz; iz++) {
+    float Q_avg = 0.0f;
+    Q = sp.nz*sp.zt/qneutDenom[idxy + nxnyc*nz/2];
+    Q_avg = 1.0f/qneutDenom[idxy + nxnyc*nz/2];
+  
+//    for(int iz=0; iz<nz; iz++) {
       // compute z avg of qneutDenom so that the z dependence does not break things in k space
-      Q += qneutDenom[idxy + nxnyc*iz];
-    }
+//      Q_avg += 1.0f/qneutDenom[idxy + nxnyc*iz];
+//      if(Q > abs(qneutDenom[idxy + nxnyc*iz])){
+//      	Q = qneutDenom[idxy + nxnyc*iz];
+//      }
+//    }
     // the actual coefficient needed is Z^2*n/T/<qneutDenom>
-    Q = sp.nz*sp.zt*nz/Q;
+//    Q_avg = Q_avg/nz;
+//    Q = sp.nz*sp.zt*Q_avg;
+//    Q = sp.nz*sp.zt/Q;
     int idm = 0; // this cannot be unsigned (see below)
     unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
@@ -2914,17 +2923,24 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* phi, const f
       // RHS vector
       cuComplex rm = g[globalIdx];
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
       if(idm==1 && idz==idzl) {
-        am = am + sdtvt*ikz*gradpar*Q;
-	rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];
+	if (full_phi){
+  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];
+	}
+	else{
+	    am = am + sdtvt*ikz*gradpar*Q;
+  	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz]*qneutDenom[idxy + nxnyc*idz]*Q_avg;	  
+	}
       }
-            
+              
       // decomposition and forward substitution
       gam[idm] = cmm1/bet;
       bet = bm - am*gam[idm];
       if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
       g[globalIdx] = (rm - am*g[mm1])/bet;
-    }
+      }
     for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
       globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
       unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));

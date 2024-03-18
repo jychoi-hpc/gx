@@ -246,7 +246,7 @@ class IMEX_3stage : public Timestepper {
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG* G1, Fields *f, double rdt, const float gradpar);
+  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, Fields *f, double rdt, const float gradpar, int ielectron);
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;
