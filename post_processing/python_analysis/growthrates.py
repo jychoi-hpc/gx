@@ -9,7 +9,7 @@ from load_files import load_files
 from extract_species import extract_species
 
 
-def plot_growthrates(simulations, average_fraction=0.5, kx_default=0.0, kx_plots=False):
+def plot_growthrates(simulations, average_fraction=0.8, kx_default=0.0, kx_plots=False):
 
     plt.close("all")
 
@@ -26,44 +26,58 @@ def plot_growthrates(simulations, average_fraction=0.5, kx_default=0.0, kx_plots
 
     # Iterating over similation files 
     for simulation_index, simulation_key in enumerate(simulations.keys()):
-
+        
+        # Selecting simulation
         simulation = simulations[simulation_key]
 
-        t_range     = simulation['Dimensions']['time']
+        # Extracting data
+        t_range = simulation['Dimensions']['time']
+        it_start = int(len(t_range) * average_fraction)
+
         ky_range    = simulation['Dimensions']['ky'][:]
         kx_range    = simulation['Dimensions']['kx'][:]
         ikx_default = len(kx_range)//2 + int(np.nan_to_num((kx_default/kx_range[-1]))*len(kx_range))
 
+        init_amp  = simulation['Inputs']['Controls']['init_amp']
+        threshold = (init_amp)**(2)
+
         # Extracting/interpolating growthrates
         try:
-            omegas     = simulation['Special']['omega_v_time'][:, :, :, 0]
+            omegas     = simulation['Special']['omega_v_time'][:, :, :, 2]
             gammas     = simulation['Special']['omega_v_time'][:, :, :, 1]
 
-            it_start_average = int(len(t_range) * average_fraction)
-            omegas_avg = np.average(omegas[it_start_average:, :, :], axis = 0)
-            gammas_avg = np.average(gammas[it_start_average:, :, :], axis = 0)
+            omegas_avg = np.average(omegas[it_start:, :, :], axis = 0)
+            gammas_avg = np.average(gammas[it_start:, :, :], axis = 0)
             
         except:
-            print("%s -- WARNING: 'omega_v_time' not found not found in output file. Attempting to interpolate growthrates." %(simulation_key.name))
             nt_interp  = 5
             amplitudes = np.zeros(nt_interp)
             gammas_num = np.zeros([len(ky_range), len(kx_range)])
 
-            try:
-                Phi2kxkyt = simulation['Spectra']['Phi2kxkyt']
-            except:
-                print("%s -- WARNING: Spectra required for interpolation (Phi2kxkyt) not found." %(simulation_key.name))
-                continue
+            if simulation['Inputs']['Diagnostics']['fixed_amp']:
+                print("%s -- WARNING: 'omega_v_time' not found not found in output file. Cannot interpolate growthrates as fixed_amp = true. Setting growthrates to zero." %(simulation_key.name))
+            else:
+                print("%s -- WARNING: 'omega_v_time' not found not found in output file. Attempting to interpolate growthrates." %(simulation_key.name))
+                
+                try:
+                    Phi2kxkyt = simulation['Spectra']['Phi2kxkyt']
+                except:
+                    print("%s -- WARNING: Spectra required for interpolation (Phi2kxkyt) not found." %(simulation_key.name))
+                    continue
 
-            for ikx in range(len(kx_range)):
-                for iky in range(len(ky_range)):
-                    for it in range(-1 - nt_interp, -1):
-                        amplitudes[it + 1] = Phi2kxkyt[it, iky, ikx]
-                    slope , constant = np.polyfit(t_range[-1 - nt_interp: -1], np.log(amplitudes), 1) 
-                    if np.isnan(slope):
-                        gammas_num[iky, ikx] = 0
-                    else:
-                        gammas_num[iky, ikx] = slope/2
+                for ikx in range(len(kx_range)):
+                    for iky in range(len(ky_range)):
+                        for it in range(-1 - nt_interp, -1):
+                            amplitudes[it + 1] = Phi2kxkyt[it, iky, ikx]
+                        
+                        slope , constant = np.polyfit(t_range[-1 - nt_interp: -1], np.log(amplitudes), 1) 
+
+                        if (np.average(amplitudes) < threshold) or (np.isnan(slope)):
+                            gammas_num[iky, ikx] = 0
+                        else:
+                            gammas_num[iky, ikx] = slope/2
+
+                gammas_num[gammas_num < 0] = 0
 
             omegas_avg = np.zeros([len(ky_range), len(kx_range)])  
             gammas_avg = gammas_num

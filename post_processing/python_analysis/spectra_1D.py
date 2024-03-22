@@ -137,14 +137,14 @@ def plot_spectra_1D(simulations, spectrum, spectrum_label, spectrum_range, spect
 
             # Electromagnetic spectra must be handled separately as they do not have a species index
             if spectrum in electromagnetic_spectra_list:
-                for ik_index, ik in enumerate(np.linspace(ik_start, (ik_stop), num=ik_count, dtype=int, endpoint=False)):
+                for ik_index, ik in enumerate(np.linspace(ik_start, ik_stop, num=ik_count, dtype=int, endpoint=False)):
                     if absolute_value:
                         ax_modes.plot(t_range, np.abs(spectrum_plot[:, ik]), linewidth=2, linestyle='solid', marker='', color=plot_color[ik])
                     else:
                         ax_modes.plot(t_range, spectrum_plot[:, ik], linewidth=2, linestyle='solid', marker='', color=plot_color[ik])
             else:
                 for species_index, species in enumerate(species_list):
-                    for ik_index, ik in enumerate(np.linspace(ik_start, (ik_stop), num=ik_count, dtype=int, endpoint=False)):
+                    for ik_index, ik in enumerate(np.linspace(ik_start, ik_stop, num=ik_count, dtype=int, endpoint=False)):
                         if absolute_value:
                             ax_modes.plot(t_range, np.abs(spectrum_plot[:, species_index, ik]), linewidth=2, linestyle=linestyles_dict[species], marker='', color=plot_color[ik])
                         else:
