@@ -2,9 +2,9 @@
 // #include "get_error.h"
 
 G3::G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-       Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+       Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in),
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in),
   G_u1(nullptr), G_u2(nullptr)
 {
   // new objects for temporaries
@@ -48,6 +48,15 @@ void G3::advance(double *t, MomentsG** G, Fields* f)
   for(int is=0; is<grids_->Nspecies; is++) {
     G[is]->update_tprim(*t);
     G_u1[is]->update_tprim(*t);
+  }
+
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      exb_->flow_shear_g_shift(G[is]);
+      exb_->flow_shear_g_shift(G_u1[is]);
+    }
   }
   // end updates
 

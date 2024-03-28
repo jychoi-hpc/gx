@@ -2,9 +2,9 @@
 // #include "get_error.h"
 
 K2::K2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-       Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+       Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), 
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), 
   G_q1(nullptr), G_q2(nullptr)
 {
   stages_ = pars_->stages;
@@ -65,6 +65,15 @@ void K2::advance(double *t, MomentsG** G, Fields* f)
     G[is]   -> update_tprim(*t);
     G_q1[is]-> update_tprim(*t);
     G_q2[is]-> update_tprim(*t);
+  } 
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      exb_->flow_shear_g_shift(G[is]);
+      exb_->flow_shear_g_shift(G_q1[is]);
+      exb_->flow_shear_g_shift(G_q2[is]);
+    }
   }
   // end updates
 
