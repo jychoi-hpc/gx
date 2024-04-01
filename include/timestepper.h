@@ -280,7 +280,7 @@ class GXVRK4 : public Timestepper {
 class SundialsStepper : public Timestepper {
  public:
   SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
