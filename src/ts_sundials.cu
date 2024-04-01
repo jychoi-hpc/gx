@@ -9,11 +9,11 @@
 
 // ============= RK4 =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
+  forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
-	std::cout << "Using SUNDIALS for tiemstepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
+	std::cout << "Using SUNDIALS for timestepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
 }
 
 SundialsStepper::~SundialsStepper()
