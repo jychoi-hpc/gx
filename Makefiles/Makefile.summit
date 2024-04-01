@@ -4,10 +4,16 @@
 # add and uncomment the following in your .profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=summit
-# module load nvhpc/23.9
-# module load cuda/12.2.0
+# export NVHPC_VERSION=23.9
+# export CUDA_VERSION=11.8
+# module load nvhpc/$NVHPC_VERSION
+# module load cuda/$CUDA_VERSION.0
+# export NVHPC_CUDA_HOME=$CUDA_PATH
+# export LD_LIBRARY_PATH=:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/math_libs/$CUDA_VERSION/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/comm_libs/$CUDA_VERSION/nccl/lib:$LD_LIBRARY_PATH
 # module load hdf5_perf/1.10.6.gcc
 # module load gsl
+# export LD_LIBRARY_PATH=/ccs/home/nmandell/netcdf-4.9.2/lib:$LD_LIBRARY_PATH
+# module load miniforge3
 #
 
 # paths to netcdf and hdf5
@@ -22,12 +28,11 @@ MPI_INC = -I ${MPI_ROOT}/include
 MPI_LIB = -L ${MPI_ROOT}/lib  -lmpi_ibm
 
 # paths to cuda 
-# NVIDIA_PATH is defined by nvhpc-mixed module
 NVHPC_ROOT = ${OLCF_NVHPC_ROOT}
-# NCCL_HOME is defined by nccl module
-NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/nccl
-CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
-CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/${CUDA_VERSION}/nccl
+MATH_ROOT = ${NVHPC_ROOT}/math_libs/${CUDA_VERSION}
+CUDA_INC = -I ${MATH_ROOT}/include -I ${NCCL_ROOT}/include
+CUDA_LIB = -L ${MATH_ROOT}/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_CUDA_HOME}/lib64 -lcudart -lculibos -lnvToolsExt
 
 # paths to gsl 
 # GSL_ROOT is defined by gsl module
@@ -41,7 +46,7 @@ C_LIB = -lpthread -ldl
 # V100 is compute architecture 7.0
 CUDAARCH=70
 
-CXX = mpic++
+CXX = nvc++
 
 NVCC   = nvcc
 CFLAGS = -fPIC

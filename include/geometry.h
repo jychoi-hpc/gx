@@ -82,6 +82,9 @@ class Geometry {
   float * cv_d ;
   float * gb_d ; 
   float * kperp2_h ;
+  int * m0;
+  float * deltaKx;
+  float * ftwist;
   float gbdrift_max, cvdrift_max, gbdrift0_max, cvdrift0_max;
   float bmag_max;
   

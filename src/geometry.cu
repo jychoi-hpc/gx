@@ -253,7 +253,8 @@ Geometry::Geometry() {
     
   // operator arrays
   kperp2       = nullptr;  omegad     = nullptr;  cv_d       = nullptr;   gb_d      = nullptr;
-  kperp2_h     = nullptr; 
+  kperp2_h     = nullptr;
+  m0           = nullptr;  deltaKx    = nullptr;  ftwist     = nullptr;
 
 }
 
@@ -291,6 +292,9 @@ Geometry::~Geometry() {
     if (omegad) cudaFree(omegad);
     if (cv_d)   cudaFree(cv_d);
     if (gb_d)   cudaFree(gb_d);
+    if (m0)     cudaFree(m0);
+    if (deltaKx) cudaFree(deltaKx);
+    if (ftwist) cudaFree(ftwist);
   }
 }
 
@@ -856,12 +860,22 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cudaMalloc ((void**) &omegad, sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &cv_d,   sizeof(float)*grids->NxNycNz);
   cudaMalloc ((void**) &gb_d,   sizeof(float)*grids->NxNycNz);
+  if (pars->nonTwist) {
+    cudaMalloc ((void**) &ftwist, sizeof(float)*grids->Nz);
+    cudaMalloc ((void**) &m0, sizeof(int)*grids->NycNz); 
+    cudaMalloc ((void**) &deltaKx, sizeof(float)*grids->NycNz);
+  }
   checkCuda  (cudaGetLastError());
 
   cudaMemset (kperp2, 0., sizeof(float)*grids->NxNycNz);
   cudaMemset (omegad, 0., sizeof(float)*grids->NxNycNz);
   cudaMemset (cv_d,   0., sizeof(float)*grids->NxNycNz);
   cudaMemset (gb_d,   0., sizeof(float)*grids->NxNycNz);
+  if (pars->nonTwist) {
+    cudaMemset (ftwist, 0., sizeof(float)*grids->Nz);
+    cudaMemset (m0, 0., sizeof(int)*grids->NycNz);
+    cudaMemset (deltaKx, 0., sizeof(float)*grids->NycNz);
+  }
   
   dim3 dimBlock (32, 4, 4);
   dim3 dimGrid  (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nx-1)/dimBlock.y, 1+(grids->Nz-1)/dimBlock.z);
@@ -870,9 +884,35 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   pars->set_jtwist_x0(&shat, gds21_h, gds22_h);
   // initialize k and coordinate arrays
   grids->init_ks_and_coords();
+
   // initialize operator arrays
-  init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
-  init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
+  if (pars->nonTwist) {
+    dim3 dimBlock_ntft (32,16);
+    dim3 dimGrid_ntft (1+(grids->Nyc-1)/dimBlock.x, 1+(grids->Nz-1)/dimBlock.y);
+
+    printf("Using non-twisting flux tube \n"); 
+
+    // see (87), (44), and (45) in Ball 2020, respectively
+    init_ftwist <<< (1 + (grids->Nz-1)/dimBlock.z), 32 >>> (ftwist, gds21, gds22, shat);
+    init_m0 <<< dimGrid_ntft, dimBlock_ntft >>> (m0, pars->x0, grids->ky, ftwist, shat, pars->kxfac);
+    CP_TO_GPU (grids->m0_h, m0, sizeof(int)*grids->NycNz);
+    init_deltaKx <<<dimGrid_ntft, dimBlock_ntft >>> (deltaKx, m0, pars->x0, grids->ky, ftwist);
+
+
+    init_kperp2_ntft GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, ftwist, bmagInv, shat, deltaKx);
+    init_omegad_ntft GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat, m0, pars->x0);
+
+    if (!pars->linear) {
+      CP_TO_GPU (grids->x, grids->x_h, sizeof(float)*grids->Nx);
+      init_iKx GGEO (grids->iKx, grids->kx, deltaKx);
+      init_phasefac_ntft GGEO (grids->phasefac_ntft, grids->x, deltaKx, true);
+      init_phasefac_ntft GGEO (grids->phasefacminus_ntft, grids->x, deltaKx, false);
+    }
+  }
+  else { 
+    init_kperp2 GGEO (kperp2, grids->kx, grids->ky, gds2, gds21, gds22, bmagInv, shat);
+    init_omegad GGEO (omegad, cv_d, gb_d, grids->kx, grids->ky, cvdrift, gbdrift, cvdrift0, gbdrift0, shat);
+  }
 
   // initialize volume integral weight quantities needed for some diagnostics
   float volDenom = 0.;  
@@ -902,6 +942,19 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
     cvdrift_max = max(cvdrift_max, abs(cvdrift_h[i]));
     cvdrift0_max = max(cvdrift0_max, abs(cvdrift0_h[i]));
     bmag_max = max(bmag_max, abs(bmag_h[i]));
+  }
+
+  if (pars->nonTwist) {
+    grids->m0_max = 0;
+    float m0_omega0 = 0; // need to maximize this quantity to find max frequency for the NTFT
+    for (int idz = 0; idz < grids->Nz; idz++) { //only need to loop through Nz since m0 scales with ky, max ky will have max m0
+      if (grids->m0_h[grids->Nyc-1 + grids->Nyc*idz] * (grids->vpar_max * grids->vpar_max*abs(cvdrift0_h[idz]) + grids->muB_max * abs(gbdrift0_h[idz]))) {
+        m0_omega0 = grids->m0_h[grids->Nyc-1 + grids->Nyc*idz] * (grids->vpar_max * grids->vpar_max*abs(cvdrift0_h[idz]) + grids->muB_max * abs(gbdrift0_h[idz]));
+	grids->m0_max = abs(grids->m0_h[grids->Nyc-1 + grids->Nyc*idz]);
+	gbdrift0_max = abs(gbdrift0_h[idz]);
+	cvdrift0_max = abs(cvdrift0_h[idz]);
+      }
+    }
   }
 
   /*
