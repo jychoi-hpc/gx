@@ -50,8 +50,8 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
 	
-	// Use the Shu-Osher 3rd order SSP method, with embedding
-	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_SHU_OSHER_3_2_3 );
+	// Use the 4th order Zonnefeld method
+	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_ZONNEVELD_5_3_4 );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
