@@ -752,6 +752,13 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "rk4gxv")   scheme_opt = Tmethod::rk4gxv;
+  if (scheme == "sundials") {
+	  scheme_opt = Tmethod::sundials;
+	  printf(ANSI_COLOR_RED);
+	  printf("WARNING: Using Sundials Timestepping");
+	  printf(ANSI_COLOR_RESET);
+  }
+
 
   if (eqfix && iproc==0 && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
     printf("\n");

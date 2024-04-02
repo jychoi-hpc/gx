@@ -81,6 +81,9 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Error in ERKStepEvolve.");
 	}
+
+	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
+	solver_->fieldSolve( *gInternal, fields_ );
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
