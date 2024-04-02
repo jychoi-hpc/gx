@@ -3,6 +3,7 @@
 
 #include "moments.h"
 
+#include <sundials/sundials_core.h>
 #include <sundials/sundials_nvector.h>
 
 /*

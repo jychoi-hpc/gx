@@ -10,7 +10,7 @@
 #include "grad_parallel.h"
 #include "exb.h"
 
-#include <sundials/sundials_context.h>
+#include <sundials/sundials_context.hpp>
 #include "gxvector.h"
 
 class Timestepper {
