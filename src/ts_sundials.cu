@@ -29,7 +29,6 @@ SundialsStepper::~SundialsStepper()
 
 void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 {
-	std::cout << "Initialising Sundials Stepper" << std::endl;
 	if( ERKStepMem != nullptr ) {
 		throw std::runtime_error("Double Initialisation of Sundials Timestepper. Aborting.");
 	}
@@ -63,7 +62,8 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	}
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
-	std::cout << "SundialsStepperInitialised" << std::endl;
+	ERKStepSetInitStep( ERKStepMem, dt_ );
+	ARKStepSetFixedStep( ERKStepMem, dt_ );
 }
 
 
