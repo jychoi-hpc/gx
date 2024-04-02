@@ -52,7 +52,7 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 	for( int i = 0; i < grids_->Nspecies; ++i)
 		linear_->rhs(Gt[i], f, Rhs[i], dt_);
 
-	Gnew.LinearSum(1., G, adt*dt_, Rhs);
+	Gnew.LinearSum(1., Gnew, adt*dt_, Rhs);
 
 	// compute new fields
 	solver_->fieldSolve(Gnew, f);
