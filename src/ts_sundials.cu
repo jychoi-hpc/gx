@@ -31,7 +31,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 {
 	std::cout << "Initialising Sundials Stepper" << std::endl;
 	if( ERKStepMem != nullptr ) {
-		throw std::runtime_error("Double Initialisation of Sundials Tiemstepper. Aborting.");
+		throw std::runtime_error("Double Initialisation of Sundials Timestepper. Aborting.");
 	}
 	
 	// This creates a GXVector that is a view of the data in the MomentsG** but 
@@ -121,6 +121,8 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 		linear_->rhs( (*g)[is], fields_, (*gTmp)[is], dt_ );
 
 	*gdot += *gTmp; // Add NL + L
+
+	return 0;
 
 }
 
