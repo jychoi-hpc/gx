@@ -53,6 +53,8 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 		linear_->rhs(Gt[i], f, Rhs[i], dt_);
 
 	Gnew.LinearSum(1., Gnew, adt*dt_, Rhs);
+	// Rhs is used later, so fill it with the actual Rhs
+	Rhs.LinearSum(1./(adt*dt_), Gnew, -1./(adt*dt_), G);
 
 	// compute new fields
 	solver_->fieldSolve(Gnew, f);
