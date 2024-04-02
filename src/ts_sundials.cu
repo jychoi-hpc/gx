@@ -29,6 +29,7 @@ SundialsStepper::~SundialsStepper()
 
 void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 {
+	std::cout << "Initialising Sundials Stepper" << std::endl;
 	if( ERKStepMem != nullptr ) {
 		throw std::runtime_error("Double Initialisation of Sundials Tiemstepper. Aborting.");
 	}
@@ -42,6 +43,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 
 	gInternalNV = gInternal->asNVector();
 
+	std::cout << "Initialising ERKStep" << std::endl;
 	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 	if( ERKStepMem == nullptr )
 		throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
@@ -61,6 +63,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	}
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
+	std::cout << "SundialsStepperInitialised" << std::endl;
 }
 
 
@@ -111,7 +114,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	}
 
 	// Accumulate Linear Terms into gTmp
-	gTmp->setZero()
+	gTmp->SetZero();
 
 	// compute and accumulate linear term
 	for( int is = 0; is < grids_->Nspecies; ++is)
