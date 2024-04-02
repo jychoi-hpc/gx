@@ -44,6 +44,10 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 		}
 	}
 
+	Gnew.LinearSum(1., G, adt*dt_, Rhs);
+
+	Rhs.SetZero(); // Rhs must be zero on entry to 'linear_->rhs' or grad_par will clobber it
+
 	// compute and accumulate linear term
 	for( int i = 0; i < grids_->Nspecies; ++i)
 		linear_->rhs(Gt[i], f, Rhs[i], dt_);
