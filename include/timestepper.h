@@ -293,7 +293,7 @@ class SundialsStepper : public Timestepper {
   void Initialise( MomentsG**, double );
   sundials::Context ctx;
   void *ERKStepMem;
-  GXVector *gInternal;
+  GXVector *gInternal, *gTmp;
   N_Vector gInternalNV;
 
   const double dt_;

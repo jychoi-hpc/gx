@@ -22,6 +22,8 @@ SundialsStepper::~SundialsStepper()
 		ERKStepFree( &ERKStepMem );
 	if( gInternal != nullptr )
 		delete gInternal;
+	if( gTmp != nullptr )
+		delete gTmp;
 }
 
 
@@ -34,6 +36,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	// This creates a GXVector that is a view of the data in the MomentsG** but 
 	// does not *own* the data. Thus deleting this pointer will not free the underlying MomentsG
 	gInternal = new GXVector( g0, ctx );
+	gTmp = new GXVector( g0, ctx );
 
 	// Wrap GXVector in an NVector
 
@@ -98,7 +101,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	// Make sure fields are evaluated at this current g
 	solver_->fieldSolve( *g, fields_ );
 
-	// compute nonlinear term
+	// compute nonlinear term and write to gdot
 	gdot->SetZero();
 
 	if (nonlinear_ != nullptr) {
@@ -107,9 +110,14 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 		}
 	}
 
+	// Accumulate Linear Terms into gTmp
+	gTmp->setZero()
+
 	// compute and accumulate linear term
 	for( int is = 0; is < grids_->Nspecies; ++is)
-		linear_->rhs( (*g)[is], fields_, (*gdot)[is], dt_ );
+		linear_->rhs( (*g)[is], fields_, (*gTmp)[is], dt_ );
+
+	*gdot += *gTmp; // Add NL + L
 
 }
 
