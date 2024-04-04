@@ -63,8 +63,8 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 {
 	// Wrap MomentsG** in a GXVector
-	GXVector G_ptr = new GXVector( G_, ctx );
-	GXVector G = *G_ptr;
+	GXVector *G_ptr = new GXVector( G_, ctx );
+	GXVector &G(*G_ptr);
 
 	// update the gradients if they are evolving
 	G.update_tprim( *t ); 
