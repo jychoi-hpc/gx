@@ -1,6 +1,10 @@
 
 #include "gxvector.h"
 
+extern "C" {
+	#include <stdio.h>
+}
+
 /*
 	API backend to wrap the memebr functions of GXVector into SUNDIAL NVector
  */
@@ -76,6 +80,7 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvbufsize = nullptr,
    .nvbufpack = nullptr,
    .nvbufunpack = nullptr,
+	.nvprintfile = GXV_PrintFile,
 };
 
 N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx )
@@ -175,5 +180,22 @@ sunrealtype GXV_MinReal( N_Vector z )
 {
 	return GXV( z )->MinReal();
 }
+
+void GXV_PrintFile( N_Vector v, FILE* out )
+{
+	GXVector *gv = GXV( v );
+	MomentsG* mg = gv[ 0 ];	
+	size_t n_moms = mg->getSize();
+	size_t nbytes = n_moms * sizeof(cuComplex);
+	cuComplex* local_copy = (cuComplex*)malloc( nbytes );
+	cuComplex* mg_ptr(mg);
+	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaDeviceToHost );
+	fprintf(out, " [ ");
+	for( size_t i = 0 ; i < n_moms;
+			fprintf( out, "%g + %g i ,",local_copy[i].x,local_copy[i].y);
+	fprintf(out, " ] ");
+	free( local_copy );
+}
+
 
 
