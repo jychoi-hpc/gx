@@ -2,6 +2,10 @@
 #include <iostream>
 // #include "get_error.h"
 
+extern "C" {
+#include <stdio.h>
+}
+
 // ============= RK4 =============
 GXVRK4::GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 			 Parameters *pars, Grids *grids, Forcing *forcing, ExB* exb, double dt_in) :
@@ -64,6 +68,7 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 {
 	// Wrap MomentsG** in a GXVector
 	GXVector *G_ptr = new GXVector( G_, ctx );
+	G_ptr->print(stdout);
 	GXVector &G(*G_ptr);
 
 	// update the gradients if they are evolving

@@ -293,7 +293,7 @@ void GXVector::update_tprim( double t )
 	}
 }
 
-void GXVector::print() const
+void GXVector::print( FILE * out ) const
 {
 	MomentsG* mg = array[0];
 	size_t n_moms = mg->getSize();
