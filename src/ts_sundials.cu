@@ -5,6 +5,10 @@
 
 #include <arkode/arkode_erkstep.h>
 
+extern "C" {
+#include <stdio.h>
+}
+
 // #include "get_error.h"
 
 // ============= RK4 =============
@@ -43,6 +47,8 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	gInternalNV = gInternal->asNVector();
 
 	std::cout << "Initialising ERKStep" << std::endl;
+	std::cout << " g at t=0 is ";
+	N_VPrintFile( gInternalNV, stdout );
 	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 	if( ERKStepMem == nullptr )
 		throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
