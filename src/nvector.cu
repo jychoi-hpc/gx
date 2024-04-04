@@ -194,7 +194,7 @@ void GXV_PrintFile( N_Vector v, FILE* out )
 	fprintf(out, " [ ");
 	for( size_t i = 0 ; i < n_moms; ++i )
 			fprintf( out, "%g + %g i ,",local_copy[i].x,local_copy[i].y);
-	fprintf(out, " ] ");
+	fprintf(out, " ]\n ");
 	free( local_copy );
 }
 
