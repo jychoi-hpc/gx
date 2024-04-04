@@ -189,7 +189,7 @@ void GXV_PrintFile( N_Vector v, FILE* out )
 	size_t n_moms = mg->getSize();
 	size_t nbytes = n_moms * sizeof(cuComplex);
 	cuComplex* local_copy = (cuComplex*)malloc( nbytes );
-	cuComplex* mg_ptr(mg);
+	cuComplex* mg_ptr(*mg);
 	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaMemcpyDeviceToHost );
 	fprintf(out, " [ ");
 	for( size_t i = 0 ; i < n_moms; ++i )
