@@ -24,6 +24,7 @@ void GXV_LinearSum( sunrealtype a, N_Vector v, sunrealtype b, N_Vector w, N_Vect
 N_Vector GXV_Clone( N_Vector other );
 void GXV_Destroy( N_Vector v );
 N_Vector_ID GXV_GetVectorID( N_Vector );
+void GXV_PrintFile( N_Vector , FILE* );
 
 struct _generic_N_Vector_Ops GXVOps = {
    .nvgetvectorid = GXV_GetVectorID,
@@ -184,14 +185,14 @@ sunrealtype GXV_MinReal( N_Vector z )
 void GXV_PrintFile( N_Vector v, FILE* out )
 {
 	GXVector *gv = GXV( v );
-	MomentsG* mg = gv[ 0 ];	
+	MomentsG* mg = (*gv)[ 0 ];	
 	size_t n_moms = mg->getSize();
 	size_t nbytes = n_moms * sizeof(cuComplex);
 	cuComplex* local_copy = (cuComplex*)malloc( nbytes );
 	cuComplex* mg_ptr(mg);
-	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaDeviceToHost );
+	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaMemcpyDeviceToHost );
 	fprintf(out, " [ ");
-	for( size_t i = 0 ; i < n_moms;
+	for( size_t i = 0 ; i < n_moms; ++i )
 			fprintf( out, "%g + %g i ,",local_copy[i].x,local_copy[i].y);
 	fprintf(out, " ] ");
 	free( local_copy );
