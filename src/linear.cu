@@ -165,7 +165,6 @@ void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt)
     streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
     grad_par->dz(GRhs, GRhs, false);
   }
-  if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2, dt);
 
 }
 

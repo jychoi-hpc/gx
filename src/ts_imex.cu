@@ -108,21 +108,30 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
   if(pars_->local_limit) {
     tridiag_streaming_local<<<dG, dB>>>(G1[ielectron]->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
   } else if (pars_->boundary_option_periodic) {
-    int max_iter = 1;
-    for (int count = 0; count < max_iter; count++){
-      if (count == 0){
-        tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
-      }
-      else{
-	grad_par->zft_inverse(G1[ielectron]);
-  	solver_->fieldSolve(G1, f);
-	grad_par->zft(f->phi, f->phi);
+      int max_iter = pars_->implicit_max_iter;
+      double omega = pars_->implicit_omega;
+      for (int count = 0; count < max_iter; count++){
+        if (count == 0){ //This is just using J(z=0)
+          tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
+        }
+        else{
+          grad_par->zft_inverse(G1[ielectron]); //Calculate full potential
+          Gr[ielectron]->copyFrom(G1[ielectron]);
+          solver_->fieldSolve(G1, f);
+          grad_par->zft(f->phi, f->phi);
 
-	G1[ielectron]->copyFrom(Gc);
-	grad_par->zft(G1[ielectron]);
-	tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, true);      
-      }          
-    }
+          G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
+          grad_par->zft(G1[ielectron]);
+          grad_par->zft(Gr[ielectron]);
+          tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(),f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, true);
+
+          grad_par->zft_inverse(G1[ielectron]);
+          grad_par->zft_inverse(Gr[ielectron]);
+          G1[ielectron]->add_scaled(omega,G1[ielectron],(1.-omega),Gr[ielectron]);
+          grad_par->zft(G1[ielectron]);
+        }
+      }
+
   } else {
       int max_iter = pars_->implicit_max_iter;
       double omega = pars_->implicit_omega;
