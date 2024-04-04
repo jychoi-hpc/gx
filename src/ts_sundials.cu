@@ -63,7 +63,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
 	ERKStepSetInitStep( ERKStepMem, dt_ );
-	ARKStepSetFixedStep( ERKStepMem, dt_ );
+	ERKStepSetFixedStep( ERKStepMem, dt_ );
 }
 
 
