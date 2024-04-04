@@ -399,6 +399,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   bool ei_colls);
 
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
+__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
 __global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const float kz, const float* qneutDenom, const specie sp, const double sdtvt);
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
