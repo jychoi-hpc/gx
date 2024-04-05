@@ -1,25 +1,30 @@
 
 #include "gxvector.h"
 
+extern "C" {
+	#include <stdio.h>
+}
+
 /*
 	API backend to wrap the memebr functions of GXVector into SUNDIAL NVector
  */
 
-realtype GXV_MinReal( N_Vector z );
-realtype GXV_WrmsNorm( N_Vector z, N_Vector w );
-realtype GXV_MaxNorm( N_Vector z );
-realtype GXV_MaxNorm( N_Vector z );
-void GXV_AddConst( N_Vector x, realtype b, N_Vector out );
+sunrealtype GXV_MinReal( N_Vector z );
+sunrealtype GXV_WrmsNorm( N_Vector z, N_Vector w );
+sunrealtype GXV_MaxNorm( N_Vector z );
+sunrealtype GXV_MaxNorm( N_Vector z );
+void GXV_AddConst( N_Vector x, sunrealtype b, N_Vector out );
 void GXV_Inv( N_Vector in, N_Vector out );
 void GXV_Abs( N_Vector in, N_Vector out );
-void GXV_Scale( realtype c, N_Vector x, N_Vector z );
+void GXV_Scale( sunrealtype c, N_Vector x, N_Vector z );
 void GXV_Prod( N_Vector x, N_Vector y, N_Vector z );
 void GXV_Div( N_Vector x, N_Vector y, N_Vector z );
-void GXV_Const( realtype c, N_Vector z );
-void GXV_LinearSum( realtype a, N_Vector v, realtype b, N_Vector w, N_Vector out );
+void GXV_Const( sunrealtype c, N_Vector z );
+void GXV_LinearSum( sunrealtype a, N_Vector v, sunrealtype b, N_Vector w, N_Vector out );
 N_Vector GXV_Clone( N_Vector other );
 void GXV_Destroy( N_Vector v );
 N_Vector_ID GXV_GetVectorID( N_Vector );
+void GXV_PrintFile( N_Vector , FILE* );
 
 struct _generic_N_Vector_Ops GXVOps = {
    .nvgetvectorid = GXV_GetVectorID,
@@ -76,6 +81,7 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvbufsize = nullptr,
    .nvbufpack = nullptr,
    .nvbufunpack = nullptr,
+	.nvprintfile = GXV_PrintFile,
 };
 
 N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx )
@@ -117,12 +123,12 @@ void GXV_Destroy( N_Vector v )
 	N_VFreeEmpty( v );
 }
 
-void GXV_LinearSum( realtype a, N_Vector v, realtype b, N_Vector w, N_Vector out )
+void GXV_LinearSum( sunrealtype a, N_Vector v, sunrealtype b, N_Vector w, N_Vector out )
 {
 	GXV( out )->LinearSum( a, *GXV( v ), b, *GXV( w ) );
 }
 
-void GXV_Const( realtype c, N_Vector z )
+void GXV_Const( sunrealtype c, N_Vector z )
 {
 	GXV( z )->SetConst( c );
 }
@@ -137,7 +143,7 @@ void GXV_Prod( N_Vector x, N_Vector y, N_Vector z )
 	GXV( z )->Prod( *GXV( x ), *GXV( y ) );
 }
 
-void GXV_Scale( realtype c, N_Vector x, N_Vector z )
+void GXV_Scale( sunrealtype c, N_Vector x, N_Vector z )
 {
 	GXV( z )->SetScaled( c, *GXV( x ) );
 }
@@ -152,7 +158,7 @@ void GXV_Inv( N_Vector in, N_Vector out )
 	GXV( out )->SetInv( *GXV( in ) );
 }
 
-void GXV_AddConst( N_Vector x, realtype b, N_Vector out )
+void GXV_AddConst( N_Vector x, sunrealtype b, N_Vector out )
 {
 	GXVector & v = *GXV( out );
 	GXVector & w = *GXV( x );
@@ -161,19 +167,36 @@ void GXV_AddConst( N_Vector x, realtype b, N_Vector out )
 	v += w;
 }
 
-realtype GXV_MaxNorm( N_Vector z )
+sunrealtype GXV_MaxNorm( N_Vector z )
 {
 	return GXV( z )->MaxNorm();
 }
 
-realtype GXV_WrmsNorm( N_Vector z, N_Vector w )
+sunrealtype GXV_WrmsNorm( N_Vector z, N_Vector w )
 {
 	return GXV( z )->WrmsNorm( *GXV( w ) );
 }
 
-realtype GXV_MinReal( N_Vector z )
+sunrealtype GXV_MinReal( N_Vector z )
 {
 	return GXV( z )->MinReal();
 }
+
+void GXV_PrintFile( N_Vector v, FILE* out )
+{
+	GXVector *gv = GXV( v );
+	MomentsG* mg = (*gv)[ 0 ];	
+	size_t n_moms = mg->getSize();
+	size_t nbytes = n_moms * sizeof(cuComplex);
+	cuComplex* local_copy = (cuComplex*)malloc( nbytes );
+	cuComplex* mg_ptr(*mg);
+	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaMemcpyDeviceToHost );
+	fprintf(out, " [ ");
+	for( size_t i = 0 ; i < n_moms; ++i )
+			fprintf( out, "%g + %g i ,",local_copy[i].x,local_copy[i].y);
+	fprintf(out, " ]\n ");
+	free( local_copy );
+}
+
 
 

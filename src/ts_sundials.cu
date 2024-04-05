@@ -5,15 +5,19 @@
 
 #include <arkode/arkode_erkstep.h>
 
+extern "C" {
+#include <stdio.h>
+}
+
 // #include "get_error.h"
 
 // ============= RK4 =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
+  forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
-	std::cout << "Using SUNDIALS for tiemstepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
+	std::cout << "Using SUNDIALS for timestepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
 }
 
 SundialsStepper::~SundialsStepper()
@@ -22,23 +26,29 @@ SundialsStepper::~SundialsStepper()
 		ERKStepFree( &ERKStepMem );
 	if( gInternal != nullptr )
 		delete gInternal;
+	if( gTmp != nullptr )
+		delete gTmp;
 }
 
 
 void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 {
 	if( ERKStepMem != nullptr ) {
-		throw std::runtime_error("Double Initialisation of Sundials Tiemstepper. Aborting.");
+		throw std::runtime_error("Double Initialisation of Sundials Timestepper. Aborting.");
 	}
 	
 	// This creates a GXVector that is a view of the data in the MomentsG** but 
 	// does not *own* the data. Thus deleting this pointer will not free the underlying MomentsG
 	gInternal = new GXVector( g0, ctx );
+	gTmp = new GXVector( g0, ctx );
 
 	// Wrap GXVector in an NVector
 
 	gInternalNV = gInternal->asNVector();
 
+	std::cout << "Initialising ERKStep" << std::endl;
+	std::cout << " g at t=0 is ";
+	N_VPrintFile( gInternalNV, stdout );
 	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 	if( ERKStepMem == nullptr )
 		throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
@@ -50,14 +60,16 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
 	
-	// Use the Shu-Osher 3rd order SSP method, with embedding
-	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_SHU_OSHER_3_2_3 );
+	// Use the 4th order Zonnefeld method
+	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_ZONNEVELD_5_3_4 );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
 	}
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
+	ERKStepSetInitStep( ERKStepMem, dt_ );
+	ERKStepSetFixedStep( ERKStepMem, dt_ );
 }
 
 
@@ -81,6 +93,9 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Error in ERKStepEvolve.");
 	}
+
+	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
+	solver_->fieldSolve( *gInternal, fields_ );
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
@@ -95,7 +110,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	// Make sure fields are evaluated at this current g
 	solver_->fieldSolve( *g, fields_ );
 
-	// compute nonlinear term
+	// compute nonlinear term and write to gdot
 	gdot->SetZero();
 
 	if (nonlinear_ != nullptr) {
@@ -104,9 +119,16 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 		}
 	}
 
+	// Accumulate Linear Terms into gTmp
+	gTmp->SetZero();
+
 	// compute and accumulate linear term
 	for( int is = 0; is < grids_->Nspecies; ++is)
-		linear_->rhs( (*g)[is], fields_, (*gdot)[is], dt_ );
+		linear_->rhs( (*g)[is], fields_, (*gTmp)[is], dt_ );
+
+	*gdot += *gTmp; // Add NL + L
+
+	return 0;
 
 }
 

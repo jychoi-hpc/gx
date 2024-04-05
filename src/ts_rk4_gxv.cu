@@ -2,11 +2,15 @@
 #include <iostream>
 // #include "get_error.h"
 
+extern "C" {
+#include <stdio.h>
+}
+
 // ============= RK4 =============
 GXVRK4::GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB* exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in),
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in),
   ctx(), GStar(pars, grids, ctx), GRhs(pars, grids, ctx), G_q1(pars, grids, ctx), G_q2(pars, grids, ctx)
 {
 	std::cout << "Using potentially dodgy IGA-code. You have Been Warned" << std::endl;
@@ -44,11 +48,17 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 		}
 	}
 
+	Gnew.LinearSum(1., G, adt*dt_, Rhs);
+
+	Rhs.SetZero(); // Rhs must be zero on entry to 'linear_->rhs' or grad_par will clobber it
+
 	// compute and accumulate linear term
 	for( int i = 0; i < grids_->Nspecies; ++i)
 		linear_->rhs(Gt[i], f, Rhs[i], dt_);
 
-	Gnew.LinearSum(1., G, adt*dt_, Rhs);
+	Gnew.LinearSum(1., Gnew, adt*dt_, Rhs);
+	// Rhs is used later, so fill it with the actual Rhs
+	Rhs.LinearSum(1./(adt*dt_), Gnew, -1./(adt*dt_), G);
 
 	// compute new fields
 	solver_->fieldSolve(Gnew, f);
@@ -57,7 +67,9 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 {
 	// Wrap MomentsG** in a GXVector
-	GXVector G( G_, ctx );
+	GXVector *G_ptr = new GXVector( G_, ctx );
+	G_ptr->print(stdout);
+	GXVector &G(*G_ptr);
 
 	// update the gradients if they are evolving
 	G.update_tprim( *t ); 
@@ -106,5 +118,6 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 
 	solver_->fieldSolve(G, f);
 	*t += dt_;
+	delete G_ptr;
 }
 

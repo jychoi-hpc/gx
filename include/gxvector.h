@@ -3,7 +3,11 @@
 
 #include "moments.h"
 
+#include <sundials/sundials_core.h>
 #include <sundials/sundials_nvector.h>
+extern "C" {
+#include <stdio.h>
+}
 
 /*
 	Header file for the GXVector class used in the associated SUNDIALS NVector API
@@ -78,6 +82,7 @@ class GXVector {
 		void update_tprim( double );
 
 		SUNContext ctx;
+		void print( FILE * ) const;
 	private:
 		bool owns_data;
 		VecType array;

@@ -3,6 +3,10 @@
 #include "device_funcs.h"
 #include "reductions.h"
 
+extern "C" {
+	#include <stdio.h>
+}
+
 
 /*
 	This file provides the GXVector class, which is the building block of the custom NVector implementation
@@ -289,3 +293,17 @@ void GXVector::update_tprim( double t )
 	}
 }
 
+void GXVector::print( FILE * out ) const
+{
+	MomentsG* mg = array[0];
+	size_t n_moms = mg->getSize();
+	size_t nbytes = n_moms * sizeof(cuComplex);
+	cuComplex* local_copy = (cuComplex*)malloc( nbytes );
+	cuComplex* mg_ptr(*mg);
+	cudaMemcpy( local_copy, mg_ptr, nbytes, cudaMemcpyDeviceToHost );
+	fprintf(out, " [ ");
+	for( size_t i = 0 ; i < n_moms; ++i )
+			fprintf( out, "%g + %g i ,",local_copy[i].x,local_copy[i].y);
+	fprintf(out, " ]\n ");
+	free( local_copy );
+}

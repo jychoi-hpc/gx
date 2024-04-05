@@ -454,12 +454,8 @@ __global__ void geo_shift_ntft(const float* kxstar, const float* ky, float* cv_d
 			       const float* ftwist, float* deltaKx, const int* m0, const float x0);
 __global__ void iKx_shift_ntft(cuComplex* iKx, const float g_exb, const double dt, const float* ky);
 
-// ExB Kernels
-__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
-__global__ void field_shift(cuComplex* field_new, const cuComplex* field_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
-__global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
-
 // Kernels for GXVector API (IGA)
+
 __global__ void minusRealKernel(float* res, const cuComplex* in);
 __global__ void wrmsKernel(float* res, const cuComplex* g, const cuComplex* w);
 __global__ void absValKernel(float* res, const cuComplex* in);
@@ -470,3 +466,8 @@ __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in);
 __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
 __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
 
+
+// ExB Kernels
+__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
+__global__ void field_shift(cuComplex* field_new, const cuComplex* field_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
+__global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);

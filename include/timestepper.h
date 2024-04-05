@@ -10,7 +10,7 @@
 #include "grad_parallel.h"
 #include "exb.h"
 
-#include <sundials/sundials_context.h>
+#include <sundials/sundials_context.hpp>
 #include "gxvector.h"
 
 class Timestepper {
@@ -246,34 +246,10 @@ class G3 : public Timestepper {
   MomentsG  ** G_u2       ;
 };
 
-/*
-class SDCe : public Timestepper {
- public:
-  SDCe(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-       Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
-  ~SDCe();
-  void advance(double* t, MomentsG* G, Fields* fields);
-  double get_dt() {return dt_;};
-  
- private:
-  void full_rhs(MomentsG* G_q1, MomentsG* GRhs, Fields* f, MomentsG* GStar);
-  Linear *linear_;
-  Nonlinear *nonlinear_;
-  Solver *solver_;
-  Parameters *pars_;
-  Grids *grids_;
-  Forcing *forcing_;
-  const double dt_max;
-  
-  double dt_;
-}
-*/
-
-
 class GXVRK4 : public Timestepper {
  public:
   GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
   ~GXVRK4();
   void advance(double* t, MomentsG** G, Fields* fields);
   void partial(GXVector & G, GXVector & Gt, Fields *f, 
@@ -292,7 +268,9 @@ class GXVRK4 : public Timestepper {
   Solver     * solver_    ;
   Parameters * pars_      ;
   Grids      * grids_     ;
+  ExB        * exb_       ;
   Forcing    * forcing_   ;
+  Fields	    * fields_    ;
   GXVector GStar;
   GXVector GRhs;
   GXVector G_q1;
@@ -302,7 +280,7 @@ class GXVRK4 : public Timestepper {
 class SundialsStepper : public Timestepper {
  public:
   SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, double dt_in);
+	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -315,7 +293,7 @@ class SundialsStepper : public Timestepper {
   void Initialise( MomentsG**, double );
   sundials::Context ctx;
   void *ERKStepMem;
-  GXVector *gInternal;
+  GXVector *gInternal, *gTmp;
   N_Vector gInternalNV;
 
   const double dt_;
@@ -327,7 +305,8 @@ class SundialsStepper : public Timestepper {
   Solver     * solver_    ;
   Parameters * pars_      ;
   Grids      * grids_     ;
+  ExB        * exb_       ;
   Forcing    * forcing_   ;
-  Fields	 * fields_    ;
+  Fields	    * fields_    ;
 };
 
