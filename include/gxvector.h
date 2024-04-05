@@ -38,8 +38,6 @@ class GXVector {
 
 		operator MomentsG** () { return array.data(); };
 
-		explicit GXVector( MomentsG **data );
-
 		static N_Vector CreateNVector( Parameters*, Grids*, SUNContext );
 		static N_Vector CreateEmptyNVector( SUNContext );
 
