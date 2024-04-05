@@ -81,7 +81,7 @@ struct _generic_N_Vector_Ops GXVOps = {
    .nvbufsize = nullptr,
    .nvbufpack = nullptr,
    .nvbufunpack = nullptr,
-	.nvprintfile = GXV_PrintFile,
+	.nvprintfile = nullptr,
 };
 
 N_Vector GXVector::CreateNVector( Parameters *pars, Grids *grids, SUNContext ctx )

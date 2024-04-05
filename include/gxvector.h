@@ -82,7 +82,6 @@ class GXVector {
 		void update_tprim( double );
 
 		SUNContext ctx;
-		void print( FILE * ) const;
 	private:
 		bool owns_data;
 		VecType array;

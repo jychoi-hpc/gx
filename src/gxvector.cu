@@ -293,6 +293,7 @@ void GXVector::update_tprim( double t )
 	}
 }
 
+/*
 void GXVector::print( FILE * out ) const
 {
 	MomentsG* mg = array[0];
@@ -307,3 +308,4 @@ void GXVector::print( FILE * out ) const
 	fprintf(out, " ]\n ");
 	free( local_copy );
 }
+*/
