@@ -116,6 +116,5 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 
 	solver_->fieldSolve(G, f);
 	*t += dt_;
-	delete G_ptr;
 }
 
