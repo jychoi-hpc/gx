@@ -94,7 +94,7 @@ void RungeKutta4::advance(double *t, MomentsG** G, Fields* f)
   }
   // end updates
 
-  partial(G, G,    f, GRhs,  G_q1, 0.5, true);
+  partial(G, G,    f, GRhs,  G_q1, 0.5, false);
   partial(G, G_q1, f, GStar, G_q2, 0.5, false);
 
   // Do a partial accumulation of final update to save memory
