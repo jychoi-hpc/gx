@@ -4,7 +4,7 @@
 
 // ============= RK4 =============
 GXVRK4::GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in),
   ctx(), GStar(pars, grids, ctx), GRhs(pars, grids, ctx), G_q1(pars, grids, ctx), G_q2(pars, grids, ctx)
