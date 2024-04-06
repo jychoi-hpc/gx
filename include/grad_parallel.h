@@ -19,7 +19,7 @@ class GradParallel {
   virtual void dz2(cuComplex* m, cuComplex* res)=0;
   virtual void zft(MomentsG* G)=0;
   virtual void zft(cuComplex* m, cuComplex* res)=0;
-//  virtual void zft_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi) = 0;
+  virtual void zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi) = 0;
   virtual void dealias(MomentsG* G) {};
   virtual void dealias(cuComplex* f) {};
   virtual void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2, double dt) {};
@@ -42,7 +42,7 @@ class GradParallelPeriodic : public GradParallel {
   void  dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void dz2(MomentsG* G);  void dz2(cuComplex* m, cuComplex* res);
   void zft(MomentsG* G);  void zft(cuComplex* m, cuComplex* res);
-
+  void zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi);
   void zft_inverse(MomentsG* G);
   //  void zft_inverse(cuComplex* m, cuComplex* res);
   
@@ -130,7 +130,7 @@ class GradParallelLocal : public GradParallel {
   void dz2(cuComplex* m, cuComplex* res);
   void zft(MomentsG* G);
   void zft(cuComplex* m, cuComplex* res);
-
+  void zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi);
   void zft_inverse(MomentsG* G);
   //  void zft_inverse(cuComplex* m, cuComplex* res);
   

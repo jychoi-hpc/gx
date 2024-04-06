@@ -168,17 +168,20 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     // initialize kzLinked
     init_kzLinked <<<1,1>>> (kzLinked[c], nLinks[c], false);
 
-    int nn1, nn2, nn3, nn4, nt1, nt2, nt3, nt4, nb1, nb2, nb3, nb4;
+    int nn1, nn2, nn3, nn4, nn5, nn6, nt1, nt2, nt3, nt4, nt5, nt6, nb1, nb2, nb3, nb4, nb5, nb6;
 
     nn1 = grids_->Nz;                   nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1;
     nn2 = nLinks[c]*nChains[c];         nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; 
     nn3 = grids_->Nmoms;                nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
-    nn4 = grids_->Nl;                   nt4 = min( nn4,  4 );    nb4 = 1 + (nn3-1)/nt4;
+    
+    nn4 = nChains[c];                   nt4 = min( nn4,  16 );   nb4 = 1 + (nn4-1)/nt4;
+    nn5 = nLinks[c];                    nt5 = min( nn5,  16 );   nb5 = 1 + (nn5-1)/nt5;
+    nn6 = grids_->Nl;                   nt6 = min( nn6,  4 );    nb6 = 1 + (nn6-1)/nt6;
     
     dB[c] = dim3(nt1, nt2, nt3);
     dG[c] = dim3(nb1, nb2, nb3);
-    dB_inv[c] = dim3(nt1, nt2, nt4);
-    dG_inv[c] = dim3(nb1, nb2, nb4);
+    dB_inv[c] = dim3(nt1, nt2, nt6);
+    dG_inv[c] = dim3(nb1, nb2, nb6);
     
     //    dB[c] = dim3(32,4,4);
     //    dG[c] = dim3(1 + (grids_->Nz-1)/dB[c].x,
@@ -278,7 +281,7 @@ void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuCompl
     linkedCopy GCHAINS (phi, phi_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     cufftExecC2C(zft_plan_forward_singlemom[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
 
-    tridiag_streaming_periodic<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom, *(G->species), sdtvt, gradpar, full_phi);
+    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom, *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
 
 
     linkedCopyBack GCHAINS (G_linked[c], G->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);

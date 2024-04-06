@@ -96,6 +96,11 @@ void GradParallelPeriodic::dealias(cuComplex* f)
   cufftExecC2C(zft_plan_inverse, f, f, CUFFT_INVERSE);  
 }
 
+void GradParallelPeriodic::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi)
+{
+  //Not needed for periodic.
+}
+
 // Fourier transform all moments 
 void GradParallelPeriodic::zft(MomentsG* G)
 {
@@ -201,6 +206,11 @@ void GradParallelLocal::dz(MomentsG *G, MomentsG *res, bool accumulate)
 void GradParallelLocal::dz2(MomentsG *G)
 {
   G->scale(mkpar2);
+}
+
+void GradParallelLocal::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi)
+{
+  //Not needed for periodic.
 }
 
 void GradParallelLocal::zft(MomentsG *G) {return;}

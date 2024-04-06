@@ -139,7 +139,7 @@ class Parameters {
   float rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri;
   float tri, tripri, drhodpsi, epsl, kxfac, cfl, phi_ext, scale, tau_fac;
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
-  float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps, implicit_omega;
+  float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps, implicit_omega, implicit_linked;
   int ikpar_init;
   float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;
   float forcing_amp, pos_forcing_amp, neg_forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;

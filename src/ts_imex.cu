@@ -99,15 +99,20 @@ void IMEX_3stage::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 
 void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, int ielectron)
 {
-  // FFT Phi_i
-  grad_par->zft(f->phi, f->phi);
-  // FFT G_e
-  grad_par->zft(G1[ielectron]);
   double sdtvt = sdt*vte;
   // tridiag from numerical recipes
   if(pars_->local_limit) {
+    // FFT Phi_i
+    grad_par->zft(f->phi, f->phi);
+    // FFT G_e
+    grad_par->zft(G1[ielectron]);
     tridiag_streaming_local<<<dG, dB>>>(G1[ielectron]->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
   } else if (pars_->boundary_option_periodic) {
+      // FFT Phi_i
+      grad_par->zft(f->phi, f->phi);
+      // FFT G_e
+      grad_par->zft(G1[ielectron]);
+
       int max_iter = pars_->implicit_max_iter;
       double omega = pars_->implicit_omega;
       for (int count = 0; count < max_iter; count++){
@@ -132,7 +137,12 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
         }
       }
 
-  } else {
+  } else if (!pars_->boundary_option_periodic && !pars_->implicit_linked){
+      // FFT Phi_i
+      grad_par->zft(f->phi, f->phi);
+      // FFT G_e
+      grad_par->zft(G1[ielectron]);
+
       int max_iter = pars_->implicit_max_iter;
       double omega = pars_->implicit_omega;
       for (int count = 0; count < max_iter; count++){
@@ -157,6 +167,12 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
         }          
       }
   
+    }
+    else{
+      int max_iter = pars_->implicit_max_iter;
+      double omega = pars_->implicit_omega;
+      Gr[ielectron]->copyFrom(G1[ielectron]);
+      grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),sdtvt, gradpar_, false); 
     }
   grad_par->zft_inverse(G1[ielectron]);
 }

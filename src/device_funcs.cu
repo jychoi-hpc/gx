@@ -2953,41 +2953,31 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComple
   }
 }
 
-__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
+__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)
 {
-  unsigned int idy  = get_id1();
-  unsigned int idx  = get_id2();
-  unsigned int idzl = get_id3();
-  unsigned int idz = idzl % nz;     
-  unsigned int idxy = idy + nyc*idx;
-  unsigned int nxnyc = nx*nyc;
-  unsigned int nlnz = nl*nz;
-  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+  unsigned int idz  = get_id1();
+  unsigned int idk  = get_id2();
+  unsigned int idl = get_id3();
+
+  unsigned int idzk = idz + nz * idk;     
+  unsigned int nznk = nz * nLinks * nChains;
+  unsigned int nxnyc = nx*nyc; 
+  if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
     float Q_avg = 0.0f;
-    Q = sp.nz*sp.zt/qneutDenom[idxy + nxnyc*nz/2];
-    Q_avg = 1.0f/qneutDenom[idxy + nxnyc*nz/2];
-//    for(int iz=0; iz<nz; iz++) {
-      // compute z avg of qneutDenom so that the z dependence does not break things in k space
-//      Q_avg += 1.0f/qneutDenom[idxy + nxnyc*iz];
-//      if(Q > abs(qneutDenom[idxy + nxnyc*iz])){
-//      	Q = qneutDenom[idxy + nxnyc*iz];
-//      }
-//    }
-    // the actual coefficient needed is Z^2*n/T/<qneutDenom>
-//    Q_avg = Q_avg/nz;
-//   Q = sp.nz*sp.zt*Q_avg;
-//    Q = sp.nz*sp.zt/Q;
+    Q = sp.nz*sp.zt/qneutDenom[idk + nxnyc*nz/2];
+    Q_avg = 1.0f/qneutDenom[idk + nxnyc*nz/2];
+
     int idm = 0; // this cannot be unsigned (see below)
-    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     g[globalIdx] = g[globalIdx]/bet;
     for(idm=1; idm<nm; idm++) {
-      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
-      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      globalIdx = idzk + nznk * (idl + nl*idm);
+      unsigned int mm1 = idzk + nznk * (idl + nl*(idm-1));
       // compute matrix coefficients
       // c[m-1]
       cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
@@ -2998,17 +2988,15 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       //logic block for iteration scheme. full_phi = true means that we're using the full
       //phi for the rhs.
-      if(idm==1 && idz==idzl) {
+      if(idm==1 && idl == 0) {
 	if (full_phi){
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];
+  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idk + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idzk];
 	  am = am + sdtvt*ikz*gradpar*Q;
 
 	}
 	else{
 	  am = am + sdtvt*ikz*gradpar*Q;
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
-
-//  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz]*qneutDenom[idxy + nxnyc*idz]*Q_avg;	  
+  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idk + nxnyc*idz];	  
 	}
       }
               
@@ -3019,8 +3007,8 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
       g[globalIdx] = (rm - am*g[mm1])/bet;
       }
     for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
-      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
-      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      globalIdx = idzk + nznk * (idl + nl*idm);
+      unsigned int mp1 = idzk + nznk * (idl + nl*(idm+1));
       // backsubstitution
       g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
     }
