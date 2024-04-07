@@ -2990,13 +2990,13 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
       //phi for the rhs.
       if(idm==1 && idl == 0) {
 	if (full_phi){
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idk + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idzk];
+  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idzk] + sdtvt*ikz*gradpar*Q*gr[idzk];
 	  am = am + sdtvt*ikz*gradpar*Q;
 
 	}
 	else{
 	  am = am + sdtvt*ikz*gradpar*Q;
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idk + nxnyc*idz];	  
+  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idzk];	  
 	}
       }
               

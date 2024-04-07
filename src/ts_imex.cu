@@ -171,8 +171,25 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
     else{
       int max_iter = pars_->implicit_max_iter;
       double omega = pars_->implicit_omega;
-      Gr[ielectron]->copyFrom(G1[ielectron]);
-      grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),sdtvt, gradpar_, false); 
+      for (int count = 0; count < max_iter; count++){
+	if (count ==0){
+          Gr[ielectron]->copyFrom(G1[ielectron]);
+          grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),sdtvt, gradpar_, false); 
+	}
+	else{
+	  grad_par->zft_inverse(G1[ielectron]); //Calculate full potential
+          Gr[ielectron]->copyFrom(G1[ielectron]);
+          solver_->fieldSolve(G1, f);
+
+          G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
+	  grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),sdtvt, gradpar_, true);
+
+          grad_par->zft_inverse(G1[ielectron]);
+          grad_par->zft_inverse(Gr[ielectron]);
+          G1[ielectron]->add_scaled(omega,G1[ielectron],(1.-omega),Gr[ielectron]);
+          grad_par->zft(G1[ielectron]); 
+	}
+      }
     }
   grad_par->zft_inverse(G1[ielectron]);
 }
