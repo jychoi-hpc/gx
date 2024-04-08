@@ -100,6 +100,7 @@ class GradParallelLinked : public GradParallel {
   cuComplex **G_linked;
   cuComplex **Gr_linked;
   cuComplex **phi_linked;
+  float **qneutDenom_linked;
 
   cufftHandle * zft_plan_forward;  cufftHandle * dz_plan_forward;  cufftHandle * dz2_plan_forward; 
   cufftHandle * zft_plan_inverse;  cufftHandle * dz_plan_inverse;

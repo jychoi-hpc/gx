@@ -2411,6 +2411,27 @@ __global__ void linkedCopy(const cuComplex* __restrict__ G,
   }
 }
 
+__global__ void linkedCopy_f(const float* __restrict__ G,
+                           float* __restrict__ G_linked,
+                           int nLinks,
+                           int nChains,
+                           const int* __restrict__ ikx,
+                           const int* __restrict__ iky,
+                           int nMoms)
+{
+  unsigned int idz  = get_id1();
+  unsigned int idk  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
+    unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
+    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+    // NRM: seems hopeless to make these accesses coalesced. how bad is it?
+    G_linked[idlink] = G[globalIdx];
+  }
+}
+
+
 __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked,
 			       cuComplex* __restrict__ G,
 			       int nLinks,
@@ -2957,21 +2978,37 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
-  unsigned int idl = get_id3();
+  unsigned int idl  = get_id3();
 
   unsigned int idzk = idz + nz * idk;     
   unsigned int nznk = nz * nLinks * nChains;
-  unsigned int nxnyc = nx*nyc; 
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idx = idk % nLinks;
+  unsigned int idy = idk / nLinks;
+  unsigned int idxy = idy + nyc*idx;
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
     float Q_avg = 0.0f;
-    Q = sp.nz*sp.zt/qneutDenom[idk + nxnyc*nz/2];
-    Q_avg = 1.0f/qneutDenom[idk + nxnyc*nz/2];
+//    Q = sp.nz*sp.zt/qneutDenom[idk + nxnyc*nz/2];
+//    Q_avg = 1.0f/qneutDenom[idk + nxnyc*nz/2];
+
+//    Q = sp.nz*sp.zt/qneutDenom[idxy + nxnyc*nz/2];
+//    Q_avg = 1.0f/qneutDenom[idxy + nxnyc*nz/2];
+
+//    Q = sp.nz*sp.zt/qneutDenom[nz/2 + nz * idk];
+//    Q_avg = 1.0f/qneutDenom[nz/2 + nz * idk];
+
+    for (int iz = 0; iz < nz; iz++){
+      if (Q_avg < 1.0f/qneutDenom[iz + nz * idk]){
+        Q_avg = 1.0f/qneutDenom[iz + nz * idk];
+      }
+    }
+    Q = sp.nz*sp.zt*Q_avg;
 
     int idm = 0; // this cannot be unsigned (see below)
     unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
-    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     g[globalIdx] = g[globalIdx]/bet;
