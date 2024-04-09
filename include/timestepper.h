@@ -11,7 +11,7 @@
 #include "exb.h"
 
 #include <sundials/sundials_context.hpp>
-#include <sundials/arkode_butcher.h>
+#include <arkode/arkode_butcher.h>
 #include "gxvector.h"
 
 class Timestepper {
