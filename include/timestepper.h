@@ -299,6 +299,7 @@ class SundialsStepper : public Timestepper {
   const double dt_;
   const double reltol = 1e-3;
   const double abstol = 1e-3;
+  ARKodeButcherTable rk4_table = nullptr;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;

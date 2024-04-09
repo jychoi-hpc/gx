@@ -9,7 +9,13 @@ extern "C" {
 #include <stdio.h>
 }
 
-// #include "get_error.h"
+sunrealtype rk4_a[] = {0.0,0.0,0.0,0.0,
+                       0.5,0.0,0.0,0.0,
+                       0.0,0.5,0.0,0.0,
+                       0.0,0.0,1.0,0.0};
+sunrealtype rk4_b[] = {1./6.,1./3.,1./3.,1./6.};
+sunrealtype rk4_c[] = {0.,0.5,0.5,1.0};
+
 
 // ============= RK4 =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -18,6 +24,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
   forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
 	std::cout << "Using SUNDIALS for timestepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
+	rk4_table = ARKodeButcherTable_Create(4,4,0,rk4_c,rk4_a,rk4_b,nullptr);
 }
 
 SundialsStepper::~SundialsStepper()
@@ -28,6 +35,8 @@ SundialsStepper::~SundialsStepper()
 		delete gInternal;
 	if( gTmp != nullptr )
 		delete gTmp;
+	if( rk4_table != nullptr )
+		ARKodeButcherTable_Free( rk4_table );
 }
 
 
@@ -60,8 +69,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
 	
-	// Use the 4th order Zonnefeld method
-	retval = ERKStepSetTableNum( ERKStepMem, ARKODE_ZONNEVELD_5_3_4 );
+	retval = ERKStepSetTable( ERKStepMem, rk4_table );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
