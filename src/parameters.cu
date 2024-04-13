@@ -103,7 +103,7 @@ void Parameters::get_nml_vars(char* filename)
   nstep_restart   = toml::find_or <int>   (tnml, "nstep_restart",   -1 );
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
   implicit_max_iter = toml::find_or <int>   (tnml, "implicit_max_iter",   1 );
-  implicit_omega = toml::find_or <float> (tnml, "implicit_omega", 0.1);
+  implicit_omega = toml::find_or <float> (tnml, "implicit_omega", 1.0);
   implicit_linked = toml::find_or <bool> (tnml, "implicit_linked", false);
   cfl = toml::find_or <float> (tnml, "cfl", 0.9);
   stages = toml::find_or <int>    (tnml, "stages",  10   );

@@ -2990,20 +2990,16 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
     float Q_avg = 0.0f;
-//    Q = sp.nz*sp.zt/qneutDenom[idk + nxnyc*nz/2];
-//    Q_avg = 1.0f/qneutDenom[idk + nxnyc*nz/2];
 
-//    Q = sp.nz*sp.zt/qneutDenom[idxy + nxnyc*nz/2];
-//    Q_avg = 1.0f/qneutDenom[idxy + nxnyc*nz/2];
-
-//    Q = sp.nz*sp.zt/qneutDenom[nz/2 + nz * idk];
-//    Q_avg = 1.0f/qneutDenom[nz/2 + nz * idk];
 
     for (int iz = 0; iz < nz; iz++){
-      if (Q_avg < 1.0f/qneutDenom[iz + nz * idk]){
-        Q_avg = 1.0f/qneutDenom[iz + nz * idk];
+      for (int ik = 1; ik < nLinks*nChains; ik++){
+        if (Q_avg < 1.0f/qneutDenom[iz + nz*ik]){
+          Q_avg = 1.0f/qneutDenom[iz + nz*ik];
+        }
       }
     }
+
     Q = sp.nz*sp.zt*Q_avg;
 
     int idm = 0; // this cannot be unsigned (see below)
