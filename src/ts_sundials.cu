@@ -49,7 +49,9 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	// This creates a GXVector that is a view of the data in the MomentsG** but 
 	// does not *own* the data. Thus deleting this pointer will not free the underlying MomentsG
 	gInternal = new GXVector( g0, ctx );
-	gTmp = new GXVector( g0, ctx );
+
+	// This is the clone constructor, allocates new RAM
+	gTmp = new GXVector( g0 );
 
 	// Wrap GXVector in an NVector
 
