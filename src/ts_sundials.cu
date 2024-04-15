@@ -24,7 +24,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
   forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
 	std::cout << "Using SUNDIALS for timestepping. This is fantastically unsupported and is probably wrong in all sorts of ways" << std::endl;
-	rk4_table = ARKodeButcherTable_Create(4,4,0,rk4_c,rk4_a,rk4_b,nullptr);
+	// rk4_table = ARKodeButcherTable_Create(4,4,0,rk4_c,rk4_a,rk4_b,nullptr);
 }
 
 SundialsStepper::~SundialsStepper()
@@ -35,8 +35,10 @@ SundialsStepper::~SundialsStepper()
 		delete gInternal;
 	if( gTmp != nullptr )
 		delete gTmp;
+	/*
 	if( rk4_table != nullptr )
 		ARKodeButcherTable_Free( rk4_table );
+	*/
 }
 
 
@@ -71,7 +73,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
 	
-	retval = ERKStepSetTableName( ERKStepMem, pars->SundialsExplicitScheme );
+	retval = ERKStepSetTableName( ERKStepMem, pars_->SundialsExplicitScheme );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
@@ -79,7 +81,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
 	ERKStepSetInitStep( ERKStepMem, dt_ );
-	if( pars->SundialsFixedTimestep )
+	if( pars_->SundialsFixedTimestep )
 		ERKStepSetFixedStep( ERKStepMem, dt_ );
 }
 
