@@ -169,17 +169,23 @@ void GXV_AddConst( N_Vector x, sunrealtype b, N_Vector out )
 
 sunrealtype GXV_MaxNorm( N_Vector z )
 {
-	return GXV( z )->MaxNorm();
+	sunrealtype norm;
+	norm = GXV( z )->MaxNorm();
+	return norm;
 }
 
 sunrealtype GXV_WrmsNorm( N_Vector z, N_Vector w )
 {
-	return GXV( z )->WrmsNorm( *GXV( w ) );
+	sunrealtype norm;
+	norm = GXV( z )->WrmsNorm( *GXV( w ) );
+	return norm;
 }
 
 sunrealtype GXV_MinReal( N_Vector z )
 {
-	return GXV( z )->MinReal();
+	sunrealtype min;
+	min = GXV( z )->MinReal();
+	return min;
 }
 
 void GXV_PrintFile( N_Vector v, FILE* out )
