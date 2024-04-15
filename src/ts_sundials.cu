@@ -71,7 +71,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
 	
-	retval = ERKStepSetTable( ERKStepMem, rk4_table );
+	retval = ERKStepSetTableName( ERKStepMem, pars->SundialsExplicitScheme );
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
@@ -79,7 +79,8 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
 	ERKStepSetInitStep( ERKStepMem, dt_ );
-	ERKStepSetFixedStep( ERKStepMem, dt_ );
+	if( pars->SundialsFixedTimestep )
+		ERKStepSetFixedStep( ERKStepMem, dt_ );
 }
 
 

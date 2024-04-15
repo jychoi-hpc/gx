@@ -281,6 +281,8 @@ class Parameters {
   cudaDeviceProp prop;
   int maxThreadsPerBlock;
 
+  std::string SundialsExplicitScheme;
+  bool SundialsFixedTimestep;
  private:
 
   float get_real (int ncid, const char varname[]); 

@@ -110,6 +110,11 @@ void Parameters::get_nml_vars(char* filename)
   int nwrite_time  = toml::find_or <int>   (tnml, "nwrite",   1000    ); // included for backwards-compat. nwrite now specified in Diagnostics
   int navg_time    = toml::find_or <int>   (tnml, "navg",       10    ); // included for backwards-compat. navg now specified in Diagnostics
 
+  // Optional Sundials things
+  SundialsExplicitScheme = toml::find_or<string>( tnml, "SundialsExplicitScheme", "ARKODE_SHU_OSHER_3_2_3" );
+  SundialsFixedTimestep = toml::find_or<bool>( tnml, "SundialsFixedTimestep", false );
+
+
   if (nml.contains("Initialization")) tnml = toml::find(nml, "Initialization");
   init_field = toml::find_or <string> (tnml, "init_field", "density");
   init_amp   = toml::find_or <float>  (tnml, "init_amp",   1.0e-5   );
@@ -229,7 +234,7 @@ void Parameters::get_nml_vars(char* filename)
     if(iproc==0) printf("Using i_share = %d would exceed shared memory limits. Setting i_share = %d instead.\n", i_share, i_share_max);
     i_share = i_share_max;
   }
-  
+
   dealias_kz  = toml::find_or <bool>   (tnml, "dealias_kz",  false );
   nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
   local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
@@ -755,7 +760,7 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "sundials") {
 	  scheme_opt = Tmethod::sundials;
 	  printf(ANSI_COLOR_RED);
-	  printf("WARNING: Using Sundials Timestepping");
+	  printf("WARNING: Using Sundials Timestepping\n");
 	  printf(ANSI_COLOR_RESET);
   }
 
