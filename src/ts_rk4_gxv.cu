@@ -75,6 +75,7 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 	G_q2.update_tprim( *t );
 	// end updates
 
+	solver_->fieldSolve(G, f);
 	partial(G, G,    f, GRhs,  G_q1, 0.5, false);
 	partial(G, G_q1, f, GStar, G_q2, 0.5, false);
 
