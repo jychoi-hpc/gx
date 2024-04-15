@@ -29,6 +29,9 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 
 	if (pars_->eqfix) 
 		Gnew = G;
+	
+	// These are the fields we are solving with
+	solver_->fieldSolve(Gt, f);
 
 	// compute timestep (if necessary)
 	if (setdt) {
@@ -60,8 +63,6 @@ void GXVRK4::partial(GXVector & G, GXVector & Gt, Fields *f, GXVector & Rhs, GXV
 	// Rhs is used later, so fill it with the actual Rhs
 	Rhs.LinearSum(1./(adt*dt_), Gnew, -1./(adt*dt_), G);
 
-	// compute new fields
-	solver_->fieldSolve(Gnew, f);
 }
 
 void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
@@ -75,7 +76,6 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 	G_q2.update_tprim( *t );
 	// end updates
 
-	solver_->fieldSolve(G, f);
 	partial(G, G,    f, GRhs,  G_q1, 0.5, false);
 	partial(G, G_q1, f, GStar, G_q2, 0.5, false);
 
@@ -92,6 +92,7 @@ void GXVRK4::advance(double *t, MomentsG** G_, Fields* f)
 
 	GStar.SetZero();
 
+	solver_->fieldSolve(G_q1, f);
 	if(nonlinear_ != nullptr) {
 		for( int is = 0; is < grids_->Nspecies; ++is ) {
 			nonlinear_->nlps(G_q1[is], f, GStar[is]);     
