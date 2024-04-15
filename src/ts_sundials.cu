@@ -51,7 +51,7 @@ void SundialsStepper::Initialise( MomentsG** g0, double t0 )
 	gInternal = new GXVector( g0, ctx );
 
 	// This is the clone constructor, allocates new RAM
-	gTmp = new GXVector( gInternal );
+	gTmp = new GXVector( *gInternal );
 
 	// Wrap GXVector in an NVector
 
