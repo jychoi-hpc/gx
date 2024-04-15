@@ -101,7 +101,12 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 
 	fields_ = f;
 
-	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, t, ARK_NORMAL );
+	// Needed for when sunrealtype is float not double
+	sunrealtype time = *t;
+
+	retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, &time, ARK_NORMAL );
+
+	*t = time;
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Error in ERKStepEvolve.");
@@ -109,6 +114,8 @@ void SundialsStepper::advance(double *t, MomentsG** G_, Fields* f)
 
 	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
 	solver_->fieldSolve( *gInternal, fields_ );
+
+
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
