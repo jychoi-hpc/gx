@@ -101,7 +101,7 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
 
 	if( fabsf( *t - t_out ) > 1e-3 )
 	{
-		throw std::runtime_error("Unable to advance to requested time " + string(t_out) + " reached " + string(*t) + " aborting.");
+		throw std::runtime_error("Unable to advance to requested time " + std::to_string(t_out) + " reached " + std::to_string(*t) + " aborting.");
 	}
 
 	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
