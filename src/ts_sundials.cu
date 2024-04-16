@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <stdexcept>
+#include <string>
 
 #include <arkode/arkode_erkstep.h>
 
