@@ -112,6 +112,9 @@ void Parameters::get_nml_vars(char* filename)
 
   // Optional Sundials things
   SundialsExplicitScheme = toml::find_or<string>( tnml, "SundialsExplicitScheme", "ARKODE_SHU_OSHER_3_2_3" );
+  // -1 as dummy value as sundials uses negative arguments for these to apply their internal defaults.
+  SundialsMinStep = toml::find_or<float>( tnml, "SundialsMinStep", -1.0 );
+  SundialsMaxStep = toml::find_or<float>( tnml, "SundialsMaxStep", -1.0 );
   SundialsFixedTimestep = toml::find_or<bool>( tnml, "SundialsFixedTimestep", false );
 
 

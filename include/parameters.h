@@ -283,6 +283,8 @@ class Parameters {
 
   std::string SundialsExplicitScheme;
   bool SundialsFixedTimestep;
+
+  float SundialsMinTimestep,SundialsMaxTimestep;
  private:
 
   float get_real (int ncid, const char varname[]); 

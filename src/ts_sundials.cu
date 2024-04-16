@@ -11,7 +11,7 @@ extern "C" {
 
 // ============= Sundials-based Timestepping =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** g0, double t0 ) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
   forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
@@ -48,6 +48,18 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetTableNum.");
+	}
+
+	retval = ERKStepSetMinStep( ERKStepMem, pars_->SundialsMinStep );
+
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetMinStep.");
+	}
+
+	retval = ERKStepSetMaxStep( ERKStepMem, pars_->SundialsMaxStep );
+
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetMaxStep.");
 	}
 
 	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
