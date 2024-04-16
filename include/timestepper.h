@@ -281,7 +281,7 @@ class GXVRK4 : public Timestepper {
 class SundialsStepper : public Timestepper {
  public:
   SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
+	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0 );
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -300,7 +300,6 @@ class SundialsStepper : public Timestepper {
   const double dt_;
   const double reltol = 1e-3;
   const double abstol = 1e-3;
-  ARKodeButcherTable rk4_table = nullptr;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
