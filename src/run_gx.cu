@@ -187,7 +187,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
 
 	case Tmethod::rk4gxv:   timestep = new GXVRK4(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
-	case Tmethod::sundials: timestep = new SundialsStepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G); break;
+	case Tmethod::sundials: timestep = new SundialsStepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
     }
 
   fflush(stdout);
