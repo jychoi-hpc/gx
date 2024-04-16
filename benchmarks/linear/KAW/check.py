@@ -22,7 +22,7 @@ ky = data.groups['Grids'].variables['ky'][:]
 Pky = data.groups['Diagnostics'].variables['Phi2_kyt'][:,1]
 plt.plot(t, Pky, label='GX')
 
-check = Dataset("%s_correct.out.nc" % stem, mode='r')
+data = Dataset("%s_correct.out.nc" % stem, mode='r')
 t = data.groups['Grids'].variables['time'][:]
 ky = data.groups['Grids'].variables['ky'][:]
 check_Pky = data.groups['Diagnostics'].variables['Phi2_kyt'][:,1]

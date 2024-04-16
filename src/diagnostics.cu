@@ -77,7 +77,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
     momentsDiagnosticList.push_back(std::make_unique<DensityDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<UparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<TparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
-    momentsDiagnosticList.push_back(std::make_unique<TperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));
+    if(grids_->Nl>1) momentsDiagnosticList.push_back(std::make_unique<TperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleDensityDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleUparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleUperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));

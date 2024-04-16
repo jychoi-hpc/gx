@@ -25,7 +25,7 @@ NETCDF_ROOT = ${NETCDF_DIR}
 # HDF5_DIR is defined by cray-hdf5-parallel module
 HDF5_ROOT = ${HDF5_DIR}
 NETCDF_INC = -I ${NETCDF_ROOT}/include
-NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -lnetcdff -L${HDF5_ROOT}/lib -lhdf5
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5
 
 # paths to mpich
 # MPICH_DIR is defined by cray-mpich module
