@@ -285,6 +285,7 @@ class Parameters {
   bool SundialsFixedTimestep;
 
   float SundialsMinStep,SundialsMaxStep;
+  float SundialsAbsTol,SundialsRelTol;
  private:
 
   float get_real (int ncid, const char varname[]); 

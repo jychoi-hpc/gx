@@ -40,6 +40,11 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
 	int retval;
 
+	// Load from parameters
+	reltol = pars->SundialsRelTol;
+	abstol = pars->SundialsAbsTol;
+
+	// Apply
 	retval = ERKStepSStolerances( ERKStepMem, reltol, abstol );
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");

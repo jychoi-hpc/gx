@@ -115,6 +115,8 @@ void Parameters::get_nml_vars(char* filename)
   // -1 as dummy value as sundials uses negative arguments for these to apply their internal defaults.
   SundialsMinStep = toml::find_or<float>( tnml, "SundialsMinStep", -1.0 );
   SundialsMaxStep = toml::find_or<float>( tnml, "SundialsMaxStep", -1.0 );
+  SundialsAbsTol = toml::find_or<float>( tnml, "SundialsAbsTol", 1e-2 );
+  SundialsRelTol = toml::find_or<float>( tnml, "SundialsRelTol", 1e-4 );
   SundialsFixedTimestep = toml::find_or<bool>( tnml, "SundialsFixedTimestep", false );
 
 
