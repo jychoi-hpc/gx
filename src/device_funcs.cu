@@ -3874,7 +3874,7 @@ __global__ void absValKernel(float* res, const cuComplex* in)
   }
 }
 
-// Set res_i = w_i * |g_i|^2
+// Set res_i = w_i^2 * |g_i|^2
 __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
 {
   unsigned int idxy = get_id1();
@@ -3883,7 +3883,7 @@ __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
 	 // We know w is real, so w[ ig ].y == 0
-	 res[ ig ] = w[ ig ].x * cuCabsf( g[ ig ] );
+	 res[ ig ] = w[ ig ].x * w[ ig ].x * ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
   }
 }
 

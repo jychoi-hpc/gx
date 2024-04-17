@@ -167,7 +167,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	cudaMemset(SumResult, 0., sizeof(float));
 
 
-	// do tmp_i = w_i||g_i||^2 on GPU
+	// do tmp_i = w_i^2 ||g_i||^2 on GPU
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
@@ -175,7 +175,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
 	}
 
-	// tmp now contains {w_i ||g_i||^2 }
+	// tmp now contains {w_i^2 ||g_i||^2 }
 	// Sum all of tmp to get the answer
 	
 	reducer.Sum( tmp, SumResult );
@@ -186,7 +186,9 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	cudaFree( &SumResult );
 	cudaFree( &tmp );
 
-	return cpuSumResult;
+	// The norm we want is sqrt( Sum (w_i^2 |g_i|^2) / n )
+	// # of elements in g is grids->NMoms * grids->NxNycNz
+	return sqrtf(cpuSumResult/array[0]->getN());
 }
 
 // Return minimum real part of all elements of g
