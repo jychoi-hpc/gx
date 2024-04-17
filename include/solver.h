@@ -13,6 +13,7 @@ class Solver {
  public:
   virtual ~Solver() {};
   virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
+  virtual float find_max_qneutDenom_inv() = 0;
   virtual float* getQneutDenom() {return nullptr;};
   virtual void set_equilibrium_current(MomentsG* G, Fields* fields) {};
 };
@@ -23,6 +24,7 @@ class Solver_GK : public Solver {
   ~Solver_GK();
   
   void fieldSolve(MomentsG** G, Fields* fields);
+  float find_max_qneutDenom_inv();
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
 //  float* getQneutDenom() {return qneutDenom;};
@@ -64,7 +66,8 @@ class Solver_KREHM : public Solver {
   
   void fieldSolve(MomentsG** G, Fields* fields);
   void set_equilibrium_current(MomentsG* G, Fields* fields);
-  
+  float find_max_qneutDenom_inv();
+
   cuComplex * nbar ;
 
 private:
@@ -87,7 +90,8 @@ class Solver_cetg : public Solver {
   ~Solver_cetg();
   
   void fieldSolve(MomentsG** G, Fields* fields);
-  
+  float find_max_qneutDenom_inv();
+
 private:
 
   dim3 dG, dB, dg, db;
@@ -109,7 +113,8 @@ class Solver_VP : public Solver {
   void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
-  
+  float find_max_qneutDenom_inv();
+
 
 private:
 

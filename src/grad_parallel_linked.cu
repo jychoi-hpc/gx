@@ -276,7 +276,7 @@ void GradParallelLinked::dealias(cuComplex* f)
   // not yet implemented
 }
 
-void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, const double sdtvt, const float gradpar, bool full_phi) 
+void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, float max_qneutDenom_inv, const double sdtvt, const float gradpar, bool full_phi) 
 {
   for(int c=0; c<nClasses; c++) {
     linkedCopy GCHAINS (G->G(), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
@@ -290,7 +290,10 @@ void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuCompl
 
     linkedCopy_f GCHAINS (qneutDenom, qneutDenom_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
 
-    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom_linked[c], *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
+    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom_linked[c], max_qneutDenom_inv, *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
+
+
+//    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom, max_qneutDenom_inv, *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
 
 
     linkedCopyBack GCHAINS (G_linked[c], G->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);

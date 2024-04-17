@@ -196,6 +196,25 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
   if(pars_->source_option==PHIEXT) add_source GQN (fields->phi, pars_->phi_ext);
 }
 
+float Solver_GK::find_max_qneutDenom_inv()
+{
+  float max_qneutDenom_inv = 0;
+  for (int ix = 0; ix < grids_->Nyc; ix++){
+    for (int iy = 0; iy < grids_->Nx; iy++){
+      for (int iz = 0; iz < grids_->Nz; iz++){
+        if ((ix != 0) || (iy != 0)){
+	  printf("checking");
+	  if (max_qneutDenom_inv < 1/qneutFacPhi[iy + grids_->Nx*(ix + grids_->Nyc*iz)]){
+	    max_qneutDenom_inv = 1/qneutFacPhi[iy + grids_->Nx*(ix + grids_->Nyc*iz)];
+	  }  
+	}
+      }
+    }
+   }
+//  printf("max_qneutDenom_inv is %f\n", max_qneutDenom_inv);
+  return max_qneutDenom_inv; 
+}
+
 void Solver_GK::svar (cuComplex* f, int N)
 {
   cuComplex* f_h = (cuComplex*) malloc(sizeof(cuComplex)*N);
@@ -273,6 +292,13 @@ void Solver_KREHM::fieldSolve(MomentsG** G, Fields* fields)
   aparSolve_krehm<<<dG, dB>>>(fields->apar, current, grids_->kx, grids_->ky, pars_->rho_s, pars_->d_e);
 }
 
+float Solver_KREHM::find_max_qneutDenom_inv()
+{
+  //Not needed from KREHM
+  return 0.0f;	
+}
+
+
 void Solver_KREHM::set_equilibrium_current(MomentsG* G, Fields* fields)
 {
   if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1
@@ -323,6 +349,13 @@ void Solver_cetg::fieldSolve(MomentsG** G, Fields* fields)
   phiSolve_cetg<<<dG, dB>>>(fields->phi, density, pars_->tau_fac);
 }
 
+float Solver_cetg::find_max_qneutDenom_inv()
+{
+  //Not needed for cetg
+ return 0.0f;
+}
+
+
 //=======================================
 // Solver_VP
 // object for handling field solve in VP
@@ -349,6 +382,13 @@ void Solver_VP::fieldSolve(MomentsG** G, Fields* fields)
 
   getPhi GQN (fields->phi, G[0]->G(), grids_->ky);
 }
+
+float Solver_VP::find_max_qneutDenom_inv()
+{
+  //Not needed for VP
+  return 0.0f;
+}
+
 
 void Solver_VP::svar (cuComplex* f, int N)
 {

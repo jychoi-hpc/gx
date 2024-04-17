@@ -2974,7 +2974,7 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComple
   }
 }
 
-__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)
+__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, float max_qneutDenom_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -2999,6 +2999,45 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
         }
       }
     }
+
+
+/*    for (int iz = 0; iz < nz; iz++){
+      for (int ik = 0; ik < nLinks; ik++){
+        if (Q_avg < 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)] && qneutDenom[iz + nz*(idy*nLinks + ik)] != 0.0f){
+          Q_avg = 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)];
+        }
+      }
+    }
+*/
+//    printf("Q_avg is %f\n", Q_avg);
+
+
+/*    for (int iz = 0; iz < nz; iz++){
+      for (int ik = 0; ik < nLinks*nChains; ik++){
+        if (Q_avg < 1.0f/qneutDenom[iz + nz*ik] && qneutDenom[iz + nx*ik] != 0.0f){
+          Q_avg = 1.0f/qneutDenom[iz + nz*ik];
+        }
+      }
+    }
+*/
+/*    for (int iz = 0; iz < nz; iz++){
+      if (Q_avg < 1.0f/qneutDenom[iz + nz*idk] && qneutDenom[iz + nz*idk] != 0.0f){
+        Q_avg = 1.0f/qneutDenom[iz + nz*idk];
+      }      
+    }
+*/
+
+/*    for (int iz = 0; iz < nz; iz++){
+      if (Q_avg < 1.0f/qneutDenom[idxy + nxnyc*iz]){
+        Q_avg = 1.0f/qneutDenom[idxy + nxnyc*iz];
+      }
+    }   
+*/
+    
+
+   
+//    Q_avg = 400.0f;
+//    printf("Q_avg is %f\n", Q_avg);
 
     Q = sp.nz*sp.zt*Q_avg;
 
