@@ -105,7 +105,7 @@ class MomentsG {
   // In bytes
   size_t getSize() const { return grids_->size_G; };
   // # of complex elements
-  size_t getN() const { return grids_->Nmoms * grids_->NxNycNx; };
+  size_t getN() const { return grids_->Nmoms * grids_->NxNycNz; };
  
  private:
   cuComplex  * G_lm   ;
