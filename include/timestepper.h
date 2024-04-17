@@ -298,8 +298,8 @@ class SundialsStepper : public Timestepper {
   N_Vector gInternalNV;
 
   const double dt_;
-  const double reltol = 1e-3;
-  const double abstol = 1e-3;
+  double reltol = 1e-3;
+  double abstol = 1e-3;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
