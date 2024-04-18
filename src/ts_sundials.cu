@@ -122,6 +122,9 @@ int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* 
 
 int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 {
+	// Synchronise data from all nodes
+	g->sync();
+
 	// Make sure fields are evaluated at this current g
 	solver_->fieldSolve( *g, fields_ );
 
