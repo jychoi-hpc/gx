@@ -156,5 +156,5 @@ int SundialsStepper::SundialsErrorWeights( N_Vector y, N_Vector ewt, void * )
 
 int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 {
-
+	return 0;
 }
