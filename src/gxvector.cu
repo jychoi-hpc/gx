@@ -117,7 +117,7 @@ float GXVector::MaxNorm() const
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		float *tmp_species_i = tmp + i * NfloatsG;
+		float *tmp_species_i = tmp + i * array[0]->getN();
 		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
 	}
 
@@ -158,7 +158,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		float *tmp_species_i = tmp + i * NfloatsG;
+		float *tmp_species_i = tmp + i * array[0]->getN();
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
 	}
 
@@ -202,7 +202,7 @@ float GXVector::MinReal() const
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		float *tmp_species_i = tmp + i * NfloatsG;
+		float *tmp_species_i = tmp + i * array[0]->getN();
 		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
 	}
 
