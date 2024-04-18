@@ -104,16 +104,9 @@ float GXVector::MaxNorm() const
 	// allocate temporary object for |g_i|
 	float *tmp;
 	
-	// Bytes in a G
-	size_t size_G = array[ 0 ]->getSize();
-	// Number of floats needed for a G
-	size_t NfloatsG = size_G / sizeof(cuComplex);
-	// Number of bytes needed for a G-sized set of floats
-	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
-	// there may be padding for memory alignment.
-	size_t real_size_G = size_G * sizeof(float); 
-
-	checkCuda(cudaMalloc((void**) &tmp, real_size_G * array.size() )); 
+	// We need same number of floats as complex numbers in g
+	size_t size_per_species = array[0]->getN() * sizeof(float);
+	checkCuda(cudaMalloc((void**) &tmp, size_per_species * array.size() )); 
 
 	// Allocate space on GPU for answer
 	float *MaxElement;
@@ -135,6 +128,7 @@ float GXVector::MaxNorm() const
 
 	// Clean up
 	cudaFree( &MaxElement );
+	cudaFree( &tmp );
 
 	return cpuMaxElem;
 }
@@ -150,16 +144,9 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	// allocate temporary object for w_i |g_i|^2
 	float *tmp;
 	
-	// Bytes in a G
-	size_t size_G = array[0]->getSize();
-	// Number of floats needed for a G
-	size_t NfloatsG = size_G / sizeof(cuComplex);
-	// Number of bytes needed for a G-sized set of floats
-	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
-	// there may be padding for memory alignment.
-	size_t real_size_G = size_G * sizeof(float); 
-
-	checkCuda(cudaMalloc((void**) &tmp, real_size_G * array.size() )); 
+	// We need same number of floats as complex numbers in g
+	size_t size_per_species = array[0]->getN() * sizeof(float);
+	checkCuda(cudaMalloc((void**) &tmp, size_per_species * array.size() )); 
 
 	// Allocate space on GPU for answer
 	float *SumResult;
@@ -201,17 +188,10 @@ float GXVector::MinReal() const
 
 	// allocate temporary object for real components
 	float *tmp;
-	
-	// Bytes in a G
-	size_t size_G = array[0]->getSize();
-	// Number of floats needed for a G
-	size_t NfloatsG = size_G / sizeof(cuComplex);
-	// Number of bytes needed for a G-sized set of floats
-	// NB: Just because a struct contains 2 floats does not mean sizeof(struct) == 2 * sizeof(float);
-	// there may be padding for memory alignment.
-	size_t real_size_G = size_G * sizeof(float); 
 
-	checkCuda(cudaMalloc((void**) &tmp, real_size_G * array.size() )); 
+	// We need same number of floats as complex numbers in g
+	size_t size_per_species = array[0]->getN() * sizeof(float);
+	checkCuda(cudaMalloc((void**) &tmp, size_per_species * array.size() )); 
 
 	// Allocate space for answer
 	float *MaxElement;
