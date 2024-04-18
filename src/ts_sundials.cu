@@ -146,3 +146,15 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	return 0;
 }
 
+
+int SundialsStepper::SundialsErrorWeights( N_Vector y, N_Vector ewt, void * )
+{
+	GXVector* g       = reinterpret_cast<GXVector*>( y->content   );
+	GXVector* weights = reinterpret_cast<GXVector*>( ewt->content );
+	return reinterpret_cast<SundialsStepper*>( userdata )->ErrorWeights( g, weights );
+}
+
+int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
+{
+
+}

@@ -290,8 +290,10 @@ class SundialsStepper : public Timestepper {
   static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
   int SundialsRHS( double t, GXVector * g, GXVector* gDot );
 
+  static int SundialsErrorWeights( N_Vector, N_Vector, void* );
+  int ErrorWeights( GXVector *, GXVector * );
+
  private:
-  void Initialise( MomentsG**, double );
   sundials::Context ctx;
   void *ERKStepMem;
   GXVector *gInternal, *gTmp;
