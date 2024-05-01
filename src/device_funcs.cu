@@ -3944,9 +3944,15 @@ __global__ void add_const_kernel( cuComplex* g, float b )
   }
 }
 
-__global__ void setWeightsKernel( cuComplex* wgt, cuComplex *g_in )
+__global__ void setWeightsKernel( cuComplex* wgt, cuComplex *g, float abstol, float reltol )
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
+
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
+	 wgt[ ig ].y = 0.0;
+  }
 }

@@ -159,15 +159,15 @@ int SundialsStepper::SundialsErrorWeights( N_Vector y, N_Vector ewt, void * user
 
 int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 {
-	if( nonlinear != nullptr ) {
-		// Just do the usual abstol / reltol stuff
-		// weights[i] = 1/(abstol + reltol*|g[i]|)
-		weights->SetAbs( *g );
-		weights->Scale( reltol );
-		weights->AddConst( abstol );
-	} else { // If we're linear, do a per-ky per-kx error weight
-		// Do this on-device
-	}
+	// Just do the usual abstol / reltol stuff
+	// weights[i] = 1/(abstol + reltol*|g[i]|)
+	// but with one fused kernel to avoid multiple passes over the data
 	
+	MomentsG const & m = *(g->array[ 0 ]);
+	for( int i = 0; i < g->array.size(); ++i )
+	{
+		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *(weights->array[ i ]), *(g->array[ i ]), abstol, reltol );
+	}
+
 	return 0;
 }
