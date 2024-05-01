@@ -43,6 +43,8 @@ class GXVector {
 
 		N_Vector asNVector();
 
+		void addConst( sunrealtype ); // this += b
+
 
 		void SetZero();
 

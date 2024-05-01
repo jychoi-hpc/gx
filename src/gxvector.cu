@@ -275,4 +275,11 @@ void GXVector::update_tprim( double t )
 	}
 }
 
-
+void GXVector::addConst( sunrealtype b )
+{
+	MomentsG const & m = *(array[ 0 ]);
+	for( int i = 0; i < array.size(); ++i )
+	{
+		add_const_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), static_cast<float>(b) );
+	}
+}

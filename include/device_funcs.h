@@ -465,6 +465,7 @@ __global__ void set_constant_kernel( cuComplex* res, float x );
 __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in);
 __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
 __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
+__global__ void add_const_kernel( cuComplex* g, float b );
 
 
 // ExB Kernels

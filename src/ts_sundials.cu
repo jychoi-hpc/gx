@@ -45,7 +45,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 	abstol = pars->SundialsAbsTol;
 
 	// Apply
-	retval = ERKStepSStolerances( ERKStepMem, reltol, abstol );
+	retval = ERKStepWFtolerances( ERKStepMem, SundialsStepper::SundialsErrorWeights );
 	if( retval != ARK_SUCCESS ) {
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
 	}
@@ -159,5 +159,15 @@ int SundialsStepper::SundialsErrorWeights( N_Vector y, N_Vector ewt, void * user
 
 int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 {
+	if( nonlinear != nullptr ) {
+		// Just do the usual abstol / reltol stuff
+		// weights[i] = 1/(abstol + reltol*|g[i]|)
+		weights->SetAbs( *g );
+		weights->Scale( reltol );
+		weights->AddConst( abstol );
+	} else { // If we're linear, do a per-ky per-kx error weight
+		// Do this on-device
+	}
+	
 	return 0;
 }

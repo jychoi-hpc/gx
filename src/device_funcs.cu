@@ -3932,3 +3932,21 @@ __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in)
 	 res[ ig ].y += in[ ig ].y;
   }
 }
+
+__global__ void add_const_kernel( cuComplex* g, float b )
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 res[ ig ].x += b;
+  }
+}
+
+__global__ void setWeightsKernel( cuComplex* wgt, cuComplex *g_in )
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+}

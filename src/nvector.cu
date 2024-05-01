@@ -160,11 +160,11 @@ void GXV_Inv( N_Vector in, N_Vector out )
 
 void GXV_AddConst( N_Vector x, sunrealtype b, N_Vector out )
 {
-	GXVector & v = *GXV( out );
-	GXVector & w = *GXV( x );
+	// Eschew copy of using AddConst to do x += b
+	if( GXV( out ) != GXV( x ) )
+		*GXV( out ) = *GXV( x );
 
-	v.SetConst( b );
-	v += w;
+	GXV( out )->AddConst( b );
 }
 
 sunrealtype GXV_MaxNorm( N_Vector z )
