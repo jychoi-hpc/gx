@@ -3956,3 +3956,20 @@ __global__ void setWeightsKernel( cuComplex* wgt, cuComplex *g, float abstol, fl
 	 wgt[ ig ].y = 0.0;
   }
 }
+
+__global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float atol, float reltol )
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+	 float abstol = wgt[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+	 wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
+	 wgt[ ig ].y = 0.0;
+  }
+}
