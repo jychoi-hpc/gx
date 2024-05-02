@@ -43,9 +43,6 @@ class GXVector {
 
 		N_Vector asNVector();
 
-		void addConst( sunrealtype ); // this += b
-
-
 		void SetZero();
 
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
@@ -60,6 +57,7 @@ class GXVector {
 		void Scale( float );
 		void SetAbs( GXVector const& );
 		void SetInv( GXVector const& );
+		void AddConst( sunrealtype ); // adds b to the real part of every element of the vector
 
 		GXVector & operator+=( GXVector const & );
 		GXVector & operator=( GXVector const & );

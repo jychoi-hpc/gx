@@ -275,7 +275,7 @@ void GXVector::update_tprim( double t )
 	}
 }
 
-void GXVector::addConst( sunrealtype b )
+void GXVector::AddConst( sunrealtype b )
 {
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )

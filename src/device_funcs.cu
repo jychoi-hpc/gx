@@ -3940,7 +3940,7 @@ __global__ void add_const_kernel( cuComplex* g, float b )
   unsigned int idlm = get_id3();
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x += b;
+	 g[ ig ].x += b;
   }
 }
 
