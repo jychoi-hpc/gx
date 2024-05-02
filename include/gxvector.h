@@ -81,7 +81,7 @@ class GXVector {
 		void sync();
 		void update_tprim( double );
 
-		SizeType nSpecies() { return array.size(); } const;
+		SizeType nSpecies() const { return array.size(); } ;
 
 		SUNContext ctx;
 	private:
