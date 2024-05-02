@@ -3944,7 +3944,7 @@ __global__ void add_const_kernel( cuComplex* g, float b )
   }
 }
 
-__global__ void setWeightsKernel( cuComplex* wgt, cuComplex *g, float abstol, float reltol )
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol )
 {
   unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
