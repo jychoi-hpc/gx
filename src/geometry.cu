@@ -45,7 +45,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     geo = new Eik_geo(pars, grids);
     if(grids->iproc==0) CUDA_DEBUG("Initializing miller geometry: %s \n");
   } 
-  else if(geo_option=="vmec") {
+  else if(geo_option=="vmec_c") {
     bool usenc;
     if(grids->iproc == 0) {
       char nml_file[512];
@@ -78,14 +78,14 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
       geo = new Eik_geo(pars, grids);
     }
   }
-  else if(geo_option=="pyvmec") {
+  else if(geo_option=="vmec" || geo_option == "pyvmec") {
     // call python geometry module to write an eik.out geo file
     // GX_PATH is defined at compile time via a -D flag
     pars->geofilename = std::string(pars->run_name) + ".eik.nc";
     if(grids->iproc == 0) {
       char command[300];
       sprintf(command, "python %s/geometry_modules/pyvmec/gx_geo_vmec.py %s.in %s", GX_PATH, pars->run_name, pars->geofilename.c_str(), pars->run_name);
-      printf("Using pyvmec geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
+      printf("Using vmec geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
       system(command);
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -115,16 +115,19 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
       // write an eik.in file
       write_eiktest_in(pars, grids);
       char command[300];
-      sprintf(command, "%s/bin/eiktest %s.eik.in > eiktest.log", GS2_PATH, pars->run_name);
-      pars->geofilename = std::string(pars->run_name) + ".eik.eik.out";
-      printf("Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
-      system(command);
+      sprintf(command, "unset SLURM_NODELIST; %s/bin/eiktest %s.eik.in > eiktest.log", GS2_PATH, pars->run_name);
+      printf("Generating geometry file %s.eik.out.nc with\n> %s\n", pars->run_name, command);
+      int err = system(command);
+      if (err) {
+        printf("ERROR in system command\n", err);
+      }
+      
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    pars->geofilename = std::string(pars->run_name) + ".eik.eik.out"; // need this on all procs
+    pars->geofilename = std::string(pars->run_name) + ".eik.out.nc"; // need this on all procs
 
-    // now read the eik file that was generated
-    geo = new Eik_geo(pars, grids);
+    // now read the netcdf file that was generated
+    geo = new geo_nc(pars, grids);
   }
 #else
   else if(geo_option=="gs2_geo") {
@@ -393,6 +396,7 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
       bmag_h[k] = 1.;
       gradpar = 1.;
       if (pars->z0 > 0.) gradpar = 1./pars->z0;
+      printf("z0: %f   ",pars->z0);
       if (pars->zero_shat) {
 	gds21_h[k] = 0.0;
 	gds22_h[k] = 1.0;
@@ -449,7 +453,8 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   // get the array dimensions
   int id_z;
   size_t N; 
-  if (retval = nc_inq_dimid(ncgeo, "z",  &id_z))       ERR(retval);
+  if (retval = nc_inq_dimid(ncgeo, "z",  &id_z))
+    if (retval = nc_inq_dimid(ncgeo, "nt",  &id_z))       ERR(retval);
   if (retval = nc_inq_dim  (ncgeo, id_z, stra, &N))    ERR(retval);
 
   // do basic sanity check
@@ -578,7 +583,8 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   shat = pars->shat = (float) stmp;
   //  printf("geometry: shat = %f \n",shat);
   
-  if (retval = nc_inq_varid(ncgeo, "Rmaj", &id))         ERR(retval);
+  if (retval = nc_inq_varid(ncgeo, "Rmaj", &id))
+    if (retval = nc_inq_varid(ncgeo, "rmaj", &id))           ERR(retval);
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   rmaj = pars->rmaj = (float) stmp;
 
@@ -586,19 +592,50 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
   qsf = pars->qsf = (float) stmp;
 
-  if (retval = nc_inq_varid(ncgeo, "scale", &id))            ERR(retval);
-  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  // these are parameters useful for T3D that are only included in newer eik.out.nc files
+  if (!nc_inq_varid(ncgeo, "B_T", &id)) {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+    pars->B_ref = (float) stmp;
+  }
+  if (!nc_inq_varid(ncgeo, "aminor", &id)) {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+    pars->a_ref = (float) stmp;
+  }
+  if (!nc_inq_varid(ncgeo, "grhoavg", &id)) {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+    pars->grhoavg = (float) stmp;
+  }
+  if (!nc_inq_varid(ncgeo, "surfarea", &id)) {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+    pars->surfarea = (float) stmp;
+  }
+
+  // these are gx-specific parameters, which will not be included for .nc files generated from gs2
+  if (retval = nc_inq_varid(ncgeo, "scale", &id)) {
+    stmp = 1.0;
+  } else {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  }
   theta_scale = (float) stmp;
 
-  if (retval = nc_inq_varid(ncgeo, "nfp", &id))            ERR(retval);
-  if (retval = nc_get_var  (ncgeo, id, &nfp))           ERR(retval);
+  if (retval = nc_inq_varid(ncgeo, "nfp", &id)) {
+    stmp = 1;
+  } else {
+    if (retval = nc_get_var  (ncgeo, id, &nfp))           ERR(retval);
+  }
 
-  if (retval = nc_inq_varid(ncgeo, "alpha", &id))            ERR(retval);
-  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  if (retval = nc_inq_varid(ncgeo, "alpha", &id)) {
+    stmp = 0.0;
+  } else {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  }
   alpha = (float) stmp;
 
-  if (retval = nc_inq_varid(ncgeo, "zeta_center", &id))            ERR(retval);
-  if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  if (retval = nc_inq_varid(ncgeo, "zeta_center", &id)) {
+    stmp = 0.0;
+  } else {
+    if (retval = nc_get_var  (ncgeo, id, &stmp))           ERR(retval);
+  }
   zeta_center = (float) stmp;
 
   // close the netcdf file with nc_close

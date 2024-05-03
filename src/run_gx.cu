@@ -74,7 +74,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   //                          //
   //////////////////////////////  
   if (pars->krehm) {
-    linear = new Linear_KREHM(pars, grids);          
+    linear = new Linear_KREHM(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
     if (pars->forcing_init) {
       std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;

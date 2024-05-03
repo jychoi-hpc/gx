@@ -277,8 +277,8 @@ void Linear_GK::get_max_frequency(double *omega_max)
 // Linear_KREHM
 // object for handling linear terms in KREHM
 //==========================================
-Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids) :
-  pars_(pars), grids_(grids),
+Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo) :
+  pars_(pars), grids_(grids), geo_(geo),
   closures(nullptr), grad_par(nullptr)
 {
   // set up parallel ffts
@@ -334,7 +334,7 @@ void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
 
   if(grids_->Nz>1) {
     cudaStreamSynchronize(G->syncStream);
-    rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->apar_ext, nu_ei, rho_s, d_e, GRhs->G());
+    rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->apar_ext, nu_ei, rho_s, d_e, geo_->gradpar, GRhs->G());
     grad_par->dz(GRhs, GRhs, false);
   }
   

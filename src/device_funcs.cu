@@ -3214,6 +3214,7 @@ __global__ void rhs_linear_krehm(const cuComplex* g,
 				 const float nu_ei,
 				 const float rhos,
 				 const float de,
+				 const float gradpar,
 				 cuComplex* rhs_par)
 {
   idXYZ; 
@@ -3236,13 +3237,13 @@ __global__ void rhs_linear_krehm(const cuComplex* g,
       if(m>0) gmm1 = g[mm1];
       if(m<nm_glob-1) gmp1 = g[mp1];
       
-      rhs_par[globalIdx] = rhs_par[globalIdx] -rhos_ov_de * (sqrtf(m+1)*gmp1 + sqrtf(m)*gmm1);
+      rhs_par[globalIdx] = rhs_par[globalIdx] -rhos_ov_de * (sqrtf(m+1)*gmp1 + sqrtf(m)*gmm1) * gradpar;
       
       // These field terms should be included only when the global value of m = 0, 1, 2.  Bug?
       // field terms
-      if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] - apar_/(de*de);  // m = 0 has Apar term      
-      if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] + phi_/(rhos*de); // m = 1 has Phi term      
-      if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] - sqrtf(2.) * apar_/(de*de); // m = 2 has Apar term
+      if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] - apar_/(de*de) * gradpar;  // m = 0 has Apar term      
+      if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] + phi_/(rhos*de) * gradpar; // m = 1 has Phi term      
+      if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] - sqrtf(2.) * apar_/(de*de) * gradpar; // m = 2 has Apar term
     }
   }
 }

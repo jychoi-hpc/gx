@@ -284,7 +284,7 @@ extern __device__ cufftCallbackStoreC abs_kz_callbackPtr;
 __global__ void kInit(float* kx, float* ky, float* kz, int* kzm, float* kzp, const float X0, const float Y0, const int Zp, bool dealias_kz);  
 
 __global__ void rhs_linear_krehm(const cuComplex* g, const cuComplex* phi, const cuComplex* apar, const cuComplex* apar_ext,
-			  const float nu_ei, const float rhos, const float de, cuComplex* rhs);
+			  const float nu_ei, const float rhos, const float de, const float gradpar, cuComplex* rhs);
 __global__ void krehm_collisions(const cuComplex* g, const cuComplex* apar, const cuComplex* apar_ext, const float* kx, const float* ky,
 			  const float nu_ei, const float rhos, const float de, cuComplex* rhs);
 __global__ void phiSolve_krehm (cuComplex *phi, cuComplex *G0, float* kx, float* ky, float rho_i);

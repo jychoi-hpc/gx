@@ -10,17 +10,16 @@
 # module load cuda/$CUDA_VERSION.0
 # export NVHPC_CUDA_HOME=$CUDA_PATH
 # export LD_LIBRARY_PATH=:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/math_libs/$CUDA_VERSION/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/22.9/math_libs/11.7/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/comm_libs/$CUDA_VERSION/nccl/lib:$LD_LIBRARY_PATH
-# module load hdf5
 # module load gsl
-# export LD_LIBRARY_PATH=/gpfs/alpine2/fus161/world-shared/netcdf-4.9.2:$LD_LIBRARY_PATH
+# export LD_LIBRARY_PATH=/sw/summit/spack-envs/summit-plus/opt/nvhpc-23.9/hdf5-1.14.3-xbbclhuxwc4bjjwrvamvxpoih6bdrs2y/lib:/gpfs/alpine2/fus161/world-shared/netcdf-4.9.2/lib:$LD_LIBRARY_PATH
 # module load miniforge3
 #
 
 # paths to netcdf and hdf5
 NETCDF_ROOT = /gpfs/alpine2/fus161/world-shared/netcdf-4.9.2
-HDF5_ROOT = ${OLCF_HDF5_ROOT}
+HDF5_ROOT = /sw/summit/spack-envs/summit-plus/opt/nvhpc-23.9/hdf5-1.14.3-xbbclhuxwc4bjjwrvamvxpoih6bdrs2y
 NETCDF_INC = -I ${NETCDF_ROOT}/include
-NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5_hl -lhdf5 -lm -lz -lbz2 -lxml2 -lcurl
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5 -lhdf5_hl -lm -lz -lbz2 -lxml2 -lcurl
 
 # paths to mpi
 MPI_ROOT = ${OMPI_DIR}
