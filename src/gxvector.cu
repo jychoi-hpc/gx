@@ -175,7 +175,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 
 	// The norm we want is sqrt( Sum (w_i^2 |g_i|^2) / n )
 	// # of elements in g is grids->NMoms * grids->NxNycNz
-	return sqrtf(cpuSumResult/array[0]->getN());
+	return sqrtf(cpuSumResult/(array[0]->getN()*array.size()));
 }
 
 // Return minimum real part of all elements of g

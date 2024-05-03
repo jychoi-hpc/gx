@@ -163,10 +163,10 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 	// weights[i] = 1/(abstol + reltol*|g[i]|)
 	// but with one fused kernel to avoid multiple passes over the data
 	
-	MomentsG const & m = *(g->array[ 0 ]);
-	for( int i = 0; i < g->array.size(); ++i )
+	for( int i = 0; i < g->nSpecies(); ++i )
 	{
-		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *(weights->array[ i ]), *(g->array[ i ]), abstol, reltol );
+		MomentsG const & m = *((*g)[ i ]);
+		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
 	}
 
 	return 0;
