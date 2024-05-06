@@ -3905,9 +3905,9 @@ __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
   unsigned int idlm = get_id3();
 
   if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     // For the FFT padding modes, just pad the output with 0
-    if ( unmaksed( idx, idy ) ) {
-      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    if ( unmasked( idx, idy ) ) {
       // We know w is real, so w[ ig ].y == 0
       res[ ig ] = w[ ig ].x * w[ ig ].x * ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
     } else {
