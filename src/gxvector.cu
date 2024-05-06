@@ -174,8 +174,10 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	cudaFree( &tmp );
 
 	// The norm we want is sqrt( Sum (w_i^2 |g_i|^2) / n )
-	// # of elements in g is grids->NMoms * grids->NxNycNz
-	return sqrtf(cpuSumResult/(array[0]->getN()*array.size()));
+	// where n is the number of actual degrees of freedom in g
+	// so nspecies * # DoF in a MomentsG
+	size_t TotalDegreesOfFreedom = array.size() * array[0]->getDegreesOfFreedom();
+	return sqrtf(cpuSumResult/static_cast<float>(TotalDegreesOfFreedom));
 }
 
 // Return minimum real part of all elements of g

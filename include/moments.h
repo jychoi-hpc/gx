@@ -106,6 +106,10 @@ class MomentsG {
   size_t getSize() const { return grids_->size_G; };
   // # of complex elements
   size_t getN() const { return grids_->Nmoms * grids_->NxNycNz; };
+  // Returns the number of non-zero non-padding degrees of freedom
+  size_t getDegreesOfFreedom() const {
+    return grids_->Naky * grids_->Nakx * grids_->Nz * grids_->Nmoms;
+  };
  
  private:
   cuComplex  * G_lm   ;

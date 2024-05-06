@@ -3828,25 +3828,32 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 
 __global__ void set_constant_kernel( cuComplex* res, float x )
 {
-  unsigned int idxy = get_id1(); 
+  unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
 
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
       unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
       res[ig].x = x;
-		res[ig].y = 0.0;
+      res[ig].y = 0.0;
   }
 }
 
 __global__ void set_inv_kernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 float abs2 = in[ ig ].x * in[ ig ].x + in[ ig ].y * in[ ig ].y;
+    float abs2 = in[ ig ].x * in[ ig ].x + in[ ig ].y * in[ ig ].y;
     res[ig].x = in[ ig ].x / abs2;
     res[ig].y = -in[ ig ].y / abs2;
   }
@@ -3855,23 +3862,35 @@ __global__ void set_inv_kernel(cuComplex* res, const cuComplex* in)
 __global__ void set_abs_kernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x = cuCabsf( in[ ig ] );
-	 res[ ig ].y = 0.0f;
+    res[ ig ].x = cuCabsf( in[ ig ] );
+    res[ ig ].y = 0.0f;
   }
 }
 
 __global__ void absValKernel(float* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ] = cuCabsf( in[ ig ] );
+    // For the padding modes, buffer everything with 0
+    if( unmasked( idx, idy ) )
+      res[ ig ] = cuCabsf( in[ ig ] );
+    else
+      res[ ig ] = 0.0;
   }
 }
 
@@ -3879,12 +3898,21 @@ __global__ void absValKernel(float* res, const cuComplex* in)
 __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 // We know w is real, so w[ ig ].y == 0
-	 res[ ig ] = w[ ig ].x * w[ ig ].x * ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
+    // For the FFT padding modes, just pad the output with 0
+    if ( unmaksed( idx, idy ) ) {
+      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+      // We know w is real, so w[ ig ].y == 0
+      res[ ig ] = w[ ig ].x * w[ ig ].x * ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
+    } else {
+      res[ ig ] = 0.0;
+    }
   }
 }
 
@@ -3892,20 +3920,32 @@ __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
 __global__ void minusRealKernel(float* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ] = -in[ ig ].x;
+
+    if( unmasked( idx, idy ) )
+      res[ ig ] = -in[ ig ].x;
+    else
+      res[ ig ] = 0.0;
   }
 }
 
 __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     res[ig] = in1[ ig ] / in2[ ig ];
   }
@@ -3914,9 +3954,13 @@ __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuCo
 __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     res[ig] = in1[ ig ] * in2[ ig ];
   }
@@ -3925,52 +3969,63 @@ __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuC
 __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in)
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 res[ ig ].x += in[ ig ].x;
-	 res[ ig ].y += in[ ig ].y;
+    res[ ig ].x += in[ ig ].x;
+    res[ ig ].y += in[ ig ].y;
   }
 }
 
 __global__ void add_const_kernel( cuComplex* g, float b )
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 g[ ig ].x += b;
+    g[ ig ].x += b;
   }
 }
 
 __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol )
 {
   unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
 
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
-	 wgt[ ig ].y = 0.0;
+    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
+    wgt[ ig ].y = 0.0;
   }
 }
 
 __global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *density, float atol, float reltol )
 {
   unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-
   unsigned int idy = idxy % nyc;
   unsigned int idx = idxy / nyc;
 
-  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
-	 float abstol = density[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
+    float abstol = density[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-	 wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
-	 wgt[ ig ].y = 0.0;
+    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
+    wgt[ ig ].y = 0.0;
   }
 }
