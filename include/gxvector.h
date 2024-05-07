@@ -85,8 +85,8 @@ class GXVector {
 
 		SUNContext ctx;
 
-		cuComplex * gData( size_t iSpec ) { return array[i]->G(); };
-		const cuComplex * gData( size_t iSpec ) const { return array[i]->G(); };
+		cuComplex * gData( size_t iSpec ) { return array[iSpec]->G(); };
+		const cuComplex * gData( size_t iSpec ) const { return array[iSpec]->G(); };
 	private:
 		bool owns_data;
 		VecType array;
