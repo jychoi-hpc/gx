@@ -51,7 +51,10 @@ void GXVector::SetConst( float c )
 	for( auto &m : array )
 	{
 		set_constant_kernel <<< m->dG_all, m->dB_all >>> ( *m, c );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 GXVector & GXVector::operator=( GXVector const & other )
@@ -81,7 +84,10 @@ void GXVector::SetInv( GXVector const & other )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 void GXVector::SetAbs( GXVector const & other )
@@ -91,7 +97,10 @@ void GXVector::SetAbs( GXVector const & other )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 float GXVector::MaxNorm() const
@@ -121,9 +130,14 @@ float GXVector::MaxNorm() const
 		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
 	}
 
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
+
 	// Take max over elements of tmp
 	reducer.Max( tmp, MaxElement );
 	float cpuMaxElem;
+	
+	checkCuda( cudaDeviceSynchronize() );
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
@@ -162,11 +176,15 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
 	}
 
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
+
 	// tmp now contains {w_i^2 ||g_i||^2 }
 	// Sum all of tmp to get the answer
 	
 	reducer.Sum( tmp, SumResult );
 	float cpuSumResult;
+	checkCuda( cudaDeviceSynchronize() );
 	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(float) );
 
 	// Clean up
@@ -206,12 +224,17 @@ float GXVector::MinReal() const
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 
 	// tmp now contains -this
 	// so max of tmp is min of *this
 	reducer.Max( tmp, MaxElement );
 	float cpuMaxElem;
+	checkCuda( cudaDeviceSynchronize() );
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
@@ -228,7 +251,10 @@ void GXVector::Div( GXVector const& x, GXVector const& y )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		elem_div_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 void GXVector::Prod( GXVector const& x, GXVector const& y )
@@ -237,7 +263,10 @@ void GXVector::Prod( GXVector const& x, GXVector const& y )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		elem_prod_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 // Sets the current object to be a*x + b*y
@@ -248,7 +277,10 @@ void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y
 	{
 		// Note the last argument is true to force-ignore any eqfix nonsense
 		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), a, *(x.array[ i ]), b, *(y.array[ i ]), true );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 GXVector & GXVector::operator+=( GXVector const& other )
@@ -257,7 +289,10 @@ GXVector & GXVector::operator+=( GXVector const& other )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		accumulate_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 	return *this;
 }
 
@@ -283,5 +318,8 @@ void GXVector::AddConst( sunrealtype b )
 	for( int i = 0; i < array.size(); ++i )
 	{
 		add_const_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), static_cast<float>(b) );
+		checkCuda( cudaGetLastError() );
 	}
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }

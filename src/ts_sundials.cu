@@ -28,8 +28,6 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 	// This is the clone constructor, allocates new RAM
 	gTmp = new GXVector( *gInternal );
 
-	checkCuda( cudaGetLastError() );
-
 	// Wrap GXVector in an NVector
 
 	gInternalNV = gInternal->asNVector();
@@ -50,7 +48,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 	// Apply
 	retval = ERKStepWFtolerances( ERKStepMem, SundialsStepper::SundialsErrorWeights );
 	if( retval != ARK_SUCCESS ) {
-		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSStolerances.");
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepWFtolerances.");
 	}
 	
 	retval = ERKStepSetTableName( ERKStepMem, pars_->SundialsExplicitScheme.c_str() );
@@ -71,10 +69,24 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetMaxStep.");
 	}
 
-	ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
-	ERKStepSetInitStep( ERKStepMem, dt_ );
-	if( pars_->SundialsFixedTimestep )
-		ERKStepSetFixedStep( ERKStepMem, dt_ );
+	retval = ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) );
+	
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetUserData.");
+	}
+
+	retval = ERKStepSetInitStep( ERKStepMem, dt_ );
+
+	if( retval != ARK_SUCCESS ) {
+		throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetInitStep.");
+	}
+
+	if( pars_->SundialsFixedTimestep ) {
+		retval = ERKStepSetFixedStep( ERKStepMem, dt_ );
+		if( retval != ARK_SUCCESS ) {
+			throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetInitStep.");
+		}
+	}
 }
 
 SundialsStepper::~SundialsStepper()
@@ -115,6 +127,8 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
 	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
 	solver_->fieldSolve( *gInternal, fields_ );
 	checkCuda( cudaGetLastError() );
+	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
@@ -127,6 +141,7 @@ int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* 
 
 int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 {
+	checkCuda( cudaDeviceSynchronize() );
 	// Synchronise data from all nodes
 	g->sync();
 
@@ -151,6 +166,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 
 	*gdot += *gTmp; // Add NL + L
 
+	checkCuda( cudaGetLastError() );
 	checkCuda( cudaDeviceSynchronize() );
 	checkCuda( cudaGetLastError() );
 
@@ -177,6 +193,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
 	}
 
+	checkCuda( cudaGetLastError() );
 	checkCuda( cudaDeviceSynchronize() );
 	checkCuda( cudaGetLastError() );
 	return 0;
