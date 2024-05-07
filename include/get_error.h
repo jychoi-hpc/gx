@@ -34,7 +34,7 @@ template <>
 inline cufftResult __checkCudaErrors__(cufftResult code, const char *func, const char *file, int line) 
 {
   if (code) {
-    fprintf(stderr, "CUDA error: (code=%d)  \"%s\" at %s:%d \n", (unsigned int)code, func, file, line);
+    fprintf(stderr, "cuFFT error: (code=%d)  \"%s\" at %s:%d \n", (unsigned int)code, func, file, line);
     cudaDeviceReset();
     exit(EXIT_FAILURE);
   }
@@ -45,7 +45,7 @@ template <>
 inline ncclResult_t __checkCudaErrors__(ncclResult_t code, const char *func, const char *file, int line) 
 {
   if (code) {
-    fprintf(stderr, "CUDA error: (code=%d)  \"%s\" at %s:%d \n", (unsigned int)code, func, file, line);
+    fprintf(stderr, "NCCL error: (code=%d)  \"%s\" at %s:%d \n", (unsigned int)code, func, file, line);
     cudaDeviceReset();
     exit(EXIT_FAILURE);
   }
