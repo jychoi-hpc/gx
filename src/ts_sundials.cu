@@ -1,4 +1,5 @@
 #include "timestepper.h"
+#include "get_error.h"
 #include <iostream>
 
 #include <stdexcept>
@@ -26,6 +27,8 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
 	// This is the clone constructor, allocates new RAM
 	gTmp = new GXVector( *gInternal );
+
+	checkCuda( cudaGetLastError() );
 
 	// Wrap GXVector in an NVector
 
@@ -111,13 +114,15 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
 
 	// Set fields_ to be the fields consistent with the final state (for diagnostics etc)
 	solver_->fieldSolve( *gInternal, fields_ );
+	checkCuda( cudaGetLastError() );
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
 {
 	GXVector *g = reinterpret_cast<GXVector*>( y->content );
 	GXVector *gdot = reinterpret_cast<GXVector*>( ydot->content );
-	return reinterpret_cast<SundialsStepper*>( userdata )->SundialsRHS( t, g, gdot );
+	int retval = reinterpret_cast<SundialsStepper*>( userdata )->SundialsRHS( t, g, gdot );
+	return retval;
 }
 
 int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
@@ -146,6 +151,8 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 
 	*gdot += *gTmp; // Add NL + L
 
+	checkCuda( cudaGetLastError() );
+
 	return 0;
 }
 
@@ -169,5 +176,6 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
 	}
 
+	checkCuda( cudaGetLastError() );
 	return 0;
 }
