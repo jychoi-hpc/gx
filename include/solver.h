@@ -15,6 +15,11 @@ class Solver {
   virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
   virtual float find_max_qneutDenom_inv() = 0;
   virtual float* getQneutDenom() {return nullptr;};
+  virtual float* getAmpereParFac() {return nullptr;};
+  virtual float* getQneutFacBpar() {return nullptr;};
+  virtual float* getAmperePerpFacPhi() {return nullptr;};
+  virtual float* getAmperePerpFacBpar() {return nullptr;};
+  virtual float* getBparDenom() {return nullptr;};
   virtual void set_equilibrium_current(MomentsG* G, Fields* fields) {};
 };
 
@@ -29,6 +34,12 @@ class Solver_GK : public Solver {
   void svar(float* f, int N);
 //  float* getQneutDenom() {return qneutDenom;};
   float* getQneutDenom() {return qneutFacPhi;};
+  float* getAmpereParFac() {return ampereParFac;};
+  float* getQneutFacBpar() {return qneutFacBpar;};
+  float* getAmperePerpFacPhi() {return amperePerpFacPhi;};
+  float* getAmperePerpFacBpar() {return amperePerpFacBpar;};
+  float* getBparDenom() {return BparDenom;};
+
 
   
   cuComplex * nbar ;
@@ -50,6 +61,7 @@ private:
   float * qneutFacBpar;
   float * amperePerpFacPhi;
   float * amperePerpFacBpar;
+  float * BparDenom;
   cuComplex * tmp ;
 
   // local private copies

@@ -2,9 +2,9 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar)
+  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
 {
   
   // new objects for temporaries
@@ -97,19 +97,28 @@ void IMEX_3stage::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, int ielectron)
+void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
   double sdtvt = sdt*vte;
   // tridiag from numerical recipes
   if(pars_->local_limit) {
     // FFT Phi_i
     grad_par->zft(f->phi, f->phi);
+    grad_par->zft(f->apar, f->apar);
+
     // FFT G_e
     grad_par->zft(G1[ielectron]);
+    if (pars_-> fapar > 0.0){
+     tridiag_streaming_local_em<<<dG, dB>>>(G1[ielectron]->G(), f->phi, f->apar, 1./grids_->Zp, solver_->getQneutDenom(), solver_->getAmpereParFac(), *(G1[ielectron]->species), sdtvt, pars_->beta);  
+    }
+    else{
     tridiag_streaming_local<<<dG, dB>>>(G1[ielectron]->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
+    }
   } else if (pars_->boundary_option_periodic) {
       // FFT Phi_i
       grad_par->zft(f->phi, f->phi);
+      grad_par->zft(f->apar, f->apar);
+
       // FFT G_e
       grad_par->zft(G1[ielectron]);
 
@@ -117,7 +126,17 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       double omega = pars_->implicit_omega;
       for (int count = 0; count < max_iter; count++){
         if (count == 0){ //This is just using J(z=0)
-          tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
+	  if (pars_-> fapar > 0.0){
+	    tridiag_streaming_periodic_em<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, f->apar, grids_->kz, solver_->getQneutDenom(), solver_->getAmpereParFac(), *(G1[ielectron]->species), sdtvt, gradpar_, false, pars_->beta);
+	  }
+	  else if (pars_->fbpar > 0.0){
+            grad_par->zft(f->bpar, f->bpar);
+	    tridiag_streaming_periodic_bpar<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, f->apar, f->bpar, grids_->kz, solver_->getQneutDenom(), solver_->getAmpereParFac(), solver_->getQneutFacBpar(), solver_->getAmperePerpFacPhi(), solver_->getAmperePerpFacBpar(),solver_->getBparDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, bmagInv_, false, pars_->beta);
+
+	  }
+	  else{
+            tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
+	  }
         }
         else{
           grad_par->zft_inverse(G1[ielectron]); //Calculate full potential
@@ -224,6 +243,8 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   double p_, q_, r_, s_, t_, u_;
 //  std::string scheme = "pareschi_russo_ssp2_332";
   std::string scheme = "conde_ssprk3_sdirk";
+//  std::string scheme = "conde_3s3p";
+
 
   // Pareschi-Russo SSP2(3,3,2)
   if(scheme == "pareschi_russo_ssp2_332") {
@@ -309,7 +330,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 //    invert_implicit_terms(G1[ielectron], f, p_*dt_,gradpar_);
     Gc[ielectron]->copyFrom(G1[ielectron]);
     Gr[ielectron]->copyFrom(G1[ielectron]);
-    invert_implicit_terms(G1, Gc[ielectron], Gr, f, p_*dt_,gradpar_,ielectron);
+    invert_implicit_terms(G1, Gc[ielectron], Gr, f, p_*dt_,gradpar_, bmagInv_, ielectron);
 
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -338,7 +359,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 //  invert_implicit_terms(G1[ielectron], f, r_*dt_,gradpar_);
   Gc[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, f, r_*dt_,gradpar_,ielectron);
+  invert_implicit_terms(G1, Gc[ielectron], Gr, f, r_*dt_,gradpar_, bmagInv_, ielectron);
 
 
   solver_->fieldSolve(G1, f);        
@@ -368,7 +389,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 //  invert_implicit_terms(G1[ielectron], f, u_*dt_,gradpar_);
   Gc[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,ielectron);
+  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron);
 
   solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);

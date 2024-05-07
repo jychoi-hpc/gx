@@ -183,7 +183,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar); break;
+    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
 

@@ -9,7 +9,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
   tmp(nullptr), nbar(nullptr), jparbar(nullptr), jperpbar(nullptr), phiavgdenom(nullptr), 
   qneutFacPhi(nullptr), ampereParFac(nullptr),
-  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr)
+  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr)
 {
 
   if (pars_->ks) return;
@@ -65,7 +65,10 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     cudaMalloc(&amperePerpFacPhi,    sizeof(float)*grids_->NxNycNz);
     cudaMemset(amperePerpFacPhi, 0., sizeof(float)*grids_->NxNycNz);    
     cudaMalloc(&amperePerpFacBpar,    sizeof(float)*grids_->NxNycNz);
-    cudaMemset(amperePerpFacBpar, 0., sizeof(float)*grids_->NxNycNz);    
+    cudaMemset(amperePerpFacBpar, 0., sizeof(float)*grids_->NxNycNz);  
+    cudaMalloc(&BparDenom,    sizeof(float)*grids_->NxNycNz);
+    cudaMemset(BparDenom, 0., sizeof(float)*grids_->NxNycNz);    
+
   }
   
   int threads, blocks;
@@ -78,7 +81,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   //         amperePerpFacPhi  = beta/2*sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})
   //         amperePerpFacBpar = 1 + beta/2*sum_s n_s*t_s*sum_l (J_l + J_{l-1})^2
   for(int is_glob=0; is_glob<grids_->Nspecies_glob; is_glob++) {
-    sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, geo_->kperp2, geo_->bmag, geo_->bmagInv,
+    sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, BparDenom, geo_->kperp2, geo_->bmag, geo_->bmagInv,
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
   }
 
@@ -105,6 +108,7 @@ Solver_GK::~Solver_GK()
   if (amperePerpFacPhi)  cudaFree(amperePerpFacPhi);
   if (amperePerpFacBpar)  cudaFree(amperePerpFacBpar);
   if (ampereParFac) cudaFree(ampereParFac);
+  if (BparDenom) cudaFree(BparDenom);
   if (phiavgdenom) cudaFree(phiavgdenom);
 
 }
