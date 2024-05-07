@@ -120,7 +120,7 @@ float GXVector::MaxNorm() const
 	// Allocate space on GPU for answer
 	float *MaxElement;
 	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
-	cudaMemset(MaxElement, 0., sizeof(float));
+	checkCuda(cudaMemset(MaxElement, 0., sizeof(float)));
 
 	// do tmp_i = ||g_i|| on GPU
 	MomentsG const & m = *(array[ 0 ]);
@@ -131,7 +131,6 @@ float GXVector::MaxNorm() const
 	}
 
 	checkCuda( cudaDeviceSynchronize() );
-	checkCuda( cudaGetLastError() );
 
 	// Take max over elements of tmp
 	reducer.Max( tmp, MaxElement );
@@ -141,8 +140,8 @@ float GXVector::MaxNorm() const
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
-	cudaFree( &MaxElement );
-	cudaFree( &tmp );
+	checkCuda( cudaFree( MaxElement ) );
+	checkCuda( cudaFree( tmp ) );
 
 	return cpuMaxElem;
 }
@@ -177,7 +176,6 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	}
 
 	checkCuda( cudaDeviceSynchronize() );
-	checkCuda( cudaGetLastError() );
 
 	// tmp now contains {w_i^2 ||g_i||^2 }
 	// Sum all of tmp to get the answer
@@ -188,8 +186,8 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(float) );
 
 	// Clean up
-	cudaFree( &SumResult );
-	cudaFree( &tmp );
+	checkCuda( cudaFree( SumResult ) );
+	checkCuda( cudaFree( tmp ) );
 
 	// The norm we want is sqrt( Sum (w_i^2 |g_i|^2) / n )
 	// where n is the number of actual degrees of freedom in g
@@ -216,7 +214,7 @@ float GXVector::MinReal() const
 	// Allocate space for answer
 	float *MaxElement;
 	checkCuda(cudaMalloc(&MaxElement,  sizeof(float)));
-	cudaMemset(MaxElement, 0., sizeof(float));
+	checkCuda(cudaMemset(MaxElement, 0., sizeof(float)));
 
 	// do tmp_i = - Re( this[i] ) on GPU
 	MomentsG const & m = *(array[ 0 ]);
@@ -224,11 +222,9 @@ float GXVector::MinReal() const
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
-		checkCuda( cudaGetLastError() );
 	}
 
 	checkCuda( cudaDeviceSynchronize() );
-	checkCuda( cudaGetLastError() );
 
 	// tmp now contains -this
 	// so max of tmp is min of *this
@@ -238,8 +234,8 @@ float GXVector::MinReal() const
 	CP_TO_CPU( &cpuMaxElem, MaxElement, sizeof(float) );
 
 	// Clean up
-	cudaFree( &MaxElement );
-	cudaFree( &tmp );
+	checkCuda( cudaFree( MaxElement ) );
+	checkCuda( cudaFree( tmp ) );
 
 	// flip sign -- we want minimum not maximum element
 	return -cpuMaxElem;
