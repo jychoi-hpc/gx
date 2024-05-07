@@ -81,6 +81,9 @@ template<class T> void Reduction<T>::Sum(T* dataFull, T* dataReduced)
 		    dataReduced,  &descReduced, modeReduced_.data(),
 		    opAdd, typeCompute, Addwork, sizeWork, 0));
 
+  cudaDeviceSynchronize();
+  checkCuda(cudaGetLastError());
+
   if(reduce_m && reduce_s && grids_->nprocs > 1) {
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclSum, grids_->ncclComm, 0);
   }
