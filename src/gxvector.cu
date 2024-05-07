@@ -275,8 +275,8 @@ void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
-		// Note the last argument is true to force-ignore any eqfix nonsense
-		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), a, *(x.array[ i ]), b, *(y.array[ i ]), true );
+		// Note the last argument is true to force-ignore eqfix
+		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( gData(i), a, x.gData( i ), b, y.gData( i ), true );
 		checkCuda( cudaGetLastError() );
 	}
 	checkCuda( cudaDeviceSynchronize() );
