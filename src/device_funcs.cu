@@ -3178,23 +3178,23 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
     float Q_avg = 0.0f;
 
 
-    for (int iz = 0; iz < nz; iz++){
+/*    for (int iz = 0; iz < nz; iz++){
       for (int ik = 1; ik < nLinks*nChains; ik++){
         if (Q_avg < 1.0f/qneutDenom[iz + nz*ik]){
           Q_avg = 1.0f/qneutDenom[iz + nz*ik];
         }
       }
     }
+*/
 
-
-/*    for (int iz = 0; iz < nz; iz++){
+    for (int iz = 0; iz < nz; iz++){
       for (int ik = 0; ik < nLinks; ik++){
         if (Q_avg < 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)] && qneutDenom[iz + nz*(idy*nLinks + ik)] != 0.0f){
           Q_avg = 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)];
         }
       }
     }
-*/
+
 //    printf("Q_avg is %f\n", Q_avg);
 
 
