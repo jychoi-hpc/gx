@@ -151,6 +151,7 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 
 	*gdot += *gTmp; // Add NL + L
 
+	checkCuda( cudaDeviceSynchronize() );
 	checkCuda( cudaGetLastError() );
 
 	return 0;
@@ -176,6 +177,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
 	}
 
+	checkCuda( cudaDeviceSynchronize() );
 	checkCuda( cudaGetLastError() );
 	return 0;
 }
