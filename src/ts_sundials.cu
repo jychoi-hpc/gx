@@ -141,7 +141,7 @@ int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* 
 
 int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 {
-	checkCuda( cudaDeviceSynchronize() );
+	checkCuda( cudaGetLastError() );
 	// Synchronise data from all nodes
 	g->sync();
 
@@ -167,8 +167,6 @@ int SundialsStepper::SundialsRHS( double time, GXVector *g, GXVector * gdot )
 	*gdot += *gTmp; // Add NL + L
 
 	checkCuda( cudaGetLastError() );
-	checkCuda( cudaDeviceSynchronize() );
-	checkCuda( cudaGetLastError() );
 
 	return 0;
 }
@@ -191,10 +189,8 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 	{
 		MomentsG const & m = *((*g)[ i ]);
 		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
+		checkCuda( cudaGetLastError() );
 	}
 
-	checkCuda( cudaGetLastError() );
-	checkCuda( cudaDeviceSynchronize() );
-	checkCuda( cudaGetLastError() );
 	return 0;
 }
