@@ -88,6 +88,13 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 		}
 	}
 
+	if( pars_->cfl > 0.0 ) {
+		retval = ERKStepSetCFLFraction( ERKStepMem, pars_->cfl );
+		if( retval != ARK_SUCCESS ) {
+			throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetInitStep.");
+		}
+	}
+
 }
 
 SundialsStepper::~SundialsStepper()
