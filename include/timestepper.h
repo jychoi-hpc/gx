@@ -247,37 +247,6 @@ class G3 : public Timestepper {
   MomentsG  ** G_u2       ;
 };
 
-class GXVRK4 : public Timestepper {
- public:
-  GXVRK4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
-  ~GXVRK4();
-  void advance(double* t, MomentsG** G, Fields* fields);
-  void partial(GXVector & G, GXVector & Gt, Fields *f, 
-		         GXVector & Rhs, GXVector & Gnew, double adt, bool setdt);
-  double get_dt() {return dt_;};
-
- private:
-  sundials::Context ctx;
-  const double dt_max;
-  double dt_;
-  const double cfl_fac = 2.82;
-  double omega_max[3];
-
-  Linear     * linear_    ;
-  Nonlinear  * nonlinear_ ;
-  Solver     * solver_    ;
-  Parameters * pars_      ;
-  Grids      * grids_     ;
-  ExB        * exb_       ;
-  Forcing    * forcing_   ;
-  Fields	    * fields_    ;
-  GXVector GStar;
-  GXVector GRhs;
-  GXVector G_q1;
-  GXVector G_q2;
-};
-
 class SundialsStepper : public Timestepper {
  public:
   SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,

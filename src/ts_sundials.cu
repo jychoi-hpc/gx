@@ -32,7 +32,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
 	gInternalNV = gInternal->asNVector();
 
-	std::cout << "Initialising ERKStep" << std::endl;
+	std::cout << "Initialising SUNDIALS ERKStep library for timestepping." << std::endl;
 	
 	ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 
@@ -87,6 +87,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 			throw std::runtime_error("Internal SUNDIALS Error in ERKStepSetInitStep.");
 		}
 	}
+
 }
 
 SundialsStepper::~SundialsStepper()
@@ -188,7 +189,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 	for( int i = 0; i < g->nSpecies(); ++i )
 	{
 		MomentsG const & m = *((*g)[ i ]);
-		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( *((*weights)[ i ]), m, abstol, reltol );
+		setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol );
 		checkCuda( cudaGetLastError() );
 	}
 
