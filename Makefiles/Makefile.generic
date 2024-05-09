@@ -7,6 +7,7 @@
 # MPI_ROOT    (path to mpi, e.g. mpich, openmpi, etc)
 # NVHPC_ROOT  (path to NVIDIA HPC SDK)
 # GSL_ROOT    (path to gsl)
+# SUNDIALS_ROOT (path to the SUNDIALS library)
 
 # On many HPC systems, there will be modules corresponding to many of these dependencies.
 # The module show [module name] command can be useful for finding environment variables corresponding to the ROOT directories above.
@@ -53,6 +54,10 @@ CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -
 # GSL_ROOT = 
 GSL_INC = -I ${GSL_ROOT}/include
 GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+
+# SUNDIALS_ROOT should be set already
+SUNDIALS_INC = -I${SUNDIALS_ROOT}/include
+SUNDIALS_LIB = -L${SUNDIALS_ROOT}/lib64 -Wl,-rpath,$(SUNDIALS_ROOT)/lib64 -lsundials_core -lsundials_arkode
 
 # additional c libraries required for linking. hopefully these are already in LD_LIBRARY_PATH
 C_LIB = -lm -lpthread -ldl

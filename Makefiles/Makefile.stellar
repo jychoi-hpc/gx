@@ -29,6 +29,11 @@ CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -
 
 GSL_LIB = -lgsl -lgslcblas
 
+SUNDIALS_ROOT ?= /home/iabel/projects/sundials/install
+SUNDIALS_INC = -I${SUNDIALS_ROOT}/include
+SUNDIALS_LIB = -L${SUNDIALS_ROOT}/lib64 -Wl,-rpath,$(SUNDIALS_ROOT)/lib64 -lsundials_core -lsundials_arkode
+
+
 C_LIB = -ldl -lm  -lpthread
 
 # this GS2 install should be accessible to all users

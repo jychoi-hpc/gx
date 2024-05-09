@@ -17,7 +17,7 @@
 # spack load gsl
 # spack load sundials
 # export GSL_ROOT=$(spack location -i gsl)
-# export SUNDIALS_DIR=$(spack location -i sundials)
+# export SUNDIALS_ROOT=$(spack location -i sundials)
 # export LD_LIBRARY_PATH=$GSL_ROOT/lib:$LD_LIBRARY_PATH
 #
 
@@ -48,9 +48,9 @@ CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -
 GSL_INC = -I ${GSL_ROOT}/include
 GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
 
-# SUNDIALS_DIR should be set already
-SUNDIALS_INC = -I${SUNDIALS_DIR}/include
-SUNDIALS_LIB = -L${SUNDIALS_DIR}/lib64 -Wl,-rpath,$(SUNDIALS_DIR)/lib64 -lsundials_core -lsundials_arkode
+# SUNDIALS_ROOT should be set already
+SUNDIALS_INC = -I${SUNDIALS_ROOT}/include
+SUNDIALS_LIB = -L${SUNDIALS_ROOT}/lib64 -Wl,-rpath,$(SUNDIALS_ROOT)/lib64 -lsundials_core -lsundials_arkode
 
 # additional c libraries required for linking. these are already in LD_LIBRARY_PATH
 C_LIB = -lpthread -ldl
