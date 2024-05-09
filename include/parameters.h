@@ -286,6 +286,8 @@ class Parameters {
 
   float SundialsMinStep,SundialsMaxStep;
   float SundialsAbsTol,SundialsRelTol;
+  long int SundialsMaxInternalSteps;
+  int SundialsExplicitOrder;
  private:
 
   float get_real (int ncid, const char varname[]); 
