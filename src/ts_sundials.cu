@@ -62,7 +62,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
    ARKODECheck( ERKStepWFtolerances( ERKStepMem, SundialsStepper::SundialsErrorWeights ) );
 
    if( pars_->SundialsExplicitOrder > 0 ) { // If order is specified, this overrides a specific name
-      ARKODECheck( ERKStepSetOrder( pars_->SundialsExplicitOrder ) );
+      ARKODECheck( ERKStepSetOrder( ERKStepMem, pars_->SundialsExplicitOrder ) );
    } else { // If order not specified, choose by name, which has a default
       ARKODECheck( ERKStepSetTableName( ERKStepMem, pars_->SundialsExplicitScheme.c_str() ) );
    }
@@ -109,7 +109,7 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
    // Needed for when sunrealtype is float not double
    sunrealtype time = *t;
 
-   retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, &time, ERK_NORMAL );
+   retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, &time, ARK_NORMAL );
 
    if( retval != ARK_SUCCESS ) {
       throw std::runtime_error("Error in ERKStepEvolve.");
