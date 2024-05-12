@@ -2100,6 +2100,25 @@ __global__ void qneut_and_ampere_perp(cuComplex* Phi,
   }
 }
 
+__global__ void find_max_qneutFacPhi_inv(float* qneutFacPhi,
+					 float* max_qneutFacPhi_inv)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy)) {
+    unsigned int idxy = idy + nyc*idx;
+    float max_q = 0.0f;
+    for (int iz = 0; iz < nz; iz++){
+      unsigned int idxyz = get_idxyz(idx, idy, iz);
+      if (max_q < 1.0f/qneutFacPhi[idxyz]){
+        max_q = 1.0f/qneutFacPhi[idxyz];
+      } 
+    }
+    max_qneutFacPhi_inv[idxy] = max_q;
+   
+  }
+}
+
 // compute qneutFacPhi  = sum_s z_s^2*n_s/tau_s*(1- sum_l J_l^2)
 //         qneutFacBpar = -sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})
 //         ampereParFac = kperp2 + beta/2*sum_s z_s^2*n_s/m_s*sum_l J_l^2
@@ -2419,14 +2438,15 @@ __global__ void linkedCopy_f(const float* __restrict__ G,
                            int nChains,
                            const int* __restrict__ ikx,
                            const int* __restrict__ iky,
-                           int nMoms)
+                           int nMoms,
+			   int Nz)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
   unsigned int idlm = get_id3();
 
-  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
-    unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
+  if (idz < Nz && idk < nLinks*nChains && idlm < nMoms) {
+    unsigned int idlink = idz + Nz*(idk + nLinks*nChains*idlm);
     unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
     // NRM: seems hopeless to make these accesses coalesced. how bad is it?
     G_linked[idlink] = G[globalIdx];
@@ -2902,7 +2922,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
-__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
@@ -2915,19 +2935,8 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComple
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
     float Q_avg = 0.0f;
-    Q = sp.nz*sp.zt/qneutDenom[idxy + nxnyc*nz/2];
-    Q_avg = 1.0f/qneutDenom[idxy + nxnyc*nz/2];
-//    for(int iz=0; iz<nz; iz++) {
-      // compute z avg of qneutDenom so that the z dependence does not break things in k space
-//      Q_avg += 1.0f/qneutDenom[idxy + nxnyc*iz];
-//      if(Q > abs(qneutDenom[idxy + nxnyc*iz])){
-//      	Q = qneutDenom[idxy + nxnyc*iz];
-//      }
-//    }
-    // the actual coefficient needed is Z^2*n/T/<qneutDenom>
-//    Q_avg = Q_avg/nz;
-//   Q = sp.nz*sp.zt*Q_avg;
-//    Q = sp.nz*sp.zt/Q;
+    Q_avg = max_qneutFacPhi_inv[idxy];
+    Q = sp.nz*sp.zt*Q_avg;
     int idm = 0; // this cannot be unsigned (see below)
     unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
@@ -2956,8 +2965,6 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComple
 	else{
 	  am = am + sdtvt*ikz*gradpar*Q;
   	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
-
-//  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz]*qneutDenom[idxy + nxnyc*idz]*Q_avg;	  
 	}
       }
               
@@ -3160,7 +3167,7 @@ __global__ void tridiag_streaming_periodic_bpar(cuComplex* g, cuComplex* gr, cuC
 }
 
 
-__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, float max_qneutDenom_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)
+__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3176,55 +3183,11 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
     float Q_avg = 0.0f;
-
-
-/*    for (int iz = 0; iz < nz; iz++){
-      for (int ik = 1; ik < nLinks*nChains; ik++){
-        if (Q_avg < 1.0f/qneutDenom[iz + nz*ik]){
-          Q_avg = 1.0f/qneutDenom[iz + nz*ik];
+    for (int ik = 0; ik < nLinks; ik++){
+        if (Q_avg < max_qneutFacPhi_inv[idy*nLinks + ik]){
+          Q_avg = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
-      }
     }
-*/
-
-    for (int iz = 0; iz < nz; iz++){
-      for (int ik = 0; ik < nLinks; ik++){
-        if (Q_avg < 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)] && qneutDenom[iz + nz*(idy*nLinks + ik)] != 0.0f){
-          Q_avg = 1.0f/qneutDenom[iz + nz*(idy*nLinks + ik)];
-        }
-      }
-    }
-
-//    printf("Q_avg is %f\n", Q_avg);
-
-
-/*    for (int iz = 0; iz < nz; iz++){
-      for (int ik = 0; ik < nLinks*nChains; ik++){
-        if (Q_avg < 1.0f/qneutDenom[iz + nz*ik] && qneutDenom[iz + nx*ik] != 0.0f){
-          Q_avg = 1.0f/qneutDenom[iz + nz*ik];
-        }
-      }
-    }
-*/
-/*    for (int iz = 0; iz < nz; iz++){
-      if (Q_avg < 1.0f/qneutDenom[iz + nz*idk] && qneutDenom[iz + nz*idk] != 0.0f){
-        Q_avg = 1.0f/qneutDenom[iz + nz*idk];
-      }      
-    }
-*/
-
-/*    for (int iz = 0; iz < nz; iz++){
-      if (Q_avg < 1.0f/qneutDenom[idxy + nxnyc*iz]){
-        Q_avg = 1.0f/qneutDenom[idxy + nxnyc*iz];
-      }
-    }   
-*/
-    
-
-   
-//    Q_avg = 400.0f;
-//    printf("Q_avg is %f\n", Q_avg);
-
     Q = sp.nz*sp.zt*Q_avg;
 
     int idm = 0; // this cannot be unsigned (see below)

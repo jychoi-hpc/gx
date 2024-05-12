@@ -328,7 +328,7 @@ __global__ void linkedCopy(const cuComplex* __restrict__ G, cuComplex* __restric
 			   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
 
 __global__ void linkedCopy_f(const float* __restrict__ G, float* __restrict__ G_linked, int nLinks, int nChains,
-                           const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
+                           const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, int Nz);
 
 __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked, cuComplex* __restrict__ G, int nLinks, int nChains,
 			       const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
@@ -401,10 +401,11 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   cuComplex* __restrict__ rhs,
 			   bool ei_colls);
 
-__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
+__global__ void find_max_qneutFacPhi_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv);
+__global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
 __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, const float* kz, const float* qneutDenom, const float* ampereParFac, const specie sp, const double sdtvt, const float gradpar, bool full_phi, const float beta);
 __global__ void tridiag_streaming_periodic_bpar(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* kz, const float* qneutDenom, const float* ampereParFac, const float* qneutFacBpar, const float* amperePerpFacPhi, const float* amperePerpFacBpar, const float* BparDenom, const specie sp, const double sdtvt, const float gradpar, const float* bmagInv, bool full_phi, const float beta);
-__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, float max_qneutDenom_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains);
+__global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* qneutDenom, float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains);
 __global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const float kz, const float* qneutDenom, const specie sp, const double sdtvt);
 __global__ void tridiag_streaming_local_em(cuComplex* g, cuComplex* phi, cuComplex* apar, const float kz, const float* qneutDenom, const float* ampereParFac, const specie sp, const double sdtvt, const float beta);
 

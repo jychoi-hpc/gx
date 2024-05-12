@@ -20,6 +20,7 @@ class Solver {
   virtual float* getAmperePerpFacPhi() {return nullptr;};
   virtual float* getAmperePerpFacBpar() {return nullptr;};
   virtual float* getBparDenom() {return nullptr;};
+  virtual float* get_max_qneutFacPhi_inv() {return nullptr;};
   virtual void set_equilibrium_current(MomentsG* G, Fields* fields) {};
 };
 
@@ -29,19 +30,18 @@ class Solver_GK : public Solver {
   ~Solver_GK();
   
   void fieldSolve(MomentsG** G, Fields* fields);
-  float find_max_qneutDenom_inv();
+  float  find_max_qneutDenom_inv();
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
-//  float* getQneutDenom() {return qneutDenom;};
   float* getQneutDenom() {return qneutFacPhi;};
   float* getAmpereParFac() {return ampereParFac;};
   float* getQneutFacBpar() {return qneutFacBpar;};
   float* getAmperePerpFacPhi() {return amperePerpFacPhi;};
   float* getAmperePerpFacBpar() {return amperePerpFacBpar;};
+  float* get_max_qneutFacPhi_inv() {return max_qneutFacPhi_inv;};
   float* getBparDenom() {return BparDenom;};
 
 
-  
   cuComplex * nbar ;
   cuComplex * nbar_tmp ;
   cuComplex * jparbar ;
@@ -53,7 +53,8 @@ private:
   
   dim3 dG, dB, dg, db;
   int count;
-
+  
+  float * max_qneutFacPhi_inv;
   float * phiavgdenom ;
   float * qneutDenom;
   float * ampereParFac;

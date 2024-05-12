@@ -96,6 +96,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
   Gr_linked = (cuComplex**) malloc(sizeof(cuComplex*)*nClasses);
   phi_linked = (cuComplex**) malloc(sizeof(cuComplex*)*nClasses);
   qneutDenom_linked = (float**) malloc(sizeof(float*)*nClasses);
+  max_qneutFacPhi_inv_linked = (float**) malloc(sizeof(float*)*nClasses);
   kzLinked = (float**) malloc(sizeof(float*)*nClasses);
 
   //  printf("nClasses = %d\n", nClasses);
@@ -121,6 +122,9 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     cudaMemset(Gr_linked[c], 0., sLClmz);
     checkCuda(cudaMalloc((void**) &qneutDenom_linked[c], sLClmz_f));
     cudaMemset(qneutDenom_linked[c], 0., sLClmz_f);
+    checkCuda(cudaMalloc((void**) &max_qneutFacPhi_inv_linked[c], sLClmz_f));
+    cudaMemset(max_qneutFacPhi_inv_linked[c], 0., sLClmz_f);
+
 
     cudaMalloc((void**) &kzLinked[c], sizeof(float)*grids_->Nz*nLinks[c]);
     cudaMemset(kzLinked[c], 0.,       sizeof(float)*grids_->Nz*nLinks[c]);
@@ -173,20 +177,19 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     // initialize kzLinked
     init_kzLinked <<<1,1>>> (kzLinked[c], nLinks[c], false);
 
-    int nn1, nn2, nn3, nn4, nn5, nn6, nt1, nt2, nt3, nt4, nt5, nt6, nb1, nb2, nb3, nb4, nb5, nb6;
+    int nn1, nn2, nn3, nn4, nt1, nt2, nt3, nt4, nb1, nb2, nb3, nb4;
 
     nn1 = grids_->Nz;                   nt1 = min( nn1, 32 );    nb1 = 1 + (nn1-1)/nt1;
     nn2 = nLinks[c]*nChains[c];         nt2 = min( nn2,  4 );    nb2 = 1 + (nn2-1)/nt2; 
     nn3 = grids_->Nmoms;                nt3 = min( nn3,  4 );    nb3 = 1 + (nn3-1)/nt3;
     
-    nn4 = nChains[c];                   nt4 = min( nn4,  16 );   nb4 = 1 + (nn4-1)/nt4;
-    nn5 = nLinks[c];                    nt5 = min( nn5,  16 );   nb5 = 1 + (nn5-1)/nt5;
-    nn6 = grids_->Nl;                   nt6 = min( nn6,  4 );    nb6 = 1 + (nn6-1)/nt6;
-    
+    nn4 = grids_->Nl;                   nt4 = min( nn4,  4 );    nb4 = 1 + (nn4-1)/nt4;
+
     dB[c] = dim3(nt1, nt2, nt3);
     dG[c] = dim3(nb1, nb2, nb3);
-    dB_inv[c] = dim3(nt1, nt2, nt6);
-    dG_inv[c] = dim3(nb1, nb2, nb6);
+    dB_inv[c] = dim3(nt1, nt2, nt4);
+    dG_inv[c] = dim3(nb1, nb2, nb4);
+
     
     //    dB[c] = dim3(32,4,4);
     //    dG[c] = dim3(1 + (grids_->Nz-1)/dB[c].x,
@@ -237,6 +240,8 @@ GradParallelLinked::~GradParallelLinked()
     if (Gr_linked[c])          cudaFree(Gr_linked[c]);
     if (phi_linked[c])          cudaFree(phi_linked[c]);
     if (qneutDenom_linked[c])          cudaFree(qneutDenom_linked[c]);
+    if (max_qneutFacPhi_inv_linked[c])          cudaFree(max_qneutFacPhi_inv_linked[c]);
+
   }
   if (zft_plan_forward)              free(    zft_plan_forward);
   if (zft_plan_inverse)              free(    zft_plan_inverse);
@@ -263,6 +268,7 @@ GradParallelLinked::~GradParallelLinked()
   if (Gr_linked)            free(Gr_linked);
   if (phi_linked)            free(phi_linked);
   if (qneutDenom_linked)            free(qneutDenom_linked);
+  if (max_qneutFacPhi_inv_linked)            free(max_qneutFacPhi_inv_linked);
   if (kzLinked)            free(kzLinked);
 }
 
@@ -276,7 +282,7 @@ void GradParallelLinked::dealias(cuComplex* f)
   // not yet implemented
 }
 
-void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, float max_qneutDenom_inv, const double sdtvt, const float gradpar, bool full_phi) 
+void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, const float* max_qneutFacPhi_inv, const double sdtvt, const float gradpar, bool full_phi) 
 {
   for(int c=0; c<nClasses; c++) {
     linkedCopy GCHAINS (G->G(), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
@@ -288,9 +294,12 @@ void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuCompl
     linkedCopy GCHAINS (phi, phi_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     cufftExecC2C(zft_plan_forward_singlemom[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
 
-    linkedCopy_f GCHAINS (qneutDenom, qneutDenom_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
+//    linkedCopy_f GCHAINS (qneutDenom, qneutDenom_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, grids_->Nz);
 
-    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom_linked[c], max_qneutDenom_inv, *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
+    linkedCopy_f GCHAINS (max_qneutFacPhi_inv, max_qneutFacPhi_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
+
+
+    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom_linked[c], max_qneutFacPhi_inv_linked[c], *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
 
 
 //    tridiag_streaming_linked<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], kzLinked[c], qneutDenom, max_qneutDenom_inv, *(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);

@@ -9,7 +9,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
   tmp(nullptr), nbar(nullptr), jparbar(nullptr), jperpbar(nullptr), phiavgdenom(nullptr), 
   qneutFacPhi(nullptr), ampereParFac(nullptr),
-  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr)
+  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr), max_qneutFacPhi_inv(nullptr)
 {
 
   if (pars_->ks) return;
@@ -51,7 +51,10 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   
   if(pars_->fphi > 0.) {
     cudaMalloc(&qneutFacPhi,    sizeof(float)*grids_->NxNycNz);
-    cudaMemset(qneutFacPhi, 0., sizeof(float)*grids_->NxNycNz);    
+    cudaMemset(qneutFacPhi, 0., sizeof(float)*grids_->NxNycNz);   
+    cudaMalloc(&max_qneutFacPhi_inv,    sizeof(float)*grids_->NxNyc);
+    cudaMemset(max_qneutFacPhi_inv, 0., sizeof(float)*grids_->NxNyc);    
+
   }
 
   if(pars_->fapar > 0.) {
@@ -83,6 +86,8 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   for(int is_glob=0; is_glob<grids_->Nspecies_glob; is_glob++) {
     sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, BparDenom, geo_->kperp2, geo_->bmag, geo_->bmagInv,
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
+
+    find_max_qneutFacPhi_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv);
   }
 
   // set up phiavgdenom, which is stored for quasineutrality calculation as appropriate
@@ -104,6 +109,7 @@ Solver_GK::~Solver_GK()
   if (nbar)        cudaFree(nbar);
   if (tmp)         cudaFree(tmp);
   if (qneutFacPhi)  cudaFree(qneutFacPhi);
+  if (max_qneutFacPhi_inv)  cudaFree(max_qneutFacPhi_inv);
   if (qneutFacBpar)  cudaFree(qneutFacBpar);
   if (amperePerpFacPhi)  cudaFree(amperePerpFacPhi);
   if (amperePerpFacBpar)  cudaFree(amperePerpFacBpar);
