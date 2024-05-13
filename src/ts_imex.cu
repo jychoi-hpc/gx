@@ -131,7 +131,7 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 	  }
 	  else if (pars_->fbpar > 0.0){
             grad_par->zft(f->bpar, f->bpar);
-	    tridiag_streaming_periodic_bpar<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, f->apar, f->bpar, grids_->kz, solver_->getQneutDenom(), solver_->getAmpereParFac(), solver_->getQneutFacBpar(), solver_->getAmperePerpFacPhi(), solver_->getAmperePerpFacBpar(),solver_->getBparDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, bmagInv_, false, pars_->beta);
+	    tridiag_streaming_periodic_bpar<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, f->apar, f->bpar, grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), solver_->get_max_qneutFacBpar_inv(), solver_->get_max_amperePerpFacPhi_inv(), solver_->get_max_amperePerpFacBpar_inv(),solver_->getBparDenom(), *(G1[ielectron]->species), sdtvt, gradpar_, bmagInv_, false, pars_->beta);
 
 	  }
 	  else{

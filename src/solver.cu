@@ -9,7 +9,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
   tmp(nullptr), nbar(nullptr), jparbar(nullptr), jperpbar(nullptr), phiavgdenom(nullptr), 
   qneutFacPhi(nullptr), ampereParFac(nullptr),
-  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr), max_qneutFacPhi_inv(nullptr)
+  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr), max_qneutFacPhi_inv(nullptr), max_ampereParFac_inv(nullptr), max_qneutFacBpar_inv(nullptr), max_amperePerpFacPhi_inv(nullptr), max_amperePerpFacBpar_inv(nullptr)
 {
 
   if (pars_->ks) return;
@@ -59,7 +59,10 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
 
   if(pars_->fapar > 0.) {
     cudaMalloc(&ampereParFac,    sizeof(float)*grids_->NxNycNz);
-    cudaMemset(ampereParFac, 0., sizeof(float)*grids_->NxNycNz);    
+    cudaMemset(ampereParFac, 0., sizeof(float)*grids_->NxNycNz);   
+    cudaMalloc(&max_ampereParFac_inv,    sizeof(float)*grids_->NxNyc);
+    cudaMemset(max_ampereParFac_inv, 0., sizeof(float)*grids_->NxNyc);    
+
   }
 
   if(pars_->fbpar > 0.) {
@@ -68,7 +71,15 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     cudaMalloc(&amperePerpFacPhi,    sizeof(float)*grids_->NxNycNz);
     cudaMemset(amperePerpFacPhi, 0., sizeof(float)*grids_->NxNycNz);    
     cudaMalloc(&amperePerpFacBpar,    sizeof(float)*grids_->NxNycNz);
-    cudaMemset(amperePerpFacBpar, 0., sizeof(float)*grids_->NxNycNz);  
+    cudaMemset(amperePerpFacBpar, 0., sizeof(float)*grids_->NxNycNz); 
+
+    cudaMalloc(&max_qneutFacBpar_inv,    sizeof(float)*grids_->NxNyc);
+    cudaMemset(max_qneutFacBpar_inv, 0., sizeof(float)*grids_->NxNyc);    
+    cudaMalloc(&max_amperePerpFacPhi_inv,    sizeof(float)*grids_->NxNyc);
+    cudaMemset(max_amperePerpFacPhi_inv, 0., sizeof(float)*grids_->NxNyc);    
+    cudaMalloc(&max_amperePerpFacBpar_inv,    sizeof(float)*grids_->NxNyc);
+    cudaMemset(max_amperePerpFacBpar_inv, 0., sizeof(float)*grids_->NxNyc);  
+
     cudaMalloc(&BparDenom,    sizeof(float)*grids_->NxNycNz);
     cudaMemset(BparDenom, 0., sizeof(float)*grids_->NxNycNz);    
 
@@ -87,7 +98,11 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     sum_solverFacs GQN (qneutFacPhi, qneutFacBpar, ampereParFac, amperePerpFacPhi, amperePerpFacBpar, BparDenom, geo_->kperp2, geo_->bmag, geo_->bmagInv,
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
 
-    find_max_qneutFacPhi_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv);
+    
+    find_max_fac_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv, qneutFacBpar, max_qneutFacBpar_inv, ampereParFac, max_ampereParFac_inv, amperePerpFacPhi, max_amperePerpFacPhi_inv, amperePerpFacBpar, max_amperePerpFacBpar_inv, BparDenom, geo_->bmagInv, pars_->fapar, pars_->fbpar);   
+    
+    
+
   }
 
   // set up phiavgdenom, which is stored for quasineutrality calculation as appropriate
@@ -111,9 +126,13 @@ Solver_GK::~Solver_GK()
   if (qneutFacPhi)  cudaFree(qneutFacPhi);
   if (max_qneutFacPhi_inv)  cudaFree(max_qneutFacPhi_inv);
   if (qneutFacBpar)  cudaFree(qneutFacBpar);
+  if (max_qneutFacBpar_inv)  cudaFree(max_qneutFacBpar_inv);
   if (amperePerpFacPhi)  cudaFree(amperePerpFacPhi);
+  if (max_amperePerpFacPhi_inv)  cudaFree(max_amperePerpFacPhi_inv);
   if (amperePerpFacBpar)  cudaFree(amperePerpFacBpar);
+  if (max_amperePerpFacBpar_inv)  cudaFree(max_amperePerpFacBpar_inv);
   if (ampereParFac) cudaFree(ampereParFac);
+  if (max_ampereParFac_inv) cudaFree(max_ampereParFac_inv);
   if (BparDenom) cudaFree(BparDenom);
   if (phiavgdenom) cudaFree(phiavgdenom);
 

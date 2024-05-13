@@ -21,6 +21,10 @@ class Solver {
   virtual float* getAmperePerpFacBpar() {return nullptr;};
   virtual float* getBparDenom() {return nullptr;};
   virtual float* get_max_qneutFacPhi_inv() {return nullptr;};
+  virtual float* get_max_qneutFacBpar_inv() {return nullptr;};
+  virtual float* get_max_ampereParFac_inv() {return nullptr;};
+  virtual float* get_max_amperePerpFacPhi_inv() {return nullptr;};
+  virtual float* get_max_amperePerpFacBpar_inv() {return nullptr;};
   virtual void set_equilibrium_current(MomentsG* G, Fields* fields) {};
 };
 
@@ -38,7 +42,12 @@ class Solver_GK : public Solver {
   float* getQneutFacBpar() {return qneutFacBpar;};
   float* getAmperePerpFacPhi() {return amperePerpFacPhi;};
   float* getAmperePerpFacBpar() {return amperePerpFacBpar;};
+
   float* get_max_qneutFacPhi_inv() {return max_qneutFacPhi_inv;};
+  float* get_max_ampereParFac_inv() {return max_ampereParFac_inv;};
+  float* get_max_qneutFacBpar_inv() {return max_qneutFacBpar_inv;};
+  float* get_max_amperePerpFacBphi_inv() {return max_amperePerpFacPhi_inv;};
+  float* get_max_amperePerpFacBpar_inv() {return max_amperePerpFacBpar_inv;};
   float* getBparDenom() {return BparDenom;};
 
 
@@ -55,6 +64,11 @@ private:
   int count;
   
   float * max_qneutFacPhi_inv;
+  float * max_qneutFacBpar_inv;
+  float * max_ampereParFac_inv;
+  float * max_amperePerpFacPhi_inv;
+  float * max_amperePerpFacBpar_inv;
+
   float * phiavgdenom ;
   float * qneutDenom;
   float * ampereParFac;
