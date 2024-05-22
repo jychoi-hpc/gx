@@ -193,7 +193,12 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       for (int count = 0; count < max_iter; count++){
 	if (count ==0){
           Gr[ielectron]->copyFrom(G1[ielectron]);
-          grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),solver_->get_max_qneutFacPhi_inv(),sdtvt, gradpar_, false); 
+	  if(pars_->fapar > 0. || pars_->fbpar > 0.){
+	    grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, false); 
+	  }
+	  else{
+            grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),solver_->get_max_qneutFacPhi_inv(),sdtvt, gradpar_, false); 
+	  }
 	}
 	else{
 	  grad_par->zft_inverse(G1[ielectron]); //Calculate full potential
@@ -202,7 +207,12 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 
           G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
 
-	  grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),solver_->get_max_qneutFacPhi_inv(), sdtvt, gradpar_, true);
+          if(pars_->fapar > 0. || pars_->fbpar > 0.){
+            grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, true);
+          }
+          else{
+            grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),solver_->get_max_qneutFacPhi_inv(),sdtvt, gradpar_, true);
+          }
 
           G1[ielectron]->add_scaled(omega,G1[ielectron],(1.-omega),Gr[ielectron]);
 	}

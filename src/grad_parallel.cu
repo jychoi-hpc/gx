@@ -101,6 +101,11 @@ void GradParallelPeriodic::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuCom
   //Not needed for periodic.
 }
 
+void GradParallelPeriodic::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi)
+{
+  //Not needed for periodic.
+}
+
 // Fourier transform all moments 
 void GradParallelPeriodic::zft(MomentsG* G)
 {
@@ -210,7 +215,11 @@ void GradParallelLocal::dz2(MomentsG *G)
 
 void GradParallelLocal::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi, const float* qneutDenom, const float* max_qneutFacPhi_inv, const double sdtvt, const float gradpar, bool full_phi)
 {
-  //Not needed for periodic.
+  //Not needed for local..
+}
+
+void GradParallelLocal::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi){
+  //Not needed for local.
 }
 
 void GradParallelLocal::zft(MomentsG *G) {return;}
