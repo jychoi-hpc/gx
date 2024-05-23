@@ -1513,10 +1513,10 @@ void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
     // check consistency of boundary and geo_option
     printf(ANSI_COLOR_RED);
     if(boundary == "continuous drifts" || boundary == "fix aspect") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
     }
     if(boundary == "exact periodic") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
     }
     printf(ANSI_COLOR_RESET);
   }

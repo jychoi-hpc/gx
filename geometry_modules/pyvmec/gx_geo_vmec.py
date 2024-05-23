@@ -468,6 +468,9 @@ def vmec_fieldlines(
     shat = (-2 * s / iota) * d_iota_d_s  # depends on the definitn of rho
     sqrt_s = np.sqrt(s)
 
+    nfp = vs.nfp
+
+    print("nfp =", nfp)
     print("iota = ", iota)
     print("shat = ", shat)
     print("d iota / ds", d_iota_d_s)
@@ -479,6 +482,8 @@ def vmec_fieldlines(
 
     if not shift_grad_alpha:
         zeta_center = 0.0
+    else:
+        zeta_center = -alpha/iota
 
     # Make sure alpha is an array
     # For axisymmetric equilibria, all field lines are identical, i.e., your choice of alpha doesn't matter
@@ -488,6 +493,9 @@ def vmec_fieldlines(
         alpha = [alpha]
     alpha = np.array(alpha)
     nalpha = len(alpha)
+
+    print(f"alpha = {alpha} = {alpha/np.pi/iota*nfp}*iota*pi/{nfp}")
+    print(f"zeta_center = {zeta_center} = {zeta_center/np.pi*nfp}*pi/{nfp}")
 
     try:
         iota_input = toml_dict["Geometry"]["iota_input"]
@@ -500,8 +508,6 @@ def vmec_fieldlines(
             s_hat_input = 1.0e-8
     except KeyError:
         s_hat_input = shat
-
-    nfp = vs.nfp
 
     L_reference = vs.Aminor_p
 
@@ -1123,7 +1129,6 @@ nfp = geo_coeffs.nfp
 dpsidrho = 2 * np.sqrt(rhoc) * geo_coeffs.edge_toroidal_flux_over_2pi
 drhodpsi = 1 / dpsidrho
 Rmaj = (np.max(R) + np.min(R)) / 2
-
 
 twist_shift_geo_fac = 2.*shat*gds21/gds22
 jtwist = (twist_shift_geo_fac)/y0*x0

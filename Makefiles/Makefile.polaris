@@ -4,12 +4,15 @@
 # add and uncomment the following in your ~/.bashrc (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=polaris
-# module swap PrgEnv-nvhpc PrgEnv-gnu
-# module load conda
-# module load nvhpc-mixed/23.1
 # module load cray-hdf5-parallel
 # module load cray-netcdf-hdf5parallel
-# module load gsl
+# module load craype-accel-nvidia80
+# module load cray-python
+# module use /soft/modulefiles
+# module load math_libs/gsl
+# export CUDA_VERSION=11.0
+# export NVHPC_CUDA_HOME=/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/cuda/${CUDA_VERSION}
+# export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/math_libs/${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH
 #
 
 # paths to netcdf
@@ -22,13 +25,13 @@ MPI_INC = -I ${MPI_DIR}/include
 MPI_LIB = -L ${MPI_DIR}/lib -lmpi
 
 # paths to cuda 
-NCCL_HOME = ${NVIDIA_PATH}/comm_libs/nccl
-CUDA_INC = -I ${NVIDIA_PATH}/math_libs/include -I ${NCCL_HOME}/include
-CUDA_LIB = -L ${NVIDIA_PATH}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_HOME}/lib -lnccl -L ${NVIDIA_PATH}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+NCCL_HOME = ${NVIDIA_PATH}/comm_libs/${CUDA_VERSION}/nccl
+CUDA_INC = -I ${NVIDIA_PATH}/math_libs/${CUDA_VERSION}/include -I ${NCCL_HOME}/include
+CUDA_LIB = -L ${NVIDIA_PATH}/math_libs/${CUDA_VERSION}/lib64 -lcufft_static -lcublas -lcublasLt -lcusolver -lgomp -lcutensor -L ${NCCL_HOME}/lib -lnccl -L ${NVIDIA_PATH}/cuda/${CUDA_VERSION}/lib64 -lcudart -lculibos -lnvToolsExt
 
 # paths to gsl 
-GSL_INC = -I ${GSL_ROOT}/include
-GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+GSL_INC = -I ${GSL_ROOT_DIR}/include
+GSL_LIB = -L ${GSL_ROOT_DIR}/lib -lgsl -lgslcblas
 
 C_LIB = -lm -lpthread -ldl
 
