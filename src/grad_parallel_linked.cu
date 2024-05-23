@@ -147,8 +147,6 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     
     checkCuda(cudaMalloc((void**) &max_qneutFacPhi_inv_linked[c], sLClmz_f));
     cudaMemset(max_qneutFacPhi_inv_linked[c], 0., sLClmz_f);
-    checkCuda(cudaMalloc((void**) &max_qneutFacPhi_inv_linked[c], sLClmz_f));
-    cudaMemset(max_qneutFacPhi_inv_linked[c], 0., sLClmz_f);
 
     if(pars_->fapar > 0.){
       checkCuda(cudaMalloc((void**) &max_ampereParFac_inv_linked[c], sLClmz_f));
@@ -365,38 +363,51 @@ void GradParallelLinked::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuCompl
 
 void GradParallelLinked::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi) 
 {
+  checkCudaErrors(cudaGetLastError());
+ 
   for(int c=0; c<nClasses; c++) {
+    checkCudaErrors(cudaGetLastError());
+
     linkedCopy GCHAINS (G->G(), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     checkCuda(cufftExecC2C (zft_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD));
 
     linkedCopy GCHAINS (Gr->G(), Gr_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     checkCuda(cufftExecC2C (zft_plan_forward[c], Gr_linked[c], Gr_linked[c], CUFFT_FORWARD));
 
+
     linkedCopy GCHAINS (phi, phi_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     cufftExecC2C(zft_plan_forward_singlemom[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
+    
 
     linkedCopy GCHAINS (apar, apar_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
-    cufftExecC2C(zft_plan_forward_singlemom[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
+    cufftExecC2C(zft_plan_forward_singlemom[c], apar_linked[c], apar_linked[c], CUFFT_FORWARD);
     
+    checkCudaErrors(cudaGetLastError());
+   
     linkedCopy GCHAINS (bpar, bpar_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
-    cufftExecC2C(zft_plan_forward_singlemom[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
+    cufftExecC2C(zft_plan_forward_singlemom[c], bpar_linked[c], bpar_linked[c], CUFFT_FORWARD);
 
-
+    checkCudaErrors(cudaGetLastError());
     linkedCopy_f GCHAINS (max_qneutFacPhi_inv, max_qneutFacPhi_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
 
     linkedCopy_f GCHAINS (max_ampereParFac_inv, max_ampereParFac_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
-  
     linkedCopy_f GCHAINS (max_qneutFacBpar_inv, max_qneutFacBpar_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
     linkedCopy_f GCHAINS (max_amperePerpFacPhi_inv, max_amperePerpFacPhi_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
-    linkedCopy_f GCHAINS (max_amperePerpFacBpar_inv, max_amperePerpFacBpar_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
+    linkedCopy_f GCHAINS (max_amperePerpFacBpar_inv, max_amperePerpFacBpar_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);   
 
-    tridiag_streaming_linked_em<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], apar_linked[c], bpar_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], max_qneutFacBpar_inv_linked[c], max_ampereParFac_inv_linked[c], max_amperePerpFacPhi_inv_linked[c], max_amperePerpFacBpar_inv_linked[c], pars_->beta,*(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
    
+    tridiag_streaming_linked_em<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], Gr_linked[c],phi_linked[c], apar_linked[c], bpar_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], max_qneutFacBpar_inv_linked[c], max_ampereParFac_inv_linked[c], max_amperePerpFacPhi_inv_linked[c], max_amperePerpFacBpar_inv_linked[c], pars_->beta,*(G->species), sdtvt, gradpar, full_phi, nLinks[c], nChains[c]);
+
+//    cufftExecC2C (zft_plan_inverse[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
+    checkCudaErrors(cudaGetLastError());
+
     linkedCopyBack GCHAINS (G_linked[c], G->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     linkedCopyBack GCHAINS (Gr_linked[c], Gr->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     linkedCopyBack GCHAINS (phi_linked[c], phi, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     linkedCopyBack GCHAINS (apar_linked[c], apar, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     linkedCopyBack GCHAINS (bpar_linked[c], bpar, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
+    
+    checkCudaErrors(cudaGetLastError());
 
   }
 }

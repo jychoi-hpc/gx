@@ -13,7 +13,6 @@ class Solver {
  public:
   virtual ~Solver() {};
   virtual void fieldSolve(MomentsG** G, Fields* fields) = 0;
-  virtual float find_max_qneutDenom_inv() = 0;
   virtual float* getQneutDenom() {return nullptr;};
   virtual float* getAmpereParFac() {return nullptr;};
   virtual float* getQneutFacBpar() {return nullptr;};
@@ -34,7 +33,6 @@ class Solver_GK : public Solver {
   ~Solver_GK();
   
   void fieldSolve(MomentsG** G, Fields* fields);
-  float  find_max_qneutDenom_inv();
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
   float* getQneutDenom() {return qneutFacPhi;};
@@ -46,7 +44,7 @@ class Solver_GK : public Solver {
   float* get_max_qneutFacPhi_inv() {return max_qneutFacPhi_inv;};
   float* get_max_ampereParFac_inv() {return max_ampereParFac_inv;};
   float* get_max_qneutFacBpar_inv() {return max_qneutFacBpar_inv;};
-  float* get_max_amperePerpFacBphi_inv() {return max_amperePerpFacPhi_inv;};
+  float* get_max_amperePerpFacPhi_inv() {return max_amperePerpFacPhi_inv;};
   float* get_max_amperePerpFacBpar_inv() {return max_amperePerpFacBpar_inv;};
   float* getBparDenom() {return BparDenom;};
 
@@ -93,7 +91,6 @@ class Solver_KREHM : public Solver {
   
   void fieldSolve(MomentsG** G, Fields* fields);
   void set_equilibrium_current(MomentsG* G, Fields* fields);
-  float find_max_qneutDenom_inv();
 
   cuComplex * nbar ;
 
@@ -117,7 +114,6 @@ class Solver_cetg : public Solver {
   ~Solver_cetg();
   
   void fieldSolve(MomentsG** G, Fields* fields);
-  float find_max_qneutDenom_inv();
 
 private:
 
@@ -140,7 +136,6 @@ class Solver_VP : public Solver {
   void fieldSolve(MomentsG** G, Fields* fields);
   void svar(cuComplex* f, int N);
   void svar(float* f, int N);
-  float find_max_qneutDenom_inv();
 
 
 private:

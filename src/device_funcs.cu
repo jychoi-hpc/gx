@@ -2137,11 +2137,11 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
         }
       }
       if(fbpar > 0.){
-        if (max_w < qneutFacPhi[idxyz]/(bmagInv[iz]*bmagInv[iz]*BparDenom[idxyz])){
-          max_w = qneutFacPhi[idxyz]/(bmagInv[iz]*bmagInv[iz]*BparDenom[idxyz]);
+        if (max_w < qneutFacPhi[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz])){
+          max_w = qneutFacPhi[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz]);
         }
-	if (max_x < qneutFacBpar[idxyz]/(bmagInv[iz]*bmagInv[iz]*BparDenom[idxyz])){
-	  max_x = qneutFacBpar[idxyz]/(bmagInv[iz]*bmagInv[iz]*BparDenom[idxyz]);
+	if (max_x < qneutFacBpar[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz])){
+	  max_x = qneutFacBpar[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz]);
 	}
 	if (max_y < amperePerpFacPhi[idxyz]/BparDenom[idxyz]){
 	  max_y = amperePerpFacPhi[idxyz]/BparDenom[idxyz];
@@ -2162,7 +2162,8 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
       max_amperePerpFacPhi_inv[idxy] = max_y;
       max_amperePerpFacBpar_inv[idxy] = max_z;
     }
-   
+
+
   }
 }
 
@@ -3206,6 +3207,7 @@ __global__ void tridiag_streaming_linked_em(cuComplex* g, cuComplex* gr, cuCompl
   unsigned int idx = idk % nLinks;
   unsigned int idy = idk / nLinks;
   unsigned int idxy = idy + nyc*idx;
+
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float W = 0.0f;
@@ -3254,7 +3256,6 @@ __global__ void tridiag_streaming_linked_em(cuComplex* g, cuComplex* gr, cuCompl
       g[globalIdx] = g[globalIdx]/bet;
     }
 
-    g[globalIdx] = g[globalIdx]/bet;
     for(idm=1; idm<nm; idm++) {
       globalIdx = idzk + nznk * (idl + nl*idm);
       unsigned int mm1 = idzk + nznk * (idl + nl*(idm-1));

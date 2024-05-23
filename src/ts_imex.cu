@@ -193,8 +193,11 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       for (int count = 0; count < max_iter; count++){
 	if (count ==0){
           Gr[ielectron]->copyFrom(G1[ielectron]);
+          checkCudaErrors(cudaGetLastError());
 	  if(pars_->fapar > 0. || pars_->fbpar > 0.){
-	    grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, false); 
+            checkCudaErrors(cudaGetLastError());
+	    grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, false);
+
 	  }
 	  else{
             grad_par->zft_streaming_invert(G1[ielectron], Gr[ielectron], f->phi,solver_->getQneutDenom(),solver_->get_max_qneutFacPhi_inv(),sdtvt, gradpar_, false); 
@@ -338,7 +341,6 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
   }
-  checkCudaErrors(cudaGetLastError()); 
   // stage 2
   // compute A1 = A(G1)
   //the following is a shitty way to compute the ion contribution to phi.  
@@ -367,13 +369,14 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 
   solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
-  checkCudaErrors(cudaGetLastError());
 
   // stage 3
   // compute A2 = A(G1)
   explicit_terms(A2, G1, f, false);
   // compute B2 = B(G1)
+
   implicit_terms(B2, G1, f);
+
   // G1_i = G_i + a31*A1_i + a32*A2_i + s_*dt*B1_i + t_*dt*B2_i
   for (int is=0; is<grids_->Nspecies; is++) {
     if(is == ielectron) { // electrons
@@ -382,18 +385,19 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->add_scaled(1., G[is], a31*dt_, A1[is], a32*dt_, A2[is], s_*dt_, B1[is], t_*dt_, B2[is]);
     }
   }
+ 
   // compute Phi_i (with G1_e=0)
-  solver_->fieldSolve(G1, f);         
+  solver_->fieldSolve(G1, f);        
   // G1_e = G_e + a31*A1_e + a32*A2_e + s_*dt*B1_e + t_*dt*B2_e
   G1[ielectron]->add_scaled(1., G[ielectron], a31*dt_, A1[ielectron], a32*dt_, A2[ielectron], 
 		            s_*dt_, B1[ielectron], t_*dt_, B2[ielectron]);
-  checkCudaErrors(cudaGetLastError());
   // G1 = inv(I - u_*dt*B)*G1
 //  invert_implicit_terms(G1[ielectron], f, u_*dt_,gradpar_);
   Gc[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron);
 
+  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron);
+  
   solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   // combine stage

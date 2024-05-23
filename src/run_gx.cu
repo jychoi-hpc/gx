@@ -206,7 +206,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   checkCudaErrors(cudaGetLastError());
   
   while(counter<pars->nstep && time<pars->t_max) {
-    checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+  checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     timestep -> advance(&time, G, fields);
     if (checkstop) break;
 
