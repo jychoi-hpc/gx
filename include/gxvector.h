@@ -48,8 +48,12 @@ class GXVector {
 
 		void SetZero();
 
+		using suncomplextype = std::complex<float>
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
+		void LinearSum( suncomplextype, GXVector const&, suncomplextype, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
+		
 		void SetConst( float );
+		void SetConst( suncomplextype );
 
 		// Elementwise division ; this[i] = a[i]/b[i]
 		void Div( GXVector const&, GXVector const& );
@@ -57,7 +61,10 @@ class GXVector {
 		void Prod( GXVector const&, GXVector const& );
 
 		void SetScaled( float, GXVector const& );
+		void SetScaled( suncomplextype, GXVector const& );
 		void Scale( float );
+		void Scale( suncomplextype );
+
 		void SetAbs( GXVector const& );
 		void SetInv( GXVector const& );
 

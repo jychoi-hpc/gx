@@ -468,8 +468,13 @@ __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuCo
 __global__ void add_const_kernel( cuComplex* g, float b );
 __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol );
 
+__global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cuComplex* m1, cuComplex c2, const cuComplex* m2);
+
+
 
 // ExB Kernels
 __global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
 __global__ void field_shift(cuComplex* field_new, const cuComplex* field_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
 __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
+
+

@@ -3826,7 +3826,7 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 
 // New Kernels for gxvector (IGA)
 
-__global__ void set_constant_kernel( cuComplex* res, float x )
+__global__ void set_constant_kernel( cuComplex* res, cuComplex c )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
@@ -3837,8 +3837,8 @@ __global__ void set_constant_kernel( cuComplex* res, float x )
 
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
       unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-      res[ig].x = x;
-      res[ig].y = 0.0;
+      res[ig].x = c.x;
+      res[ig].y = c.y;
   }
 }
 
@@ -4027,5 +4027,24 @@ __global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *den
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
     wgt[ ig ].y = 0.0;
+  }
+}
+
+__global__ void add_complex_scaled_kernel(cuComplex* res,
+				  cuComplex c1, const cuComplex* m1,
+				  cuComplex c2, const cuComplex* m2, bool neqfix = true)
+{
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    if (neqfix || not_fixed_eq(idxy)) {
+      
+      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+      
+      res[ig].x = c1.x * m1[ig].x + c2.x * m2[ig].x - c1.y * m1[ig].y - c2.y * m2[ig].y;
+      res[ig].y = c1.x * m1[ig].y + c2.x * m2[ig].y + c1.y * m1[ig].x + c2.y * m2[ig].x;
+    }
   }
 }
