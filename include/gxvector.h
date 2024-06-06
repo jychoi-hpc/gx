@@ -50,7 +50,7 @@ class GXVector {
 
 		void SetZero();
 
-		using suncomplextype = std::complex<float>
+		using suncomplextype = std::complex<float>;
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
 		void LinearSum( suncomplextype, GXVector const&, suncomplextype, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
 		
