@@ -21,7 +21,7 @@ void GXV_Prod( N_Vector x, N_Vector y, N_Vector z );
 void GXV_Div( N_Vector x, N_Vector y, N_Vector z );
 void GXV_Const( sunrealtype c, N_Vector z );
 void GXV_LinearSum( sunrealtype a, N_Vector v, sunrealtype b, N_Vector w, N_Vector out );
-void GXV_LinearSum( suncomplextype a, N_Vector v, suncomplextype b, N_Vector w, N_Vector out );
+void GXV_LinearSum( Complex a, N_Vector v, Complex b, N_Vector w, N_Vector out );
 N_Vector GXV_Clone( N_Vector other );
 void GXV_Destroy( N_Vector v );
 N_Vector_ID GXV_GetVectorID( N_Vector );
@@ -131,7 +131,7 @@ void GXV_LinearSum( sunrealtype a, N_Vector v, sunrealtype b, N_Vector w, N_Vect
 	GXV( out )->LinearSum( a, *GXV( v ), b, *GXV( w ) );
 }
 
-void GXV_LinearSum( suncomplextype a, N_Vector v, suncomplextype b, N_Vector w, N_Vector out )
+void GXV_LinearSum( Complex a, N_Vector v, Complex b, N_Vector w, N_Vector out )
 {
 	GXV( out )->LinearSum( a, *GXV( v ), b, *GXV( w ) );
 }
