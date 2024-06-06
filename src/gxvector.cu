@@ -7,8 +7,6 @@ extern "C" {
 	#include <stdio.h>
 }
 
-#include <complex>
-using Complex = Complex;
 
 /*
 	This file provides the GXVector class, which is the building block of the custom NVector implementation

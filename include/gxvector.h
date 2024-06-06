@@ -5,7 +5,9 @@
 
 #include <sundials/sundials_core.h>
 #include <sundials/sundials_nvector.h>
+
 #include <complex>
+using Complex = std::complex<float>;
 
 extern "C" {
 #include <stdio.h>
@@ -50,12 +52,11 @@ class GXVector {
 
 		void SetZero();
 
-		using suncomplextype = std::complex<float>;
 		void LinearSum( float, GXVector const&, float, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
-		void LinearSum( suncomplextype, GXVector const&, suncomplextype, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
+		void LinearSum( Complex, GXVector const&, Complex, GXVector const& ); // Sets the current object to be a*v_1 + b*v_2
 		
 		void SetConst( float );
-		void SetConst( suncomplextype );
+		void SetConst( Complex );
 
 		// Elementwise division ; this[i] = a[i]/b[i]
 		void Div( GXVector const&, GXVector const& );
@@ -63,9 +64,9 @@ class GXVector {
 		void Prod( GXVector const&, GXVector const& );
 
 		void SetScaled( float, GXVector const& );
-		void SetScaled( suncomplextype, GXVector const& );
+		void SetScaled( Complex, GXVector const& );
 		void Scale( float );
-		void Scale( suncomplextype );
+		void Scale( Complex );
 
 		void SetAbs( GXVector const& );
 		void SetInv( GXVector const& );
@@ -79,7 +80,7 @@ class GXVector {
 
 		float MinReal() const;
 
-		std::complex<float> dotProduct( GXVector const & ) const;
+		Complex dotProduct( GXVector const & ) const;
 
 		explicit GXVector( MomentsG **G, SUNContext ctx_ ) :
 			ctx(ctx_),owns_data(false)
