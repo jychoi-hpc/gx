@@ -53,7 +53,7 @@ void GXVector::SetConst( float c )
 
 void GXVector::SetConst( Complex C )
 {
-	cuComplex c( C.real, C.imag );
+	cuComplex c = make_cuComplex( C.real, C.imag );
 	for( auto &m : array )
 	{
 		set_constant_kernel <<< m->dG_all, m->dB_all >>> ( *m, c );
@@ -89,7 +89,7 @@ void GXVector::Scale( float c )
 
 void GXVector::Scale( Complex C )
 {
-	cuComplex c( C.real, C.imag );
+	cuComplex c = make_cuComplex( C.real, C.imag );
 	for( auto &m : array )
 		m->scale( c );
 }
@@ -289,15 +289,11 @@ void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y
 void GXVector::LinearSum( Complex a, GXVector const& x, Complex b, GXVector const& y )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	cuComplex A,B;
-	A.x = a.real;
-	A.y = a.imag;
-	B.x = b.real;
-	B.y = b.imag;
+	cuComplex A = make_cuComplex( a.real(), a.imag() );
+	cuComplex B = make_cuComplex( b.real(), b.imag() );
 	for( int i = 0; i < array.size(); ++i )
 	{
-		// Note the last argument is true to force-ignore eqfix
-		add_complex_scaled_kernel<<< m.dG_all, m.dB_all >>> ( gData(i), A, x.gData( i ), B, y.gData( i ), true );
+		add_complex_scaled_kernel<<< m.dG_all, m.dB_all >>> ( gData(i), A, x.gData( i ), B, y.gData( i ) );
 		checkCuda( cudaGetLastError() );
 	}
 }

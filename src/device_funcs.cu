@@ -3826,7 +3826,7 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 
 // New Kernels for gxvector (IGA)
 
-__global__ void set_constant_kernel( cuComplex* res, cuComplex c )
+__global__ void set_constant_kernel( cuComplex* res, const cuComplex c )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
