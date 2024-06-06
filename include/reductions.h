@@ -43,6 +43,11 @@ template <> cudaDataType_t dataType<std::complex<float>>()
   return CUDA_C_32F;
 }
 
+template <> cudaDataType_t dataType<cuComplex>()
+{
+  return CUDA_C_32F;
+}
+
 template <> cudaDataType_t dataType<std::complex<double>>()
 {
   return CUDA_C_64F;

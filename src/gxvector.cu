@@ -341,16 +341,16 @@ void GXVector::AddConst( sunrealtype b )
 	}
 }
 
-Complex GXVector::dotProduct( GXVector const & y ) const
+Complex GXVector::dotProduct( GXVector const & w ) const
 {
 	assert( w.array.size() == array.size() );
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
-	Reduction<Complex> reducer(array[ 0 ]->grids_, modes, modesRed);
+	Reduction<cuComplex> reducer(array[ 0 ]->grids_, modes, modesRed);
 
 	// allocate temporary object for x_i y*_i
-	Complex *tmp;
+	cuComplex *tmp;
 	
 	// We need same number of floats as complex numbers in g
 	size_t size_per_species = array[0]->getN() * sizeof(cuComplex);
@@ -365,7 +365,7 @@ Complex GXVector::dotProduct( GXVector const & y ) const
 	for( int i = 0; i < array.size(); ++i )
 	{
 		cuComplex *tmp_species_i = tmp + i * array[0]->getN();
-		complexDotProdKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
+		complexDotProductKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
 		checkCuda( cudaGetLastError() );
 	}
 
