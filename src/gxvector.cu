@@ -336,3 +336,47 @@ void GXVector::AddConst( sunrealtype b )
 		checkCuda( cudaGetLastError() );
 	}
 }
+
+std::complex<float> GXVector::dotProduct( GXVector const & y ) const
+{
+	assert( w.array.size() == array.size() );
+	// Reduction object
+	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
+	std::vector<int32_t> modesRed{};
+	Reduction<std::complex<float>> reducer(array[ 0 ]->grids_, modes, modesRed);
+
+	// allocate temporary object for x_i y*_i
+	std::complex<float> *tmp;
+	
+	// We need same number of floats as complex numbers in g
+	size_t size_per_species = array[0]->getN() * sizeof(cuComplex);
+	checkCuda(cudaMalloc((void**) &tmp, size_per_species * array.size() )); 
+
+	// Allocate space on GPU for answer
+	cuComplex *SumResult;
+	checkCuda(cudaMalloc(&SumResult,  sizeof(cuComplex)));
+
+	// do tmp_i = x_i y*_i on GPU
+	MomentsG const & m = *(array[ 0 ]);
+	for( int i = 0; i < array.size(); ++i )
+	{
+		cuComplex *tmp_species_i = tmp + i * array[0]->getN();
+		complexDotProdKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
+		checkCuda( cudaGetLastError() );
+	}
+
+
+	// tmp now contains {w_i^2 ||g_i||^2 }
+	// Sum all of tmp to get the answer
+	
+	reducer.Sum( tmp, SumResult );
+	cuComplex cpuSumResult;
+	checkCuda( cudaDeviceSynchronize() );
+	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(cuComplex) );
+
+	// Clean up
+	checkCuda( cudaFree( SumResult ) );
+	checkCuda( cudaFree( tmp ) );
+
+	return std::complex<float>( cpuSumResult.x, cpuSumResult.y );
+}

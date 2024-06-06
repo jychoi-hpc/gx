@@ -37,6 +37,16 @@ template <> cudaDataType_t dataType<double>()
   return CUDA_R_64F;
 }
 
+template <> cudaDataType_t dataType<std::complex<float>>()
+{
+  return CUDA_C_32F;
+}
+
+template <> cudaDataType_t dataType<std::complex<double>>()
+{
+  return CUDA_C_64F;
+}
+
 template <class T> class Reduction {
  public:
   Reduction(Grids *grids, std::vector<int32_t> modeFull, std::vector<int32_t> modeReduced, int N=0);

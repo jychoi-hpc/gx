@@ -4048,3 +4048,26 @@ __global__ void add_complex_scaled_kernel(cuComplex* res,
     }
   }
 }
+
+// Set res_i = w_i z*_i
+__global__ void complexDotProductKernel(cuComplex * res, const cuComplex* w, const cuComplex* z)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    // For the FFT padding modes, just pad the output with 0
+    if ( unmasked( idx, idy ) ) {
+      res[ ig ].x = w[ ig ].x * z[ ig ].x + w[ ig ].y * z[ ig ].y;
+		res[ ig ].y = w[ ig ].y * z[ ig ].x - w[ ig ].x * z[ ig ].y;
+    } else {
+      res[ ig ].x = 0.0;
+      res[ ig ].y = 0.0;
+    }
+  }
+}

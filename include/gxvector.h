@@ -77,6 +77,8 @@ class GXVector {
 
 		float MinReal() const;
 
+		std::complex<float> dotProduct( GXVector const & ) const;
+
 		explicit GXVector( MomentsG **G, SUNContext ctx_ ) :
 			ctx(ctx_),owns_data(false)
 		{ 
