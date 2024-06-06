@@ -228,7 +228,7 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
     float M = (float) grids_->Nm_glob-1;
     float p = (float) pars_->p_hyper_m;
     float vt = G->species->vt;
-    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*geo_->gradpar;
+    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*abs(geo_->gradpar);
     tmpG->set_zero();
     hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
     grad_par->abs_dz(tmpG, GRhs, true);
