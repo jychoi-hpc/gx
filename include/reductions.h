@@ -5,6 +5,7 @@
 #include <cutensor.h>
 #include <unordered_map>
 #include <vector>
+#include <complex>
 #include <iterator>
 #include "grids.h"
 
