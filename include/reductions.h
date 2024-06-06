@@ -53,6 +53,21 @@ template <> cudaDataType_t dataType<std::complex<double>>()
   return CUDA_C_64F;
 }
 
+template <class T> static T One() {
+	return 1.0;
+};
+template <class T> static T Zero() {
+	return 0.0;
+};
+
+template <> cuComplex One<cuComplex>() {
+	return cuComplex( 1.0, 0.0 );
+}
+
+template <> cuComplex Zero<cuComplex>() {
+	return cuComplex( 0.0, 0.0 );
+}
+
 template <class T> class Reduction {
  public:
   Reduction(Grids *grids, std::vector<int32_t> modeFull, std::vector<int32_t> modeReduced, int N=0);
@@ -69,8 +84,8 @@ template <class T> class Reduction {
   cutensorHandle_t handle; 
   cutensorContractionFind_t find;
     
-  T alpha = 1.0;
-  T beta  = 0.0;
+  T alpha = One<T>();
+  T beta  = Zero<T>();
   
   Grids *grids_;
   bool initialized_Sum = false;
