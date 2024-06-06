@@ -27,7 +27,7 @@ void GXV_Destroy( N_Vector v );
 N_Vector_ID GXV_GetVectorID( N_Vector );
 void GXV_PrintFile( N_Vector , FILE* );
 
-sunrealtype 
+Complex GXV_DotProduct( N_Vector x, N_Vector y );
 
 struct _generic_N_Vector_Ops GXVOps = {
    .nvgetvectorid = GXV_GetVectorID,
@@ -212,5 +212,8 @@ void GXV_PrintFile( N_Vector v, FILE* out )
 	free( local_copy );
 }
 
-
+Complex GXV_DotProduct( N_Vector x, N_Vector y )
+{
+	return GXV( x )->dotProduct( *GXV( y ) );
+}
 
