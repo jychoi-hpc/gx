@@ -7,6 +7,8 @@ extern "C" {
 	#include <stdio.h>
 }
 
+#include <complex>
+using Complex = Complex;
 
 /*
 	This file provides the GXVector class, which is the building block of the custom NVector implementation
@@ -75,23 +77,25 @@ void GXVector::SetScaled( float c, GXVector const & other )
 	this->Scale( c );
 }
 
-void GXVector::SetScaled( suncomplextype c, GXVector const & other )
+void GXVector::SetScaled( Complex c, GXVector const & other )
 {
 	*this = other;
 	this->Scale( c );
 }
+
 void GXVector::Scale( float c )
 {
 	for( auto &m : array )
 		m->scale( c );
 }
 
-void GXVector::Scale( suncomplex C )
+void GXVector::Scale( Complex C )
 {
 	cuComplex c( C.real, C.imag );
 	for( auto &m : array )
 		m->scale( c );
 }
+
 void GXVector::SetInv( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
@@ -284,7 +288,7 @@ void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y
 	}
 }
 
-void GXVector::LinearSum( std::complex<float> a, GXVector const& x, std::complex<float> b, GXVector const& y )
+void GXVector::LinearSum( Complex a, GXVector const& x, Complex b, GXVector const& y )
 {
 	MomentsG const & m = *(array[ 0 ]);
 	cuComplex A,B;
@@ -337,16 +341,16 @@ void GXVector::AddConst( sunrealtype b )
 	}
 }
 
-std::complex<float> GXVector::dotProduct( GXVector const & y ) const
+Complex GXVector::dotProduct( GXVector const & y ) const
 {
 	assert( w.array.size() == array.size() );
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
-	Reduction<std::complex<float>> reducer(array[ 0 ]->grids_, modes, modesRed);
+	Reduction<Complex> reducer(array[ 0 ]->grids_, modes, modesRed);
 
 	// allocate temporary object for x_i y*_i
-	std::complex<float> *tmp;
+	Complex *tmp;
 	
 	// We need same number of floats as complex numbers in g
 	size_t size_per_species = array[0]->getN() * sizeof(cuComplex);
@@ -378,5 +382,5 @@ std::complex<float> GXVector::dotProduct( GXVector const & y ) const
 	checkCuda( cudaFree( SumResult ) );
 	checkCuda( cudaFree( tmp ) );
 
-	return std::complex<float>( cpuSumResult.x, cpuSumResult.y );
+	return Complex( cpuSumResult.x, cpuSumResult.y );
 }
