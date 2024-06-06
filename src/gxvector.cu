@@ -53,7 +53,7 @@ void GXVector::SetConst( float c )
 
 void GXVector::SetConst( Complex C )
 {
-	cuComplex c = make_cuComplex( C.real, C.imag );
+	cuComplex c = make_cuComplex( C.real(), C.imag() );
 	for( auto &m : array )
 	{
 		set_constant_kernel <<< m->dG_all, m->dB_all >>> ( *m, c );
@@ -89,7 +89,7 @@ void GXVector::Scale( float c )
 
 void GXVector::Scale( Complex C )
 {
-	cuComplex c = make_cuComplex( C.real, C.imag );
+	cuComplex c = make_cuComplex( C.real(), C.imag() );
 	for( auto &m : array )
 		m->scale( c );
 }
