@@ -61,11 +61,11 @@ template <class T> static T Zero() {
 };
 
 template <> cuComplex One<cuComplex>() {
-	return cuComplex( 1.0, 0.0 );
+	return make_cuComplex( 1.0, 0.0 );
 }
 
 template <> cuComplex Zero<cuComplex>() {
-	return cuComplex( 0.0, 0.0 );
+	return make_cuComplex( 0.0, 0.0 );
 }
 
 template <class T> class Reduction {
