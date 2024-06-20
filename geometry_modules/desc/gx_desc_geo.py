@@ -174,10 +174,10 @@ gds21 = -sign_iota * np.array(dot(grad_psi,grad_alpha)) * shat/Bref
 gds22 = grad_psi_sq / psi * (shat/(Lref * Bref))**2
 
 
-Bra = 1/data["sqrt(g)"] * (data["B_zeta"]*(1+lmbda_t) - data["B_theta"]*(lmbda_z - iota)) *data["p_r"] * 2*Bref*Lref**2/modB**4*np.sqrt(psi)*mu_0
+Bra = -sign_psi * 1/data["sqrt(g)"] * (data["B_zeta"]*(1+lmbda_t) - data["B_theta"]*(lmbda_z - iota)) *data["p_r"] * 2*Bref*Lref**2/modB**4*np.sqrt(psi)*mu_0
 cvdrift = np.array(dot(cross(data['B'],data['kappa']),grad_alpha))
 cvdrift *= -sign_psi * 2 * Bref * Lref**2 / modB**2 * np.sqrt(psi)
-gbdrift = cvdrift + Bra
+gbdrift = cvdrift - Bra
 
 gbdrift0 = np.array(dot(cross(data['B'],data['grad(|B|)']),grad_psi))
 gbdrift0 *= sign_iota * sign_psi * shat * 2 / modB**3 / np.sqrt(psi)
