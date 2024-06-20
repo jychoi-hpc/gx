@@ -5,6 +5,7 @@ import numpy as np
 from desc.grid import Grid
 from scipy.constants import mu_0
 import toml
+from desc.compute.utils import cross, dot
 
 def get_gx_arrays(zeta,bmag,grho,gradpar,gds2,gds21,gds22,gbdrift,gbdrift0,cvdrift,cvdrift0):
     dzeta = zeta[1] - zeta[0]
@@ -95,17 +96,11 @@ eq_keys = [
     "psi"
 ]
 
-flux_tube_keys = [
-    "B", "|B|",
-    "lambda", "lambda_r", "lambda_t", "lambda_z",
-    "|grad(rho)|",
-    "g^rr", "g^tt", "g^zz", "g^rt", "g^rz", "g^tz",
-    "g_tz", "g_tt", "g_zz",
-    "B_theta", "B_zeta", "B_rho", "|B|_t", "|B|_z", "|B|_r",
-    "B^theta", "B^zeta_r", "B^theta_r", "B^zeta",
-    "e_theta", "e_theta_r", "e_zeta_r", "e_zeta",
-    "p_r","grad(psi)"
-]
+
+flux_tube_keys = ["|B|", "|grad(psi)|^2", "grad(|B|)", "grad(alpha)", "grad(psi)",
+        "B", "grad(|B|)", "kappa", "B^theta", "B^zeta", "lambda_t", "lambda_z",'p_r',
+        "lambda_r", "lambda", "g^rr", "g^rt", "g^rz", "g^tz", "g^tt", "g^zz",
+        "e^rho", "e^theta", "e^zeta", "|B|_r", "|B|_t", "|B|_z","sqrt(g)","B_rho","B_theta","B_zeta"]
 
 data_eq = eq.compute(eq_keys)
 
@@ -137,64 +132,56 @@ grid = Grid(coords)
 data = eq.compute(flux_tube_keys,grid=grid)
 
 psib = data_eq['psi'][-1]
+sign_psi = psib/np.abs(psib)
+sign_iota = iotas/np.abs(iotas)
+
 #normalizations       
 Lref = data_eq['a']
 Bref = 2*np.abs(psib)/Lref**2
 #calculate bmag
 modB = data['|B|']
 bmag = modB/Bref
+#calculate shear
+x = Lref * rho
+shat = -x/iotas * shear[0]/Lref
 
 #calculate gradpar and grho
 gradpar = Lref*data['B^zeta']/modB
-grho = data['|grad(rho)|']*Lref
+
 
 #calculate grad_psi and grad_alpha
-grad_psi = 2*psib*rho
+grad_psi = data['grad(psi)']
+grad_psi_sq = data['|grad(psi)|^2']
 lmbda = data['lambda']
 lmbda_r = data['lambda_r']
 lmbda_t = data['lambda_t']
-lmbda_z = data['lambda_z']
-
-
-
+lmbda_z = data['lambda_z'] 
 grad_alpha_r = (lmbda_r - (zeta-zeta_center)*shear)
 grad_alpha_t = (1 + lmbda_t)
 grad_alpha_z = (-iota+lmbda_z)
 
-grad_alpha = np.sqrt(grad_alpha_r**2 * data['g^rr'] + grad_alpha_t**2 * data['g^tt'] + grad_alpha_z**2 * data['g^zz'] + 2*grad_alpha_r*grad_alpha_t*data['g^rt'] + 2*grad_alpha_r*grad_alpha_z*data['g^rz']
-                 + 2*grad_alpha_t*grad_alpha_z*data['g^tz'])
 
-grad_psi_dot_grad_alpha = grad_psi * grad_alpha_r * data['g^rr'] + grad_psi * grad_alpha_t * data['g^rt'] + grad_psi * grad_alpha_z * data['g^rz']
+grad_alpha = (
+grad_alpha_r * data["e^rho"].T
++ grad_alpha_t * data["e^theta"].T
++ grad_alpha_z * data["e^zeta"].T
+).T
 
-#calculate gds*
-shat = -rho/iotas * shear[0]
-gds2 = grad_alpha**2 * Lref**2 *psi
-gds21 = -iotas/np.abs(iotas) * shat/Bref * grad_psi_dot_grad_alpha
-gds22 = (shat/(Lref*Bref))**2 /psi * grad_psi**2*data['g^rr']
+grho = np.sqrt(grad_psi_sq / (Lref**2 * Bref**2 * psi))
 
-#calculate gbdrift0 and cvdrift0
-B_t = data['B_theta']
-B_z = data['B_zeta']
-dB_t = data['|B|_t']
-dB_z = data['|B|_z']
-jac = data['sqrt(g)']
-gbdrift0 = -iotas/np.abs(iotas) * -psib/np.abs(psib)*shat * 2 / modB**3 / rho*(B_t*dB_z - B_z*dB_t)*psib/jac * 2 * rho
+gds2 = np.array(dot(grad_alpha,grad_alpha)) * Lref**2 * psi
+gds21 = -sign_iota * np.array(dot(grad_psi,grad_alpha)) * shat/Bref
+gds22 = grad_psi_sq / psi * (shat/(Lref * Bref))**2
+
+
+Bra = 1/data["sqrt(g)"] * (data["B_zeta"]*(1+lmbda_t) - data["B_theta"]*(lmbda_z - iota)) *data["p_r"] * 2*Bref*Lref**2/modB**4*np.sqrt(psi)*mu_0
+cvdrift = np.array(dot(cross(data['B'],data['kappa']),grad_alpha))
+cvdrift *= -sign_psi * 2 * Bref * Lref**2 / modB**2 * np.sqrt(psi)
+gbdrift = cvdrift + Bra
+
+gbdrift0 = np.array(dot(cross(data['B'],data['grad(|B|)']),grad_psi))
+gbdrift0 *= sign_iota * sign_psi * shat * 2 / modB**3 / np.sqrt(psi)
 cvdrift0 = gbdrift0
-
-#calculate gbdrift and cvdrift
-B_r = data['B_rho'] 
-dB_r = data['|B|_r']
-
-#iota = iota_data['iota'][0]
-gbdrift_norm = 2*Bref*Lref**2/modB**3*rho
-gbdrift = -psib/np.abs(psib)*gbdrift_norm/jac*(B_r*dB_t*(lmbda_z - iota) + B_t*dB_z*(lmbda_r - (zeta-zeta_center)*shear[0]) + B_z*dB_r*(1+lmbda_t) - B_z*dB_t*(lmbda_r - (zeta-zeta_center)*shear[0]) - B_t*dB_r*(lmbda_z - iota) - B_r*dB_z*(1+lmbda_t))
-Bsa = 1/jac * (B_z*(1+lmbda_t) - B_t*(lmbda_z - iota))
-p_r = data['p_r']
-cvdrift = gbdrift + 2*Bref*Lref**2/modB**2 * rho*mu_0/modB**2*p_r*Bsa
-
-Lref = Lref
-shat = shat
-iota = iota
 
 
 uniform_zgrid,bmag_gx, grho_gx, gradpar_gx, gds2_gx, gds21_gx, gds22_gx, gbdrift_gx, gbdrift0_gx, cvdrift_gx, cvdrift0_gx = get_gx_arrays(zeta,bmag,grho,gradpar,gds2,gds21,gds22,gbdrift,gbdrift0,cvdrift,cvdrift0)
