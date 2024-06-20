@@ -16,7 +16,7 @@
 
 # paths to netcdf
 NETCDF_INC = -I ${NETCDFDIR}/include
-NETCDF_LIB = -L ${NETCDFDIR}/lib64 -lnetcdf -lnetcdff -lhdf5 
+NETCDF_LIB = -L ${NETCDFDIR}/lib64 -lnetcdf -lhdf5 
 
 # paths to openmpi
 OMPI_DIR = /usr/local/openmpi/cuda-11.0/4.0.4/gcc/ppc64le

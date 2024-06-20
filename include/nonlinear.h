@@ -40,6 +40,7 @@ class Nonlinear_GK : public Nonlinear {
   size_t Size; 
   bool ks, vp;
   dim3 dGk, dBk, dGx, dBx, dGx_single, dBx_single;
+  dim3 dGx_ntft, dBx_ntft, dGx_single_ntft, dBx_single_ntft, dGphi_ntft, dBphi_ntft;
   float cfl_x_inv, cfl_y_inv;
   double dt_cfl;
 
@@ -73,6 +74,8 @@ class Nonlinear_GK : public Nonlinear {
   float vmax_y[1]     ;
   cuComplex * J0phi   ;
   cuComplex * J0apar ;
+  cuComplex * iKxG    ;
+  cuComplex * iKxG_single;
 };
 
 class Nonlinear_KREHM : public Nonlinear {

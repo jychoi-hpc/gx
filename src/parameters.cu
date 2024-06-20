@@ -91,6 +91,7 @@ void Parameters::get_nml_vars(char* filename)
   // "continuous drifts": cut flux tube at a location where gbdrift0 = 0, and then use (generalized) twist-and-shift BC (currently for VMEC geometry only)
   // "fix aspect": cut flux tube at a location where y0/x0 takes the desired value, and then use (generalized) twist-and-shift BC (VMEC geometry only)
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
+  nonTwist = toml::find_or <bool>        (tnml, "nonTwist", false);
   long_wavelength_GK = toml::find_or <bool>   (tnml, "long_wavelength_GK",   false ); // JFP, long wavelength GK limit where bs = 0, except in quasineutrality where 1 - Gamma0(b) --> b.
   zero_shat_threshold = toml::find_or <float>   (tnml, "zero_shat_threshold", 1e-5);
   bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
@@ -158,6 +159,7 @@ void Parameters::get_nml_vars(char* filename)
   hypercollisions_kz = toml::find_or <bool> (tnml, "hypercollisions_kz", false);
   hypercollisions_kz = toml::find_or <bool> (tnml, "hypercollisions", hypercollisions_kz); // "hypercollisions" now gives hypercollisions_kz
   hyperz = toml::find_or <bool> (tnml, "hyperz", false);
+  
 
   tnml = nml;
   if (nml.contains("Collisional_slab_ETG")) tnml = toml::find (nml, "Collisional_slab_ETG"); 
@@ -512,6 +514,7 @@ void Parameters::get_nml_vars(char* filename)
   chs_eq = toml::find_or <bool> (tnml, "chs_eq", false);
   transp_eq = toml::find_or <bool> (tnml, "transp_eq", false);
   gs2d_eq = toml::find_or <bool> (tnml, "gs2d_eq", false);
+  RBzeta = toml::find_or <float> (tnml, "RBzeta", (double) rmaj); // JFP: RBzeta = I_N(psi) R Bzeta / a Bref ?= (rmaj / a) by default until we have GX capability to calculate R(theta). But for now, assume  R Bzeta / a = Bref.
 
   tnml = nml;
   if (nml.contains("Physics")) tnml = toml::find(nml, "Physics");
@@ -519,7 +522,9 @@ void Parameters::get_nml_vars(char* filename)
   if (beta == 0.0 && beta_geo > 0.0) beta = beta_geo; 
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    nonlinear_mode );  linear = !nonlinear_mode;
   ExBshear = toml::find_or <bool> (tnml, "ExBshear",    ExBshear_domain );
+  ExBshear_phase = toml::find_or <bool> (tnml, "ExBshear_phase",  true); // If false, neglect phase correction in FFT. Only relevant for nonlinear simulations.
   g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
+  if (!ExBshear) ExBshear_phase = false; 
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
@@ -872,6 +877,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_dom, "jtwist",        NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "boundary_dum",  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_put_att_text (nc_dom, ivar, "value", boundary.size(), boundary.c_str())) ERR(retval);
+  if (retval = nc_def_var (nc_dom, "nonTwist",      NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_dom, "ExBshear_phase",      NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "long_wavelength_GK",      NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_ml, "Use_reservoir",  NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1110,6 +1117,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (geo_option=="slab") put_real (nc_dom, "z0",      z0      );
   putint   (nc_dom, "zp",      Zp      );
   putint   (nc_dom, "jtwist",  jtwist  );
+  putbool  (nc_dom, "nonTwist",nonTwist);
+  putbool  (nc_dom, "ExBshear_phase", "ExBshear_phase");
   putbool  (nc_dom, "long_wavelength_GK", long_wavelength_GK);
 
   put_real (nc_time, "dt",      dt      );
@@ -1490,10 +1499,10 @@ void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
     // check consistency of boundary and geo_option
     printf(ANSI_COLOR_RED);
     if(boundary == "continuous drifts" || boundary == "fix aspect") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
     }
     if(boundary == "exact periodic") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
     }
     printf(ANSI_COLOR_RESET);
   }

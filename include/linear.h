@@ -58,7 +58,7 @@ public:
 
 class Linear_KREHM : public Linear {
 public:
-  Linear_KREHM(Parameters* pars, Grids* grids); 
+  Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo); 
   ~Linear_KREHM();
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);

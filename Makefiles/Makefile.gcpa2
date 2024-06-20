@@ -1,0 +1,59 @@
+# From template Makefile for a generic system 
+# Tested on GCP VM A2 with single and dual A100
+# With NVIDIA HPC SDK Version 23.11 
+#
+# Created by Dominique Frechette - dominique.frechette@videotron.ca
+#
+
+# You must also set the CUDAARCH variable below. A100:80, GTX 3060:86 
+CUDAARCH = 80
+
+# Add the following to your .bashrc (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# export GK_SYSTEM=gcpa2
+#
+
+# paths to netcdf
+# make sure NETCDF_ROOT and HDF5_ROOT environment variables are set, or define them here
+NETCDF_ROOT = /usr/lib/x86_64-linux-gnu/netcdf/mpi
+HDF5_ROOT = /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+NETCDF_INC = -I ${NETCDF_ROOT}/include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L ${HDF5_ROOT}/lib -lhdf5 
+
+# paths to mpi
+# make sure MPI_ROOT environment variable is set, or define it here
+# Using the one included with NVidia HPC SDK
+#MPI_ROOT = /usr/lib/x86_64-linux-gnu/mpich
+MPI_ROOT = /opt/nvidia/hpc_sdk/Linux_x86_64/2023/comm_libs/12.3/openmpi4/latest
+MPI_INC = -I ${MPI_ROOT}/include
+MPI_LIB = -L ${MPI_ROOT}/lib -lmpi
+
+# paths to cuda 
+# make sure NVHPC_ROOT enviroment variable is set, or define it here
+NVHPC_ROOT = /opt/nvidia/hpc_sdk/Linux_x86_64/2023
+NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/nccl
+#CUDA_TARGET = ${NVHPC_ROOT}/cuda/12.3/
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt -lnvJitLink
+
+# paths to gsl
+# make sure GSL_ROOT environment variable is set, or define it here
+# GSL_ROOT = 
+GSL_INC = -I /usr/include/gsl
+GSL_LIB = -L /usr/lib/x86_64-linux-gnu -lgsl -lgslcblas
+
+# additional c libraries required for linking. hopefully these are already in LD_LIBRARY_PATH
+C_LIB = -lm -lpthread -ldl
+
+# compilers and flags
+CXX = g++
+NVCC = ${NVHPC_ROOT}/compilers/bin/nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif
+

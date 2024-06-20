@@ -8,6 +8,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   Solver    * solver    = nullptr;
   Linear    * linear    = nullptr;
   Nonlinear * nonlinear = nullptr;
+  ExB       * exb       = nullptr;
   Diagnostics * diagnostics = nullptr;
   MomentsG  ** G = (MomentsG**) malloc(sizeof(void*)*grids->Nspecies);
   for(int is=0; is<grids->Nspecies; is++) {
@@ -36,6 +37,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   if (pars->gx) {
     linear = new Linear_GK(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_GK(pars, grids, geo); 
+    if (pars->ExBshear)   exb       = new ExB_GK(pars, grids, geo);
     checkCudaErrors(cudaGetLastError());
 
     solver = new Solver_GK(pars, grids, geo);    
@@ -72,7 +74,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   //                          //
   //////////////////////////////  
   if (pars->krehm) {
-    linear = new Linear_KREHM(pars, grids);          
+    linear = new Linear_KREHM(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
     if (pars->forcing_init) {
       std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;
@@ -175,14 +177,14 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   Timestepper * timestep;
   switch (pars->scheme_opt)
     {
-    case Tmethod::k10   : timestep = new Ketcheson10 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::k2    : timestep = new K2          (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::g3    : timestep = new G3          (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk3   : timestep = new RungeKutta3 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+    case Tmethod::k10   : timestep = new Ketcheson10 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::k2    : timestep = new K2          (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::g3    : timestep = new G3          (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::rk3   : timestep = new RungeKutta3 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     }
 
   fflush(stdout);
@@ -251,6 +253,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   if (linear)    delete linear;
   if (nonlinear) delete nonlinear;
   if (timestep)  delete timestep;
+  if (exb)       delete exb;
 
   if (solver)    delete solver;
   if (fields)    delete fields;

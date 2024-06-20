@@ -32,7 +32,7 @@ gamavg = np.mean(gams[int(len(t)/2):, :], axis=0)
 ax1.plot(ky[:kmax], gamavg[:kmax], 'o', fillstyle='none')
 ax2.plot(ky[:kmax], omavg[:kmax], 'o', fillstyle='none', label='GX')
 
-check = Dataset("%s_correct.out.nc" % stem, mode='r')
+data = Dataset("%s_correct.out.nc" % stem, mode='r')
 t = data.groups['Grids'].variables['time'][:]
 ky = data.groups['Grids'].variables['ky'][1:]
 check_omegas = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,0,0]

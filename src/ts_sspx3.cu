@@ -15,9 +15,9 @@ The notes in the PDF above are from math student Federico Pasqualotto.
 
 // ======= SSPx3 =======
 SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr), G3(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr), G3(nullptr)
 {
   
   // new objects for temporaries
@@ -37,6 +37,9 @@ SSPx3::SSPx3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   }
   else if (pars_->boundary_option_periodic) {
     grad_par = new GradParallelPeriodic(grids_);
+  }
+  else if (pars_->nonTwist) {
+    grad_par = new GradParallelNTFT(pars_, grids_);
   }
   else {
     grad_par = new GradParallelLinked(pars_, grids_);
@@ -99,6 +102,17 @@ void SSPx3::advance(double *t, MomentsG** G, Fields* f)
     G1[is]-> update_tprim(*t);
     G2[is]-> update_tprim(*t);
   }
+
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      exb_->flow_shear_g_shift(G[is]);
+      exb_->flow_shear_g_shift(G1[is]);
+      exb_->flow_shear_g_shift(G2[is]);
+    }
+  }
+
   // end of updates
   
   EulerStep (G1, G , GRhs, f, true);  

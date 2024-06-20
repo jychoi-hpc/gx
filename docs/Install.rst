@@ -19,7 +19,7 @@ Dependencies
 
 The following external dependencies are required to build GX:
 
-- `NVIDIA HPC SDK <https://developer.nvidia.com/hpc-sdk>`_, which includes:
+- `NVIDIA HPC SDK <https://developer.nvidia.com/hpc-sdk>`_ (<= 23.11), which includes:
 	- nvcc compiler
 	- CUDA Runtime
 	- cuFFT
@@ -28,8 +28,7 @@ The following external dependencies are required to build GX:
 	- cuTENSOR
 	- cuLIBOS
 	- NCCL
-- NetCDF (parallel)
-- HDF5 (parallel)
+- NetCDF4 (built with parallel HDF5. see https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html#build_parallel)
 - MPI
 - GSL
 

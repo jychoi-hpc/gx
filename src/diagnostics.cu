@@ -23,8 +23,9 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   }
 
   // set up spectra calculators
+  // Always need allSpectra for Phi2 / A_||^2 below
+  allSpectra_ = new AllSpectraCalcs(grids_, ncdf_->nc_dims);
   if(pars_->write_free_energy || pars_->write_fluxes) {
-    allSpectra_ = new AllSpectraCalcs(grids_, ncdf_->nc_dims);
     cudaMalloc (&tmpG, sizeof(float) * grids_->NxNycNz * grids_->Nmoms * grids_->Nspecies); 
     cudaMalloc (&tmpf, sizeof(float) * grids_->NxNycNz * grids_->Nspecies);
   }
@@ -77,7 +78,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
     momentsDiagnosticList.push_back(std::make_unique<DensityDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<UparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<TparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
-    momentsDiagnosticList.push_back(std::make_unique<TperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));
+    if(grids_->Nl>1) momentsDiagnosticList.push_back(std::make_unique<TperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleDensityDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleUparDiagnostic>(pars_, grids_, geo_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleUperpDiagnostic>(pars_, grids_, geo_, ncdf_big_));
@@ -95,11 +96,12 @@ Diagnostics_GK::~Diagnostics_GK()
   }
   if(pars_->write_free_energy || pars_->write_fluxes) {
     spectraDiagnosticList.clear();
-    delete allSpectra_;
   }
   if(pars_->write_moms) {
     momentsDiagnosticList.clear();
   }
+
+  delete allSpectra_;
 
   if(pars_->write_fields) delete fieldsDiagnostic;
   if(fields_old) delete fields_old;

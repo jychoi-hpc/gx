@@ -11,9 +11,9 @@
 
 // ============= K10,4 ============
 Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), G_q1(nullptr), G_q2(nullptr), Gtmp(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), G_q1(nullptr), G_q2(nullptr), Gtmp(nullptr)
 {
   // new objects for temporaries
   Gtmp = new MomentsG (pars_, grids_);
@@ -28,6 +28,7 @@ Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if(pars_->dealias_kz) {
     if (pars_->local_limit)                     { grad_par = new GradParallelLocal(grids_);
     } else if (pars_->boundary_option_periodic) { grad_par = new GradParallelPeriodic(grids_);
+    } else if (pars_->nonTwist)                 { grad_par = new GradParallelNTFT(pars_, grids_);
     } else {                                      grad_par = new GradParallelLinked(pars_, grids_);
     }
   }
@@ -81,6 +82,15 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
   // update the gradients if they are evolving
   for(int is=0; is<grids_->Nspecies; is++) {
     G_q1[is]-> update_tprim(*t);
+  }
+  
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      //exb_->flow_shear_g_shift(G[is]); // only G_q1? //JMH
+      exb_->flow_shear_g_shift(G_q1[is]);
+    }
   }
   // end updates
 

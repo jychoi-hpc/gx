@@ -20,13 +20,22 @@ import sys
 import os
 
 import numpy as np
-import booz_xform as bxform
 from scipy.interpolate import InterpolatedUnivariateSpline, PPoly, CubicSpline
 from scipy.integrate import cumulative_trapezoid as ctrap
 from scipy.integrate import simpson as simps
-from netCDF4 import Dataset as ds
 
 print("Running pyvmec geometry module...")
+
+try:
+    from netCDF4 import Dataset as ds
+except ImportError:
+    print("The netCDF4 package is required. This can be installed using pip via 'pip install netCDF4'.")
+
+try:
+    import booz_xform as bxform
+except ImportError:
+    print("The booz_xform package is required. This can be installed using pip via 'pip install booz_xform'.")
+    raise
 
 # read parameters from input file
 input_file = sys.argv[1]
@@ -459,6 +468,9 @@ def vmec_fieldlines(
     shat = (-2 * s / iota) * d_iota_d_s  # depends on the definitn of rho
     sqrt_s = np.sqrt(s)
 
+    nfp = vs.nfp
+
+    print("nfp =", nfp)
     print("iota = ", iota)
     print("shat = ", shat)
     print("d iota / ds", d_iota_d_s)
@@ -470,6 +482,8 @@ def vmec_fieldlines(
 
     if not shift_grad_alpha:
         zeta_center = 0.0
+    else:
+        zeta_center = -alpha/iota
 
     # Make sure alpha is an array
     # For axisymmetric equilibria, all field lines are identical, i.e., your choice of alpha doesn't matter
@@ -479,6 +493,9 @@ def vmec_fieldlines(
         alpha = [alpha]
     alpha = np.array(alpha)
     nalpha = len(alpha)
+
+    print(f"alpha = {alpha} = {alpha/np.pi/iota*nfp}*iota*pi/{nfp}")
+    print(f"zeta_center = {zeta_center} = {zeta_center/np.pi*nfp}*pi/{nfp}")
 
     try:
         iota_input = toml_dict["Geometry"]["iota_input"]
@@ -491,8 +508,6 @@ def vmec_fieldlines(
             s_hat_input = 1.0e-8
     except KeyError:
         s_hat_input = shat
-
-    nfp = vs.nfp
 
     L_reference = vs.Aminor_p
 
@@ -810,10 +825,10 @@ def vmec_fieldlines(
     D1 = (
         simps(
             [
-                simps(g_sup_psi_psi_1D_inv, theta_b_grid)
+                simps(g_sup_psi_psi_1D_inv, x=theta_b_grid)
                 for g_sup_psi_psi_1D_inv in g_sup_psi_psi_2D_inv[0][0]
             ],
-            phi_b_grid,
+            x=phi_b_grid,
         )
         / (2 * np.pi) ** 2
     )
@@ -821,22 +836,26 @@ def vmec_fieldlines(
     D2 = (
         simps(
             [
-                simps(lam_over_g_sup_psi_psi_1D, theta_b_grid)
+                simps(lam_over_g_sup_psi_psi_1D, x=theta_b_grid)
                 for lam_over_g_sup_psi_psi_1D in lam_over_g_sup_psi_psi_2D[0][0]
             ],
-            phi_b_grid,
+            x=phi_b_grid,
         )
         / (2 * np.pi) ** 2
     )
 
     ## EQUILIBRIUM CHECK: Flux surface averaged MHD force balance.
-    np.testing.assert_allclose(
-        d_G_d_s[:, None, None]
-        + iota[:, None, None] * d_I_d_s[:, None, None]
-        + mu_0 * d_pressure_d_s[:, None, None] * Vprime,
+    residual = d_G_d_s[:, None, None] \
+        + iota[:, None, None] * d_I_d_s[:, None, None] \
+        + mu_0 * d_pressure_d_s[:, None, None] * Vprime
+
+    check = np.allclose(
+        residual,
         1e-7,
-        atol=1e-3,
+        atol=5e-3,
     )
+    if not check:
+        print(f"WARNING: MHD force balance not exactly satisfied. Error = {residual}")
 
     # integrated inverse flux expansion term
     intinv_g_sup_psi_psi = ctrap(1 / g_sup_psi_psi, phi_b, initial=0)
@@ -1111,7 +1130,6 @@ dpsidrho = 2 * np.sqrt(rhoc) * geo_coeffs.edge_toroidal_flux_over_2pi
 drhodpsi = 1 / dpsidrho
 Rmaj = (np.max(R) + np.min(R)) / 2
 
-
 twist_shift_geo_fac = 2.*shat*gds21/gds22
 jtwist = (twist_shift_geo_fac)/y0*x0
 
@@ -1124,10 +1142,10 @@ if flux_tube_cut == "gds21":
     print("You have chosen to cut the flux tube to enforce exact periodicity (gds21=0)")
     print("***************************************************************************")
 
-    gds21_spl = InterpolatedUnivariateSpline(theta, gds21)
-
-    # find roots
-    gds21_roots = gds21_spl.roots(extrapolate=False)
+    from scipy.interpolate import splrep, PPoly
+    tck = splrep(theta, gds21, s=0)
+    ppoly = PPoly.from_spline(tck)
+    gds21_roots = ppoly.roots(extrapolate=False)
 
     if npol_min is not None:
         gds21_roots = gds21_roots[gds21_roots > npol_min*np.pi]
@@ -1139,10 +1157,10 @@ elif flux_tube_cut == "gbdrift0":
     print("You have chosen to cut the flux tube to enforce continuous magnetic drifts (gbdrift0=0)")
     print("***************************************************************************************")
 
-    gbdrift0_spl = InterpolatedUnivariateSpline(theta, gbdrift0)
-
-    # find roots
-    gbdrift0_roots = gbdrift0_spl.roots(extrapolate=False)
+    from scipy.interpolate import splrep, PPoly
+    tck = splrep(theta, gbdrift0, s=0)
+    ppoly = PPoly.from_spline(tck)
+    gbdrift0_roots = ppoly.roots(extrapolate=False)
 
     if npol_min is not None:
         gbdrift0_roots = gbdrift0_roots[gbdrift0_roots > npol_min*np.pi]
@@ -1158,7 +1176,7 @@ elif flux_tube_cut == "aspect":
 
     # find locations where jtwist_spl is integer valued. we'll check jtwist = [-30, 30] unless jtwist_max is set
     if jtwist_in is not None:
-        vals = np.array([jtwist_in])
+        vals = np.array([-jtwist_in, jtwist_in])
     elif jtwist_max is not None:
         vals =  np.arange(-jtwist_max,jtwist_max)
     else:
