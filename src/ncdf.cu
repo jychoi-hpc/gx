@@ -5,7 +5,7 @@ NetCDF::NetCDF(Parameters* pars, Grids* grids, Geometry* geo, string suffix) :
 {
   // create netcdf file
   int retval;
-  char strb[263];
+  char strb[1263];
   strcpy(strb, pars_->run_name); 
   strcat(strb, suffix.c_str()); // suffix = ".out.nc" by default
   if (retval = nc_create_par(strb, NC_CLOBBER | NC_NETCDF4, pars_->mpcom, MPI_INFO_NULL, &fileid)) ERR(retval);

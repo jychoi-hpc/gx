@@ -673,7 +673,7 @@ void MomentsG::restart_read(double* time)
   int id_G, id_time;
 
   char stra[NC_MAX_NAME+1];
-  char strb[512];
+  char strb[1512];
   strcpy(strb, pars_->restart_from_file.c_str());
 
   if (retval = nc_open(strb, NC_NOWRITE, &ncres)) { printf("file: %s \n",strb); ERR(retval);}

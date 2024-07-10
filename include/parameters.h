@@ -232,7 +232,7 @@ class Parameters {
     
   char *scan_type;
   char *equilibrium_option, *nlpm_option;
-  char run_name[255];
+  char run_name[1255];
 
   int specs[1]; // dims for netcdf species variable arrays
   size_t is_start[1], is_count[1]; 

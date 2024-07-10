@@ -34,7 +34,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     // GX_PATH is defined at compile time via a -D flag
     pars->geofilename = std::string(pars->run_name) + ".eik.out";
     if(grids->iproc == 0) {
-      char command[300];
+      char command[3000];
       sprintf(command, "python %s/geometry_modules/miller/gx_geo.py %s.in %s > %s.gx_geo.log", GX_PATH, pars->run_name, pars->geofilename.c_str(), pars->run_name);
       printf("Using Miller geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
       system(command);
@@ -48,7 +48,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
   else if(geo_option=="vmec_c") {
     bool usenc;
     if(grids->iproc == 0) {
-      char nml_file[512];
+      char nml_file[1512];
       strcpy (nml_file, pars->run_name);
       strcat (nml_file, ".in");
       VMEC_variables *vmec = new VMEC_variables(nml_file);
@@ -83,7 +83,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     // GX_PATH is defined at compile time via a -D flag
     pars->geofilename = std::string(pars->run_name) + ".eik.nc";
     if(grids->iproc == 0) {
-      char command[300];
+      char command[3000];
       sprintf(command, "python %s/geometry_modules/pyvmec/gx_geo_vmec.py %s.in %s", GX_PATH, pars->run_name, pars->geofilename.c_str(), pars->run_name);
       printf("Using vmec geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
       system(command);
@@ -98,7 +98,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     // GX_PATH is defined at compile time via a -D flag
     pars->geofilename = std::string(pars->run_name) + ".eik.out";
     if(grids->iproc == 0) {
-      char command[300];
+      char command[3000];
       sprintf(command, "python %s/geometry_modules/desc/gx_desc_geo.py %s.in %s > %s.gx_geo.log", GX_PATH, pars->run_name, pars->geofilename.c_str(), pars->run_name);
       printf("Using DESC geometry. Generating geometry file %s with\n> %s\n", pars->geofilename.c_str(), command);
       system(command);
@@ -114,7 +114,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     if(grids->iproc == 0) {
       // write an eik.in file
       write_eiktest_in(pars, grids);
-      char command[300];
+      char command[3000];
       sprintf(command, "unset SLURM_NODELIST; %s/bin/eiktest %s.eik.in > eiktest.log", GS2_PATH, pars->run_name);
       printf("Generating geometry file %s.eik.out.nc with\n> %s\n", pars->run_name, command);
       int err = system(command);
@@ -165,7 +165,7 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
 void write_eiktest_in(Parameters *pars, Grids *grids) {
   FILE *fptr;
 
-  char fname[300];
+  char fname[3000];
   sprintf(fname, "%s.eik.in", pars->run_name);
   fptr = fopen(fname, "w");
   fprintf(fptr, "&stuff\n");
@@ -442,7 +442,7 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   size_t dsize = sizeof(double)*(grids->Nz+1);
 
   char stra[NC_MAX_NAME+1];
-  char strb[513];
+  char strb[1513];
   strcpy(strb, pars->geofilename.c_str());
 
     // open the netcdf file
