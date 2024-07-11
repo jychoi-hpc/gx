@@ -2799,6 +2799,309 @@ __global__ void streaming_rhs(const cuComplex* __restrict__ g,
 
 // main kernel function for calculating RHS
 # define S_H(L, M) s_h[sidxyz + (sDimx)*(L) + (sDimx)*(sDimy)*(M)]
+__global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls)
+{
+  extern __shared__ cuComplex s_h[]; // aliased below by macro S_H, defined above
+  
+  const unsigned int idxyz = get_id1();
+  const unsigned int idy = idxyz % nyc; 
+  const unsigned int idx = idxyz / nyc % nx;
+  const unsigned int idz = idxyz / (nx*nyc);
+  if (unmasked(idx, idy) && idz < nz) {
+    const unsigned int sidxyz = threadIdx.x;
+    
+    // shared memory blocks of size blockDim.x * (nl+2) * (nm+4)
+    const int sDimx = blockDim.x;
+    const int sDimy = nl+2;
+  
+    // read these values into (hopefully) register memory. 
+    // local to each thread (i.e. each idxyz).
+    // since idxyz is linear, these accesses are coalesced.
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+  
+    // all threads in a block will likely have same value of idz, so they will be reading same value of bgrad[idz].
+    // if bgrad were in shared memory, would have bank conflicts.
+    // no bank conflicts for reading from global memory though. 
+    const float bmag_ = bmag[idz];
+    const float bgrad_ = bgrad[idz];  
+  
+    // this is coalesced
+    const cuComplex iky_ = make_cuComplex(0., ky[idy]); 
+
+    unsigned int nR = nyc * nx * nz;
+    
+    // species-specific constants
+    const float vt_ = sp.vt;
+    const float zt_ = sp.zt;
+    const float tz_ = sp.tz;
+    const float nz_ = sp.nz;
+    const float nu_ = sp.nu_ss; 
+    const float tprim_ = sp.tprim;
+    const float uprim_ = sp.uprim;
+    const float fprim_ = sp.fprim;
+    const float kperp2_ = kperp2[idxyz];
+    const float b_s = kperp2_ * sp.rho2;
+    float nuei_ = 0.0;
+    float as_i = 1.0;
+    float vt_i = 1.0;
+    float nzvt_i = 1.0;
+    // for electrons, account for e-i collisions
+    if(sp.type == 1 && ei_colls) {
+      if( nspecies > 1 )
+	 nuei_ = sp_i.z * nu_;
+      else
+	 nuei_ = nu_;
+      // get as = z*n*vt*beta/2 from first ion species (assume this is main ions)
+      as_i = sp_i.jparfac; 
+      vt_i = sp_i.vt;
+      nzvt_i = sp_i.nz*sp_i.vt;
+    }
+    
+    const cuComplex icv_d_s = tz_ * make_cuComplex(0., cv_d[idxyz]);
+    const cuComplex igb_d_s = tz_ * make_cuComplex(0., gb_d[idxyz]);
+
+    // conservation terms (species-specific)
+    cuComplex upar_bar_  =  upar_bar[idxyz]; 
+    cuComplex uperp_bar_ = uperp_bar[idxyz];
+    cuComplex t_bar_     =     t_bar[idxyz];
+    
+    // read tile of g into shared mem
+    // each thread in the block reads in multiple values of l and m
+    // blockIdx for y and z and both of size unity in the kernel invocation
+    int nm_shared = nm+2*m_ghost;
+    if(m_ghost==0) nm_shared+=4;
+    int nl_shared = nl+2;
+    int ghost = m_ghost==0 ? 2 : m_ghost;
+    for (int sm = threadIdx.z; sm < nm_shared; sm += blockDim.z) {
+      for (int sl = threadIdx.y; sl < nl_shared; sl += blockDim.y) {
+        int globalIdx = idxyz + nR*((sl-1) + nl*(sm-ghost));
+        int l = sl-1;
+        int m = sm-ghost+m_lo;
+        if(m<0 || m>=nm_glob || l<0 || l>=nl) {
+          S_H(sl, sm) = make_cuComplex(0., 0.);
+        } else {
+          S_H(sl, sm) = g[globalIdx];
+          // add phi term for m=0 to change g into h
+          if (m==0) S_H(sl, sm) = S_H(sl, sm) + zt_*Jflr(l, b_s)*phi_ + JflrB(l, b_s)*bpar_;
+          // add apar term for m=1 (this is only needed in the formulation without dA/dt)
+          if (m==1) S_H(sl, sm) = S_H(sl, sm) - zt_*vt_*Jflr(l, b_s)*apar_;
+        }
+      }
+    }
+     
+    __syncthreads();
+    
+    // stencil (on non-ghost cells)
+    // blockIdx for y and z are unity in the kernel invocation
+    for (int m = threadIdx.z + m_lo; m < m_up; m += blockDim.z) {
+      for (int l = threadIdx.y; l < nl; l += blockDim.y) {
+        int m_local = m - m_lo;
+        int globalIdx = idxyz + nR*(l + nl*m_local);
+        int sl = l + 1;             // offset to get past ghosts
+        int sm = m_local + m_ghost; // offset to get past ghosts
+	if(m_ghost==0) sm+=2;
+  
+        rhs[globalIdx] = rhs[globalIdx] 
+	  - icv_d_s * ( sqrtf((m+1)*(m+2))*S_H(sl,sm+2) + (2*m+1)*S_H(sl,sm) + sqrtf(m*(m-1))*S_H(sl,sm-2) )
+	  - igb_d_s * (              (l+1)*S_H(sl+1,sm) + (2*l+1)*S_H(sl,sm)              + l*S_H(sl-1,sm) )
+	  - (nu_ + nuei_) * ( b_s + 2*l + m ) * ( S_H(sl,sm) );
+
+	// add drive and conservation terms in low hermite moments
+	if (m==0) {
+	  rhs[globalIdx] = rhs[globalIdx] 
+           + iky_ * phi_ * (
+              Jflr(l-1,b_s)*l*tprim_
+	    + Jflr(l,  b_s)*(fprim_ + 2*l*tprim_)
+	    + Jflr(l+1,b_s)*(l+1)*tprim_ 
+	   )
+           + iky_/zt_ * bpar_ * (
+              JflrB(l-1,b_s)*l*tprim_
+	    + JflrB(l,  b_s)*(fprim_ + 2*l*tprim_)
+	    + JflrB(l+1,b_s)*(l+1)*tprim_ 
+	   )
+	   + nu_ * sqrtf(b_s) * JflrB(l, b_s) * uperp_bar_
+	   + ( nu_ + nuei_ ) * 2. * ( l*Jflr(l-1,b_s) + 2.*l*Jflr(l,b_s) + (l+1)*Jflr(l+1,b_s) ) * t_bar_; 
+	}
+
+	if (m==1) {
+	  cuComplex upar_bar_i = (nspecies>1 && as_i>0) ? kperp2_*bmag_*bmag_*apar_/as_i - nz_*vt_*upar_bar_/(nzvt_i) : make_cuComplex(0.,0.);
+
+	  rhs[globalIdx] = rhs[globalIdx] 
+           - vt_ * iky_ * apar_ * (
+              Jflr(l-1,b_s)*l*tprim_
+	    + Jflr(l,  b_s)*(fprim_ + (2*l+1)*tprim_)
+	    + Jflr(l+1,b_s)*(l+1)*tprim_ 
+	   )
+      	   + Jflr(l,b_s) * (nu_*upar_bar_ + nuei_*vt_i/vt_*upar_bar_i)
+           + phi_ * Jflr(l,b_s) * uprim_ * iky_ / vt_; // need to set uprim_ more carefully; this is a placeholder
+	}
+	if (m==2) {
+	  rhs[globalIdx] = rhs[globalIdx] + iky_*phi_*Jflr(l,b_s)/sqrtf(2.)*tprim_ 
+	     + iky_/zt_*bpar_*JflrB(l, b_s)/sqrtf(2.)*tprim_ 
+	     + ( nu_ + nuei_ ) * sqrtf(2.) * Jflr(l,b_s) * t_bar_;
+	}  
+
+	if (m==3) {
+	  rhs[globalIdx] = rhs[globalIdx] 
+           - vt_ * iky_ * apar_ * sqrtf(3./2.) * tprim_ * Jflr(l,b_s);
+        }
+      } // l loop
+    } // m loop
+  } // idxyz < NxNycNz
+}
+
+// main kernel function for calculating RHS
+# define S_H(L, M) s_h[sidxyz + (sDimx)*(L) + (sDimx)*(sDimy)*(M)]
+__global__ void bounce_rhs(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls)
+{
+  extern __shared__ cuComplex s_h[]; // aliased below by macro S_H, defined above
+  
+  const unsigned int idxyz = get_id1();
+  const unsigned int idy = idxyz % nyc; 
+  const unsigned int idx = idxyz / nyc % nx;
+  const unsigned int idz = idxyz / (nx*nyc);
+  if (unmasked(idx, idy) && idz < nz) {
+    const unsigned int sidxyz = threadIdx.x;
+    
+    // shared memory blocks of size blockDim.x * (nl+2) * (nm+4)
+    const int sDimx = blockDim.x;
+    const int sDimy = nl+2;
+  
+    // read these values into (hopefully) register memory. 
+    // local to each thread (i.e. each idxyz).
+    // since idxyz is linear, these accesses are coalesced.
+    const cuComplex phi_  = phi[idxyz];
+    const cuComplex apar_ = apar[idxyz];
+    const cuComplex bpar_ = bpar[idxyz];
+  
+    // all threads in a block will likely have same value of idz, so they will be reading same value of bgrad[idz].
+    // if bgrad were in shared memory, would have bank conflicts.
+    // no bank conflicts for reading from global memory though. 
+    const float bmag_ = bmag[idz];
+    const float bgrad_ = bgrad[idz];  
+  
+    // this is coalesced
+    const cuComplex iky_ = make_cuComplex(0., ky[idy]); 
+
+    unsigned int nR = nyc * nx * nz;
+    
+    // species-specific constants
+    const float vt_ = sp.vt;
+    const float zt_ = sp.zt;
+    const float tz_ = sp.tz;
+    const float nz_ = sp.nz;
+    const float nu_ = sp.nu_ss; 
+    const float tprim_ = sp.tprim;
+    const float uprim_ = sp.uprim;
+    const float fprim_ = sp.fprim;
+    const float kperp2_ = kperp2[idxyz];
+    const float b_s = kperp2_ * sp.rho2;
+    float nuei_ = 0.0;
+    float as_i = 1.0;
+    float vt_i = 1.0;
+    float nzvt_i = 1.0;
+    // for electrons, account for e-i collisions
+    if(sp.type == 1 && ei_colls) {
+      if( nspecies > 1 )
+	 nuei_ = sp_i.z * nu_;
+      else
+	 nuei_ = nu_;
+      // get as = z*n*vt*beta/2 from first ion species (assume this is main ions)
+      as_i = sp_i.jparfac; 
+      vt_i = sp_i.vt;
+      nzvt_i = sp_i.nz*sp_i.vt;
+    }
+    
+    const cuComplex icv_d_s = tz_ * make_cuComplex(0., cv_d[idxyz]);
+    const cuComplex igb_d_s = tz_ * make_cuComplex(0., gb_d[idxyz]);
+
+    // conservation terms (species-specific)
+    cuComplex upar_bar_  =  upar_bar[idxyz]; 
+    cuComplex uperp_bar_ = uperp_bar[idxyz];
+    cuComplex t_bar_     =     t_bar[idxyz];
+    
+    // read tile of g into shared mem
+    // each thread in the block reads in multiple values of l and m
+    // blockIdx for y and z and both of size unity in the kernel invocation
+    int nm_shared = nm+2*m_ghost;
+    if(m_ghost==0) nm_shared+=4;
+    int nl_shared = nl+2;
+    int ghost = m_ghost==0 ? 2 : m_ghost;
+    for (int sm = threadIdx.z; sm < nm_shared; sm += blockDim.z) {
+      for (int sl = threadIdx.y; sl < nl_shared; sl += blockDim.y) {
+        int globalIdx = idxyz + nR*((sl-1) + nl*(sm-ghost));
+        int l = sl-1;
+        int m = sm-ghost+m_lo;
+        if(m<0 || m>=nm_glob || l<0 || l>=nl) {
+          S_H(sl, sm) = make_cuComplex(0., 0.);
+        } else {
+          S_H(sl, sm) = g[globalIdx];
+          // add phi term for m=0 to change g into h
+          if (m==0) S_H(sl, sm) = S_H(sl, sm) + zt_*Jflr(l, b_s)*phi_ + JflrB(l, b_s)*bpar_;
+          // add apar term for m=1 (this is only needed in the formulation without dA/dt)
+          if (m==1) S_H(sl, sm) = S_H(sl, sm) - zt_*vt_*Jflr(l, b_s)*apar_;
+        }
+      }
+    }
+     
+    __syncthreads();
+    
+    // stencil (on non-ghost cells)
+    // blockIdx for y and z are unity in the kernel invocation
+    for (int m = threadIdx.z + m_lo; m < m_up; m += blockDim.z) {
+      for (int l = threadIdx.y; l < nl; l += blockDim.y) {
+        int m_local = m - m_lo;
+        int globalIdx = idxyz + nR*(l + nl*m_local);
+        int sl = l + 1;             // offset to get past ghosts
+        int sm = m_local + m_ghost; // offset to get past ghosts
+	if(m_ghost==0) sm+=2;
+        
+	rhs[globalIdx] = rhs[globalIdx] 
+          - vt_ * bgrad_ * ( - sqrtf(m+1)*(l+1)*S_H(sl,sm+1) - sqrtf(m+1)* l   *S_H(sl-1,sm+1)  
+                             + sqrtf(m  )* l   *S_H(sl,sm-1) + sqrtf(m  )*(l+1)*S_H(sl+1,sm-1) );
+
+      } // l loop
+    } // m loop
+  } // idxyz < NxNycNz
+}
+
+
+// main kernel function for calculating RHS
+# define S_H(L, M) s_h[sidxyz + (sDimx)*(L) + (sDimx)*(sDimy)*(M)]
 __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   const cuComplex* __restrict__ phi,
 			   const cuComplex* __restrict__ apar,
@@ -2968,6 +3271,144 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
       } // l loop
     } // m loop
   } // idxyz < NxNycNz
+}
+
+__global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz){
+  unsigned int i = get_id1();
+
+  if(i < LM){
+    int il = int(i / M);
+    int im = i % M;
+
+    cuComplex one = make_cuComplex(1.0,0);
+    double prefac = bgrad[iz] * dt * vte * coeff;
+    cuComplex lp1mp1 = make_cuComplex(-(il+1)*sqrtf(im+1),0.0)*prefac;
+    cuComplex lm = make_cuComplex(il*sqrtf(im),0.0)*prefac;
+    cuComplex lp1m = make_cuComplex((il+1)*sqrtf(im),0.0)*prefac;
+    cuComplex lmp1 = make_cuComplex(-il*sqrtf(im+1),0.0)*prefac;
+    
+    if (i == 0){
+        A_bounce[i] = one;
+        A_bounce[i+1] = lp1mp1;
+    }
+    else if(i >= 1 and i < M){
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+
+        if (im != 0 && il != L-1){
+          A_bounce[i*LM + i+M-1] = lp1m;
+	}
+    }
+    else if(i >= M && i <= L*M-M-1){
+        if (im != M-1 and il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+
+        if (im != 0 && il != L-1){
+          A_bounce[i*LM + i+M-1] = lp1m;
+	}
+    }
+    else if(i > L*M-M-1 && i < LM-1){
+        if (im != M-1 && il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+    }
+    else{
+        if (im != M-1 && il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+    }
+
+    int row;
+    int col;
+    int trans;
+    int ind;
+    cuComplex temp;
+    for (int j = 0; j < LM; j++){
+      for (int k = j; k < LM; k++){
+        row = j;
+        col = k;
+	ind = row*LM + col;
+        trans = col*LM + row;
+
+        temp = A_bounce[ind];
+        A_bounce[ind] = A_bounce[trans];
+        A_bounce[trans] = temp;
+      }
+    }
+  }
+}
+
+__global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(iz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    brhs[b_ind] = g[globalIdx]; 
+  }
+} 
+
+__global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(iz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    g[globalIdx] = brhs[b_ind];    
+  }
+
+}
+
+__global__ void check_residual(cuComplex* res){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idl = int(idlm / nl);
+  unsigned int idm = idlm % nl;
+  if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    if (abs(res[b_ind].x) > 1.0 || abs(res[b_ind].y) > 1.0) printf("LARGE RES of res.x = %.5e, res.y = %.5e\n", res[b_ind].x, res[b_ind].y);
+  }
+
 }
 
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi)

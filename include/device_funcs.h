@@ -365,6 +365,24 @@ __global__ void streaming_rhs(const cuComplex* __restrict__ g,
 			      const float gradpar,
 			      const specie sp,
 			      cuComplex* __restrict__ rhs_par);
+__global__ void bounce_rhs(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls);
+
 __global__ void streaming_no_fields_rhs(const cuComplex* __restrict__ g,
 			      const cuComplex* __restrict__ phi,
 			      const cuComplex* __restrict__ apar,
@@ -401,7 +419,29 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   cuComplex* __restrict__ rhs,
 			   bool ei_colls);
 
+__global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls);
+
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, const float* bmagInv, const float fapar, const float fbpar);
+__global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, double coeff, double dt, double vte, int iz);
+__global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz);
+__global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz);
+__global__ void check_residual(cuComplex* res);
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
 __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, const float* kz, const float* qneutDenom, const float* ampereParFac, const specie sp, const double sdtvt, const float gradpar, bool full_phi, const float beta);
 __global__ void tridiag_streaming_periodic_bpar(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const float* BparDenom, const specie sp, const double sdtvt, const float gradpar, const float* bmagInv, bool full_phi, const float beta);

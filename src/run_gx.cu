@@ -171,6 +171,18 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     solver -> fieldSolve(G, fields);
   }    
   checkCudaErrors(cudaGetLastError());
+  Cusolve* cusolve;
+
+  if (pars->scheme_opt == Tmethod::imex3){
+/*    double p = ((IMEX_3stage*) timestep)->p_;
+    double r = ((IMEX_3stage*) timestep)->r_;
+    double u = ((IMEX_3stage*) timestep)->u_;
+    bool sdirk = ((IMEX_3stage*) timestep)->sdirk;*/
+    double vte = G[1]->species->vt; 
+
+    cusolve = new Cusolve(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+  }
+
 
   Timestepper * timestep;
   switch (pars->scheme_opt)
@@ -183,11 +195,12 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
+    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, cusolve, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
 
     }
+  
 
   fflush(stdout);
   MPI_Barrier(pars->mpcom);

@@ -8,7 +8,7 @@
 #include "solver.h"
 #include "forcing.h"
 #include "grad_parallel.h"
-
+#include "cusolve.h"
 class Timestepper {
  public:
   virtual ~Timestepper() {};
@@ -240,13 +240,21 @@ class SSPRK3 : public Timestepper {
 class IMEX_3stage : public Timestepper {
  public:
   IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+	Parameters *pars, Grids *grids, Cusolve *cusolve, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
   ~IMEX_3stage();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron, bool flip);
+  void invert_bounce_terms(MomentsG*G, int stage);
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
+  cuComplex     ** bounce_rhs;
+  cuComplex     ** res;
+  bool flip;
+
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;
@@ -256,6 +264,7 @@ class IMEX_3stage : public Timestepper {
   Solver       * solver_    ;
   Parameters   * pars_      ;
   Grids        * grids_     ;
+  Cusolve      * cusolve_   ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
@@ -275,7 +284,7 @@ class IMEX_3stage : public Timestepper {
   double zte;
   const float gradpar_;
   const float* bmagInv_;
-  dim3 dG, dB;
+  dim3 dG, dB, dG_b, dB_b;
 };
 
 class IMEX_4stage : public Timestepper {

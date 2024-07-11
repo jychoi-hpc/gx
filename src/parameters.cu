@@ -102,6 +102,7 @@ void Parameters::get_nml_vars(char* filename)
   nstep   = toml::find_or <int>   (tnml, "nstep",   2e9 );
   nstep_restart   = toml::find_or <int>   (tnml, "nstep_restart",   -1 );
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
+  imex_scheme = toml::find_or <string> (tnml, "imex_scheme",    "conde_ssprk3_dirk"   );
   implicit_max_iter = toml::find_or <int>   (tnml, "implicit_max_iter",   1 );
   implicit_omega = toml::find_or <float> (tnml, "implicit_omega", 1.0);
   implicit_linked = toml::find_or <bool> (tnml, "implicit_linked", false);
@@ -751,7 +752,82 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
-  if (scheme == "imex3" || scheme == "imex") scheme_opt = Tmethod::imex3;
+  if (scheme == "imex3" || scheme == "imex") {
+    scheme_opt = Tmethod::imex3;
+    // Pareschi-Russo SSP2(3,3,2)
+    if(imex_scheme == "pareschi_russo_ssp2_332") {
+      a21 = 0.5;
+      a31 = 0.5;
+      a32 = 0.5;
+      w1 = 1./3.;
+      w2 = 1./3.;
+      w3 = 1./3.;
+      p_ = 0.25;
+      q_ = 0.;
+      r_ = 0.25;
+      s_ = 1./3.;
+      t_ = 1./3.;
+      u_ = 1./3.;
+      sdirk = false;
+    } else if(imex_scheme == "pareschi_russo_ssp2_322") {
+      a21 = 0.;
+      a31 = 0.;
+      a32 = 1.;
+      w1 = 0.;
+      w2 = 1./2.;
+      w3 = 1./2.;
+      p_ = 0.5;
+      q_ = -0.5;
+      r_ = 0.5;
+      s_ = 0.;
+      t_ = 1./2.;
+      u_ = 1./2.;
+      sdirk = true;
+    } else if (imex_scheme == "conde_3s3p") {
+      a21 = 1.;
+      a31 = 0.25;
+      a32 = 0.25;
+      w1 = 1./6.;
+      w2 = 1./6.;
+      w3 = 2./3.;
+      p_ = 0.;
+      q_ = 0.;
+      r_ = 1.;
+      s_ = 1./6.;
+      t_ = -1./3.;
+      u_ = 2./3.;
+      sdirk = false;
+    } else if(imex_scheme == "conde_ssprk3_dirk") {
+      a21 = 1.;
+      a31 = 0.25;
+      a32 = 0.25;
+      w1 = 1./6.;
+      w2 = 1./6.;
+      w3 = 2./3.;
+      p_ = 0.;
+      q_ = (3. - sqrtf(3.))/6.;
+      r_ = (3. + sqrtf(3.))/6.;
+      s_ = (3. - sqrtf(3.))/24.;
+      t_ = -(1. + sqrtf(3.))/8.;
+      u_ = r_;
+      sdirk = true;
+    } else if(imex_scheme == "giraldo_ark2") {
+      a21 = 2. - sqrtf(2.);
+      a32 = (3. + 2.*sqrtf(2.))/6.;
+      a31 = 1. - a32;
+      w1 = 1./sqrtf(8.);
+      w2 = 1./sqrtf(8.);
+      w3 = 1.-1./sqrtf(2.);
+      p_ = 0.;
+      q_ = 1. - 1./sqrtf(2.);
+      r_ = 1. - 1./sqrtf(2.);
+      s_ = 1./sqrtf(8.);
+      t_ = 1./sqrtf(8.);
+      u_ = 1.-1./sqrtf(2.);
+      sdirk = true;
+    }
+
+  }
   if (scheme == "imex4") scheme_opt = Tmethod::imex4;
 
   if (eqfix && iproc==0 && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {

@@ -2,9 +2,9 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
+	     Parameters *pars, Grids *grids, Cusolve *cusolve, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
+  cusolve_(cusolve), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
 {
   
   // new objects for temporaries
@@ -37,6 +37,17 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     }
   }
 
+  bounce_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
+  res = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
+  size_t brhs_size = sizeof(cuComplex)*pars_->nm_in*pars_->nl_in*grids_->Nyc*grids_->Nx;
+  for (int j = 0; j < grids_->Nz; j++){
+    checkCuda(cudaMalloc((void**) &bounce_rhs[j], brhs_size));
+    checkCuda(cudaMalloc((void**) &res[j], brhs_size));
+  }
+
+//  checkCuda(cudaMalloc((void**) &bounce_rhs, brhs_size));
+//  checkCuda(cudaMalloc((void**) &res, brhs_size));
+
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
@@ -51,9 +62,105 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
   int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
-  
+  int nn4 = pars_->nm_in * pars_->nl_in; int nt4 = min(nn4, 4); int nb4 = 1 + (nn4-1)/nt4;
+
   dB = dim3(nt1, nt2, nt3);
-  dG = dim3(nb1, nb2, nb3);  
+  dG = dim3(nb1, nb2, nb3); 
+
+  dG_b = dim3(nt1, nt2, nt4);
+  dB_b = dim3(nb1, nb2, nb4);
+ 
+  a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
+  p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
+  sdirk = pars_->sdirk;
+/*  printf("a21 is %f\n", a21);
+  printf("a31 is %f\n", a31);
+  printf("a32 is %f\n", a32);
+  printf("w1 is %f\n", w1);
+  printf("w2 is %f\n", w2);
+  printf("w3 is %f\n", w3);
+  printf("p_ is %f\n", p_);
+  printf("q_ is %f\n", q_);
+  printf("s_ is %f\n", s_);
+  printf("t_ is %f\n", t_);
+  printf("u_ is %f\n", u_);
+  std::string imex_scheme = "conde_ssprk3_dirk";
+
+    // Pareschi-Russo SSP2(3,3,2)
+    if(imex_scheme == "pareschi_russo_ssp2_332") {
+      a21 = 0.5;
+      a31 = 0.5;
+      a32 = 0.5;
+      w1 = 1./3.;
+      w2 = 1./3.;
+      w3 = 1./3.;
+      p_ = 0.25;
+      q_ = 0.;
+      r_ = 0.25;
+      s_ = 1./3.;
+      t_ = 1./3.;
+      u_ = 1./3.;
+      sdirk = false;
+    } else if(imex_scheme == "pareschi_russo_ssp2_322") {
+      a21 = 0.;
+      a31 = 0.;
+      a32 = 1.;
+      w1 = 0.;
+      w2 = 1./2.;
+      w3 = 1./2.;
+      p_ = 0.5;
+      q_ = -0.5;
+      r_ = 0.5;
+      s_ = 0.;
+      t_ = 1./2.;
+      u_ = 1./2.;
+      sdirk = true;
+    } else if (imex_scheme == "conde_3s3p") {
+      a21 = 1.;
+      a31 = 0.25;
+      a32 = 0.25;
+      w1 = 1./6.;
+      w2 = 1./6.;
+      w3 = 2./3.;
+      p_ = 0.;
+      q_ = 0.;
+      r_ = 1.;
+      s_ = 1./6.;
+      t_ = -1./3.;
+      u_ = 2./3.;
+      sdirk = false;
+    } else if(imex_scheme == "conde_ssprk3_dirk") {
+      a21 = 1.;
+      a31 = 0.25;
+      a32 = 0.25;
+      w1 = 1./6.;
+      w2 = 1./6.;
+      w3 = 2./3.;
+      p_ = 0.;
+      q_ = (3. - sqrtf(3.))/6.;
+      r_ = (3. + sqrtf(3.))/6.;
+      s_ = (3. - sqrtf(3.))/24.;
+      t_ = -(1. + sqrtf(3.))/8.;
+      u_ = r_;
+      sdirk = true;
+    } else if(imex_scheme == "giraldo_ark2") {
+      a21 = 2. - sqrtf(2.);
+      a32 = (3. + 2.*sqrtf(2.))/6.;
+      a31 = 1. - a32;
+      w1 = 1./sqrtf(8.);
+      w2 = 1./sqrtf(8.);
+      w3 = 1.-1./sqrtf(2.);
+      p_ = 0.;
+      q_ = 1. - 1./sqrtf(2.);
+      r_ = 1. - 1./sqrtf(2.);
+      s_ = 1./sqrtf(8.);
+      t_ = 1./sqrtf(8.);
+      u_ = 1.-1./sqrtf(2.);
+      sdirk = true;
+    }
+*/
+
+  flip = true;
 }
 
 IMEX_3stage::~IMEX_3stage()
@@ -73,7 +180,8 @@ void IMEX_3stage::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool set
   for (int is=0; is<grids_->Nspecies; is++) {
     A[is]->set_zero();
     if(is == ielectron) {
-      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+//      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
     } else {
       linear_->rhs(G[is], f, A[is], dt_);
       }
@@ -91,14 +199,19 @@ void IMEX_3stage::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
     B[is]->set_zero();
     if(is == ielectron) { // electrons
       // compute implicit part of electron linear rhs
-      linear_->rhs_streaming(G[is], f, B[is], dt_);
+//      linear_->rhs_streaming(G[is], f, B[is], dt_);
+      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+
 
     }
   }
 }
 
-void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
 {
+/*  if(flip){
+    invert_bounce_terms(G1[ielectron], 0);
+  }*/
   double sdtvt = sdt*vte;
   // tridiag from numerical recipes
   if(pars_->local_limit) {
@@ -222,6 +335,33 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       }
     }
   grad_par->zft_inverse(G1[ielectron]);
+  invert_bounce_terms(G1[ielectron], 0);
+
+/*  if(!flip){
+    invert_bounce_terms(G1[ielectron], 0);
+  }*/
+
+}
+
+void IMEX_3stage::invert_bounce_terms(MomentsG* G, int stage){
+/*  for (int iz = 0; iz < grids_->Nz; iz++){
+    copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs, G->G(), iz);
+//    copy_brhs_from_g<<<dG_b, dB_b>>>(res, G->G(), iz);
+    cusolve_->invert(bounce_rhs, res, iz);
+    copy_g_from_brhs<<<dG_b, dB_b>>>(G->G(),bounce_rhs, iz);
+    //check_residual<<<dG_b, dB_b>>>(res);
+  }*/
+
+  for (int iz = 0; iz < grids_->Nz; iz++){
+    copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
+    copy_brhs_from_g<<<dG_b, dB_b>>>(res[iz], G->G(), iz);
+    cusolve_->invert(bounce_rhs[iz], res[iz], iz);
+    copy_g_from_brhs<<<dG_b, dB_b>>>(G->G(),bounce_rhs[iz], iz);
+ //   check_residual<<<dG_b, dB_b>>>(res[iz]);
+
+  }
+
+
 }
 
 void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
@@ -245,80 +385,6 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   //     ( s    t    u  )
   //     ----------------
   //     ( w1   w2   w3 )
-  double a21, a31, a32, w1, w2, w3;
-  double p_, q_, r_, s_, t_, u_;
-//  std::string scheme = "pareschi_russo_ssp2_332";
-  std::string scheme = "conde_ssprk3_sdirk";
-//  std::string scheme = "conde_3s3p";
-
-
-  // Pareschi-Russo SSP2(3,3,2)
-  if(scheme == "pareschi_russo_ssp2_332") {
-    a21 = 0.5;
-    a31 = 0.5;
-    a32 = 0.5;
-    w1 = 1./3.;
-    w2 = 1./3.;
-    w3 = 1./3.;
-    p_ = 0.25;
-    q_ = 0.;
-    r_ = 0.25;
-    s_ = 1./3.;
-    t_ = 1./3.;
-    u_ = 1./3.;
-  } else if(scheme == "pareschi_russo_ssp2_322") {
-    a21 = 0.;
-    a31 = 0.;
-    a32 = 1.;
-    w1 = 0.;
-    w2 = 1./2.;
-    w3 = 1./2.;
-    p_ = 0.5;
-    q_ = -0.5;
-    r_ = 0.5;
-    s_ = 0.;
-    t_ = 1./2.;
-    u_ = 1./2.;
-  } else if (scheme == "conde_ssprk3_sdirk") {
-    a21 = 1.;
-    a31 = 0.25;
-    a32 = 0.25;
-    w1 = 1./6.;
-    w2 = 1./6.;
-    w3 = 2./3.;
-    p_ = 0.;
-    q_ = 0.;
-    r_ = 1.;
-    s_ = 1./6.;
-    t_ = -1./3.;
-    u_ = 2./3.;
-  } else if(scheme == "conde_3s3p") {
-    a21 = 1.;
-    a31 = 0.25;
-    a32 = 0.25;
-    w1 = 1./6.;
-    w2 = 1./6.;
-    w3 = 2./3.;
-    p_ = 0.;
-    q_ = (3. - sqrtf(3.))/6.;
-    r_ = (3. + sqrtf(3.))/6.;
-    s_ = (3. - sqrtf(3.))/24.;
-    t_ = -(1. + sqrtf(3.))/8.;
-    u_ = r_;
-  } else if(scheme == "giraldo_ark2") {
-    a21 = 2. - sqrtf(2.);
-    a32 = (3. + 2.*sqrtf(2.))/6.;
-    a31 = 1. - a32;
-    w1 = 1./sqrtf(8.);
-    w2 = 1./sqrtf(8.);
-    w3 = 1.-1./sqrtf(2.);
-    p_ = 0.;
-    q_ = 1. - 1./sqrtf(2.);
-    r_ = 1. - 1./sqrtf(2.);
-    s_ = 1./sqrtf(8.);
-    t_ = 1./sqrtf(8.);
-    u_ = 1.-1./sqrtf(2.);
-  }
   checkCudaErrors(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
@@ -336,7 +402,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 //    invert_implicit_terms(G1[ielectron], f, p_*dt_,gradpar_);
     Gc[ielectron]->copyFrom(G1[ielectron]);
     Gr[ielectron]->copyFrom(G1[ielectron]);
-    invert_implicit_terms(G1, Gc[ielectron], Gr, f, p_*dt_,gradpar_, bmagInv_, ielectron);
+    invert_implicit_terms(G1, Gc[ielectron], Gr, f, p_*dt_,gradpar_, bmagInv_, ielectron, flip);
 
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -364,7 +430,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
 //  invert_implicit_terms(G1[ielectron], f, r_*dt_,gradpar_);
   Gc[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, f, r_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc[ielectron], Gr, f, r_*dt_,gradpar_, bmagInv_, ielectron, flip);
 
 
   solver_->fieldSolve(G1, f);        
@@ -396,7 +462,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   Gc[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
 
-  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron, flip);
   
   solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -420,6 +486,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   *t += dt_;
   checkCudaErrors(cudaGetLastError());
+  flip = !flip;
 }
 // ======= 4-stage addivte RK IMEX methods =======
 IMEX_4stage::IMEX_4stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
