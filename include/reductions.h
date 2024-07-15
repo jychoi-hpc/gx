@@ -27,6 +27,11 @@ template <> cutensorComputeType_t computeType<double>()
   return CUTENSOR_COMPUTE_64F;
 }
 
+template <> cutensorComputeType_t computeType<cuComplex>()
+{
+  return CUTENSOR_COMPUTE_32F;
+}
+
 template <class T> static cudaDataType_t dataType();
 template <> cudaDataType_t dataType<float>()
 {
