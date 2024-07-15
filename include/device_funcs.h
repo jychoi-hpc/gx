@@ -468,7 +468,7 @@ __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuCo
 __global__ void add_const_kernel( cuComplex* g, float b );
 __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol );
 
-__global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cuComplex* m1, cuComplex c2, const cuComplex* m2);
+__global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cuComplex* m1, cuComplex c2, const cuComplex* m2, bool neqfix = true);
 
 __global__ void complexDotProductKernel(cuComplex* res, const cuComplex*, const cuComplex* );
 
