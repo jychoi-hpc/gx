@@ -95,7 +95,8 @@ void RungeKutta3::advance(double *t, MomentsG** G, Fields* f)
 
   // GRhs1 = RHS(G)
   // G_q1 = G + dt/3*GRhs1
-  partial(G, G, f, GRhs1, G_q1, 1./3., true); 
+  partial(G, G, f, GRhs1, G_q1, 1./3., true);
+//  partial(G, G, f, GRhs1, G_q1, 1./3., false); 
   solver_->fieldSolve(G_q1, f);
 
   // GRhs2 = RHS(G_q1)

@@ -752,6 +752,7 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
+  if (scheme == "lie_trotter")scheme_opt = Tmethod::lie_trotter;
   if (scheme == "imex3" || scheme == "imex") {
     scheme_opt = Tmethod::imex3;
     // Pareschi-Russo SSP2(3,3,2)

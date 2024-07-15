@@ -71,7 +71,7 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
     }
   }
  
-/*  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
+  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
   
   printf("bgrad is %f\n", geo_->bgrad_h[11]);
 
@@ -81,7 +81,7 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
         }
         std::printf("\n");
   }
-*/
+
 
   d_info = nullptr;     /* error info */
 
