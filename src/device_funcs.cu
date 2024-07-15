@@ -4032,7 +4032,7 @@ __global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *den
 
 __global__ void add_complex_scaled_kernel(cuComplex* res,
 				  cuComplex c1, const cuComplex* m1,
-				  cuComplex c2, const cuComplex* m2, bool neqfix = true)
+				  cuComplex c2, const cuComplex* m2, bool neqfix )
 {
   unsigned int idxy = get_id1(); 
   unsigned int idz  = get_id2();
