@@ -442,6 +442,8 @@ __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int
 __global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz);
 __global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz);
 __global__ void check_residual(cuComplex* res);
+__global__ void add_streaming_fields_rhs(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
+__global__ void tridiag_streaming_periodic_flip(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, bool flip);
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi);
 __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, const float* kz, const float* qneutDenom, const float* ampereParFac, const specie sp, const double sdtvt, const float gradpar, bool full_phi, const float beta);
 __global__ void tridiag_streaming_periodic_bpar(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const float* BparDenom, const specie sp, const double sdtvt, const float gradpar, const float* bmagInv, bool full_phi, const float beta);

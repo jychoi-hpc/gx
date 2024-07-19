@@ -71,7 +71,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dB_b = dim3(nb1, nb2, nb4);
  
 
-  flip = true;
+  flip = false;
 }
 
 Lie_Trotter::~Lie_Trotter()
@@ -121,9 +121,6 @@ void Lie_Trotter::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 
 void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
 {
-/*  if(flip){
-    invert_bounce_terms(G1[ielectron], 0);
-  }*/
   double sdtvt = sdt*vte;
   // tridiag from numerical recipes
   if(pars_->local_limit) {
@@ -161,6 +158,14 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 	  }
 	  else{
             tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
+/*          if(flip){
+            add_streaming_fields_rhs<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
+            grad_par->zft_inverse(G1[ielectron]);
+            invert_bounce_terms(G1[ielectron], 0);
+            grad_par->zft(G1[ielectron]);
+          }
+	    tridiag_streaming_periodic_flip<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, false, flip);*/
+
 	  }
         }
         else{
@@ -172,7 +177,16 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
           G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
           grad_par->zft(G1[ielectron]);
           grad_par->zft(Gr[ielectron]);
+/*          if(flip){
+            add_streaming_fields_rhs<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, true);
+            grad_par->zft_inverse(G1[ielectron]);
+            invert_bounce_terms(G1[ielectron], 0);
+            grad_par->zft(G1[ielectron]);
+          }
+          tridiag_streaming_periodic_flip<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(),f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, true, flip);
+*/
           tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(),f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, true);
+
 
           grad_par->zft_inverse(G1[ielectron]);
           grad_par->zft_inverse(Gr[ielectron]);
@@ -247,7 +261,8 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       }
     }
   grad_par->zft_inverse(G1[ielectron]);
-  invert_bounce_terms(G1[ielectron], 0);
+ // invert_bounce_terms(G1[ielectron], 0);
+  cusolve_->invert_stream(G1[ielectron],0);
 
 /*  if(!flip){
     invert_bounce_terms(G1[ielectron], 0);
@@ -255,14 +270,7 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 
 }
 
-void Lie_Trotter::invert_bounce_terms(MomentsG* G, int stage){
-/*  for (int iz = 0; iz < grids_->Nz; iz++){
-    copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs, G->G(), iz);
-//    copy_brhs_from_g<<<dG_b, dB_b>>>(res, G->G(), iz);
-    cusolve_->invert(bounce_rhs, res, iz);
-    copy_g_from_brhs<<<dG_b, dB_b>>>(G->G(),bounce_rhs, iz);
-    //check_residual<<<dG_b, dB_b>>>(res);
-  }*/
+/*void Lie_Trotter::invert_bounce_terms(MomentsG* G, int stage){
 
   for (int iz = 0; iz < grids_->Nz; iz++){
     copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
@@ -274,7 +282,7 @@ void Lie_Trotter::invert_bounce_terms(MomentsG* G, int stage){
   }
 
 
-}
+}*/
 void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt){
   explicit_terms(A1, G, f, false);
   for(int is=0; is<grids_->Nspecies; is++) {
@@ -309,7 +317,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     G1[is]-> update_tprim(*t);
   }
 
-  if(flip){
+  if(!flip){
     checkCudaErrors(cudaGetLastError()); 
     ssprk3(A1, A2, A3, G, G1, f, false); 
 
@@ -344,9 +352,11 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     invert_implicit_terms(G, Gc[ielectron], Gr, f, dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);        
     
-    checkCudaErrors(cudaGetLastError()); 
     ssprk3(A1, A2, A3, G, G1, f, false); 
     solver_->fieldSolve(G,f);
+
+
+    checkCudaErrors(cudaGetLastError()); 
 
   }
 
@@ -359,6 +369,6 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
   *t += dt_;
   checkCudaErrors(cudaGetLastError());
-  //flip = !flip;
+//  flip = !flip;
 }
 

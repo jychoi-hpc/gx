@@ -9,7 +9,6 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
   size_t nzlm = sizeof(int) * grids_->Nz * grids_->Nz * pars_->nm_in * pars_->nl_in;
   LM = pars_->nm_in * pars_-> nl_in;
   size_t LM2 = sizeof(cuComplex) *LM*LM;
-  int num_coeff = 0;
   if (sdirk_){
     num_coeff = 1;
   }
@@ -60,10 +59,16 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
   nn2 = 1;         	    nt2 = min(nn2,  4 );   nb2 = 1 + (nn2-1)/nt2;
   nn3 = 1;         	    nt3 = min(nn3,  4 );   nb3 = 1 + (nn3-1)/nt3;
   
+  int nn4 = grids_->Nyc;             int nt4 = min(nn4, 16);   int nb4 = 1 + (nn4-1)/nt4;
+  int nn5 = grids_->Nx;              int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
+  int nn6 = pars_->nm_in * pars_->nl_in; int nt6 = min(nn6, 4); int nb6 = 1 + (nn6-1)/nt6;
+
   dB = dim3(nt1, nt2, nt3);
-  dG = dim3(nb1, nb2, nb3);
-  printf("num_coeff is %d\n", num_coeff);
-  printf("coeff is %f\n", dcoeff[0]);
+  dG = dim3(nb1, nb2, nb3); 
+
+  dG_b = dim3(nt4, nt5, nt6);
+  dB_b = dim3(nb4, nb5, nb6);
+
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
        initialize_A_bounce<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM, pars_->nm_in, pars_->nl_in, geo_->bgrad, dcoeff[i], dt_,vte,j);
@@ -71,6 +76,88 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
     }
   }
  
+
+
+  d_info = nullptr;     /* error info */
+
+  size_t workspaceInBytesOnDevice = 0; /* size of workspace */
+  void *d_work = nullptr;              /* device workspace for getrf */
+  size_t workspaceInBytesOnHost = 0;   /* size of workspace */
+  void *h_work = nullptr;              /* host workspace for getrf */
+
+  pivot_on = 1;
+  const int algo = 0;
+  if (pivot_on) {
+      std::printf("pivot is on : compute P*A = L*U \n");
+  } else {
+      std::printf("pivot is off: compute A = L*U (not numerically stable)\n");
+  }
+
+  
+  cusolverH = (cusolverDnHandle_t*) malloc(sizeof(cusolverDnHandle_t)*grids_->Nz);
+  stream = (cudaStream_t*) malloc(sizeof(cudaStream_t)*grids_->Nz);
+  params = (cusolverDnParams_t*) malloc(sizeof(cusolverDnParams_t)*grids_->Nz);
+
+  for (int iz = 0; iz < grids_->Nz; iz++){
+    CUSOLVER_CHECK(cusolverDnCreate(&cusolverH[iz]));
+    checkCuda(cudaStreamCreate(&stream[iz]));
+    /* Create advanced params */
+    CUSOLVER_CHECK(cusolverDnCreateParams(&params[iz]));
+    if (algo == 0) {
+      std::printf("Using New Algo\n");
+      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params[iz], CUSOLVERDN_GETRF, CUSOLVER_ALG_0));
+    } else {
+      std::printf("Using Legacy Algo\n");
+      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params[iz], CUSOLVERDN_GETRF, CUSOLVER_ALG_1));
+    }
+
+//    checkCuda(cudaStreamCreateWithFlags(&stream[iz], cudaStreamNonBlocking));
+    //CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream)); 
+  }
+
+  /* step 1: create cusolver handle, bind a stream */
+
+  using data_type = cuComplex;
+
+
+
+ // print_matrix(LM, LM, LU, LM);
+  printf("BEFORE FACTORIZATION\n");
+
+  int ind;
+  for (int i = 0; i < num_coeff; i++){
+    for(int iz = 0; iz < grids_->Nz; iz++){
+	ind = iz + i*num_coeff;
+	CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
+   	CUSOLVER_CHECK(
+	    cusolverDnXgetrf_bufferSize(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F, A_bounce[ind],
+					LM, CUDA_C_32F, &workspaceInBytesOnDevice,
+					&workspaceInBytesOnHost));
+	CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_work), workspaceInBytesOnDevice));
+
+	if (0 < workspaceInBytesOnHost) {
+	    h_work = reinterpret_cast<void *>(malloc(workspaceInBytesOnHost));
+	    if (h_work == nullptr) {
+		throw std::runtime_error("Error: h_work not allocated.");
+	    }
+	}
+	
+	if (pivot_on) {
+	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F,
+					    A_bounce[ind], LM, d_Ipiv[ind], CUDA_C_32F, d_work,
+					    workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
+	} else {
+	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F,
+					    A_bounce[ind], LM, nullptr, CUDA_C_32F,
+					    d_work, workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
+	}   
+    }
+  }
+  for (int iz = 0; iz < grids_->Nz; iz++){
+    checkCuda(cudaStreamSynchronize(stream[iz]));
+  }
+  printf("AFTER FACTORIZATION\n");
+
   checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
   
   printf("bgrad is %f\n", geo_->bgrad_h[11]);
@@ -83,80 +170,6 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
   }
 
 
-  d_info = nullptr;     /* error info */
-
-  size_t workspaceInBytesOnDevice = 0; /* size of workspace */
-  void *d_work = nullptr;              /* device workspace for getrf */
-  size_t workspaceInBytesOnHost = 0;   /* size of workspace */
-  void *h_work = nullptr;              /* host workspace for getrf */
-
-  pivot_on = 1;
-  const int algo = 0;
-  
-  cusolverH = NULL;
-  stream = NULL;
-
-  if (pivot_on) {
-      std::printf("pivot is on : compute P*A = L*U \n");
-  } else {
-      std::printf("pivot is off: compute A = L*U (not numerically stable)\n");
-  }
-    
-  /* step 1: create cusolver handle, bind a stream */
-  CUSOLVER_CHECK(cusolverDnCreate(&cusolverH));
-
-  checkCuda(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-  CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream));
-  
-  using data_type = cuComplex;
-
-    /* Create advanced params */
-    CUSOLVER_CHECK(cusolverDnCreateParams(&params));
-  if (algo == 0) {
-      std::printf("Using New Algo\n");
-      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params, CUSOLVERDN_GETRF, CUSOLVER_ALG_0));
-  } else {
-      std::printf("Using Legacy Algo\n");
-      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params, CUSOLVERDN_GETRF, CUSOLVER_ALG_1));
-  }
-
-
- // print_matrix(LM, LM, LU, LM);
-
-  int ind;
-  for (int i = 0; i < num_coeff; i++){
-    for(int iz = 0; iz < grids_->Nz; iz++){
-	ind = iz + i*num_coeff; 
-   	CUSOLVER_CHECK(
-	    cusolverDnXgetrf_bufferSize(cusolverH, params, LM, LM, CUDA_C_32F, A_bounce[ind],
-					LM, CUDA_C_32F, &workspaceInBytesOnDevice,
-					&workspaceInBytesOnHost));
-
-	CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_work), workspaceInBytesOnDevice));
-
-	if (0 < workspaceInBytesOnHost) {
-	    h_work = reinterpret_cast<void *>(malloc(workspaceInBytesOnHost));
-	    if (h_work == nullptr) {
-		throw std::runtime_error("Error: h_work not allocated.");
-	    }
-	}
-	
-	if (pivot_on) {
-	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH, params, LM, LM, CUDA_C_32F,
-					    A_bounce[ind], LM, d_Ipiv[ind], CUDA_C_32F, d_work,
-					    workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
-	} else {
-	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH, params, LM, LM, CUDA_C_32F,
-					    A_bounce[ind], LM, nullptr, CUDA_C_32F,
-					    d_work, workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
-	}
-
-
-	checkCuda(cudaStreamSynchronize(stream));
-   
-    }
-  }
-  
 /*  for (int iz = 0; iz < grids_->Nz; iz++){
     checkCuda(cudaMemcpy(LU, A_bounce[iz], LM2, cudaMemcpyDeviceToHost));
     for (int i = 0; i < LM; i++) {
@@ -182,33 +195,75 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
  test = (cuComplex*) malloc(sizeof(cuComplex)*LM*grids_->Nx*grids_->Nyc);
  test2 = (cuComplex*) malloc(sizeof(cuComplex)*LM*grids_->Nx*grids_->Nyc);
 
+  bounce_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
+  size_t brhs_size = sizeof(cuComplex)*pars_->nm_in*pars_->nl_in*grids_->Nyc*grids_->Nx;
+  for (int j = 0; j < grids_->Nz; j++){
+    checkCuda(cudaMalloc((void**) &bounce_rhs[j], brhs_size));
+  }
+
+  printf("FINISHED INIT\n");
+}
+
+Cusolve::~Cusolve(){
+  for (int i = 0; i < num_coeff; i++){
+    for(int iz = 0; iz < grids_->Nz; iz++){
+       if(A_bounce[iz + i*num_coeff] != nullptr) cudaFree(A_bounce[iz + i*num_coeff]);
+    }
+  }
+  for(int iz = 0; iz < grids_->Nz; iz++){
+    if (bounce_rhs[iz] != nullptr) cudaFree(bounce_rhs[iz]);
+    if (cusolverH[iz] != nullptr) cusolverDnDestroy(cusolverH[iz]); 
+    if (stream[iz] != nullptr) cudaStreamDestroy(stream[iz]);
+
+  }
+  if(bounce_rhs != nullptr) free(bounce_rhs);
+  if(A_bounce != nullptr) free(A_bounce);
+  if (cusolverH != nullptr) free(cusolverH);
+}
+
+void Cusolve::invert_stream(MomentsG* G, int stage){
+/*  for (int iz = 0; iz < grids_->Nz; iz++){
+   copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
+  }*/
+  
+  for (int iz = 0; iz < grids_->Nz; iz++){
+    copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
+//    CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
+    if (pivot_on) {
+        CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+     				CUDA_C_32F, A_bounce[iz], LM, d_Ipiv[iz],
+  				CUDA_C_32F, bounce_rhs[iz], LM, d_info));
+    } else {
+      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+  				CUDA_C_32F, A_bounce[iz], LM, nullptr,
+  				CUDA_C_32F, bounce_rhs[iz], LM, d_info));
+    }
+  }
+  for (int iz = 0; iz < grids_->Nz; iz++){
+     checkCuda(cudaStreamSynchronize(stream[iz]));
+  }
+  for (int iz = 0; iz < grids_->Nz; iz++){
+    copy_g_from_brhs<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
+  }
+
 }
 
 void Cusolve::invert(cuComplex* rhs, cuComplex* res, int iz){
-
-//  checkCuda(cudaMemcpy(test, rhs, sizeof(cuComplex)*LM*grids_->Nx*grids_->Nyc, cudaMemcpyDeviceToHost));
-//printf("test.x = %f, test.y = %f\n", test[0].x, test[0].y);
+  CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
   if (pivot_on) {
-      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH, params, CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
   				CUDA_C_32F, A_bounce[iz], LM, d_Ipiv[iz],
   				CUDA_C_32F, rhs, LM, d_info));
   } else {
-      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH, params, CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
   				CUDA_C_32F, A_bounce[iz], LM, nullptr,
   				CUDA_C_32F, rhs, LM, d_info));
   }
-/*  CUBLAS_CHECK(
-    cublasCgemm(cublasH, transa, transb, LM,grids_->Nx*grids_->Nyc,LM, &alpha, A_bounce[iz], LM, rhs, LM, &beta, res, LM));*/
+  checkCuda(cudaStreamSynchronize(stream[iz]));
 
-/*  checkCuda(cudaMemcpy(test2, rhs, sizeof(cuComplex)*LM*grids_->Nx*grids_->Nyc, cudaMemcpyDeviceToHost));
-  for (int i = 0; i < LM*grids_->Nx*grids_->Nyc; i++){
-    if (test[i].x != test2[i].x || test[i].y != test2[i].y){
-//      printf("Error of at i = %d\n", i);
-//      printf("");
-    }
-  }*/
-//  checkCuda(cudaMemcpy(test, rhs[0], sizeof(cuComplex), cudaMemcpyDeviceToHost));
-//  printf("test.x = %f, test.y = %f\n", test.x, test.y);
+//  CUBLAS_CHECK(
+//    cublasCgemm(cublasH, transa, transb, LM,grids_->Nx*grids_->Nyc,LM, &alpha, A_bounce[iz], LM, rhs, LM, &beta, res, LM));
+
 
 
 }

@@ -3410,6 +3410,110 @@ __global__ void check_residual(cuComplex* res){
   }
 
 }
+__global__ void add_streaming_fields_rhs(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    float Q = 0.0f;
+    float Q_avg = 0.0f;
+    Q_avg = max_qneutFacPhi_inv[idxy];
+    Q = sp.nz*sp.zt*Q_avg;
+
+    int idm = 1; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    if(idz==idzl) {
+      if(full_phi){
+        //g[globalIdx] = g[globalIdx] - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];
+      }else{
+        g[globalIdx] = g[globalIdx] - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
+      }
+    }
+  }
+}
+
+__global__ void tridiag_streaming_periodic_flip(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, bool flip)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    float Q = 0.0f;
+    float Q_avg = 0.0f;
+    Q_avg = max_qneutFacPhi_inv[idxy];
+    Q = sp.nz*sp.zt*Q_avg;
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+      if(idm==1 && idz==idzl) {
+	if (full_phi){
+//	  if (!flip){
+	  if(true){
+  	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];
+	  }
+	  am = am + sdtvt*ikz*gradpar*Q;
+
+	}
+	else{
+	  am = am + sdtvt*ikz*gradpar*Q;
+	  if (!flip){
+//	  if(true){
+  	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
+	  }
+	}
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+  }
+}
+
+__global__ void set_delta_phi(cuComplex* phi, int iz, float val){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idxy = idy + nyc*idx;
+  if ((idy < nyc) && (idx < nx)){
+    phi[idxy + nx*nyc*iz] = make_cuComplex(val,0.0f);
+  }
+}
 
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
 {

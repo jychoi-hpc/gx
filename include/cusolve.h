@@ -26,6 +26,7 @@ class Cusolve {
   void factorize();
   void print_matrix(const int m, const int n, const cuComplex *A, const int lda);
   void invert(cuComplex* rhs, cuComplex* res, int iz); 
+  void invert_stream(MomentsG* G, int stage);
   cuComplex** A_bounce;
 
  private:
@@ -35,6 +36,8 @@ class Cusolve {
   
   dim3 dG;
   dim3 dB;
+  dim3 dG_b;
+  dim3 dB_b;
 
   double p_;
   double r_;
@@ -46,10 +49,10 @@ class Cusolve {
   int LM;
   int* d_info;
   int pivot_on;
-
-  cusolverDnHandle_t cusolverH;
-  cudaStream_t stream;
-  cusolverDnParams_t params;
+  int num_coeff;
+  cusolverDnHandle_t* cusolverH;
+  cudaStream_t* stream;
+  cusolverDnParams_t* params;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream_cublas = NULL;
@@ -62,6 +65,8 @@ class Cusolve {
   
   cuComplex* test;
   cuComplex* test2;
+  cuComplex     ** bounce_rhs;
+
 
 };
 
