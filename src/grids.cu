@@ -96,14 +96,6 @@ Grids::Grids(Parameters* pars) :
     }
   }
 
-  //
-  // When solving Toby's collisional slab ETG model, use nhermite = 1, nlaguerre = 2
-  // The zeroth moment will be (m=0, l=0) == Phi
-  // The first moment will be (m=0, l=1) == delta T
-  // These values are automatically set in parameters when this equation set is selected.
-
-  // Should add an assert statement here? Something like "if we are solving cetg, assert Nm == 1)" and so forth
-  
   Nmoms = Nm * Nl;
   size_G = sizeof(cuComplex) * NxNycNz * (Nm + 2*m_ghost) * Nl; // this includes ghosts on either end of m grid
   // kz is defined without the factor of gradpar

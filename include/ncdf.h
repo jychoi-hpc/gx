@@ -84,8 +84,6 @@ class NetCDF_ids {
   void write_nc(nca *D, bool endrun = false);
   void write_nc(nca *D, double data, bool endrun = false);
   void write_nc(nca *D, float data, bool endrun = false);
-  void write_ks_data(nca *D, cuComplex *G);
-  void write_ks_data(nca *D, float *G);
   void write_Wtot();
   
   nca *rh, *omg, *den, *wphi, *denk, *wphik, *den0, *wphi0, *qs, *ps; 

@@ -284,17 +284,6 @@ __global__ void getPhi (cuComplex *phi, cuComplex *G, float* ky)
   }
 }
 
-__global__ void phiSolve_cetg (cuComplex *phi, cuComplex *G0, float tau_bar)
-{
-  idXYZ;
-
-  if ( unmasked(idx, idy) && idz < nz ) { 
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-
-    phi[idxyz] = -G0[idxyz] * tau_bar;
-  }
-}
-
 __global__ void phiSolve_krehm (cuComplex *phi, cuComplex *G0, float* kx, float* ky, float rho_i)
 {
   idXYZ;
@@ -370,16 +359,6 @@ __global__ void rhs_lin_vp(const cuComplex *G, const cuComplex* phi, cuComplex* 
       }
       if (nuh > 0)   GRhs[ig] = GRhs[ig] - nuh * pow(k2norm, alpha_h) * G[ig];
     }
-  }
-}
-
-__global__ void rhs_ks(const cuComplex *G, cuComplex *GRhs, float *ky, float eps)
-{
-  unsigned int idy = get_id1();
-  if (idy < (ny-1)/3 + 1) {
-    float k2 = ky[idy]*ky[idy];    float lin = (1.0+eps)*k2 - k2*k2;
-
-    GRhs[idy] = lin * G[idy];
   }
 }
 
@@ -1384,31 +1363,6 @@ __global__ void nlvp(float *res, const float *Gy, const float *dphi)
   }
 }
 
-// Nonlinear term in the KS model
-__global__ void nlks(float *res, const float *Gy, const float *dG)
-{
-  unsigned int idy = get_id1();
-  if (idy < ny) res[idy] = - Gy[idy] * dG[idy];
-}
-
-__global__ void kz_dealias (cuComplex *G, int *kzm, int LM)
-{
-  unsigned int idxy = get_id1();
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-  if (idxy < nx*nyc) {
-    int idy = idxy % nyc;
-    int idx = idxy / nyc;
-    if (unmasked(idx, idy) && idz < nz && idlm < LM) {
-      unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-      if (kzm[idz] == 0) {
-	G[ig].x = 0.; 
-	G[ig].y = 0.;
-      }
-    }
-  }
-}
-
 __global__ void bracket(      float* __restrict__ g_res,
 			const float* __restrict__ dg_dx,
 			const float* __restrict__ dJ0phi_dy,
@@ -1426,24 +1380,6 @@ __global__ void bracket(      float* __restrict__ g_res,
     g_res[ig] = ( dg_dx[ig] * dJ0phi_dy[iphi] - dg_dy[ig] * dJ0phi_dx[iphi] ) * kxfac;
   }
 }
-
-__global__ void bracket_cetg(      float* __restrict__ g_res,
-			     const float* __restrict__ dg_dx,
-			     const float* __restrict__ dphi_dy,
-			     const float* __restrict__ dg_dy,
-			     const float* __restrict__ dphi_dx,
-			     float kxfac)
-{
-  unsigned int idxyz = get_id1();
-
-  if (idxyz < nx*ny*nz) {
-    unsigned int iphi = idxyz;
-    unsigned int ig = idxyz + nx*ny*nz;
-    g_res[ig] = ( dg_dx[ig] * dphi_dy[iphi] - dg_dy[ig] * dphi_dx[iphi] ) * kxfac;
-    
-  }
-}
-
 
 # define LM(L, M) idxyz + nx*nyc*nz*((L) + nl*(M))
 __global__ void beer_toroidal_closures(const cuComplex* g, cuComplex* gRhs,
@@ -3295,70 +3231,6 @@ __global__ void krehm_collisions(const cuComplex* g,
   }
 }
 
-//
-// Calculate terms proportional to kz**2
-//
-__global__ void rhs_diff_cetg(const cuComplex* density,
-			      const cuComplex* temperature,
-			      const cuComplex* phi,
-			      const float gpar,
-			      const float c1,
-			      const float C12,
-			      const float C23,
-			      cuComplex* rhs_diff)
-{
-  idXYZ; 
-
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-
-    float gpar2 = gpar * gpar;
-    
-    rhs_diff[            idxyz] = gpar2/2. * c1 * (      density[idxyz] + C12 * temperature[idxyz] -       phi[idxyz]);
-    rhs_diff[nx*nyc*nz + idxyz] = gpar2/3. * c1 * (C12 * density[idxyz] + C23 * temperature[idxyz] - C12 * phi[idxyz]); 
-      
-  }
-}
-
-//
-// omega_star term appears in the temperature equation
-//
-__global__ void rhs_lin_cetg(const cuComplex* phi, const float* ky, cuComplex* rhs)
-{
-  idXYZ;
-    
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    unsigned int idxyzt = idxyz + nx*nyc*nz; 
-    
-    const cuComplex Iky = make_cuComplex(0., ky[idy]);
-    
-    rhs[idxyzt] = rhs[idxyzt] - 0.5 * Iky * phi[idxyz]; 
-
-  }
-}
-
-__global__ void hyper_cetg(const cuComplex* g,
-			   const float* kx,
-			   const float* ky,
-			   const float nu_hyper,
-			   const float D_hyper,
-			   cuComplex* rhs)
-{
-  idXYZ;
-  
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    
-    float Dfac = D_hyper*pow((kx[idx]*kx[idx] + ky[idy]*ky[idy]), nu_hyper);
-    
-    for (int l = 0; l < 2; l++) {
-      unsigned int ig = idxyz + nx*nyc*nz*l;
-      rhs[ig] = rhs[ig] - Dfac * g[ig];
-    }
-  }
-}
-
 __global__ void hyperdiff(const cuComplex* g,
 			  const float* kx,
 			  const float* ky,
@@ -3579,52 +3451,6 @@ __global__ void conservation_terms(cuComplex* upar_bar,
     }
   }
 }
-
-__global__ void Wphi_summand_cetg(float* p2, const cuComplex* phi, const float* volJac)
-{
-  idXYZ;
-  
-  if (idx < nx && idy < nyc && idz < nz) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-  
-    if (unmasked(idx, idy)) {    
-
-      float fac=2.;
-      if (idy==0) fac = 1.0;
-
-      cuComplex tmp = cuConjf( phi[idxyz] ) * phi[idxyz] * fac * volJac[idz];
-      p2[idxyz] = 0.5 * tmp.x;
-
-    } else {
-      p2[idxyz] = 0.;
-    }
-  }
-}
-
-__global__ void heat_flux_summand_cetg(float* qflux,
-				       const cuComplex* phi,
-				       const cuComplex* g,
-				       const float* ky, 
-				       const float* flxJac,
-				       float pres)
-{
-  idXYZ;
-  
-  if (idx < nx && idy < nyc && idz < nz) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    if (unmasked(idx, idy)) {    
-      
-      cuComplex vPhi_r = - make_cuComplex(0., ky[idy]) * phi[idxyz];
-      
-      cuComplex fg = (cuConjf(vPhi_r) * g[idxyz+nx*nyc*nz]) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
-
-    } else {
-      qflux[idxyz] = 0.;
-    }
-  }
-}
-
 
 // kxbar_ikx_new and kxbar_ikx_old are arrays of ikx in idx ordering.
 

@@ -167,39 +167,6 @@ void Parameters::get_nml_vars(char* filename)
   hypercollisions_kz = toml::find_or <bool> (tnml, "hypercollisions", hypercollisions_kz); // "hypercollisions" now gives hypercollisions_kz
   hyperz = toml::find_or <bool> (tnml, "hyperz", false);
   
-
-  tnml = nml;
-  if (nml.contains("Collisional_slab_ETG")) tnml = toml::find (nml, "Collisional_slab_ETG"); 
-
-  cetg              = toml::find_or <bool>  (tnml, "cetg",         false );
-
-  if (cetg) gx = false;
-  if (cetg) nm_in = 1;
-  if (cetg) nl_in = 2;
-  
-  tnml = nml;
-  if (nml.contains("Vlasov_Poisson")) tnml = toml::find (nml, "Vlasov_Poisson");
-  
-  vp                = toml::find_or <bool>  (tnml, "vp",         false );
-  vp_closure        = toml::find_or <bool>  (tnml, "vp_closure",  true );
-  vp_nu             = toml::find_or <float> (tnml, "vp_nu",       -1.0 );
-  vp_nuh            = toml::find_or <float> (tnml, "vp_nuh",      -1.0 );
-  vp_alpha          = toml::find_or <int>   (tnml, "vp_alpha",       1 );
-  vp_alpha_h        = toml::find_or <int>   (tnml, "vp_alpha_h",     2 );
-  if (vp) gx = false;
-  
-  tnml = nml;
-  if (nml.contains("KS")) tnml = toml::find (nml, "KS");
-  
-  ks                = toml::find_or <bool>  (tnml, "ks",         false );
-  write_ks          = toml::find_or <bool>  (tnml, "write_ks",   false );
-  eps_ks            = toml::find_or <float> (tnml, "eps_ks",       0.0 );
-  ks_t0             = toml::find_or <float> (tnml, "ks_t0",       -1.0 );
-  ks_tf             = toml::find_or <float> (tnml, "ks_tf",       -1.0 );
-  ks_eps0           = toml::find_or <float> (tnml, "ks_eps0",     -1.0 );
-  ks_epsf           = toml::find_or <float> (tnml, "ks_epsf",     -1.0 );
-  if (ks) gx = false;
-  
   tnml = nml;
   if (nml.contains("KREHM")) tnml = toml::find (nml, "KREHM");
   
@@ -275,7 +242,7 @@ void Parameters::get_nml_vars(char* filename)
   nwrite_big  = toml::find_or <int>   (tnml, "nwrite_big", (long)  nwrite*100 );
   fixed_amplitude   = toml::find_or <bool> (tnml, "fixed_amplitude", false);
   write_omega       = toml::find_or <bool> (tnml, "omega",          false );
-  write_free_energy = toml::find_or <bool> (tnml, "free_energy",    true  ); if (ks) write_free_energy = false;
+  write_free_energy = toml::find_or <bool> (tnml, "free_energy",    true  );
   write_fluxes      = toml::find_or <bool> (tnml, "fluxes",         false );
   write_moms        = toml::find_or <bool> (tnml, "moments",           false );
   write_fields      = toml::find_or <bool> (tnml, "fields",         false );
@@ -547,9 +514,8 @@ void Parameters::get_nml_vars(char* filename)
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
   coll_conservation = toml::find_or <bool> (tnml, "coll_conservation", true);
 
-  gx = (!ks && !vp && !krehm && !cetg);
-  assert (!(ks && vp));
-  assert (ks || vp || gx || krehm || cetg);
+  gx = !krehm;
+  assert (gx || krehm);
   
 //  wspectra.resize(nw_spectra);
 //  pspectra.resize(np_spectra);
@@ -811,10 +777,6 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_grp(ncid,      "Inputs",         &nc_inputs)) ERR(retval);
   if (retval = nc_def_grp(nc_inputs, "Domain",         &nc_dom))    ERR(retval);  
   if (retval = nc_def_grp(nc_inputs, "Time",           &nc_time))   ERR(retval);  
-  if (retval = nc_def_grp(nc_inputs, "KS",             &nc_ks))     ERR(retval);  
-  if (retval = nc_def_grp(nc_inputs, "Vlasov_Poisson", &nc_vp))     ERR(retval);  
-  if (retval = nc_def_grp(nc_inputs, "KREHM",          &nc_krehm))  ERR(retval);  
-  if (retval = nc_def_grp(nc_inputs, "collisionalETG", &nc_cetg))   ERR(retval);
   if (retval = nc_def_grp(nc_inputs, "Restart",        &nc_rst))    ERR(retval);  
   if (retval = nc_def_grp(nc_inputs, "Controls",       &nc_con))    ERR(retval);
   if (retval = nc_def_grp(nc_con,    "Numerical_Diss", &nc_diss))   ERR(retval);
@@ -846,29 +808,12 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_time, "navg",     NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_time, "nsave",    NC_INT,   0, NULL, &ivar)) ERR(retval);
 
-  if (retval = nc_def_var (nc_ks, "ks",         NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "write_ks",   NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "eps_ks",     NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "ks_t0",      NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "ks_tf",      NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "ks_eps0",    NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_ks, "ks_epsf",    NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-
-  if (retval = nc_def_var (nc_vp, "vp",         NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_vp, "vp_closure", NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_vp, "vp_nu",      NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_vp, "vp_nuh",     NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_vp, "vp_alpha",   NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_vp, "vp_alpha_h", NC_INT,   0, NULL, &ivar)) ERR(retval);
-
   if (retval = nc_def_var (nc_krehm, "krehm",   NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_krehm, "rho_i",   NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_krehm, "d_e",     NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_krehm, "nu_ei",   NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_krehm, "zt",      NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
 
-  if (retval = nc_def_var (nc_cetg, "cetg",     NC_INT,   0, NULL, &ivar)) ERR(retval);
-  
   specs[0] = nc_dims->species;
   if (retval = nc_def_var (nc_spec, "species_type", NC_INT,   1, specs, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_spec, "z",            NC_FLOAT, 1, specs, &ivar)) ERR(retval);
@@ -1136,23 +1081,7 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putint   (nc_time, "navg",    navg    );
   putint   (nc_time, "nsave",   nsave   );
   putint   (nc_time, "nwrite",  nwrite  );
-  
-  putbool  (nc_ks, "ks",       ks       );
-  putbool  (nc_ks, "write_ks", write_ks );
-  put_real (nc_ks, "eps_ks",   eps_ks   );
-  put_real (nc_ks, "ks_t0",    ks_t0    );
-  put_real (nc_ks, "ks_tf",    ks_tf    );
-  put_real (nc_ks, "ks_eps0",  ks_eps0  );
-  put_real (nc_ks, "ks_epsf",  ks_epsf  );
-
-  putbool  (nc_vp, "vp",         vp          );
-  putbool  (nc_vp, "vp_closure", vp_closure  );
-  putint   (nc_vp, "vp_alpha",   vp_alpha    );
-  putint   (nc_vp, "vp_alpha_h", vp_alpha_h  );
-  put_real (nc_vp, "vp_nu",      vp_nu       );
-  put_real (nc_vp, "vp_nuh",     vp_nuh      );
-
-  putbool  (nc_cetg,  "cetg", cetg);
+ 
   putbool  (nc_krehm, "krehm", krehm);
   put_real (nc_krehm, "rho_i", rho_i);
   put_real (nc_krehm, "d_e", d_e);

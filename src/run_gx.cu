@@ -29,10 +29,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   // Initialize eqs              // 
   //                             //
   /////////////////////////////////
-  // GX is set up to solve a handful of different equation sets.
-  // Some have a geometry associated with them, some do not.
-  // Presently the options are "gx", "krehm", "vp", "ks", and "cetg"
-  // Most equation sets are undocumented, as they are exploratory or pedagogical in nature
+  // GX is set up to solve either gyrokinetics or the KREHM equations of Zocco & Schekochihin
+  // Setting KREHM to be the equation set overrides the geometry
   // 
   if (pars->gx) {
     linear = new Linear_GK(pars, grids, geo);          
@@ -96,84 +94,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     diagnostics = new Diagnostics_KREHM(pars, grids, geo, linear, nonlinear);
   }
   checkCudaErrors(cudaGetLastError());
-  
-  //////////////////////////////
-  //                          //
-  //     cETG eq              // 
-  //                          //
-  //////////////////////////////  
-  if (pars->cetg) {
-    linear = new Linear_cetg(pars, grids, geo);          
-    if (!pars->linear) nonlinear = new Nonlinear_cetg(pars, grids);    
-
-    solver = new Solver_cetg(pars, grids);
-
-    // set up initial conditions
-    G[0] -> set_zero();
-    G[0] -> initialConditions(&time);   
-    G[0] -> sync();
-    solver -> fieldSolve(G, fields);                
-
-    // 
-    // Adkins defines tau_bar = Ti/(Te Z). Set value for tau_bar with tau_fac in the Boltzmann section of the input file
-    // The default value of tau_bar = 1.0.
-    //
-    // Separately, one can set Z, which enters into the calculations of the c_(1,2,3) coefficients.
-    // Set Z by defining Z_ion in the Boltzmann section of the input file. The default value is 1.0. 
-    //
-    // Adkins defines a hyperdiffusion model with parameters N_nu and nu_perp.
-    // Set nu_perp by defining D_hyper in the Dissipation section of the input file. The default value in GX is 0.1, 
-    // which is quite large for the Adkins model. It is important, therefore, to set the value to what you want.
-    // With Tony's definitions, a typical value would be 0.0005 or smaller. 
-    //
-    // Set N_nu by defining nu_hyper in the Dissipation namelist. The default value is nu_hyper = 2
-    // Actually, the input variable nu_hyper is deprecated and one should set this using p_hyper = 2
-    //
-    // IMPORTANT: You must set hyper = true in the Dissipation namelist to turn this operator on.
-    //
-    // The only remaining parameters to be set are x0, y0, z0, nx, ny, and nz.
-    // Note that Adkins' Lz = 2 pi z0, Ly = 2 pi y0, Lx = 2 pi x0.
-    //
-    // Adkins has no magnetic shear, so set zero_shat = true in the Geometry section of the input file
-    // and choose slab = true to get his slab equations.
-    //
-  }
-  checkCudaErrors(cudaGetLastError());
-
-  //////////////////////////////
-  //                          //
-  // Kuramoto-Sivashinsky eq  // 
-  //                          //
-  //////////////////////////////  
-  if (pars->ks) {
-    linear    = new Linear_KS(pars, grids);    
-    if (!pars->linear) nonlinear = new Nonlinear_KS(pars, grids);
-
-    // no field solve for K-S
-
-    // set up initial conditions
-    G[0] -> initialConditions(&time);
-    //    G -> qvar(grids->Naky);
-  }    
-  checkCudaErrors(cudaGetLastError());
-
-  //////////////////////////////
-  //                          //
-  // Vlasov-Poisson           // 
-  //                          //
-  //////////////////////////////  
-  if (pars->vp) {
-    linear    = new Linear_VP(pars, grids);    
-    if (!pars->linear) nonlinear = new Nonlinear_VP(pars, grids);
-
-    solver = new Solver_VP(pars, grids);    
-
-    // set up initial conditions
-    G[0] -> initVP(&time);
-    solver -> fieldSolve(G, fields);
-  }    
-  checkCudaErrors(cudaGetLastError());
-
+ 
   Timestepper * timestep;
   switch (pars->scheme_opt)
     {

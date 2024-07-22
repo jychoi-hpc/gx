@@ -384,14 +384,9 @@ extern __device__ cufftCallbackStoreC abs_kzLinked_callbackPtr;
 extern __device__ cufftCallbackStoreC abs_kzLinkedNTFT_callbackPtr;
 
 __global__ void getPhi (cuComplex *phi, cuComplex *G, float* ky);
-__global__ void rhs_lin_vp(const cuComplex *G, const cuComplex* phi, cuComplex* GRhs, float* ky,
-			   bool closure, float nu, float nuh, int alpha, int alpha_h);
+
 __global__ void kz_dealias (cuComplex *G, int *kzm, int LMS);
-__global__ void nlvp(float *res, const float *Gy, const float *dphi);
-__global__ void nlks(float *res, const float *Gy, const float *dG);
-__global__ void nlks1(float *res, const float *Gy);
-__global__ void nlks2(cuComplex *res, const float *ky);
-__global__ void rhs_ks (const cuComplex *G, cuComplex *GRhs, float *ky, float eps_ks);
+
 __global__ void streaming_rhs(const cuComplex* __restrict__ g,
 			      const cuComplex* __restrict__ phi,
 			      const cuComplex* __restrict__ apar,

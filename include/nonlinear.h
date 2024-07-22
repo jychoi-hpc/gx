@@ -38,7 +38,6 @@ class Nonlinear_GK : public Nonlinear {
 
   int nBatch;
   size_t Size; 
-  bool ks, vp;
   dim3 dGk, dBk, dGx, dBx, dGx_single, dBx_single;
   dim3 dGx_ntft, dBx_ntft, dGx_single_ntft, dBx_single_ntft, dGphi_ntft, dBphi_ntft;
   float cfl_x_inv, cfl_y_inv;
@@ -118,88 +117,3 @@ class Nonlinear_KREHM : public Nonlinear {
   float d_e;
 };
 
-class Nonlinear_cetg : public Nonlinear {
- public:
-  Nonlinear_cetg(Parameters* pars, Grids* grids);
-  ~Nonlinear_cetg();
-
-  void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max) {};
-  void get_max_frequency(Fields *f, double *wmax);
-  
- private:
-
-  int nBatch;
-  dim3 dGk, dBk, dGx, dBx, dGx_single, dBx_single;
-  float cfl_x_inv, cfl_y_inv;
-  double dt_cfl;
-
-  Parameters        * pars_           ;
-  Grids             * grids_          ;  
-  
-  Reduction<float>         * red             ; 
-  GradPerp          * grad_perp_G     ;
-
-  float * dg_dx       ;
-  float * dg_dy       ;
-  float * dphi_dx     ;
-  float * dphi_dy     ;
-  float * dG;
-  cuComplex * tmp_c;
-  MomentsG * G_tmp;
-
-  float * val1        ;
-  float vmax_x[1]     ;
-  float vmax_y[1]     ;
-
-};
-
-class Nonlinear_KS : public Nonlinear {
- public:
-  Nonlinear_KS(Parameters* pars, Grids* grids);
-  ~Nonlinear_KS();
-
-  void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max);
-  void qvar(cuComplex* G, int N);
-  void qvar(float* G, int N);
-  
- private:
-
-  int nBatch;
-  dim3 dGx, dBx;
-
-  Parameters        * pars_           ;
-  Grids             * grids_          ;  
-  
-  GradPerp          * grad_perp_G     ;
-
-  float * Gy          ;
-  float * dg_dy       ;
-  float * g_res       ;
-};
-
-class Nonlinear_VP : public Nonlinear {
- public:
-  Nonlinear_VP(Parameters* pars, Grids* grids);
-  ~Nonlinear_VP();
-
-  void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max);
-  void qvar(cuComplex* G, int N);
-  void qvar(float* G, int N);
-  
- private:
-
-  int nBatch;
-  dim3 dGx, dBx;
-
-  Parameters        * pars_           ;
-  Grids             * grids_          ;  
-  
-  GradPerp          * grad_perp_G     ;
-
-  float * Gy          ;
-  float * dphi_dy     ;
-  float * g_res       ;
-};
