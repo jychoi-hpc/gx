@@ -94,33 +94,22 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
   }
 
   
-  cusolverH = (cusolverDnHandle_t*) malloc(sizeof(cusolverDnHandle_t)*grids_->Nz);
-  stream = (cudaStream_t*) malloc(sizeof(cudaStream_t)*grids_->Nz);
-  params = (cusolverDnParams_t*) malloc(sizeof(cusolverDnParams_t)*grids_->Nz);
-
-  for (int iz = 0; iz < grids_->Nz; iz++){
-    CUSOLVER_CHECK(cusolverDnCreate(&cusolverH[iz]));
-    checkCuda(cudaStreamCreate(&stream[iz]));
-    /* Create advanced params */
-    CUSOLVER_CHECK(cusolverDnCreateParams(&params[iz]));
-    if (algo == 0) {
-      std::printf("Using New Algo\n");
-      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params[iz], CUSOLVERDN_GETRF, CUSOLVER_ALG_0));
-    } else {
-      std::printf("Using Legacy Algo\n");
-      CUSOLVER_CHECK(cusolverDnSetAdvOptions(params[iz], CUSOLVERDN_GETRF, CUSOLVER_ALG_1));
-    }
-
-//    checkCuda(cudaStreamCreateWithFlags(&stream[iz], cudaStreamNonBlocking));
-    //CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream)); 
+ 
+  CUSOLVER_CHECK(cusolverDnCreate(&cusolverH));
+  checkCuda(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+  CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream)); 
+  /* Create advanced params */
+  CUSOLVER_CHECK(cusolverDnCreateParams(&params));
+  if (algo == 0) {
+    std::printf("Using New Algo\n");
+    CUSOLVER_CHECK(cusolverDnSetAdvOptions(params, CUSOLVERDN_GETRF, CUSOLVER_ALG_0));
+  } else {
+    std::printf("Using Legacy Algo\n");
+    CUSOLVER_CHECK(cusolverDnSetAdvOptions(params, CUSOLVERDN_GETRF, CUSOLVER_ALG_1));
   }
 
-  /* step 1: create cusolver handle, bind a stream */
 
   using data_type = cuComplex;
-
-
-
  // print_matrix(LM, LM, LU, LM);
   printf("BEFORE FACTORIZATION\n");
 
@@ -128,9 +117,9 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
   for (int i = 0; i < num_coeff; i++){
     for(int iz = 0; iz < grids_->Nz; iz++){
 	ind = iz + i*num_coeff;
-	CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
+	CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream)); 
    	CUSOLVER_CHECK(
-	    cusolverDnXgetrf_bufferSize(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F, A_bounce[ind],
+	    cusolverDnXgetrf_bufferSize(cusolverH, params, LM, LM, CUDA_C_32F, A_bounce[ind],
 					LM, CUDA_C_32F, &workspaceInBytesOnDevice,
 					&workspaceInBytesOnHost));
 	CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_work), workspaceInBytesOnDevice));
@@ -143,31 +132,30 @@ Cusolve::Cusolve(Parameters *pars, Grids *grids, Geometry *geo, double p, double
 	}
 	
 	if (pivot_on) {
-	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F,
+	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH, params, LM, LM, CUDA_C_32F,
 					    A_bounce[ind], LM, d_Ipiv[ind], CUDA_C_32F, d_work,
 					    workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
 	} else {
-	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH[iz], params[iz], LM, LM, CUDA_C_32F,
+	    CUSOLVER_CHECK(cusolverDnXgetrf(cusolverH, params, LM, LM, CUDA_C_32F,
 					    A_bounce[ind], LM, nullptr, CUDA_C_32F,
 					    d_work, workspaceInBytesOnDevice, h_work, workspaceInBytesOnHost, d_info));
 	}   
     }
   }
-  for (int iz = 0; iz < grids_->Nz; iz++){
-    checkCuda(cudaStreamSynchronize(stream[iz]));
-  }
+  checkCuda(cudaStreamSynchronize(stream));
+
   printf("AFTER FACTORIZATION\n");
 
   checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
   
   printf("bgrad is %f\n", geo_->bgrad_h[11]);
 
-  for (int i = 0; i < LM; i++) {
+/*  for (int i = 0; i < LM; i++) {
         for (int j = 0; j < LM; j++) {
             std::printf("%0.6f ", LU[j * LM + i].x);
         }
         std::printf("\n");
-  }
+  }*/
 
 
 /*  for (int iz = 0; iz < grids_->Nz; iz++){
@@ -212,8 +200,8 @@ Cusolve::~Cusolve(){
   }
   for(int iz = 0; iz < grids_->Nz; iz++){
     if (bounce_rhs[iz] != nullptr) cudaFree(bounce_rhs[iz]);
-    if (cusolverH[iz] != nullptr) cusolverDnDestroy(cusolverH[iz]); 
-    if (stream[iz] != nullptr) cudaStreamDestroy(stream[iz]);
+//    if (cusolverH[iz] != nullptr) cusolverDnDestroy(cusolverH[iz]); 
+//    if (stream[iz] != nullptr) cudaStreamDestroy(stream[iz]);
 
   }
   if(bounce_rhs != nullptr) free(bounce_rhs);
@@ -222,10 +210,7 @@ Cusolve::~Cusolve(){
 }
 
 void Cusolve::invert_stream(MomentsG* G, int stage){
-/*  for (int iz = 0; iz < grids_->Nz; iz++){
-   copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
-  }*/
-  
+ /* 
   for (int iz = 0; iz < grids_->Nz; iz++){
     copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
 //    CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
@@ -243,23 +228,21 @@ void Cusolve::invert_stream(MomentsG* G, int stage){
      checkCuda(cudaStreamSynchronize(stream[iz]));
   }
   for (int iz = 0; iz < grids_->Nz; iz++){
-    copy_g_from_brhs<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
-  }
+    copy_g_from_brhs<<<dG_b, dB_b>>>(G->G(),bounce_rhs[iz], iz);
+  }*/
 
 }
 
 void Cusolve::invert(cuComplex* rhs, cuComplex* res, int iz){
-  CUSOLVER_CHECK(cusolverDnSetStream(cusolverH[iz], stream[iz])); 
   if (pivot_on) {
-      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH, params, CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
   				CUDA_C_32F, A_bounce[iz], LM, d_Ipiv[iz],
   				CUDA_C_32F, rhs, LM, d_info));
   } else {
-      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH[iz], params[iz], CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
+      CUSOLVER_CHECK(cusolverDnXgetrs(cusolverH, params, CUBLAS_OP_N, LM, grids_->Nx*grids_->Nyc,
   				CUDA_C_32F, A_bounce[iz], LM, nullptr,
   				CUDA_C_32F, rhs, LM, d_info));
   }
-  checkCuda(cudaStreamSynchronize(stream[iz]));
 
 //  CUBLAS_CHECK(
 //    cublasCgemm(cublasH, transa, transb, LM,grids_->Nx*grids_->Nyc,LM, &alpha, A_bounce[iz], LM, rhs, LM, &beta, res, LM));

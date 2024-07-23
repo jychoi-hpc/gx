@@ -9,6 +9,7 @@
 #include "forcing.h"
 #include "grad_parallel.h"
 #include "cusolve.h"
+#include "cublas_test.h"
 class Timestepper {
  public:
   virtual ~Timestepper() {};
@@ -289,7 +290,7 @@ class Lie_Trotter : public Timestepper {
 class IMEX_3stage : public Timestepper {
  public:
   IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Cusolve *cusolve, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+	Parameters *pars, Grids *grids, Cusolve *cusolve, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
   ~IMEX_3stage();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -314,6 +315,7 @@ class IMEX_3stage : public Timestepper {
   Parameters   * pars_      ;
   Grids        * grids_     ;
   Cusolve      * cusolve_   ;
+  Cublas_test      * cublas_   ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;

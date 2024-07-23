@@ -439,6 +439,8 @@ __global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
 
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, const float* bmagInv, const float fapar, const float fbpar);
 __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, double coeff, double dt, double vte, int iz);
+__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g);
+__global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs);
 __global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz);
 __global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz);
 __global__ void check_residual(cuComplex* res);

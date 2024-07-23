@@ -261,8 +261,9 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       }
     }
   grad_par->zft_inverse(G1[ielectron]);
- // invert_bounce_terms(G1[ielectron], 0);
-  cusolve_->invert_stream(G1[ielectron],0);
+  invert_bounce_terms(G1[ielectron], 0);
+//  cusolve_->invert_stream(G1[ielectron]->G(), 0);
+  checkCudaErrors(cudaGetLastError());
 
 /*  if(!flip){
     invert_bounce_terms(G1[ielectron], 0);
@@ -270,7 +271,7 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 
 }
 
-/*void Lie_Trotter::invert_bounce_terms(MomentsG* G, int stage){
+void Lie_Trotter::invert_bounce_terms(MomentsG* G, int stage){
 
   for (int iz = 0; iz < grids_->Nz; iz++){
     copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G->G(), iz);
@@ -282,7 +283,7 @@ void Lie_Trotter::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
   }
 
 
-}*/
+}
 void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt){
   explicit_terms(A1, G, f, false);
   for(int is=0; is<grids_->Nspecies; is++) {

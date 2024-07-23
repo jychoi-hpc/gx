@@ -2,9 +2,9 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Cusolve *cusolve, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
+	     Parameters *pars, Grids *grids, Cusolve *cusolve, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  cusolve_(cusolve), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
+  cusolve_(cusolve), cublas_(cublas), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
 {
   
   // new objects for temporaries
@@ -73,92 +73,6 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
   p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
   sdirk = pars_->sdirk;
-/*  printf("a21 is %f\n", a21);
-  printf("a31 is %f\n", a31);
-  printf("a32 is %f\n", a32);
-  printf("w1 is %f\n", w1);
-  printf("w2 is %f\n", w2);
-  printf("w3 is %f\n", w3);
-  printf("p_ is %f\n", p_);
-  printf("q_ is %f\n", q_);
-  printf("s_ is %f\n", s_);
-  printf("t_ is %f\n", t_);
-  printf("u_ is %f\n", u_);
-  std::string imex_scheme = "conde_ssprk3_dirk";
-
-    // Pareschi-Russo SSP2(3,3,2)
-    if(imex_scheme == "pareschi_russo_ssp2_332") {
-      a21 = 0.5;
-      a31 = 0.5;
-      a32 = 0.5;
-      w1 = 1./3.;
-      w2 = 1./3.;
-      w3 = 1./3.;
-      p_ = 0.25;
-      q_ = 0.;
-      r_ = 0.25;
-      s_ = 1./3.;
-      t_ = 1./3.;
-      u_ = 1./3.;
-      sdirk = false;
-    } else if(imex_scheme == "pareschi_russo_ssp2_322") {
-      a21 = 0.;
-      a31 = 0.;
-      a32 = 1.;
-      w1 = 0.;
-      w2 = 1./2.;
-      w3 = 1./2.;
-      p_ = 0.5;
-      q_ = -0.5;
-      r_ = 0.5;
-      s_ = 0.;
-      t_ = 1./2.;
-      u_ = 1./2.;
-      sdirk = true;
-    } else if (imex_scheme == "conde_3s3p") {
-      a21 = 1.;
-      a31 = 0.25;
-      a32 = 0.25;
-      w1 = 1./6.;
-      w2 = 1./6.;
-      w3 = 2./3.;
-      p_ = 0.;
-      q_ = 0.;
-      r_ = 1.;
-      s_ = 1./6.;
-      t_ = -1./3.;
-      u_ = 2./3.;
-      sdirk = false;
-    } else if(imex_scheme == "conde_ssprk3_dirk") {
-      a21 = 1.;
-      a31 = 0.25;
-      a32 = 0.25;
-      w1 = 1./6.;
-      w2 = 1./6.;
-      w3 = 2./3.;
-      p_ = 0.;
-      q_ = (3. - sqrtf(3.))/6.;
-      r_ = (3. + sqrtf(3.))/6.;
-      s_ = (3. - sqrtf(3.))/24.;
-      t_ = -(1. + sqrtf(3.))/8.;
-      u_ = r_;
-      sdirk = true;
-    } else if(imex_scheme == "giraldo_ark2") {
-      a21 = 2. - sqrtf(2.);
-      a32 = (3. + 2.*sqrtf(2.))/6.;
-      a31 = 1. - a32;
-      w1 = 1./sqrtf(8.);
-      w2 = 1./sqrtf(8.);
-      w3 = 1.-1./sqrtf(2.);
-      p_ = 0.;
-      q_ = 1. - 1./sqrtf(2.);
-      r_ = 1. - 1./sqrtf(2.);
-      s_ = 1./sqrtf(8.);
-      t_ = 1./sqrtf(8.);
-      u_ = 1.-1./sqrtf(2.);
-      sdirk = true;
-    }
-*/
 
   flip = true;
 }
@@ -335,7 +249,9 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       }
     }
   grad_par->zft_inverse(G1[ielectron]);
-  invert_bounce_terms(G1[ielectron], 0);
+//  invert_bounce_terms(G1[ielectron], 0);
+  cublas_->invert_stream(G1[ielectron]->G(), 0);
+
 
 /*  if(!flip){
     invert_bounce_terms(G1[ielectron], 0);

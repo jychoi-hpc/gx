@@ -172,6 +172,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   }    
   checkCudaErrors(cudaGetLastError());
   Cusolve* cusolve;
+  Cublas_test* cublas;
 
   if (pars->scheme_opt == Tmethod::imex3){
 /*    double p = ((IMEX_3stage*) timestep)->p_;
@@ -181,11 +182,14 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     double vte = G[1]->species->vt; 
 
     cusolve = new Cusolve(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+    cublas = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+
   }
 
   if (pars->scheme_opt == Tmethod::lie_trotter){
     double vte = G[1]->species->vt; 
     cusolve = new Cusolve(pars, grids, geo, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
+    cublas = new Cublas_test(pars, grids, geo, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
  
   }
 
@@ -201,7 +205,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, cusolve, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
+    case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, cusolve, cublas, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, cusolve, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;

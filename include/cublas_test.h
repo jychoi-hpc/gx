@@ -18,16 +18,18 @@
 #include "cusolver_utils.h"
 #include "cusolver_utils.h"
 */
-class Cusolve {
+class Cublas_test{
  public:
-  Cusolve(Parameters* pars, Grids* grids, Geometry* geo, double p, double r, double u,bool sdirk, double dt_in, double vte);
-  ~Cusolve();
+  Cublas_test(Parameters* pars, Grids* grids, Geometry* geo, double p, double r, double u,bool sdirk, double dt_in, double vte);
+  ~Cublas_test();
 
-  void factorize();
-  void print_matrix(const int m, const int n, const cuComplex *A, const int lda);
-  void invert(cuComplex* rhs, cuComplex* res, int iz); 
-  void invert_stream(MomentsG* G, int stage);
+  void invert_stream(cuComplex* G, int stage);
   cuComplex** A_bounce;
+  cuComplex     ** bounce_rhs;
+  cuComplex     ** res;
+  cuComplex** d_A_bounce;
+  cuComplex** d_bounce_rhs;
+
 
  private:
   Parameters* pars_;
@@ -38,6 +40,8 @@ class Cusolve {
   dim3 dB;
   dim3 dG_b;
   dim3 dB_b;
+  dim3 dG_bd;
+  dim3 dB_bd;
 
   double p_;
   double r_;
@@ -45,14 +49,16 @@ class Cusolve {
   bool sdirk_;
   double dt_;
   double vte_;
-  int64_t** d_Ipiv;
+  int* d_Ipiv;
+  int* infoArray;
   int LM;
   int* d_info;
+  int* infoArray_h;
   int pivot_on;
   int num_coeff;
-  cusolverDnHandle_t cusolverH;
-  cudaStream_t stream;
-  cusolverDnParams_t params;
+  cusolverDnHandle_t* cusolverH;
+  cudaStream_t* stream;
+  cusolverDnParams_t* params;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream_cublas = NULL;
@@ -65,7 +71,6 @@ class Cusolve {
   
   cuComplex* test;
   cuComplex* test2;
-  cuComplex     ** bounce_rhs;
 
 
 };

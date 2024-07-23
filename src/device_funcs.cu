@@ -3371,6 +3371,38 @@ __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int
   }
 }
 
+__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g){
+  unsigned int idy = get_id1();
+  unsigned int idxz = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  unsigned int idx = int(idxz / nz);
+  unsigned int idz = idxz % nz;
+  if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    brhs[idz][b_ind] = g[globalIdx]; 
+  }
+} 
+
+__global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs){
+  unsigned int idy = get_id1();
+  unsigned int idxz = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  unsigned int idx = int(idxz / nz);
+  unsigned int idz = idxz % nz;
+  if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    g[globalIdx] = brhs[idz][b_ind];    
+  }
+
+}
+
+
 __global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz){
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
@@ -3406,7 +3438,7 @@ __global__ void check_residual(cuComplex* res){
   unsigned int idm = idlm % nl;
   if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
     unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
-    if (abs(res[b_ind].x) > 1.0 || abs(res[b_ind].y) > 1.0) printf("LARGE RES of res.x = %.5e, res.y = %.5e\n", res[b_ind].x, res[b_ind].y);
+    if (abs(res[b_ind].x) > 1.0e-6 || abs(res[b_ind].y) > 1.0e-6) printf("LARGE RES of res.x = %.5e, res.y = %.5e\n", res[b_ind].x, res[b_ind].y);
   }
 
 }
