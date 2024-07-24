@@ -5,9 +5,6 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 {
   
   A_bounce = nullptr;	
-  cusolverH = nullptr;
-  stream = nullptr;
-  params = nullptr;
   d_A_bounce = nullptr;
   d_bounce_rhs = nullptr;
   size_t nzlm = sizeof(int) * grids_->Nz * grids_->Nz * pars_->nm_in * pars_->nl_in;
@@ -161,13 +158,21 @@ Cublas_test::~Cublas_test(){
   }
   for(int iz = 0; iz < grids_->Nz; iz++){
     if (bounce_rhs[iz] != nullptr) cudaFree(bounce_rhs[iz]);
-//    if (cusolverH[iz] != nullptr) cusolverDnDestroy(cusolverH[iz]); 
-//    if (stream[iz] != nullptr) cudaStreamDestroy(stream[iz]);
+    if (res[iz] != nullptr) cudaFree(res[iz]);
+    if (d_A_bounce[iz] != nullptr) cudaFree(d_A_bounce[iz]);
+    if (d_bounce_rhs[iz] != nullptr) cudaFree(d_bounce_rhs[iz]);
 
   }
   if(bounce_rhs != nullptr) free(bounce_rhs);
+  if(res != nullptr) free(res);
   if(A_bounce != nullptr) free(A_bounce);
-  if (cusolverH != nullptr) free(cusolverH);
+  if (d_A_bounce != nullptr) cudaFree(d_A_bounce);
+  if (d_bounce_rhs != nullptr) cudaFree(d_bounce_rhs);
+  if(d_Ipiv != nullptr) cudaFree(d_Ipiv);
+  if(infoArray != nullptr) cudaFree(infoArray);
+  if(infoArray_h != nullptr) free(infoArray_h);
+  if(cublasH != nullptr) cublasDestroy(cublasH);
+  if(stream_cublas != nullptr) cudaStreamDestroy(stream_cublas);
 }
 
 void Cublas_test::invert_stream(cuComplex* G, int stage){

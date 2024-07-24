@@ -52,13 +52,9 @@ class Cublas_test{
   int* d_Ipiv;
   int* infoArray;
   int LM;
-  int* d_info;
   int* infoArray_h;
   int pivot_on;
   int num_coeff;
-  cusolverDnHandle_t* cusolverH;
-  cudaStream_t* stream;
-  cusolverDnParams_t* params;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream_cublas = NULL;
@@ -68,9 +64,6 @@ class Cublas_test{
 
   cublasOperation_t transa = CUBLAS_OP_T;
   cublasOperation_t transb = CUBLAS_OP_N;
-  
-  cuComplex* test;
-  cuComplex* test2;
 
 
 };
