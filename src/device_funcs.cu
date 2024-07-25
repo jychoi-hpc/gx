@@ -3371,6 +3371,23 @@ __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int
   }
 }
 
+__global__ void copy_prhs_from_p(cuComplex* prhs, cuComplex* p, int ik){
+  unsigned int idz = get_id1();
+  unsigned int nxnyc = nx*nyc;
+  if ((idz < nz)){
+    prhs[idz] = p[ik + nxnyc*idz]; 
+  }
+} 
+
+__global__ void copy_p_from_prhs(cuComplex* p, cuComplex* prhs, int ik){
+  unsigned int idz = get_id1();
+  unsigned int nxnyc = nx*nyc;
+  if ((idz < nz)){
+    p[ik + nxnyc*idz] = p[idz]; 
+  }
+}
+
+
 __global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g){
   unsigned int idy = get_id1();
   unsigned int idxz = get_id2();
@@ -3538,13 +3555,85 @@ __global__ void tridiag_streaming_periodic_flip(cuComplex* g, cuComplex* gr, cuC
   }
 }
 
-__global__ void set_delta_phi(cuComplex* phi, int iz, float val){
+__global__ void set_delta_phi(cuComplex* phi, int iz, float val, float* kperp2, const specie sp){
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
+  unsigned int idl = get_id3();
   unsigned int idxy = idy + nyc*idx;
-  if ((idy < nyc) && (idx < nx)){
-    phi[idxy + nx*nyc*iz] = make_cuComplex(val,0.0f);
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxyz = idxy + nxnyc*iz;
+  unsigned int idxyzl = idxyz + nxnyc*nz*idl;
+  if ((idy < nyc) && (idx < nx) && (idl < nl)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+    phi[idxyzl] = make_cuComplex(Jflr(idl,b_s) * val,0.0f);
   }
+}
+
+__global__ void compute_homogenous_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = make_cuComplex(0.0f,0.0f);
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+      if(idm==1) {
+        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxyzl];	  
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+  }
+}
+
+
+__global__ void compute_response_matrix(cuComplex* A_phi, cuComplex* g, const specie sp, float* kperp2, int ik, int zj){
+  unsigned int zi = get_id1();
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxyz = ik + nxnyc*zi;
+  if((zi < nz)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+    unsigned int globalIdx;
+    for (int idl = 0; idl < nl; idl++){
+      globalIdx = ik + nxnyc*(zi + nz*idl);
+      A_phi[zj + nz*zi] = A_phi[zj + nz*zi] - make_cuComplex(sp.nz*sp.zt*Jflr(idl,b_s)*Jflr(idl,b_s),0.0f) - sp.nz*Jflr(idl,b_s)*g[globalIdx];
+    }
+    A_phi[zj + nz*zi] = A_phi[zj + nz*zi] + make_cuComplex(sp.nz*sp.zt,0.0f);
+  }
+  
 }
 
 __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi)
