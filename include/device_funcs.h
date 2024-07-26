@@ -438,7 +438,11 @@ __global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
 			   bool ei_colls);
 
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, const float* bmagInv, const float fapar, const float fbpar);
+__global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp);
 __global__ void set_delta_phi(cuComplex* phi, int iz, float val, float* kperp2, const specie sp);
+__global__ void compute_full_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar);
+__global__ void compute_inhomogenous_sol(cuComplex* g, const float* kz, const specie sp, const double sdtvt, const float gradpar);
+__global__ void compute_homogenous_sol_loop(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar, int idl);
 __global__ void compute_homogenous_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar);
 __global__ void compute_response_matrix(cuComplex* A_phi, cuComplex* g, const specie sp, float* kperp2, int ik, int zj);
 __global__ void copy_prhs_from_p(cuComplex* prhs, cuComplex* p, int ik);

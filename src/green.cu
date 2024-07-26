@@ -17,7 +17,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
       num_coeff = 3;
     }
   }
-     
+  
   A_phi = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
   phi_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
   cuComplex* LU = (cuComplex*) malloc(nz2); 
@@ -28,6 +28,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
   for(int is=0; is<grids_->Nspecies; is++) {
     int is_glob = is+grids->is_lo;
     G[is] = new MomentsG (pars_, grids_, is_glob);
+    G[is]->set_zero();
   }
   checkCuda(cudaMalloc((void**) &phi_r, sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
 
@@ -38,7 +39,6 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
 //   grad_par = new GradParallelPeriodic(grids_);
 //  }
   else {
-    printf("USING GRADPARALLELLINKED!!!\n");
     grad_par = new GradParallelLinked(pars_, grids_);
   }
 
@@ -62,7 +62,6 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
     for (int j = 0; j < grids_->NxNyc; j++){
       checkCuda(cudaMalloc((void**) &A_phi[j + i*num_coeff], nz2));
       checkCuda(cudaMalloc((void**) &phi_rhs[j + i*num_coeff], sizeof(cuComplex)*grids_->Nz));
-      checkCuda(cudaMalloc((void**) &d_Ipiv[j + i*num_coeff], sizeof(int64_t)*grids_->Nz));
     } 
   }
   int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
@@ -73,9 +72,8 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
   
   int nn4 = grids_->Nyc;             int nt4 = min(nn4, 16);   int nb4 = 1 + (nn4-1)/nt4;
   int nn5 = grids_->Nx;              int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
-  int nn6 = pars_->nm_in * pars_->nl_in; int nt6 = min(nn6, 4); int nb6 = 1 + (nn6-1)/nt6;
   int nn7 = pars_->nl_in;            int nt7 = min(nn7, 4);    int nb7 = 1 + (nn7-1)/nt7;
-  int nn8 = pars_->nl_in*grids_->Nz; int nt8 = min(nn8, 4);    int nb8 = 1 + (nn8-1)/nt8;
+  int nn8 = grids_->Nz; int nt8 = min(nn8, 4);    int nb8 = 1 + (nn8-1)/nt8;
 
 
 
@@ -93,16 +91,32 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
     for (int is = 0; is < grids_->Nspecies; is++){
       for (int iz = 0; iz < grids_->Nz; iz++){ 
         set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species));
+        checkCudaErrors(cudaGetLastError());
         grad_par->zft(phi_r,phi_r);
-        compute_homogenous_sol<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar);
+	
+	for(int il = 0; il < grids_->Nl; il++){
+          compute_homogenous_sol_loop<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar, il);
+	}
         cudaMemset(phi_r,0., sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl);
+        checkCudaErrors(cudaGetLastError());
+
 	grad_par->zft_inverse(G[is]);
 	for (int ik = 0; ik < grids_->NxNyc; ik++){
           compute_response_matrix<<<dG, dB>>>(A_phi[ik + i*num_coeff],G[is]->G(),*(G[is]->species),geo_->kperp2,ik,iz);
 	}
+        checkCudaErrors(cudaGetLastError());
       }
     }
   }
+
+  checkCuda(cudaMemcpy(LU, A_phi[14], nz2, cudaMemcpyDeviceToHost));
+  for (int i = 0; i < grids_->Nz; i++) {
+        for (int j = 0; j < grids_->Nz; j++) {
+            std::printf("%0.6f + %0.6f j", LU[j * grids_->Nz + i].x, LU[j * grids_->Nz + i].y);
+        }
+        std::printf("\n");
+  }
+
   checkCudaErrors(cudaGetLastError());
   
 
@@ -112,13 +126,31 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, 
   CUBLAS_CHECK(cublasSetStream(cublasH, stream));
   
   CUBLAS_CHECK(cublasCgetrfBatched(cublasH,
-                                   LM,
+                                   grids_->Nz,
                                    A_phi,
-                                   nz2,
+                                   grids_->Nz,
                                    d_Ipiv,
                                    infoArray,
                                    grids_->NxNyc*num_coeff));
- 
+  checkCudaErrors(cudaGetLastError());
+  printf("AFTER FACTORIZATION\n");
+  printf("num_coeff is %d\n", num_coeff);
+  printf("NxNyc is %d\n", grids_->NxNyc);  
+
+
+  checkCuda(cudaMemcpy(infoArray_h, infoArray, sizeof(int)*grids_->NxNyc, cudaMemcpyDeviceToHost));
+  for(int i = 0; i < grids_->NxNyc; i++){
+    printf("infoArray is %d\n", infoArray_h[i]);
+
+  }
+
+  checkCuda(cudaMemcpy(LU, A_phi[14], nz2, cudaMemcpyDeviceToHost));
+  for (int i = 0; i < grids_->Nz; i++) {
+        for (int j = 0; j < grids_->Nz; j++) {
+            std::printf("%0.6f ", LU[j * grids_->Nz + i].x);
+        }
+        std::printf("\n");
+  }
 
 
 }

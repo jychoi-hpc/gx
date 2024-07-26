@@ -5,7 +5,7 @@
 #include "device_funcs.h"
 #include "get_error.h"
 #include "geometry.h"
-
+#include "grad_parallel.h"
 #include <cusolverSp.h>
 #include "cusolver_utils.h"
 #include <cusolverDn.h>
@@ -51,7 +51,6 @@ class Green {
   double dt_;
   double vte_;
   int* d_Ipiv;
-  int LM;
   int* d_info;
   int pivot_on;
   int num_coeff;

@@ -753,8 +753,9 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
   if (scheme == "lie_trotter")scheme_opt = Tmethod::lie_trotter;
-  if (scheme == "imex3" || scheme == "imex") {
-    scheme_opt = Tmethod::imex3;
+  if (scheme == "imex3" || scheme == "imex" || scheme == "imex_green") {
+    if (scheme == "imex_green") scheme_opt = Tmethod::imex_green;
+    else scheme_opt = Tmethod::imex3;
     // Pareschi-Russo SSP2(3,3,2)
     if(imex_scheme == "pareschi_russo_ssp2_332") {
       a21 = 0.5;

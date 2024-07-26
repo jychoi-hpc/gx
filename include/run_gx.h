@@ -17,6 +17,7 @@
 #include "get_error.h"
 #include "cusolve.h"
 #include "cublas_test.h"
+#include "green.h"
 void run_gx(Parameters * parameters, Grids * grids, Geometry * geo);
 void printDeviceMemoryUsage(int iproc);
 void printDeviceID();

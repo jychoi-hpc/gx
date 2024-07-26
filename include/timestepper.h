@@ -10,6 +10,7 @@
 #include "grad_parallel.h"
 #include "cusolve.h"
 #include "cublas_test.h"
+#include "green.h"
 class Timestepper {
  public:
   virtual ~Timestepper() {};
@@ -285,6 +286,53 @@ class Lie_Trotter : public Timestepper {
   const float* bmagInv_;
   dim3 dG, dB, dG_b, dB_b;
 };
+
+class IMEX_3stage_Green : public Timestepper {
+ public:
+  IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2);
+  ~IMEX_3stage_Green();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt() {return dt_;};
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+  void invert_implicit_terms(MomentsG** G1, Fields *f, double rdt, const float gradpar, const float* kperp2, int ielectron);
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
+  cuComplex* phi_r;
+  bool flip;
+
+ private:
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
+  const double dt_max;
+
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Green        * green_;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG     ** G1         ;
+  MomentsG     ** A1         ;
+  MomentsG     ** A2         ;
+  MomentsG     ** A3         ;
+  MomentsG     ** B1         ;
+  MomentsG     ** B2         ;
+  MomentsG     ** B3         ;
+  Fields	* f1	     ;
+
+  double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  const float gradpar_;
+  const float* kperp2_;
+  dim3 dG, dB, dG_b, dB_b;
+};
+
 
 
 class IMEX_3stage : public Timestepper {
