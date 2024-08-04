@@ -14,6 +14,7 @@ IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solve
   B2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
   B3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  Gh = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 
   for(int is=0; is<grids_->Nspecies; is++) {
     int is_glob = is+grids->is_lo;
@@ -24,6 +25,7 @@ IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solve
     B2[is] = new MomentsG (pars_, grids_, is_glob);
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
+    Gh[is] = new MomentsG (pars_, grids_, is_glob);
     
     // get species index of electrons
     if(pars_->species_h[is].type == 1) {
@@ -31,7 +33,9 @@ IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solve
       vte = A1[ielectron]->species->vt;
     }
   }
-  checkCuda(cudaMalloc((void**) &phi_r, sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
+  checkCuda(cudaMalloc((void**) &phi_i, sizeof(cuComplex)*grids_->NxNycNz));
+  checkCuda(cudaMalloc((void**) &phi_copy, sizeof(cuComplex)*grids_->NxNycNz));
+
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -49,13 +53,18 @@ IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solve
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
   int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
   int nn4 = pars_->nm_in * pars_->nl_in; int nt4 = min(nn4, 4); int nb4 = 1 + (nn4-1)/nt4;
+  int nn5 = grids_->Nz;       int nt5 = min(nn5, 4);    int nb5 = 1 + (nn5-1)/nt5;
 
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3); 
 
   dG_b = dim3(nt1, nt2, nt4);
   dB_b = dim3(nb1, nb2, nb4);
- 
+
+  dG_l = dim3(nt1, nt2, nt5);
+  dB_l = dim3(nb1, nb2, nb5);
+
+
   a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
   p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
   sdirk = pars_->sdirk;
@@ -91,28 +100,29 @@ void IMEX_3stage_Green::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
-    linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+    linear_->rhs_streaming(G[is], f, B[is], dt_);
   }
 }
 
-void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
+void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
 {
-  double sdtvt = sdt*vte;
   // tridiag from numerical recipes
   if (pars_->boundary_option_periodic) {
       for(int is = 0; is<grids_->Nspecies; is++){
-	grad_par->zft(G1[is]);
-        compute_inhomogenous_sol<<<dG, dB>>>(G1[is]->G(), grids_->kz, *(G1[is]->species), sdtvt, gradpar_);
-	grad_par->zft_inverse(G1[is]);
+	grad_par->zft(Gh[is]);
+        compute_inhomogenous_sol<<<dG, dB>>>(Gh[is]->G(), grids_->kz, *(Gh[is]->species), sdt, gradpar_);
+	grad_par->zft_inverse(Gh[is]);
       }
-      solver_->fieldSolve(G1,f);
+      solver_->fieldSolve(Gh,f);
       green_->invert(f->phi);
       for(int is = 0; is<grids_->Nspecies; is++){
-        apply_flr_phi<<<dG, dB>>>(phi_r,f->phi,kperp2,*(G1[is]->species));
-        grad_par->zft(phi_r,phi_r);
-	grad_par->zft(G1[is]); 
-        compute_full_sol<<<dG, dB>>>(G1[is]->G(), phi_r, grids_->kz, *(G1[is]->species), sdtvt, gradpar_);
-	grad_par->zft_inverse(G1[is]);
+	for(int il = 0; il < grids_->Nl; il++){
+          apply_flr_phi_loop<<<dG_l, dB_l>>>(phi_i,f->phi,kperp2,*(G1[is]->species), il);
+          grad_par->zft(phi_i,phi_i);
+	  grad_par->zft(G1[is]);
+          compute_full_sol_loop<<<dG_l, dB_l>>>(G1[is]->G(), phi_i, grids_->kz, *(G1[is]->species), sdt, gradpar_, il);
+	  grad_par->zft_inverse(G1[is]);
+	}
       }
   } 
 //  cublas_->invert_stream(G1[ielectron]->G(), 0);
@@ -142,18 +152,15 @@ void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
   checkCudaErrors(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
-    if(is == ielectron && p_!=0.) {
-      G1[is]->set_zero();
-    } else {
-      G1[is]->copyFrom(G[is]);
-    }
+    G1[is]->copyFrom(G[is]);
+    Gh[is]->copyFrom(G1[is]);
   }
   if(p_!=0.) {
     // compute Phi1_i (with G1_e=0)
     solver_->fieldSolve(G1, f);
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
-    invert_implicit_terms(G1, f, p_*dt_,gradpar_, kperp2_, ielectron);
+    invert_implicit_terms(G1, Gh, f, p_*dt_,gradpar_, kperp2_, ielectron);
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
   }
@@ -167,9 +174,10 @@ void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
 
   for(int is=0; is<grids_->Nspecies; is++) {
       G1[is]->add_scaled(1., G[is], a21*dt_, A1[is], q_*dt_, B1[is]);
+      Gh[is]->copyFrom(G1[is]);
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
-  invert_implicit_terms(G1, f, r_*dt_,gradpar_, kperp2_, ielectron);
+  invert_implicit_terms(G1, Gh, f, r_*dt_,gradpar_, kperp2_, ielectron);
   solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
@@ -183,10 +191,11 @@ void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
   // G1_i = G_i + a31*A1_i + a32*A2_i + s_*dt*B1_i + t_*dt*B2_i
   for (int is=0; is<grids_->Nspecies; is++) {
       G1[is]->add_scaled(1., G[is], a31*dt_, A1[is], a32*dt_, A2[is], s_*dt_, B1[is], t_*dt_, B2[is]);
+      Gh[is]->copyFrom(G1[is]);
   }
  
   // G1 = inv(I - u_*dt*B)*G1
-  invert_implicit_terms(G1, f, u_*dt_,gradpar_,kperp2_, ielectron); 
+  invert_implicit_terms(G1, Gh, f, u_*dt_,gradpar_,kperp2_, ielectron); 
   solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   // combine stage

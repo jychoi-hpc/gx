@@ -9,6 +9,7 @@
 #include <cusolverSp.h>
 #include "cusolver_utils.h"
 #include <cusolverDn.h>
+#include "solver.h"
 /*
 #include <cuda_runtime.h>
 #include <cusolverSp.h>
@@ -20,16 +21,25 @@
 */
 class Green {
  public:
-  Green(Parameters* pars, Grids* grids, Geometry* geo, double p, double r, double u,bool sdirk, double dt_in, double vte);
+  Green(Parameters* pars, Grids* grids, Geometry* geo, Solver* solver, double p, double r, double u,bool sdirk, double dt_in, double vte);
   ~Green();
   void invert(cuComplex* phi_i);
   cuComplex** A_phi;
+  cuComplex** d_A_phi;
+
+  cuComplex** A_phi_copy;
+
   cuComplex     ** phi_rhs;
+  cuComplex     ** d_phi_rhs;
+  cuComplex     ** res;
+  cuComplex     ** prod;
+
 
  private:
   Parameters* pars_;
   Grids* grids_;
   Geometry* geo_;
+  Solver* solver_;
   MomentsG** G;
   cuComplex* phi_r;
   GradParallel * grad_par   ;
@@ -63,6 +73,7 @@ class Green {
 
   const cuComplex alpha = make_cuComplex(1.0,0.0);
   const cuComplex beta = make_cuComplex(-1.0,0.0);
+  const cuComplex zeta = make_cuComplex(0.0,0.0);
 
   cublasOperation_t transa = CUBLAS_OP_T;
   cublasOperation_t transb = CUBLAS_OP_N;

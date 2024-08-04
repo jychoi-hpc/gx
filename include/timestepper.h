@@ -287,6 +287,56 @@ class Lie_Trotter : public Timestepper {
   dim3 dG, dB, dG_b, dB_b;
 };
 
+class Lie_Trotter_Green : public Timestepper {
+ public:
+  Lie_Trotter_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+  ~Lie_Trotter_Green();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt() {return dt_;};
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+  void invert_implicit_terms(MomentsG** G, MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron);
+  void invert_bounce_terms(MomentsG*G, int stage);
+  void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt);
+  cuComplex     ** bounce_rhs;
+  cuComplex     ** res;
+  bool flip;
+  cuComplex* phi_i;
+
+ private:
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
+  const double dt_max;
+
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Cusolve      * cusolve_   ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  Green        * green_     ;
+  MomentsG     ** G1         ;
+  MomentsG     ** Gh         ;
+  MomentsG     ** A1         ;
+  MomentsG     ** A2         ;
+  MomentsG     ** A3         ;
+  MomentsG     ** B1         ;
+  MomentsG     ** B2         ;
+  MomentsG     ** B3         ;
+  Fields	* f1	     ;
+
+  double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  const float gradpar_;
+  const float* kperp2_;
+  dim3 dG, dB, dG_b, dB_b, dG_l, dB_l;
+};
+
+
 class IMEX_3stage_Green : public Timestepper {
  public:
   IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -296,11 +346,12 @@ class IMEX_3stage_Green : public Timestepper {
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, Fields *f, double rdt, const float gradpar, const float* kperp2, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fields *f, double rdt, const float gradpar, const float* kperp2, int ielectron);
   double a21, a31, a32, w1, w2, w3;
   double p_, q_, r_, s_, t_, u_;
   bool sdirk;
-  cuComplex* phi_r;
+  cuComplex* phi_i;
+  cuComplex* phi_copy;
   bool flip;
 
  private:
@@ -316,6 +367,7 @@ class IMEX_3stage_Green : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
+  MomentsG     ** Gh         ;
   MomentsG     ** A1         ;
   MomentsG     ** A2         ;
   MomentsG     ** A3         ;
@@ -330,7 +382,7 @@ class IMEX_3stage_Green : public Timestepper {
   double zte;
   const float gradpar_;
   const float* kperp2_;
-  dim3 dG, dB, dG_b, dB_b;
+  dim3 dG, dB, dG_b, dB_b, dG_l, dB_l;
 };
 
 

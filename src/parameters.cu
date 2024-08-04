@@ -753,6 +753,7 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
   if (scheme == "lie_trotter")scheme_opt = Tmethod::lie_trotter;
+  if (scheme == "lie_trotter_green")scheme_opt = Tmethod::lie_trotter_green;
   if (scheme == "imex3" || scheme == "imex" || scheme == "imex_green") {
     if (scheme == "imex_green") scheme_opt = Tmethod::imex_green;
     else scheme_opt = Tmethod::imex3;
