@@ -451,6 +451,9 @@ __global__ void compute_response_matrix(cuComplex* A_phi, cuComplex* g, const sp
 __global__ void add_id_response_matrix(cuComplex* A_phi);
 __global__ void print_phi(cuComplex* p, int ik);
 __global__ void compute_residual(cuComplex* A_phi, cuComplex* phi, cuComplex* phi_rhs, cuComplex* res, int ik, bool prod);
+//__global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex** g, cuComplex* grhs);
+__global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex* g);
+
 __global__ void lu_backsub_d(cuComplex** A_phi, cuComplex** phi ,cuComplex* phi_rhs);
 __global__ void lu_backsub(cuComplex* A_phi, cuComplex* phi ,cuComplex* phi_rhs, int ik);
 __global__ void copy_prhs_from_p(cuComplex* prhs, cuComplex* p, int ik);

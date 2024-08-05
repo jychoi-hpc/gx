@@ -290,13 +290,13 @@ class Lie_Trotter : public Timestepper {
 class Lie_Trotter_Green : public Timestepper {
  public:
   Lie_Trotter_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+	Parameters *pars, Grids *grids, Green *green, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
   ~Lie_Trotter_Green();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G, MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron);
+  void invert_implicit_terms(MomentsG** G, MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron, bool flip);
   void invert_bounce_terms(MomentsG*G, int stage);
   void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt);
   cuComplex     ** bounce_rhs;
@@ -317,6 +317,7 @@ class Lie_Trotter_Green : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   Green        * green_     ;
+  Cublas_test  * cublas_    ;
   MomentsG     ** G1         ;
   MomentsG     ** Gh         ;
   MomentsG     ** A1         ;

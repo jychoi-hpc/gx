@@ -199,6 +199,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   if (pars->scheme_opt == Tmethod::lie_trotter_green){
     double vte = G[1]->species->vt; 
     green = new Green(pars, grids, geo, solver, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
+    cublas = new Cublas_test(pars, grids, geo, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
 
   }
 
@@ -220,7 +221,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::imex_green : timestep = new IMEX_3stage_Green (linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, cusolve, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
-    case Tmethod::lie_trotter_green : timestep = new Lie_Trotter_Green(linear, nonlinear, solver, pars, grids, green, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
+    case Tmethod::lie_trotter_green : timestep = new Lie_Trotter_Green(linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
+
 
 
     }

@@ -42,6 +42,8 @@ class Cublas_test{
   dim3 dB_b;
   dim3 dG_bd;
   dim3 dB_bd;
+  dim3 dG_lu;
+  dim3 dB_lu;
 
   double p_;
   double r_;

@@ -2,9 +2,9 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 Lie_Trotter_Green::Lie_Trotter_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2) :
+	     Parameters *pars, Grids *grids, Green *green, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  green_(green), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), kperp2_(kperp2)
+  green_(green), cublas_(cublas), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), kperp2_(kperp2)
 {
   
   // new objects for temporaries
@@ -83,7 +83,12 @@ void Lie_Trotter_Green::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bo
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     A[is]->set_zero();
-    linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    if (is == ielectron){
+      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
+    }
+    else{
+      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    }
 //    linear_->rhs(G[is],f,A[is],dt_);
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
@@ -97,13 +102,22 @@ void Lie_Trotter_Green::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
-    linear_->rhs_streaming(G[is], f, B[is], dt_);
+    if (is == ielectron){
+      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+    }
+    else{
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
+    }
   }
 }
 
-void Lie_Trotter_Green::invert_implicit_terms(MomentsG** G, MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
+void Lie_Trotter_Green::invert_implicit_terms(MomentsG** G, MomentsG** G1, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron, bool flip)
 {
   // tridiag from numerical recipes
+
+  if(flip){
+    cublas_->invert_stream(G[ielectron]->G(), 0);
+  }
   if (pars_->boundary_option_periodic) {
       for(int is = 0; is<grids_->Nspecies; is++){
 	grad_par->zft(G1[is]);
@@ -124,8 +138,11 @@ void Lie_Trotter_Green::invert_implicit_terms(MomentsG** G, MomentsG** G1, Field
 	  grad_par->zft_inverse(G[is]);
 	}
       }
-  } 
-//  cublas_->invert_stream(G1[ielectron]->G(), 0);
+  }
+
+  if(!flip){
+    cublas_->invert_stream(G[ielectron]->G(), 0);
+  }
 }
 
 
@@ -166,14 +183,14 @@ void Lie_Trotter_Green::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->copyFrom(G[is]);
     }
 
-    invert_implicit_terms(G, G1, f, 1.*dt_,gradpar_, kperp2_, ielectron);
+    invert_implicit_terms(G, G1, f, 1.*dt_,gradpar_, kperp2_, ielectron, flip);
     solver_->fieldSolve(G, f);
   }
   else{
     for(int is=0; is<grids_->Nspecies; is++) {
       G1[is]->copyFrom(G[is]);
     }
-    invert_implicit_terms(G, G1, f, 1.*dt_,gradpar_, kperp2_, ielectron);
+    invert_implicit_terms(G, G1, f, 1.*dt_,gradpar_, kperp2_, ielectron, flip);
     solver_->fieldSolve(G, f);        
     
     ssprk3(A1, A2, A3, G, G1, f, false); 
@@ -193,6 +210,6 @@ void Lie_Trotter_Green::advance(double *t, MomentsG** G, Fields* f)
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
   *t += dt_;
   checkCudaErrors(cudaGetLastError());
-//  flip = !flip;
+  flip = !flip;
 }
 

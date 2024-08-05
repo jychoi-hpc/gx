@@ -67,6 +67,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   int nn5 = grids_->Nx;              int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
   int nn6 = pars_->nm_in * pars_->nl_in; int nt6 = min(nn6, 4); int nb6 = 1 + (nn6-1)/nt6;
   int nn7 = grids_->Nx*grids_->Nz;   int nt7 = min(nn7,  16);   int nb7 = 1 + (nn7-1)/nt7;
+  int nn8 = grids_->Nz;   int nt8 = min(nn8,  4);   int nb8 = 1 + (nn8-1)/nt8;
+
 
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3); 
@@ -77,6 +79,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   dG_bd = dim3(nt4, nt7, nt6);
   dB_bd = dim3(nb4, nb7, nb6);
 
+  dG_lu = dim3(nt4, nt5, nt8);
+  dB_lu = dim3(nb4, nb5, nb8);
 
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
@@ -180,8 +184,9 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
     copy_brhs_from_g<<<dG_b, dB_b>>>(bounce_rhs[iz],G, iz);
     checkCudaErrors(cudaGetLastError());
   }*/
-  copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(d_bounce_rhs,G);
-  checkCuda(cudaMemcpy(bounce_rhs, d_bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+//  copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(d_bounce_rhs,G);
+  lu_backsub_bounce_d<<<dG_lu, dB_lu>>>(d_A_bounce, G);
+/*  checkCuda(cudaMemcpy(bounce_rhs, d_bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
 
   CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
                                    CUBLAS_OP_N,
@@ -195,7 +200,7 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
                                    infoArray_h,
                                    grids_->Nz));
 
-  checkCuda(cudaMemcpy(d_bounce_rhs, bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
+  checkCuda(cudaMemcpy(d_bounce_rhs, bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));*/
 //  checkCuda(cudaMemcpy(A_bounce,  d_A_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
 
 
@@ -210,7 +215,7 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
     copy_g_from_brhs<<<dG_b, dB_b>>>(G,bounce_rhs[iz], iz);
   }*/
 
-  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G,d_bounce_rhs);
+//  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G,d_bounce_rhs);
 
   checkCudaErrors(cudaGetLastError());
 
