@@ -94,6 +94,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   int nn7 = 1;            int nt7 = min(nn7, 4);    int nb7 = 1 + (nn7-1)/nt7;
   int nn8 = grids_->Nz; int nt8 = min(nn8, 4);    int nb8 = 1 + (nn8-1)/nt8;
 
+  int nn9 = grids_->NxNyc;           int nt9 = min(nn9, 16); int nb9 = 1 + (nn9-1)/nt9;
 
 
   dB = dim3(nt1, nt2, nt3);
@@ -105,6 +106,8 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   dG_s = dim3(nt4, nt5, nt8);
   dB_s = dim3(nb4, nb5, nb8);
 
+  dG_lu = dim3(nt9, nt2, nt3);
+  dB_lu = dim3(nb9, nb2, nb3);
 
   for (int i = 0; i < num_coeff; i++){
     for (int is = 0; is < grids_->Nspecies; is++){
@@ -218,18 +221,25 @@ Green::~Green(){
 
 void Green::invert(cuComplex* phi_i)
 { 
-  for (int ik = 0; ik < grids_->NxNyc; ik++){
+/*  for (int ik = 0; ik < grids_->NxNyc; ik++){
    copy_prhs_from_p<<<dG, dB>>>(phi_rhs[ik],phi_i, ik);
 //   print_phi<<<dG, dB>>>(phi_i, ik);
 //   copy_prhs_from_p<<<dG, dB>>>(res[ik],phi_i, ik);
 
-  }
+  }*/
 
-  for (int ik = 0; ik < grids_->NxNyc; ik++){
+  copy_prhs_from_p_d<<<dG_s, dB_s>>>(d_phi_rhs, phi_i);
+
+  lu_backsub_d<<<dG_lu, dB_lu>>>(d_A_phi, d_phi_rhs, phi_i);  
+
+
+/*  for (int ik = 0; ik < grids_->NxNyc; ik++){
     lu_backsub<<<dG, dB>>>(A_phi[ik], phi_rhs[ik], phi_i, ik);  
-  }
+  }*/
 
-///  copy_prhs_from_p_d<<<dG_s, dB_s>>>(d_phi_rhs, *phi_i);
+
+  copy_p_from_prhs_d<<<dG_s, dB_s>>>(phi_i,d_phi_rhs);
+
 /*  CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
                                  CUBLAS_OP_N,
                                  grids_->Nz,
@@ -241,9 +251,8 @@ void Green::invert(cuComplex* phi_i)
                                  grids_->Nz,
                                  infoArray_h,
                                  grids_->NxNyc));*/
-//  copy_p_from_prhs_d<<<dG_s, dB_s>>>(*phi_i,d_phi_rhs);
 
-  for (int ik = 0; ik < grids_->NxNyc; ik++){ 
+//  for (int ik = 0; ik < grids_->NxNyc; ik++){ 
 /*    compute_residual<<<dG, dB>>>(A_phi_copy[ik], phi_rhs[ik], phi_i, res[ik], ik, false);
     compute_residual<<<dG, dB>>>(A_phi_copy[ik], phi_rhs[ik], phi_i, prod[ik], ik, true);*/
 
@@ -256,8 +265,8 @@ void Green::invert(cuComplex* phi_i)
     checkCuda(cudaMemset(res[ik],0., sizeof(cuComplex)*grids_->Nz));
     checkCuda(cudaMemset(prod[ik],0., sizeof(cuComplex)*grids_->Nz));*/
 
-    copy_p_from_prhs<<<dG, dB>>>(phi_i,phi_rhs[ik], ik);
-  }
+//    copy_p_from_prhs<<<dG, dB>>>(phi_i,phi_rhs[ik], ik);
+//  }
 /*  for (int ik = 0; ik < grids_->NxNyc; ik++){
     printf("infoarray is %d\n", infoArray_h[ik]);
  

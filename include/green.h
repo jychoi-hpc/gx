@@ -52,6 +52,8 @@ class Green {
   dim3 dB_p;
   dim3 dG_s;
   dim3 dB_s;
+  dim3 dG_lu;
+  dim3 dB_lu;
 
 
   double p_;

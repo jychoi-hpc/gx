@@ -33,7 +33,9 @@ IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solve
       vte = A1[ielectron]->species->vt;
     }
   }
-  checkCuda(cudaMalloc((void**) &phi_i, sizeof(cuComplex)*grids_->NxNycNz));
+//  checkCuda(cudaMalloc((void**) &phi_i, sizeof(cuComplex)*grids_->NxNycNz));
+  checkCuda(cudaMalloc((void**) &phi_i, sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
+
   checkCuda(cudaMalloc((void**) &phi_copy, sizeof(cuComplex)*grids_->NxNycNz));
 
 
@@ -107,7 +109,8 @@ void IMEX_3stage_Green::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
 {
   // tridiag from numerical recipes
-  if (pars_->boundary_option_periodic) {
+//  if (pars_->boundary_option_periodic) {
+    if(true){
       for(int is = 0; is<grids_->Nspecies; is++){
 	grad_par->zft(Gh[is]);
         compute_inhomogenous_sol<<<dG, dB>>>(Gh[is]->G(), grids_->kz, *(Gh[is]->species), sdt, gradpar_);
@@ -116,13 +119,18 @@ void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fiel
       solver_->fieldSolve(Gh,f);
       green_->invert(f->phi);
       for(int is = 0; is<grids_->Nspecies; is++){
-	for(int il = 0; il < grids_->Nl; il++){
+	apply_flr_phi<<<dG, dB>>>(phi_i, f->phi, kperp2, *(G1[is]->species));
+	grad_par->zft_nmoms(phi_i, phi_i, grids_->Nl);
+	grad_par->zft(G1[is]);
+	compute_full_sol<<<dG, dB>>>(G1[is]->G(), phi_i, grids_->kz, *(G1[is]->species), sdt, gradpar_);
+	grad_par->zft_inverse(G1[is]);
+/*	for(int il = 0; il < grids_->Nl; il++){
           apply_flr_phi_loop<<<dG_l, dB_l>>>(phi_i,f->phi,kperp2,*(G1[is]->species), il);
           grad_par->zft(phi_i,phi_i);
 	  grad_par->zft(G1[is]);
           compute_full_sol_loop<<<dG_l, dB_l>>>(G1[is]->G(), phi_i, grids_->kz, *(G1[is]->species), sdt, gradpar_, il);
 	  grad_par->zft_inverse(G1[is]);
-	}
+	}*/
       }
   } 
 //  cublas_->invert_stream(G1[ielectron]->G(), 0);

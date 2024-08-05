@@ -3380,6 +3380,34 @@ __global__ void print_phi(cuComplex* p, int ik){
   }
 }
 
+__global__ void lu_backsub_d(cuComplex** A_phi, cuComplex** phi ,cuComplex* phi_rhs){
+  unsigned int ik = get_id1();
+  unsigned int idx = int(ik / nyc);
+  unsigned int idy = ik % nyc;
+  unsigned int nxnyc = nx*nyc;
+
+  if ((idx < nx) && (idy < nyc) && (unmasked(idx,idy))){
+    cuComplex interm;
+    for(int zi = 0; zi < nz; zi++){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int zj = 0; zj < zi; zj++){
+        interm = interm + A_phi[ik][zi + nz*zj] * phi[ik][zj];
+      }
+      phi[ik][zi] = phi_rhs[ik + nxnyc*zi] - interm;
+    }
+
+    for(int zi = nz-1; zi >= 0; zi--){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int zj = zi+1; zj < nz; zj++){
+        interm = interm + A_phi[ik][zi + nz*zj] * phi[ik][zj];
+      }
+      phi[ik][zi] = (phi[ik][zi] - interm)/A_phi[ik][zi + nz*zi];
+    }
+
+  }
+}
+
+
 __global__ void lu_backsub(cuComplex* A_phi, cuComplex* phi ,cuComplex* phi_rhs, int ik){
   unsigned int idz = get_id1();
   unsigned int idx = int(ik / nyc);
