@@ -340,7 +340,7 @@ class Lie_Trotter_Green : public Timestepper {
 class IMEX_3stage_Green : public Timestepper {
  public:
   IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2);
+	Parameters *pars, Grids *grids, Green *green, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2);
   ~IMEX_3stage_Green();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -364,6 +364,7 @@ class IMEX_3stage_Green : public Timestepper {
   Parameters   * pars_      ;
   Grids        * grids_     ;
   Green        * green_;
+  Cublas_test  * cublas_    ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;

@@ -2,8 +2,8 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage_Green::IMEX_3stage_Green(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Green *green, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars), green_(green), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), kperp2_(kperp2)
+	     Parameters *pars, Grids *grids, Green *green, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* kperp2) :
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars), green_(green), cublas_(cublas), forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), kperp2_(kperp2)
 {
   
   // new objects for temporaries
@@ -90,7 +90,12 @@ void IMEX_3stage_Green::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bo
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     A[is]->set_zero();
-    linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    if (is == ielectron){
+      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);     
+    }
+    else{
+      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
       if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
@@ -102,7 +107,12 @@ void IMEX_3stage_Green::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
-    linear_->rhs_streaming(G[is], f, B[is], dt_);
+    if (is == ielectron){
+      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+    }
+    else{
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
+    }
   }
 }
 
@@ -124,16 +134,9 @@ void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fiel
 	grad_par->zft(G1[is]);
 	compute_full_sol<<<dG, dB>>>(G1[is]->G(), phi_i, grids_->kz, *(G1[is]->species), sdt, gradpar_);
 	grad_par->zft_inverse(G1[is]);
-/*	for(int il = 0; il < grids_->Nl; il++){
-          apply_flr_phi_loop<<<dG_l, dB_l>>>(phi_i,f->phi,kperp2,*(G1[is]->species), il);
-          grad_par->zft(phi_i,phi_i);
-	  grad_par->zft(G1[is]);
-          compute_full_sol_loop<<<dG_l, dB_l>>>(G1[is]->G(), phi_i, grids_->kz, *(G1[is]->species), sdt, gradpar_, il);
-	  grad_par->zft_inverse(G1[is]);
-	}*/
       }
   } 
-//  cublas_->invert_stream(G1[ielectron]->G(), 0);
+  cublas_->invert_stream(G1[ielectron]->G(), 0);
 }
 
 void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
