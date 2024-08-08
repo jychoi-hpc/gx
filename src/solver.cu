@@ -121,76 +121,55 @@ void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
   
   if (pars_->no_fields) { zero(fields->phi); return; }
   
-  // Kinetic electrons and kinetic ions
-  if (pars_->all_kinetic) {
-    zero(nbar);
+  zero(nbar);
 
-    for(int is=0; is<grids_->Nspecies; is++) {
-      if(grids_->m_lo == 0) { // only compute density on procs with m=0
-        real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
-	if(pars_->fbpar>0.0) {
-          // jperpbar is an offset pointer to a location in nbar
-	  real_space_perp_current GQN (jperpbar, G[is]->G(), geo_->kperp2, geo_->bmagInv, *G[is]->species);
-	}
-      }
-      if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1
-        if(pars_->fapar>0.0) {
-          // jparbar is an offset pointer to a location in nbar
-	  real_space_par_current GQN (jparbar, G[is]->G(), geo_->kperp2, *G[is]->species);
-	}
+  for(int is=0; is<grids_->Nspecies; is++) {
+    if(grids_->m_lo == 0) { // only compute density on procs with m=0
+      real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
+      if(pars_->fbpar>0.0) {
+        // jperpbar is an offset pointer to a location in nbar
+        real_space_perp_current GQN (jperpbar, G[is]->G(), geo_->kperp2, geo_->bmagInv, *G[is]->species);
       }
     }
-
-    if(grids_->nprocs>1) {
-      // factor of 2 in count*2 is from cuComplex -> float conversion
-      // here, "nbar" actually packages nbar, jparbar, and jperpbar
-      if(pars_->use_NCCL) { 
-	// do AllReduce only across procs with m=0
-	if(grids_->iproc_m==0) {
-          checkCuda(ncclAllReduce((void*) nbar, (void*) nbar_tmp, count*2, ncclFloat, ncclSum, grids_->ncclComm_m0, 0));
-	}
-	// broadcast result to all procs
-	checkCuda(ncclBroadcast((void*) nbar_tmp, (void*) nbar, count*2, ncclFloat, 0, grids_->ncclComm_s, 0));
-        cudaStreamSynchronize(0);
-      } else {
-	MPI_Allreduce((void*) nbar_tmp, (void*) nbar, count*2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        CP_ON_GPU(nbar, nbar_tmp, sizeof(cuComplex)*count);
+    if(grids_->m_lo <= 1 && grids_->m_up > 1) { // only compute current on procs with m=1
+      if(pars_->fapar>0.0) {
+        // jparbar is an offset pointer to a location in nbar
+        real_space_par_current GQN (jparbar, G[is]->G(), geo_->kperp2, *G[is]->species);
       }
     }
-    
+  }
+
+  if(grids_->nprocs>1) {
+    // factor of 2 in count*2 is from cuComplex -> float conversion
+    // here, "nbar" actually packages nbar, jparbar, and jperpbar
+    if(pars_->use_NCCL) {
+      // do AllReduce only across procs with m=0
+      if(grids_->iproc_m==0) {
+        checkCuda(ncclAllReduce((void*) nbar, (void*) nbar_tmp, count*2, ncclFloat, ncclSum, grids_->ncclComm_m0, 0));
+      }
+      // broadcast result to all procs
+      checkCuda(ncclBroadcast((void*) nbar_tmp, (void*) nbar, count*2, ncclFloat, 0, grids_->ncclComm_s, 0));
+      cudaStreamSynchronize(0);
+    } else {
+      MPI_Allreduce((void*) nbar_tmp, (void*) nbar, count*2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+      CP_ON_GPU(nbar, nbar_tmp, sizeof(cuComplex)*count);
+    }
+  }
+
+  if(pars_->all_kinetic) {
     if (pars_->fbpar>0.0) {
       qneut_and_ampere_perp GQN (fields->phi, fields->bpar, nbar, jperpbar, qneutFacPhi, qneutFacBpar, amperePerpFacPhi, amperePerpFacBpar, pars_->fphi, pars_->fbpar);
     } else {
       qneut GQN (fields->phi, nbar, qneutFacPhi, pars_->fphi);
     }
     if (pars_->fapar>0.0) ampere_apar  GQN (fields->apar, jparbar, ampereParFac, pars_->fapar);
-
-  } else {
-
-    // Boltzmann electrons or Boltzmann ions
-    zero(nbar);
-
-    for(int is=0; is<grids_->Nspecies; is++) {
-      if(grids_->m_lo == 0) { // only compute density on procs with m=0
-        real_space_density GQN (nbar, G[is]->G(), geo_->kperp2, *G[is]->species);
-      }
-    }
-
-    if(grids_->nprocs>1) { 
-      ncclAllReduce((void*) nbar, (void*) nbar, grids_->NxNycNz*2, ncclFloat, ncclSum, grids_->ncclComm, 0);
-      cudaStreamSynchronize(0);
-    }
-
-    // In these routines there is inefficiency because multiple threads
-    // calculate the same field line averages. It is correct but inefficient.
-
-    if(pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
-      zero(fields->phi);
-      qneutAdiab_part1 GQN (             tmp, nbar, geo_->jacobian, qneutFacPhi, pars_->tau_fac);
-      qneutAdiab_part2 GQN (fields->phi, tmp, nbar, phiavgdenom,    qneutFacPhi, pars_->tau_fac, pars_->fphi);
-    } 
-    
-    if(pars_->Boltzmann_opt == BOLTZMANN_IONS) qneutAdiab GQN (fields->phi, nbar, qneutFacPhi, pars_->tau_fac, pars_->fphi);
+  } else if (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS) {
+    qneutAdiab_part1 GQN (             tmp, nbar, geo_->jacobian, qneutFacPhi, pars_->tau_fac);
+    qneutAdiab_part2 GQN (fields->phi, tmp, nbar, phiavgdenom,    qneutFacPhi, pars_->tau_fac, pars_->fphi);
+  } else if (pars_->Boltzmann_opt == BOLTZMANN_IONS) {
+    qneutAdiab GQN (fields->phi, nbar, qneutFacPhi, pars_->tau_fac, pars_->fphi);
+    // can still have finite apar with Boltzmann ions
+    if (pars_->fapar>0.0) ampere_apar  GQN (fields->apar, jparbar, ampereParFac, pars_->fapar);
   }
   
   if(pars_->source_option==PHIEXT) add_source GQN (fields->phi, pars_->phi_ext);

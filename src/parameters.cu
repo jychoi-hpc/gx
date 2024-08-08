@@ -544,8 +544,8 @@ void Parameters::get_nml_vars(char* filename)
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
-  // electromagnetic doesn't make sense with adiabatic species
-  if (!all_kinetic) {
+  // electromagnetic doesn't make sense with adiabatic electrons
+  if (Boltzmann_opt == BOLTZMANN_ELECTRONS) {
     beta = 0.0; 
     fapar = 0.0;
     fbpar = 0.0;
