@@ -9,6 +9,7 @@
 #include "netcdf.h"
 #include "netcdf_par.h"
 #include <string>
+#include "unistd.h"
 
 using namespace std;
 
@@ -200,19 +201,33 @@ class NetCDF {
 
 class NcDims {
  public:
-  NcDims(Parameters *pars, Grids *grids, int fileid) {
+  NcDims(Parameters *pars, Grids *grids, int fileid, bool append) {
     int retval;
-    if (retval = nc_def_dim (fileid, "ri",      2,                &ri)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "x",       pars->nx_in,     &x)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "y",       pars->ny_in,     &y)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "theta",   grids->Nz,       &z)) ERR(retval);  
-    if (retval = nc_def_dim (fileid, "kx",      grids->Nakx,     &kx)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "ky",      grids->Naky,     &ky)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "kz",      grids->Nz,       &kz)) ERR(retval);  
-    if (retval = nc_def_dim (fileid, "m",       pars->nm_in,     &m)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "l",       pars->nl_in,     &l)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "s",       pars->nspec_in,  &species)) ERR(retval);
-    if (retval = nc_def_dim (fileid, "time",    NC_UNLIMITED,     &time)) ERR(retval);
+    if (append) {
+      if (retval = nc_inq_dimid (fileid, "ri",      &ri)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "x",       &x)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "y",       &y)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "theta",   &z)) ERR(retval);  
+      if (retval = nc_inq_dimid (fileid, "kx",      &kx)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "ky",      &ky)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "kz",      &kz)) ERR(retval);  
+      if (retval = nc_inq_dimid (fileid, "m",       &m)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "l",       &l)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "s",       &species)) ERR(retval);
+      if (retval = nc_inq_dimid (fileid, "time",    &time)) ERR(retval);
+    } else {
+      if (retval = nc_def_dim (fileid, "ri",      2,                &ri)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "x",       pars->nx_in,     &x)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "y",       pars->ny_in,     &y)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "theta",   grids->Nz,       &z)) ERR(retval);  
+      if (retval = nc_def_dim (fileid, "kx",      grids->Nakx,     &kx)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "ky",      grids->Naky,     &ky)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "kz",      grids->Nz,       &kz)) ERR(retval);  
+      if (retval = nc_def_dim (fileid, "m",       pars->nm_in,     &m)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "l",       pars->nl_in,     &l)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "s",       pars->nspec_in,  &species)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "time",    NC_UNLIMITED,     &time)) ERR(retval);
+    }
   };
   ~NcDims() {};
 
@@ -221,27 +236,44 @@ class NcDims {
 
 class NcGrids {
  public:
-  NcGrids(Grids* grids, NcDims* nc_dims, int fileid) {
+  NcGrids(Grids* grids, NcDims* nc_dims, int fileid, bool append) {
     int retval;
-    // define Grids group in ncdf
-    if (retval = nc_def_grp(fileid, "Grids", &grid_id)) ERR(retval);
+    if (append) {
+      if (retval = nc_inq_grp_ncid(fileid, "Grids", &grid_id)) ERR(retval);
 
-    if (retval = nc_def_var(grid_id, "time", NC_DOUBLE, 1, &nc_dims->time, &time)) ERR(retval);
-    if (retval = nc_def_var(grid_id, "kx", NC_FLOAT, 1, &nc_dims->kx, &kx)) ERR(retval);
-    if (retval = nc_def_var(grid_id, "ky", NC_FLOAT, 1, &nc_dims->ky, &ky)) ERR(retval);
-    if (retval = nc_def_var(grid_id, "kz", NC_FLOAT, 1, &nc_dims->kz, &kz)) ERR(retval);
-    if (retval = nc_def_var(grid_id, "x",  NC_FLOAT, 1, &nc_dims->x, &x))  ERR(retval);  
-    if (retval = nc_def_var(grid_id, "y",  NC_FLOAT, 1, &nc_dims->y, &y))  ERR(retval);  
-    if (retval = nc_def_var(grid_id, "theta",  NC_FLOAT, 1, &nc_dims->z, &z))  ERR(retval);  
+      if (retval = nc_inq_varid(grid_id, "time", &time)) ERR(retval);
+      if (retval = nc_inq_varid(grid_id, "kx", &kx)) ERR(retval);
+      if (retval = nc_inq_varid(grid_id, "ky", &ky)) ERR(retval);
+      if (retval = nc_inq_varid(grid_id, "kz", &kz)) ERR(retval);
+      if (retval = nc_inq_varid(grid_id, "x", &x))  ERR(retval);  
+      if (retval = nc_inq_varid(grid_id, "y", &y))  ERR(retval);  
+      if (retval = nc_inq_varid(grid_id, "theta", &z))  ERR(retval);  
+
+      if (retval = nc_var_par_access(grid_id, time, NC_COLLECTIVE)) ERR(retval);
+
+      // read time_index
+      if (retval = nc_inq_dimlen(fileid, nc_dims->time, &time_index)) ERR(retval);
+    } else { 
+      // define Grids group in ncdf
+      if (retval = nc_def_grp(fileid, "Grids", &grid_id)) ERR(retval);
+
+      if (retval = nc_def_var(grid_id, "time", NC_DOUBLE, 1, &nc_dims->time, &time)) ERR(retval);
+      if (retval = nc_def_var(grid_id, "kx", NC_FLOAT, 1, &nc_dims->kx, &kx)) ERR(retval);
+      if (retval = nc_def_var(grid_id, "ky", NC_FLOAT, 1, &nc_dims->ky, &ky)) ERR(retval);
+      if (retval = nc_def_var(grid_id, "kz", NC_FLOAT, 1, &nc_dims->kz, &kz)) ERR(retval);
+      if (retval = nc_def_var(grid_id, "x",  NC_FLOAT, 1, &nc_dims->x, &x))  ERR(retval);  
+      if (retval = nc_def_var(grid_id, "y",  NC_FLOAT, 1, &nc_dims->y, &y))  ERR(retval);  
+      if (retval = nc_def_var(grid_id, "theta",  NC_FLOAT, 1, &nc_dims->z, &z))  ERR(retval);  
  
-    if (retval = nc_put_var(grid_id, kx, grids->kx_outh)) ERR(retval);
-    if (retval = nc_put_var(grid_id, ky, grids->ky_h)) ERR(retval);
-    if (retval = nc_put_var(grid_id, kz, grids->kz_outh)) ERR(retval);
-    if (retval = nc_put_var(grid_id, x, grids->x_h)) ERR(retval);
-    if (retval = nc_put_var(grid_id, y, grids->y_h)) ERR(retval);
-    if (retval = nc_put_var(grid_id, z, grids->z_h)) ERR(retval);
+      if (retval = nc_put_var(grid_id, kx, grids->kx_outh)) ERR(retval);
+      if (retval = nc_put_var(grid_id, ky, grids->ky_h)) ERR(retval);
+      if (retval = nc_put_var(grid_id, kz, grids->kz_outh)) ERR(retval);
+      if (retval = nc_put_var(grid_id, x, grids->x_h)) ERR(retval);
+      if (retval = nc_put_var(grid_id, y, grids->y_h)) ERR(retval);
+      if (retval = nc_put_var(grid_id, z, grids->z_h)) ERR(retval);
 
-    if (retval = nc_var_par_access(grid_id, time, NC_COLLECTIVE)) ERR(retval);
+      if (retval = nc_var_par_access(grid_id, time, NC_COLLECTIVE)) ERR(retval);
+    }
   };
   ~NcGrids() {};
   void write_time(double time_val) {
@@ -328,10 +360,14 @@ class NcGeo {
 
 class NcDiagnostics {
  public:
-  NcDiagnostics(int fileid) {
+  NcDiagnostics(int fileid, bool append) {
     int retval;
-    // create ncdf group id for Diagnostics
-    if (retval = nc_def_grp(fileid, "Diagnostics", &diagnostics_id)) ERR(retval);
+    if (append) {
+      if (retval = nc_inq_grp_ncid(fileid, "Diagnostics", &diagnostics_id)) ERR(retval);
+    } else {
+      // create ncdf group id for Diagnostics
+      if (retval = nc_def_grp(fileid, "Diagnostics", &diagnostics_id)) ERR(retval);
+    }
   };
   ~NcDiagnostics() {};
   int diagnostics_id; // ncdf id for diagnostics group

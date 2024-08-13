@@ -16,7 +16,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   
   ncdf_ = new NetCDF(pars_, grids_, geo_, ".out.nc"); 
   // write input parameters to netcdf
-  pars->store_ncdf(ncdf_->fileid, ncdf_->nc_dims);
+  if(! (pars_->restart && pars_->append_on_restart)) pars->store_ncdf(ncdf_->fileid, ncdf_->nc_dims);
 
   if (pars_->write_fields || pars_->write_moms) {
     ncdf_big_ = new NetCDF(pars_, grids_, geo_, ".big.nc"); 

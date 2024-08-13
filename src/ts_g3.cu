@@ -4,7 +4,7 @@
 G3::G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
        Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
-  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in),
+  forcing_(forcing), exb_(exb), dt_max(pars->dt_max), dt_(dt_in),
   G_u1(nullptr), G_u2(nullptr)
 {
   // new objects for temporaries
@@ -34,7 +34,7 @@ void G3::EulerStep(MomentsG** G_u, MomentsG** GRhs, Fields* f, bool setdt)
 
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G_u[is], f, GRhs[is]);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
+      if (setdt && !pars_->fixed_dt) dt_ = nonlinear_->cfl(f, dt_max);
     }
 
     G_u[is]->add_scaled(1., G_u[is], dt_, GRhs[is]);

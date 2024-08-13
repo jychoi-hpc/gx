@@ -5,7 +5,7 @@
 RungeKutta2::RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(pars_->dt_max), dt_(dt_in), GRhs(nullptr), G1(nullptr)
 {
   // new objects for temporaries
   GRhs  = new MomentsG (pars, grids);
@@ -36,12 +36,13 @@ void RungeKutta2::EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** G, MomentsG
     if (pars_->eqfix) G1[is]->copyFrom(G[is]);   
 
     // compute timestep (if necessary)
-    if (setdt && is==0) { // dt will be computed same for all species, so just do first time through species loop
+    if (setdt && is==0 && !pars_->fixed_dt ) { // dt will be computed same for all species, so just do first time through species loop
       linear_->get_max_frequency(omega_max);
       if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
       double wmax = 0.;
       for(int i=0; i<3; i++) wmax += omega_max[i];
-      dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
+	  double dt_guess = cfl_fac*pars_->cfl/wmax;
+      dt_ = min( max(dt_guess,pars_->dt_min), dt_max);
     }
 
     GRhs->set_zero();

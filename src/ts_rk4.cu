@@ -5,7 +5,7 @@
 RungeKutta4::RungeKutta4(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in),
+  forcing_(forcing), exb_(exb), dt_max(pars->dt_max), dt_(dt_in),
   GStar(nullptr), GRhs(nullptr), G_q1(nullptr), G_q2(nullptr)
 {
   GStar = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -46,15 +46,16 @@ void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     if (pars_->eqfix) Gnew[is]->copyFrom(G[is]);
 
     // compute timestep (if necessary)
-    if (setdt && is==0) { // dt will be computed same for all species, so just do first time through species loop
+    if (setdt && is==0 && !pars_->fixed_dt ) { // dt will be computed same for all species, so just do first time through species loop
       linear_->get_max_frequency(omega_max);
       if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
       double wmax = 0.;
       for(int i=0; i<3; i++) wmax += omega_max[i];
-      dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
+	  double dt_guess = cfl_fac*pars_->cfl/wmax;
+      dt_ = min( max(dt_guess,pars_->dt_min), dt_max);
     }
 
-    // compute and increment nonlinear term
+	// compute and increment nonlinear term
     Rhs[is]->set_zero();
     if (nonlinear_ != nullptr) {
       nonlinear_->nlps (Gt[is], f, Rhs[is]);

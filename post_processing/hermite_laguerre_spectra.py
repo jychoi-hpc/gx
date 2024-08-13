@@ -58,6 +58,9 @@ if __name__ == "__main__":
         nspec = data.dimensions['s'].size
         if axs is None:
             axs = fig.subplots(nspec, 2)
+
+        if nspec == 1:
+            axs = np.reshape(axs,(1,-1))
     
         for ispec in np.arange(nspec):
             hermite_laguerre_spectra(data, ispec=ispec, axs=axs[ispec,:])

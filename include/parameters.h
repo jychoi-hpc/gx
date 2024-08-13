@@ -139,7 +139,8 @@ class Parameters {
   float RBzeta, rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri;
   float tri, tripri, drhodpsi, epsl, kxfac, cfl, phi_ext, scale, tau_fac;
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
-  float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps;
+  float x0, y0, z0, dt, dt_max, dt_min, fixed_dt;
+  float fphi, fapar, fbpar, kpar_init, shaping_ps;
   int ikpar_init;
   float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;
   float forcing_amp, pos_forcing_amp, neg_forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;
@@ -161,6 +162,8 @@ class Parameters {
   float B_ref, a_ref, grhoavg, surfarea;
   float t_max, t_add;
   float zero_shat_threshold;
+
+  unsigned int random_seed;
 
   // parameters for KREHM system
   bool krehm;
@@ -200,7 +203,7 @@ class Parameters {
   bool nonlinear_mode, linear, iso_shear, secondary, local_limit, hyper, HB_hyper;
   bool hyperz;
   bool no_landau_damping, turn_off_gradients_test, slab, hypercollisions_const, hypercollisions_kz;
-  bool write_netcdf, write_omega, write_rh, write_phi, restart, save_for_restart;
+  bool write_netcdf, write_omega, write_rh, write_phi, restart, restart_if_exists, save_for_restart, restart_with_perturb, append_on_restart;
   bool fixed_amplitude, write_fields, write_eigenfuncs; 
   bool append_old, no_omegad, eqfix, write_pzt, collisions, domain_change;
   bool const_curv, varenna, varenna_fsa, dorland_phase_complex, add_noise;
