@@ -240,13 +240,14 @@ class SSPRK3 : public Timestepper {
 class IMEX_3stage_Full : public Timestepper {
  public:
   IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
   ~IMEX_3stage_Full();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, Fields *f, cuComplex** phi_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;
@@ -269,13 +270,14 @@ class IMEX_3stage_Full : public Timestepper {
   MomentsG     ** B2         ;
   MomentsG     ** B3         ;
   Fields	* f1	     ;
-
+  cuComplex    ** phi_l      ;
   double dt_;
   int ielectron;
   double vte;
   double zte;
   const float gradpar_;
   const float* bmagInv_;
+  const float* kperp2_;
   dim3 dG, dB;
 };
 

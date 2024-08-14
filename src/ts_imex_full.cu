@@ -2,9 +2,9 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv)
+  forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv), kperp2_(kperp2)
 {
   
   // new objects for temporaries
@@ -18,6 +18,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   Gr = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  phi_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
   for(int is=0; is<grids_->Nspecies; is++) {
     int is_glob = is+grids->is_lo;
@@ -31,7 +32,8 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     Gc[is] = new MomentsG (pars_, grids_, is_glob);
     Gr[is] = new MomentsG (pars_, grids_, is_glob);
     G0[is] = new MomentsG (pars_, grids_, is_glob);
-   
+    checkCuda(cudaMalloc((void**) &phi_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
+  
     // get species index of electrons
     if(pars_->species_h[is].type == 1) {
       ielectron = is;
@@ -50,6 +52,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     grad_par = new GradParallelLinked(pars_, grids_);
   }
   
+
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
   int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
@@ -91,7 +94,7 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, Fields *f, cuComplex** phi_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
   int max_iter = pars_->implicit_max_iter;
   for(int is = 0; is < grids_->Nspecies; is++){
@@ -100,9 +103,9 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 
   for(int count = 0; count < max_iter; count++){
     if(count == 0){
-      tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, false);
-      tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
-      tridiag_streaming_periodic_full<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, gradpar_, 2, false);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, false);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, gradpar_, 2, false);
 
       sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
 
@@ -112,17 +115,19 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
     }
     else{
       solver_->fieldSolve(G1, f);
-      grad_par->zft(f->phi,f->phi);
+//      grad_par->zft(f->phi,f->phi);
       for(int is = 0; is < grids_->Nspecies; is++){
+	apply_flr_phi<<<dG, dB>>>(phi_l[is], f->phi, kperp2_, *(G1[is]->species));
+	grad_par->zft_nmoms(phi_l[is], phi_l[is], grids_->Nl);
         Gr[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
 	grad_par->zft(G1[is]);
 	grad_par->zft(Gr[is]);
       }
 
-      tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, true);
-      tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
-      tridiag_streaming_periodic_full<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, gradpar_, 2, false);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, true);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
+      tridiag_streaming_periodic_full<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, gradpar_, 2, false);
 
       sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
 
@@ -241,7 +246,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
 //    invert_implicit_terms(G1[ielectron], f, p_*dt_,gradpar_);
-    invert_implicit_terms(G1, Gc, Gr, G0, f, p_*dt_,gradpar_, bmagInv_, ielectron);
+    invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, p_*dt_,gradpar_, bmagInv_, ielectron);
 
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -258,7 +263,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
-  invert_implicit_terms(G1, Gc, Gr, G0, f, r_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, r_*dt_,gradpar_, bmagInv_, ielectron);
   solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
@@ -273,7 +278,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1 = inv(I - u_*dt*B)*G1
-  invert_implicit_terms(G1, Gc, Gr, G0, f, u_*dt_,gradpar_,bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, u_*dt_,gradpar_,bmagInv_, ielectron);
     solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   // combine stage

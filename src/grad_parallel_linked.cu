@@ -21,6 +21,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
   zft_plan_inverse           = nullptr;
 
   zft_plan_forward_singlemom = nullptr;
+  zft_plan_forward_laguerre = nullptr;
   //  zft_plan_inverse_singlemom = nullptr;       
 
   dz_plan_forward            = nullptr;
@@ -74,6 +75,8 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
   zft_plan_forward = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
   zft_plan_inverse = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
   zft_plan_forward_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+  zft_plan_forward_laguerre = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
+
   // zft_plan_inverse_singlemom = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
 
   dz_plan_forward = (cufftHandle*) malloc(sizeof(cufftHandle*)*nClasses);
@@ -172,6 +175,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     cufftCreate(    &zft_plan_forward[c]);
     cufftCreate(    &zft_plan_inverse[c]);
     cufftCreate(    &zft_plan_forward_singlemom[c]);
+    cufftCreate(    &zft_plan_forward_laguerre[c]);
     //    cufftCreate(    &zft_plan_inverse_singlemom[c]);
 
     cufftCreate(    &dz_plan_forward[c]);
@@ -195,6 +199,8 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     checkCuda(cufftMakePlanMany(zft_plan_inverse[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nClm, &workSize));
 
     checkCuda(cufftMakePlanMany(zft_plan_forward_singlemom[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nChains[c], &workSize));
+    checkCuda(cufftMakePlanMany(zft_plan_forward_laguerre[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nChains[c]*grids_->Nl, &workSize));
+
     //    cufftMakePlanMany(zft_plan_inverse_singlemom[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nChains[c], &workSize);
 
     checkCuda(cufftMakePlanMany(dz_plan_forward[c], 1, &size, NULL, 1, 0, NULL, 1, 0, CUFFT_C2C, nClm, &workSize));
@@ -255,6 +261,8 @@ GradParallelLinked::~GradParallelLinked()
     cufftDestroy(    zft_plan_forward[c]          );
     cufftDestroy(    zft_plan_inverse[c]          );
     cufftDestroy(    zft_plan_forward_singlemom[c]);
+    cufftDestroy(    zft_plan_forward_laguerre[c]);
+
     //    cufftDestroy(    zft_plan_inverse_singlemom[c]);
 
     cufftDestroy(    dz_plan_forward[c]           );
@@ -293,6 +301,7 @@ GradParallelLinked::~GradParallelLinked()
   if (zft_plan_forward)              free(    zft_plan_forward);
   if (zft_plan_inverse)              free(    zft_plan_inverse);
   if (zft_plan_forward_singlemom)    free(    zft_plan_forward_singlemom);
+  if (zft_plan_forward_laguerre)    free(    zft_plan_forward_laguerre);
   //  if (zft_plan_inverse_singlemom)    free(    zft_plan_inverse_singlemom);
 
   if (dz_plan_forward)               free(    dz_plan_forward);
@@ -457,6 +466,18 @@ void GradParallelLinked::zft(cuComplex* m, cuComplex* res)
     linkedCopyBack GCHAINS (G_linked[c], res, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], nMoms);
   }
 }
+
+void GradParallelLinked::zft_nmoms(cuComplex* m, cuComplex* res, int nMoms)
+{
+  for(int c=0; c<nClasses; c++) {  // these only use the G(0,0) part of G_linked
+    linkedCopy GCHAINS (m, G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], nMoms);
+
+    cufftExecC2C(zft_plan_forward_laguerre[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
+
+    linkedCopyBack GCHAINS (G_linked[c], res, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], nMoms);
+  }
+}
+
 /*
 // for a single moment m 
 void GradParallelLinked::zft_inverse(cuComplex* m, cuComplex* res)
@@ -887,6 +908,10 @@ void GradParallelLinked::set_callbacks()
 
     checkCuda(cufftXtSetCallback(    zft_plan_forward_singlemom[c],
                        (void**)   &zfts_Linked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));
+
+    checkCuda(cufftXtSetCallback(    zft_plan_forward_laguerre[c],
+                       (void**)   &zfts_Linked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));
+
 
     checkCuda(cufftXtSetCallback(    dz_plan_forward[c],
 		       (void**)   &i_kzLinked_callbackPtr_h, CUFFT_CB_ST_COMPLEX, (void**)&kzLinked[c]));

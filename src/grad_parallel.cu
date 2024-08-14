@@ -124,6 +124,10 @@ void GradParallelPeriodic::zft(cuComplex* mom, cuComplex* res)
 {
   cufftExecC2C(zft_plan_forward, mom, res, CUFFT_FORWARD);
 }
+void GradParallelPeriodic::zft_nmoms(cuComplex* m, cuComplex* res, int nMoms)
+{
+}
+
 /*
 // inverse Fourier transform for a single moment
 void GradParallelPeriodic::zft_inverse(cuComplex* mom, cuComplex* res)
@@ -233,6 +237,10 @@ void GradParallelLocal::zft_inverse(MomentsG *G) {return;}
 void GradParallelLocal::dz(cuComplex* mom, cuComplex* res, bool accumulate) {
   scale_singlemom_kernel GGP (res, mom, make_cuComplex(0.,kpar));
 }
+void GradParallelLocal::zft_nmoms(cuComplex* m, cuComplex* res, int nMoms)
+{
+}
+
 // single moment
 void GradParallelLocal::abs_dz(cuComplex* mom, cuComplex* res, bool accumulate) {
   scale_singlemom_kernel GGP (res, mom, make_cuComplex(kpar,0.));

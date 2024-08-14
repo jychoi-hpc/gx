@@ -3077,16 +3077,35 @@ __global__ void sherman_morrison_full(cuComplex* g1i, cuComplex* g1e, cuComplex*
   }
 
 }*/
+__global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz; 
+  unsigned int idl = int(idzl / nz);  
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && (idzl < nl*nz) && unmasked(idx,idy)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+//    if(isnan(phi[idxyz].x) || isnan(phi[idxyz].y)) printf("phi.x is %4.3e, phi.y is %4.3e\n", phi[idxyz].x, phi[idxyz].y);
+    phi_r[idxyzl] = Jflr(idl,b_s) * phi[idxyz];
 
-__global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi)
+  }
+}
+
+__global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
   unsigned int idzl = get_id3();
-  unsigned int idz = idzl % nz;     
+  unsigned int idz = idzl % nz;    
   unsigned int idxy = idy + nyc*idx;
   unsigned int nxnyc = nx*nyc;
   unsigned int nlnz = nl*nz;
+  unsigned int idxyz = idxy + nxnyc*idz;
   if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
@@ -3096,6 +3115,7 @@ __global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cu
     int idm = 0; // this cannot be unsigned (see below)
     int idms = 0;
     unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    float b_s;
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
@@ -3131,13 +3151,13 @@ __global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cu
 	if (idm < nm){
           rm = gi[globalIdx];
 	  if(full_phi && idm == 1 && idz==idzl){
-	    rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idxy + nxnyc*idz]*Q_avg + spe.nz*gre[idxy + nxnyc*idz]*Q_avg - phi[idxy + nxnyc*idz]);
+	    rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idxy + nxnyc*idz]*Q_avg + spe.nz*gre[idxy + nxnyc*idz]*Q_avg - phi_i[idxy + nxnyc*idzl]);
 	  }
 	}
 	else{
 	  rm = ge[globalIdx];
 	  if(full_phi && idm == nm+1 && idz==idzl){
-	    rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idxy + nxnyc*idz]*Q_avg + spe.nz*gre[idxy + nxnyc*idz]*Q_avg - phi[idxy + nxnyc*idz]);
+	    rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idxy + nxnyc*idz]*Q_avg + spe.nz*gre[idxy + nxnyc*idz]*Q_avg - phi_e[idxy + nxnyc*idzl]);
 	  }
 
 	}
