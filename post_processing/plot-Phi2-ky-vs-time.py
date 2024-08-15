@@ -13,6 +13,8 @@ else:
   iky = None
   files = sys.argv[1:]
 
+styles = ['-','--']
+count = 0
 for fname in files:
   data = Dataset("%s"%fname, mode='r')
   t = data.groups['Grids'].variables['time'][:]
@@ -24,10 +26,12 @@ for fname in files:
          fmt = '--'
       else:
          fmt = '-'
-      plt.plot(t, y, fmt, label='ky = %.3f' % ky[i])
+      plt.plot(t, y, styles[count], label='ky = %.3f' % ky[i])
   else:
     y = data.groups['Diagnostics'].variables['Phi2_kyt'][:,iky]
-    plt.plot(t, y, '-', label='ky = %.3f' % ky[iky])
+    plt.plot(t, y, styles[count], label='ky = %.3f' % ky[iky])
+
+  count+=1
 
     #fit = stats.linregress(t[int(len(t)/2):-1], np.log(y[int(len(t)/2):-1]))
     ##plt.plot(t, np.exp(fit.intercept + fit.slope*t), '--', label=r'%s, ky = %.3f: $\gamma = $%.5f' % (fname, ky[i], fit.slope/2))
