@@ -3089,32 +3089,14 @@ __global__ void sherman_morrison_full(cuComplex* g1i, cuComplex* g1e, cuComplex*
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
     float Q = max_qneutFacPhi_inv[idxy];
 
-  /*  cuComplex v1y0 = sdt*ikpar*spe.vt*spe.zt*Q*(spi.nz*g1i[idxy + nxnyc*idz] + spe.nz*g1e[idxy + nxnyc*idz]);
-    cuComplex v1z0 = sdt*ikpar*spe.vt*spe.zt*Q*(spi.nz*g2i[idxy + nxnyc*idz] + spe.nz*g2e[idxy + nxnyc*idz]);
-    cuComplex v1zp = sdt*ikpar*spe.vt*spe.zt*Q*(spi.nz*g3i[idxy + nxnyc*idz] + spe.nz*g3e[idxy + nxnyc*idz]);*/
 
     cuComplex v0y0 = spi.nz*Q*g1i[idxy + nxnyc*idz] + spe.nz*Q*g1e[idxy + nxnyc*idz];
     cuComplex v0z0 = spi.nz*Q*g2i[idxy + nxnyc*idz] + spe.nz*Q*g2e[idxy + nxnyc*idz]; 
-//    cuComplex v0zp = sdt*ikpar*spi.vt*spi.zt*Q*(spi.nz*g3i[idxy + nxnyc*idz] + spe.nz*g3e[idxy + nxnyc*idz]);
 
-/*    cuComplex v1y1 = v1y0 - v1z0 * v0y0/(1 + v0z0);
-    cuComplex v1z1 = v1zp - v1z0 * v0zp/(1 + v0z0);*/
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idxy + nxnyc*(idzl + nlnz*idms);
-/*      if(idm < nm){
-	y1 = g1i[globalIdx] - g2i[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3i[globalIdx] - g2i[globalIdx] * v0zp/(1 + v0z0);
-
-	g1i[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
-      } 
-      else{
-	y1 = g1e[globalIdx] - g2e[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3e[globalIdx] - g2e[globalIdx] * v0zp/(1 + v0z0);
-
-	g1e[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
-      }*/
       if(idm < nm){
 	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx];
       } 
@@ -3291,6 +3273,7 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
       if (full_phi){
         if(idz == idzl){
 	  rm = rm - sdtvt*ikz*gradpar*spi.zt*spi.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_i[idxy + nxnyc*idzl]);
+
 	}
 	else{
 	  rm = rm - sdtvt*ikz*gradpar*spi.zt*spi.vt*(-apar_i[idxy + nxnyc*idzl]);
@@ -3349,7 +3332,7 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
 	    }
 	    else{
 	      rm = rm - sdtvt*ikz*gradpar*spe.zt*spe.vt*(-apar_e[idxy + nxnyc*idzl]);
-	    } 
+	    }
 	  }
 
 	  if(full_phi && idm == nm+1){

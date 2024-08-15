@@ -18,6 +18,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   Gr = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   phi_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   apar_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
@@ -33,6 +34,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     Gc[is] = new MomentsG (pars_, grids_, is_glob);
     Gr[is] = new MomentsG (pars_, grids_, is_glob);
     G0[is] = new MomentsG (pars_, grids_, is_glob);
+    G2[is] = new MomentsG (pars_, grids_, is_glob);
     checkCuda(cudaMalloc((void**) &phi_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
     checkCuda(cudaMalloc((void**) &apar_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
  
@@ -96,9 +98,10 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
   int max_iter = pars_->implicit_max_iter;
+  float omega = pars_->implicit_omega;
   for(int is = 0; is < grids_->Nspecies; is++){
     grad_par->zft(G1[is]);
   }
@@ -133,7 +136,7 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 	  apply_flr_phi<<<dG, dB>>>(apar_l[is], f->apar, kperp2_, *(G1[is]->species));
 	  grad_par->zft_nmoms(apar_l[is], apar_l[is], grids_->Nl);
 	}
-
+        G2[is]->copyFrom(G1[is]);
         Gr[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
 	grad_par->zft(G1[is]);
@@ -153,7 +156,9 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
+        G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
       }
+
     }
   }
 
@@ -265,7 +270,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
 //    invert_implicit_terms(G1[ielectron], f, p_*dt_,gradpar_);
-    invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
+    invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
 
     solver_->fieldSolve(G1, f);
     if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -282,7 +287,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
-  invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
   solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
 
@@ -297,7 +302,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1 = inv(I - u_*dt*B)*G1
-  invert_implicit_terms(G1, Gc, Gr, G0, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
+  invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
     solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   // combine stage
