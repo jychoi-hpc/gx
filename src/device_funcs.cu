@@ -2121,7 +2121,8 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
   if ((idy < nyc) && (idx < nx) && unmasked(idx, idy)) {
     unsigned int idxy = idy + nyc*idx;
     float max_q = 0.0f;
-    float max_f = 0.0f;
+//    float max_f = 0.0f;
+    float max_f = 1.0f/ampereParFac[idxy];
     float max_w = 0.0f;
     float max_x = 0.0f;
     float max_y = 0.0f;
@@ -2132,9 +2133,10 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
         max_q = 1.0f/qneutFacPhi[idxyz];
       }
       if(fapar > 0.){
-        if (max_f < 1.0f/ampereParFac[idxyz]){
+        if (max_f > 1.0f/ampereParFac[idxyz]){
           max_f = 1.0f/ampereParFac[idxyz];
         }
+	//max_f += 1.0f/ampereParFac[idxyz];
       }
       if(fbpar > 0.){
         if (max_w < qneutFacPhi[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz])){
@@ -2152,6 +2154,7 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
       }
        
     }
+//    max_f = max_f / nz;
     max_qneutFacPhi_inv[idxy] = max_q;
     if(fapar > 0.){
       max_ampereParFac_inv[idxy] = max_f;
@@ -2197,7 +2200,7 @@ __global__ void sum_solverFacs(float* qneutFacPhi,
     float b_s;
     if (long_wavelength_GK) b_s = kperp2_ * sp.rho2_long_wavelength_GK;
     else b_s = kperp2_ * sp.rho2;
-
+    
     float g0_s = 0.;
     float g01_s = 0.;
     float g11_s = 0.;
@@ -2208,7 +2211,7 @@ __global__ void sum_solverFacs(float* qneutFacPhi,
       g01_s += Jl*JlB;
       g11_s += JlB*JlB;
     }
-
+    
     if (long_wavelength_GK) {
       qneutFacPhi[idxyz] += sp.nz*sp.zt * b_s;
     } else {
@@ -2217,8 +2220,13 @@ __global__ void sum_solverFacs(float* qneutFacPhi,
 
     if(fapar>0.) {
       // since kperp2 == kperp**2/B**2, need to multiply by bmag**2 to get kperp**2 for Ampere's law
-      if (first) ampereParFac[idxyz] = kperp2_*bmag[idz]*bmag[idz]; 
-      ampereParFac[idxyz] += sp.nz*sp.z/sp.mass*beta/2. * g0_s ;
+      if (first) ampereParFac[idxyz] = kperp2_*bmag[idz]*bmag[idz];
+      if(long_wavelength_GK){
+        ampereParFac[idxyz] += sp.nz*sp.z/sp.mass*beta/2.;
+      } 
+      else{
+        ampereParFac[idxyz] += sp.nz*sp.z/sp.mass*beta/2. * g0_s ;
+      }
     }
 
     if(fbpar>0.) {
@@ -3244,7 +3252,7 @@ __global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cu
 }
 
 
-__global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi)
+__global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi, cuComplex* apar )
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
@@ -3264,7 +3272,6 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
     cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
-    
     cuComplex rm = make_cuComplex(0.0f, 0.0f);
     double sdtvt;
     sdtvt = sdt * spi.vt;
@@ -3274,9 +3281,11 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
         if(idz == idzl){
 	  rm = rm - sdtvt*ikz*gradpar*spi.zt*spi.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_i[idxy + nxnyc*idzl]);
 
+
 	}
 	else{
 	  rm = rm - sdtvt*ikz*gradpar*spi.zt*spi.vt*(-apar_i[idxy + nxnyc*idzl]);
+
 	 } 
       }
     }
@@ -3318,9 +3327,11 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
 	  if(full_phi && idm == 2){
 	    if(idz == idzl){
 	      rm = rm - sqrtf(2.0)*sdtvt*ikz*gradpar*spi.zt*spi.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_i[idxy + nxnyc*idzl]);
+
 	    }
 	    else{
 	      rm = rm - sqrtf(2.0)*sdtvt*ikz*gradpar*spi.zt*spi.vt*(-apar_i[idxy + nxnyc*idzl]);
+
 	    } 
 	  }
 	}
@@ -3329,9 +3340,11 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
 	  if(full_phi && idm == nm){
 	    if(idz == idzl){
 	      rm = rm - sdtvt*ikz*gradpar*spe.zt*spe.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_e[idxy + nxnyc*idzl]);
+
 	    }
 	    else{
 	      rm = rm - sdtvt*ikz*gradpar*spe.zt*spe.vt*(-apar_e[idxy + nxnyc*idzl]);
+
 	    }
 	  }
 
@@ -3345,10 +3358,12 @@ __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge,
 	  }
 	  if(full_phi && idm == nm+2){
 	    if(idz == idzl){
-	      rm = rm - sqrtf(2.0)*sdtvt*ikz*gradpar*spe.zt*spe.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_e[idxy + nxnyc*idzl]);
+              rm = rm - sqrtf(2.0)*sdtvt*ikz*gradpar*spe.zt*spe.vt*(beta/2*F_avg*(spi.nz*spi.vt*gri[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*gre[idxy + nxnyc*(idz + nlnz)]) - apar_e[idxy + nxnyc*idzl]);
+
 	    }
 	    else{
 	      rm = rm - sqrtf(2.0)*sdtvt*ikz*gradpar*spe.zt*spe.vt*(-apar_e[idxy + nxnyc*idzl]);
+
 	    } 
 	  }
 
