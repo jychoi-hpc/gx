@@ -307,8 +307,8 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G1, f);
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
-//    if(pars_->boundary_option_periodic){
-    if(true){
+    if(pars_->boundary_option_periodic){
+//    if(true){
       invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
     }
     else{
@@ -330,8 +330,8 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
-//  if(pars_->boundary_option_periodic){
-  if(true){
+  if(pars_->boundary_option_periodic){
+//  if(true){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
   }
   else{
@@ -351,8 +351,8 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G0[is]->copyFrom(G1[is]);
   }
   // G1 = inv(I - u_*dt*B)*G1
-//  if(pars_->boundary_option_periodic){
-  if(true){
+  if(pars_->boundary_option_periodic){
+//  if(true){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else{

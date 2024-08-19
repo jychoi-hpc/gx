@@ -2121,9 +2121,9 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
   if ((idy < nyc) && (idx < nx) && unmasked(idx, idy)) {
     unsigned int idxy = idy + nyc*idx;
 //    float max_q = 0.0f;
-//    float max_f = 0.0f;
+    float max_f = 0.0f;
+    if(fapar > 0.) max_f = 1.0f/ampereParFac[idxy];
     float max_q = 1.0f/qneutFacPhi[idxy];
-    float max_f = 1.0f/ampereParFac[idxy];
     float max_w = 0.0f;
     float max_x = 0.0f;
     float max_y = 0.0f;
@@ -3082,7 +3082,7 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
 }
 
 
-__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* max_qneutFacPhi_inv, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3095,13 +3095,12 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
   unsigned int idy = idk / nLinks;
   unsigned int idxy = idy + nyc*idx;
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
-    float Q;
+    float Q = max_qneutFacPhi_inv[idy*nLinks];
     for (int ik = 0; ik < nLinks; ik++){
         if (Q < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
     }
-
     int idms;
     unsigned int globalIdx; 
     cuComplex y1 = make_cuComplex(0.0f, 0.0f);
@@ -3199,12 +3198,13 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
   unsigned int idxy = idy + nyc*idx;
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
-    float Q_avg;
+    float Q_avg = max_qneutFacPhi_inv[idy*nLinks];
     for (int ik = 0; ik < nLinks; ik++){
         if (Q_avg < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q_avg = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
     }
+//    printf("At idy = %d, Q is %f\n", idy, Q_avg);
 
     int idm = 0; // this cannot be unsigned (see below)
     int idms = 0;
@@ -3298,7 +3298,7 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
         gi[globalIdx] = gi[globalIdx] - gam[idm+1]*gi[mp1];
       }
       else if(idm == nm-1){
-        int mfirst = idzk;
+        int mfirst = idzk + nznk*idl;
  	gi[globalIdx] = gi[globalIdx] - gam[idm+1]*ge[mfirst];
       }
       else{
@@ -3636,15 +3636,24 @@ __global__ void tridiag_streaming_periodic(cuComplex* g, cuComplex* gr, cuComple
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       //logic block for iteration scheme. full_phi = true means that we're using the full
       //phi for the rhs.
-      if(idm==1 && idz==idzl) {
+      if(idm==1) {
 	if (full_phi){
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];
-	  am = am + sdtvt*ikz*gradpar*Q;
+	  if(idz==idzl){
+  	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];
+	    am = am + sdtvt*ikz*gradpar*Q;
+	  }
+	  else{
+	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];
+ 	    am = am + sdtvt*ikz*gradpar*Q;
+
+	  }
 
 	}
 	else{
-	  am = am + sdtvt*ikz*gradpar*Q;
-  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
+	  if(idz==idzl){
+	    am = am + sdtvt*ikz*gradpar*Q;
+  	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
+	  }
 	}
       }
               
