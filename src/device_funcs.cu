@@ -3916,6 +3916,26 @@ __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
   }
 }
 
+__global__ void normKernel(float * res, const cuComplex* g)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    // For the FFT padding modes, just pad the output with 0
+    if ( unmasked( idx, idy ) ) {
+      res[ ig ] = ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
+    } else {
+      res[ ig ] = 0.0;
+    }
+  }
+}
+
 // Needed to calc min { Re[ x ] }, by doing max{ -Re[x] }
 __global__ void minusRealKernel(float* res, const cuComplex* in)
 {

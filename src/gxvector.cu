@@ -378,3 +378,51 @@ Complex GXVector::dotProduct( GXVector const & w ) const
 
 	return Complex( cpuSumResult.x, cpuSumResult.y );
 }
+
+float GXVector::Norm() const
+{
+	assert( w.array.size() == array.size() );
+	// Reduction object
+	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
+	std::vector<int32_t> modesRed{};
+	Reduction<float> reducer(array[ 0 ]->grids_, modes, modesRed);
+
+	// allocate temporary object for w_i |g_i|^2
+	float *tmp;
+	
+	// We need same number of floats as complex numbers in g
+	size_t size_per_species = array[0]->getN() * sizeof(float);
+	checkCuda(cudaMalloc((void**) &tmp, size_per_species * array.size() )); 
+
+	// Allocate space on GPU for answer
+	float *SumResult;
+	checkCuda(cudaMalloc(&SumResult,  sizeof(float)));
+	checkCuda(cudaMemset(SumResult, 0., sizeof(float)));
+
+
+	// do tmp_i = w_i^2 ||g_i||^2 on GPU
+	MomentsG const & m = *(array[ 0 ]);
+	for( int i = 0; i < array.size(); ++i )
+	{
+		float *tmp_species_i = tmp + i * array[0]->getN();
+		normKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
+		checkCuda( cudaGetLastError() );
+	}
+
+
+	// tmp now contains {||g_i||^2 }
+	// Sum all of tmp to get the answer
+	
+	reducer.Sum( tmp, SumResult );
+	float cpuSumResult;
+	checkCuda( cudaDeviceSynchronize() );
+	CP_TO_CPU( &cpuSumResult, SumResult, sizeof(float) );
+
+	// Clean up
+	checkCuda( cudaFree( SumResult ) );
+	checkCuda( cudaFree( tmp ) );
+
+	// The norm we want is sqrt( Sum (|g_i|^2) )
+	return sqrtf(cpuSumResult);
+}
+

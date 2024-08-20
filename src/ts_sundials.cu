@@ -184,9 +184,17 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     for( int i = 0; i < g->nSpecies(); ++i )
     {
         MomentsG const & m = *((*g)[ i ]);
+
         setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol );
         checkCuda( cudaGetLastError() );
     }
 
     return 0;
 }
+
+void SundialsStepper::inform_Wg( std::vector<float>& Wg_new )
+{
+
+}
+
+
