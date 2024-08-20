@@ -4017,7 +4017,14 @@ __global__ void add_const_kernel( cuComplex* g, float b )
   }
 }
 
-__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol )
+__global__ __inline__ void reltol_smoothed( unsigned int idxy, unsigned int idlm, float rtol )
+{
+  // This is where to put adjustments that are grid-location-dependent
+  // currently, we just treat everything the same
+  return rtol;
+}
+
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float atol, float rtol, float Wg )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
@@ -4027,7 +4034,9 @@ __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abst
   unsigned int idlm = get_id3();
 
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
+    float abstol = Wg > 0 ? atol*Wg : atol;
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    float reltol = reltol_smoothed( idxy, idlm, rtol );
     wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
     wgt[ ig ].y = 0.0;
   }
@@ -4045,6 +4054,7 @@ __global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *den
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     float abstol = density[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+
     wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
     wgt[ ig ].y = 0.0;
   }
