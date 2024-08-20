@@ -8,11 +8,14 @@ from matplotlib.ticker import AutoMinorLocator
 import sys
 from netCDF4 import Dataset
 
-def growth_rates(fname, ikx=0, navgfac=0.5, label=None, plot=True, ax=None, Lref="a", refsp="i"):
+def growth_rates(fname, ikx=9, navgfac=0.5, label=None, plot=True, ax=None, Lref="a", refsp="i"):
     # read data from file
     data = Dataset(fname, mode='r')
     t = data.groups['Grids'].variables['time'][:]
     ky = data.groups['Grids'].variables['ky'][1:]
+    kx = data.groups['Grids'].variables['kx'][:]
+    print("kx is " + str(kx[ikx]));
+
     omegas = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,ikx,0]
     gams = data.groups['Diagnostics'].variables['omega_kxkyt'][:,1:,ikx,1]
 
