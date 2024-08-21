@@ -5,7 +5,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
 	phi_rhs(nullptr), d_Ipiv(nullptr), infoArray(nullptr), infoArray_h(nullptr), cublasH(nullptr), stream(nullptr)
 {
   
-  size_t nz2 = sizeof(cuComplex)*grids_->Nz*grids_->Nz;
+  nz2 = sizeof(cuComplex)*grids_->Nz*grids_->Nz;
   if (sdirk_){
     num_coeff = 1;
   }
@@ -54,7 +54,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   }
 
 
-  double* dcoeff = (double*) malloc(sizeof(double)*num_coeff);
+  dcoeff = (double*) malloc(sizeof(double)*num_coeff);
   if (num_coeff == 1){
     dcoeff[0] = r_;
   }
@@ -109,63 +109,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   dG_lu = dim3(nt9, nt2, nt3);
   dB_lu = dim3(nb9, nb2, nb3);
 
-  for (int i = 0; i < num_coeff; i++){
-    for (int is = 0; is < grids_->Nspecies; is++){
-      for (int iz = 0; iz < grids_->Nz; iz++){ 
-/*        set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species));
-        checkCudaErrors(cudaGetLastError());
-        grad_par->zft_nmoms(phi_r,phi_r, grids_->Nl);*/
-	
-	for(int il = 0; il < grids_->Nl; il++){
-          set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species), il);
-          checkCudaErrors(cudaGetLastError());
-          grad_par->zft(phi_r,phi_r);
-          compute_homogenous_sol_loop<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar, il);
-          checkCuda(cudaMemset(phi_r,0., sizeof(cuComplex)*grids_->NxNycNz));
-          checkCudaErrors(cudaGetLastError());
-
-	}
-
-	grad_par->zft_inverse(G[is]);
-	for (int ik = 0; ik < grids_->NxNyc; ik++){
-          compute_response_matrix<<<dG, dB>>>(A_phi[ik + i*num_coeff],G[is]->G(),*(G[is]->species),geo_->kperp2,solver_->getQneutDenom(),ik,iz);
-	}
-        checkCudaErrors(cudaGetLastError());
-      }
-    }
-  }
-
-/*  for (int i = 0; i < num_coeff; i++){
-    for (int is = 0; is < grids_->Nspecies; is++){
-      for (int iz = 0; iz < grids_->Nz; iz++){ 
-        set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species));
-        checkCudaErrors(cudaGetLastError());
-        grad_par->zft(phi_r,phi_r);
-	
-	for(int il = 0; il < grids_->Nl; il++){
-          compute_homogenous_sol_loop<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar, il);
-	}
-        checkCuda(cudaMemset(phi_r,0., sizeof(cuComplex)*grids_->NxNycNz));
-        checkCudaErrors(cudaGetLastError());
-
-	grad_par->zft_inverse(G[is]);
-	for (int ik = 0; ik < grids_->NxNyc; ik++){
-          compute_response_matrix<<<dG, dB>>>(A_phi[ik + i*num_coeff],G[is]->G(),*(G[is]->species),geo_->kperp2,solver_->getQneutDenom(),ik,iz);
-	}
-        checkCudaErrors(cudaGetLastError());
-      }
-    }
-  }*/
-
-  
-  for(int i = 0; i < num_coeff; i++){
-    for(int ik = 0; ik < grids_->NxNyc; ik++){
-      add_id_response_matrix<<<dG, dB>>>(A_phi[ik+i*num_coeff]);
-      checkCuda(cudaMemcpy(A_phi_copy[ik], A_phi[ik], nz2, cudaMemcpyDeviceToDevice));
-
-    }
-  }
-
+  compute_response_matrix_periodic();
   
   checkCuda(cudaMemcpy(d_A_phi, A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyHostToDevice));
 
@@ -219,58 +163,48 @@ Green::~Green(){
   if(G) delete G;
 }
 
+void Green::compute_response_matrix_periodic()
+{
+  for (int i = 0; i < num_coeff; i++){
+    for (int is = 0; is < grids_->Nspecies; is++){
+      for (int iz = 0; iz < grids_->Nz; iz++){ 
+	
+	for(int il = 0; il < grids_->Nl; il++){
+          set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species), il);
+          checkCudaErrors(cudaGetLastError());
+          grad_par->zft(phi_r,phi_r);
+          compute_homogenous_sol_loop<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar, il);
+          checkCuda(cudaMemset(phi_r,0., sizeof(cuComplex)*grids_->NxNycNz));
+          checkCudaErrors(cudaGetLastError());
+
+	}
+
+	grad_par->zft_inverse(G[is]);
+	for (int ik = 0; ik < grids_->NxNyc; ik++){
+          compute_response_matrix<<<dG, dB>>>(A_phi[ik + i*num_coeff],G[is]->G(),*(G[is]->species),geo_->kperp2,solver_->getQneutDenom(),ik,iz);
+	}
+        checkCudaErrors(cudaGetLastError());
+      }
+    }
+  }
+  for(int i = 0; i < num_coeff; i++){
+    for(int ik = 0; ik < grids_->NxNyc; ik++){
+      add_id_response_matrix<<<dG, dB>>>(A_phi[ik+i*num_coeff]);
+      checkCuda(cudaMemcpy(A_phi_copy[ik], A_phi[ik], nz2, cudaMemcpyDeviceToDevice));
+
+    }
+  }
+
+}
+
 void Green::invert(cuComplex* phi_i)
 { 
-/*  for (int ik = 0; ik < grids_->NxNyc; ik++){
-   copy_prhs_from_p<<<dG, dB>>>(phi_rhs[ik],phi_i, ik);
-//   print_phi<<<dG, dB>>>(phi_i, ik);
-//   copy_prhs_from_p<<<dG, dB>>>(res[ik],phi_i, ik);
-
-  }*/
 
   copy_prhs_from_p_d<<<dG_s, dB_s>>>(d_phi_rhs, phi_i);
 
   lu_backsub_d<<<dG_lu, dB_lu>>>(d_A_phi, d_phi_rhs, phi_i);  
 
-
-/*  for (int ik = 0; ik < grids_->NxNyc; ik++){
-    lu_backsub<<<dG, dB>>>(A_phi[ik], phi_rhs[ik], phi_i, ik);  
-  }*/
-
-
   copy_p_from_prhs_d<<<dG_s, dB_s>>>(phi_i,d_phi_rhs);
-
-/*  CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
-                                 CUBLAS_OP_N,
-                                 grids_->Nz,
-                                 1,
-                                 d_A_phi,
-                                 grids_->Nz,
-                                 d_Ipiv,
-                                 phi_rhs,
-                                 grids_->Nz,
-                                 infoArray_h,
-                                 grids_->NxNyc));*/
-
-//  for (int ik = 0; ik < grids_->NxNyc; ik++){ 
-/*    compute_residual<<<dG, dB>>>(A_phi_copy[ik], phi_rhs[ik], phi_i, res[ik], ik, false);
-    compute_residual<<<dG, dB>>>(A_phi_copy[ik], phi_rhs[ik], phi_i, prod[ik], ik, true);*/
-
-/*    CUBLAS_CHECK(
-      cublasCgemm(cublasH, CUBLAS_OP_T, CUBLAS_OP_T, grids_->Nz,1,grids_->Nz, &alpha, A_phi[ik], grids_->Nz, phi_rhs[ik], grids_->Nz, &beta, res[ik], grids_->Nz));
-    CUBLAS_CHECK(
-      cublasCgemm(cublasH, CUBLAS_OP_T, CUBLAS_OP_N, grids_->Nz,1,grids_->Nz, &alpha, A_phi[ik], grids_->Nz, phi_rhs[ik], grids_->Nz, &zeta, prod[ik], grids_->Nz));*/
-
-/*    check_residual_phi<<<dG, dB>>>(res[ik],phi_i,prod[ik], ik);
-    checkCuda(cudaMemset(res[ik],0., sizeof(cuComplex)*grids_->Nz));
-    checkCuda(cudaMemset(prod[ik],0., sizeof(cuComplex)*grids_->Nz));*/
-
-//    copy_p_from_prhs<<<dG, dB>>>(phi_i,phi_rhs[ik], ik);
-//  }
-/*  for (int ik = 0; ik < grids_->NxNyc; ik++){
-    printf("infoarray is %d\n", infoArray_h[ik]);
- 
-  }*/
 
 }
 

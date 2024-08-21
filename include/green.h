@@ -24,6 +24,7 @@ class Green {
   Green(Parameters* pars, Grids* grids, Geometry* geo, Solver* solver, double p, double r, double u,bool sdirk, double dt_in, double vte);
   ~Green();
   void invert(cuComplex* phi_i);
+  void compute_response_matrix_periodic();
   cuComplex** A_phi;
   cuComplex** d_A_phi;
 
@@ -68,7 +69,8 @@ class Green {
   int num_coeff;
   int* infoArray;
   int* infoArray_h;
-
+  double* dcoeff;
+  size_t nz2;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream = NULL;
