@@ -798,14 +798,13 @@ void FieldsXYDiagnostic::dealias_and_reorder(float *f, float *fr)
 }
 
 // similar structure to FieldsDiagnostic, but with a species index
-MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, string varname)
+MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf, string varname)
 {
   nc_type = NC_FLOAT;
   pars_ = pars;
   grids_ = grids;
   geo_ = geo;
   ncdf_ = ncdf;
-  varname_ = varname;
   nc_group = ncdf_->nc_diagnostics->diagnostics_id;
   ndim = 6;
 
@@ -850,12 +849,47 @@ MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* g
 
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3);
+
+  // infrastructure for real space (x,y,z) diagnostic
+  if (pars->nonlinear_mode) {
+    nonlinear_ = nonlinear;
+    string varnameXY = varname + "XY";
+    ndimXY = 5;
+
+    dimsXY[0] = ncdf_->nc_dims->time;
+    dimsXY[1] = ncdf_->nc_dims->species;
+    dimsXY[2] = ncdf_->nc_dims->y;
+    dimsXY[3] = ncdf_->nc_dims->x;
+    dimsXY[4] = ncdf_->nc_dims->z;
+
+    countXY[0] = 1; // each write is a single time slice
+    countXY[1] = grids->Nspecies;
+    countXY[2] = grids->Ny;
+    countXY[3] = grids->Nx;
+    countXY[4] = grids->Nz;
+
+    startXY[1] = grids->is_lo;
+     
+    NXY = grids->NxNyNz*grids->Nspecies;
+    if (pars_->restart && pars_->append_on_restart) {
+      if (retval = nc_inq_varid(nc_group, varnameXY.c_str(), &varidXY)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varidXY, NC_COLLECTIVE)) ERR(retval);
+    } else {
+      if (retval = nc_def_var(nc_group, varnameXY.c_str(), nc_type, ndimXY, dimsXY, &varidXY)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varidXY, NC_COLLECTIVE)) ERR(retval);
+    }
+    fXY_h = (float*) malloc  (sizeof(float) * NXY);
+    cpuXY = (float*) malloc  (sizeof(float) * NXY);
+
+    fXY = nonlinear_->get_fXY();
+    grad_perp_ = nonlinear_->get_grad_perp_f();
+  }
 }
 
 void MomentsDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, cuComplex* tmp_d)
 {
   int retval;
-  if(!skipWrite) calculate(G, fields, f_h, tmp_d);
+  if(!skipWrite) calculate(G, fields, f_h, fXY_h, tmp_d);
 
   start[0] = ncdf_->nc_grids->time_index;
 
@@ -868,6 +902,20 @@ void MomentsDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, cuComp
     if (retval=nc_put_vara(nc_group, varid, dummy_start, dummy_count, cpu)) ERR(retval);
   } else {
     if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);
+  }
+
+  // write XY to ncdf
+  if (pars_->nonlinear_mode) {
+    startXY[0] = ncdf_->nc_grids->time_index;
+    dealias_and_reorder_XY(fXY_h, cpuXY);
+
+    if(skipWrite) { 
+      // sometimes we need to skip the write on a particular (set of) proc(s), 
+      // but all procs still need to call nc_put_vara. so do an empty dummy write
+      if (retval=nc_put_vara(nc_group, varidXY, dummy_startXY, dummy_countXY, cpuXY)) ERR(retval);
+    } else {
+      if (retval=nc_put_vara(nc_group, varidXY, startXY, countXY, cpuXY)) ERR(retval);
+    }
   }
 }
 
@@ -931,115 +979,176 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   }
 }
 
-DensityDiagnostic::DensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "Density")  // call base class constructor
+// transpose so that z is fastest index
+void MomentsDiagnostic::dealias_and_reorder_XY(float *f, float *fr)
+{
+  int Nsp  = grids_->Nspecies;
+  int Nx   = grids_->Nx;
+  int Ny   = grids_->Ny;
+  int Nz   = grids_->Nz;
+
+  for (int is=0; is<Nsp; is++) {
+    for (int iy=0; iy<Ny; iy++) {
+      for (int ix=0; ix<Nx; ix++) {
+        for (int iz=0; iz<Nz; iz++) {
+          int ig = iy + Ny*ix + Nx*Ny*iz + Nx*Ny*Nz*is;
+          int iwrite = iz + ix*Nz + iy*Nx*Nz + Nx*Ny*Nz*is;
+          fr[iwrite] = f[ig];
+        }
+      }
+    }
+  }
+}
+
+DensityDiagnostic::DensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "Density")  // call base class constructor
 {
   if(grids_->m_lo>0) skipWrite = true;
 }
 
-void DensityDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void DensityDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     CP_TO_CPU(f_h + is*grids_->NxNycNz, G[is]->G(0,0), sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(G[is]->G(0,0), fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-UparDiagnostic::UparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "Upar")  // call base class constructor
+UparDiagnostic::UparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "Upar")  // call base class constructor
 {
   if(grids_->m_lo>1 || grids_->m_up<=1) skipWrite = true;
 }
 
-void UparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void UparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     CP_TO_CPU(f_h + is*grids_->NxNycNz, G[is]->G(0,1 - grids_->m_lo), sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(G[is]->G(0,1 - grids_->m_lo), fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-TparDiagnostic::TparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "Tpar")  // call base class constructor
+TparDiagnostic::TparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "Tpar")  // call base class constructor
 {
   if(grids_->m_lo>2 || grids_->m_up<=2) skipWrite = true;
 }
 
-void TparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void TparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     scale_singlemom_kernel <<<grids_->NxNycNz/256+1, 256>>> (tmp_d, G[is]->G(0, 2-grids_->m_lo), sqrtf(2.));
     CP_TO_CPU(f_h + is*grids_->NxNycNz, tmp_d, sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(tmp_d, fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-TperpDiagnostic::TperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "Tperp")  // call base class constructor
+TperpDiagnostic::TperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "Tperp")  // call base class constructor
 {
   if(grids_->m_lo>0) skipWrite = true;
 }
 
-void TperpDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void TperpDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     CP_TO_CPU(f_h + is*grids_->NxNycNz, G[is]->G(1,0), sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(G[is]->G(1,0), fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-ParticleDensityDiagnostic::ParticleDensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "ParticleDensity")  // call base class constructor
+ParticleDensityDiagnostic::ParticleDensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "ParticleDensity")  // call base class constructor
 {
   if(grids_->m_lo>0) skipWrite = true;
 }
 
-void ParticleDensityDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void ParticleDensityDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     calc_n_bar <<<dG, dB>>> (tmp_d, G[is]->G(), fields->phi, fields->bpar, geo_->kperp2, *G[is]->species);
     
     CP_TO_CPU(f_h + is*grids_->NxNycNz, tmp_d, sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(tmp_d, fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-ParticleUparDiagnostic::ParticleUparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "ParticleUpar")  // call base class constructor
+ParticleUparDiagnostic::ParticleUparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "ParticleUpar")  // call base class constructor
 {
   if(grids_->m_lo>1 || grids_->m_up<=1) skipWrite = true;
 }
 
-void ParticleUparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void ParticleUparDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     calc_upar_bar <<<dG, dB>>> (tmp_d, G[is]->G(), fields->apar, geo_->kperp2, *G[is]->species);
     
     CP_TO_CPU(f_h + is*grids_->NxNycNz, tmp_d, sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(tmp_d, fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-ParticleUperpDiagnostic::ParticleUperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "ParticleUperp")  // call base class constructor
+ParticleUperpDiagnostic::ParticleUperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "ParticleUperp")  // call base class constructor
 {
   if(grids_->m_lo>0) skipWrite = true;
 }
 
-void ParticleUperpDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void ParticleUperpDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     calc_uperp_bar <<<dG, dB>>> (tmp_d, G[is]->G(), fields->phi, fields->bpar, geo_->kperp2, *G[is]->species);
     
     CP_TO_CPU(f_h + is*grids_->NxNycNz, tmp_d, sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(tmp_d, fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }
 
-ParticleTempDiagnostic::ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
- : MomentsDiagnostic(pars, grids, geo, ncdf, "ParticleTemp")  // call base class constructor
+ParticleTempDiagnostic::ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf)
+ : MomentsDiagnostic(pars, grids, geo, nonlinear, ncdf, "ParticleTemp")  // call base class constructor
 {
   if(grids_->m_lo>0) skipWrite = true;
 }
 
-void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, cuComplex* tmp_d)
+void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d)
 {
   for(int is=0; is<grids_->Nspecies; is++) {
     calc_T_bar <<<dG, dB>>> (tmp_d, G[is]->G(), fields->phi, fields->bpar, geo_->kperp2, *G[is]->species);
     
     CP_TO_CPU(f_h + is*grids_->NxNycNz, tmp_d, sizeof(cuComplex)*grids_->NxNycNz);
+
+    if(pars_->nonlinear_mode) {
+      grad_perp_->C2R(tmp_d, fXY);
+      CP_TO_CPU(fXY_h + is*grids_->NxNyNz, fXY, sizeof(float)*grids_->NxNyNz);
+    }
   }
 }

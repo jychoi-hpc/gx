@@ -87,6 +87,8 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   checkCuda(cudaMalloc(&val1,  sizeof(float)));
   cudaMemset(val1, 0., sizeof(float));
 
+  fXY = dphi; // this is just a pointer for use in diagnostics
+
   int nxyz = grids_->NxNyNz;
   int nlag = grids_->Nj;
   int nher = grids_->Nm;
