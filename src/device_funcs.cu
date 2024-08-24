@@ -2102,6 +2102,8 @@ __global__ void qneut_and_ampere_perp(cuComplex* Phi,
 
 __global__ void find_max_fac_inv(float* qneutFacPhi,
 				 float* max_qneutFacPhi_inv,
+				 float* qneutFacPhi_inv_l,
+				 float* max_qneutFacPhi_inv_l,
 				 float* qneutFacBpar,
 				 float* max_qneutFacBpar_inv,
 				 float* ampereParFac,
@@ -2124,10 +2126,24 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
     float max_f = 0.0f;
     if(fapar > 0.) max_f = 1.0f/ampereParFac[idxy];
     float max_q = 1.0f/qneutFacPhi[idxy];
+    float max_q_l;
     float max_w = 0.0f;
     float max_x = 0.0f;
     float max_y = 0.0f;
     float max_z = 0.0f;
+
+    for(int il = 0; il < nl; il++){
+      unsigned int idxyl = idxy + nx*nyc*il;
+      max_q_l = qneutFacPhi_inv_l[idxy + nx*nyc*nz*il];
+      for(int iz = 0; iz < nz; iz++){
+        unsigned idxyzl = idxy + nx*nyc*(iz + nz*il);
+	if (abs(max_q_l) < abs(qneutFacPhi_inv_l[idxyzl])){
+	  max_q_l = qneutFacPhi_inv_l[idxyzl];
+	}
+      }
+      max_qneutFacPhi_inv_l[idxyl] = max_q_l;
+    }
+
     for (int iz = 0; iz < nz; iz++){
       unsigned int idxyz = get_idxyz(idx, idy, iz);
       if (max_q < 1.0f/qneutFacPhi[idxyz]){
@@ -2177,6 +2193,7 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
 //         amperePerpFacPhi  = beta/(2*B^2)*sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})
 //         amperePerpFacBpar = 1 + beta/(2*B^2)*sum_s n_s*t_s*sum_l (J_l + J_{l-1})^2
 __global__ void sum_solverFacs(float* qneutFacPhi,
+			       float* qneutFacPhi_inv_l,
 			       float* qneutFacBpar,
 			       float* ampereParFac,
 			       float* amperePerpFacPhi,
@@ -2196,7 +2213,8 @@ __global__ void sum_solverFacs(float* qneutFacPhi,
   
   if ( unmasked(idx, idy) && idz < nz) {
     unsigned int idxyz = get_idxyz(idx, idy, idz);
-        
+    unsigned int idxyzl;
+
     const float kperp2_ = kperp2[idxyz];
     float b_s;
     if (long_wavelength_GK) b_s = kperp2_ * sp.rho2_long_wavelength_GK;
@@ -2217,6 +2235,12 @@ __global__ void sum_solverFacs(float* qneutFacPhi,
       qneutFacPhi[idxyz] += sp.nz*sp.zt * b_s;
     } else {
       qneutFacPhi[idxyz] += sp.nz*sp.zt * ( 1. - g0_s );
+    }
+
+    for(int l = 0; l < nl; l++){
+      idxyzl = idxyz + nx*nyc*nz*l;
+      qneutFacPhi_inv_l[idxyzl] = Jflr(l,b_s) / qneutFacPhi[idxyz];
+    
     }
 
     if(fapar>0.) {
@@ -2504,7 +2528,8 @@ __global__ void linkedCopy_f(const float* __restrict__ G,
 
   if (idz < Nz && idk < nLinks*nChains && idlm < nMoms) {
     unsigned int idlink = idz + Nz*(idk + nLinks*nChains*idlm);
-    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+//    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
+    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + Nz*idlm));
     // NRM: seems hopeless to make these accesses coalesced. how bad is it?
     G_linked[idlink] = G[globalIdx];
   }
@@ -3082,7 +3107,7 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
 }
 
 
-__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3096,10 +3121,20 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
   unsigned int idxy = idy + nyc*idx;
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     float Q = max_qneutFacPhi_inv[idy*nLinks];
+    float Q_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + nLinks*nChains*idl];
+    float Q_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + nLinks*nChains*idl];
+
     for (int ik = 0; ik < nLinks; ik++){
         if (Q < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
+	if (abs(Q_l_i) < abs(max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl])){
+	  Q_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl];
+	}
+	if (abs(Q_l_e) < abs(max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl])){
+	  Q_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl];
+	}
+
     }
     int idms;
     unsigned int globalIdx; 
@@ -3107,9 +3142,15 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
 
 
-    cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk]; 
-
+//    cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
+//    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk]; 
+/*    cuComplex v0y0_i = spi.nz*Q_l_i*g1i[idzk + nznk*idl] + spe.nz*Q_l_i*g1e[idzk + nznk*idl];
+    cuComplex v0z0_i = spi.nz*Q_l_i*g2i[idzk + nznk*idl] + spe.nz*Q_l_i*g2e[idzk + nznk*idl]; 
+    
+    cuComplex v0y0_e = spi.nz*Q_l_e*g1i[idzk + nznk*idl] + spe.nz*Q_l_e*g1e[idzk + nznk*idl];
+    cuComplex v0z0_e = spi.nz*Q_l_e*g2i[idzk + nznk*idl] + spe.nz*Q_l_e*g2e[idzk + nznk*idl]; */
+    cuComplex v0y0 = spi.nz*g1i[idzk + nznk*idl] + spe.nz*g1e[idzk + nznk*idl];
+    cuComplex v0z0 = spi.nz*g2i[idzk + nznk*idl] + spe.nz*g2e[idzk + nznk*idl];
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
@@ -3244,7 +3285,7 @@ __global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kpe
   }
 }
 
-__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
+__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
 {
 
   unsigned int idz  = get_id1();
@@ -3260,11 +3301,23 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q_avg = max_qneutFacPhi_inv[idy*nLinks];
+    float Q_avg_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + nLinks*nChains*idl];
+    float Q_avg_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + nLinks*nChains*idl];
+
     for (int ik = 0; ik < nLinks; ik++){
         if (Q_avg < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q_avg = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
+	if(abs(Q_avg_l_i) < abs(max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl])){
+	  Q_avg_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl];
+	}
+	if(abs(Q_avg_l_e) < abs(max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl])){
+	  Q_avg_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl];
+	}
+
     }
+//    if(idz == 0) printf("At idy = %d, il = %d, max_q_l is %f\n", idy, idl, Q_avg_l_i);
+
 //    printf("At idy = %d, Q is %f\n", idy, Q_avg);
 
     int idm = 0; // this cannot be unsigned (see below)
@@ -3303,33 +3356,38 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
 	if (idm < nm){
           rm = gi[globalIdx];
 	  if(full_phi && idm == 1){
-	    if(idl == 0){
+/*	    if(idl == 0){
 	      rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idzk]*Q_avg + spe.nz*gre[idzk]*Q_avg - phi_i[idzk + nznk*idl]);
 	    }
 	    else{
 	      rm = rm + sdtvt*ikz*gradpar*spi.zt*(-phi_i[idzk + nznk*idl]);
-	    }
+	    }*/
+	    rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idzk + nznk*idl]*Q_avg_l_i + spe.nz*gre[idzk + nznk*idl]*Q_avg_l_i - phi_i[idzk + nznk*idl]);
+
 	  }
 	}
 	else{
 	  rm = ge[globalIdx];
 	  if(full_phi && idm == nm+1){
-	    if(idl == 0){
+/*	    if(idl == 0){
 	      rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idzk]*Q_avg + spe.nz*gre[idzk]*Q_avg - phi_e[idzk + nznk*idl]);
 	    }
 	    else{
 	      rm = rm + sdtvt*ikz*gradpar*spe.zt*(-phi_e[idzk + nznk*idl]);
-	    }
+	    }*/
+	    rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idzk + nznk*idl]*Q_avg_l_e + spe.nz*gre[idzk + nznk*idl]*Q_avg_l_e - phi_e[idzk + nznk*idl]);
+
 	  }
 
 	}
       }
-      else if (stage == 1 && idl==0){
+//      else if (stage == 1 && idl==0){
+      else if(stage == 1){
 	if(idm == 1){
-	  rm = sdtvt*ikz*gradpar*spi.zt;
+	  rm = sdtvt*ikz*gradpar*spi.zt*Q_avg_l_i;
 	}
 	else if(idm == nm+1){
-	  rm = sdtvt*ikz*gradpar*spe.zt;
+	  rm = sdtvt*ikz*gradpar*spe.zt*Q_avg_l_e;
 	}
       }
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)

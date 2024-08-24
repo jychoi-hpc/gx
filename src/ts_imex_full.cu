@@ -112,7 +112,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
       }
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
@@ -138,7 +138,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
+        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
       }
      
       for(int is = 0; is < grids_->Nspecies; is++){
