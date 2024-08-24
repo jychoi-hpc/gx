@@ -129,6 +129,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
   kzLinked = (float**) malloc(sizeof(float*)*nClasses);
 
   //  printf("nClasses = %d\n", nClasses);
+  int nLC_tot = 0;
   for(int c=0; c<nClasses; c++) {
     //    printf("\tClass %d: nChains = %d, nLinks = %d\n", c, nChains[c], nLinks[c]);
 
@@ -139,9 +140,10 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
 
     CP_TO_GPU(ikxLinked[c], ikxLinked_h[c], sizeof(int)*nLC);
     CP_TO_GPU(ikyLinked[c], ikyLinked_h[c], sizeof(int)*nLC);
-
+    nLC_tot += nLC;
     size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*grids_->Nz;
     size_t sLClmz_f = sizeof(float)*nLC*grids_->Nl*grids_->Nm*grids_->Nz;
+    printf("nLinks is %d\n", nLinks[c]);    
 
     checkCuda(cudaMalloc((void**) &G_linked[c], sLClmz));
     cudaMemset(G_linked[c], 0., sLClmz);
@@ -258,12 +260,12 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     dB_inv[c] = dim3(nt1, nt2, nt4);
     dG_inv[c] = dim3(nb1, nb2, nb4);
 
-    
     //    dB[c] = dim3(32,4,4);
     //    dG[c] = dim3(1 + (grids_->Nz-1)/dB[c].x,
     //		 1 + (nLinks[c]*nChains[c]-1)/dB[c].y,
     //		 1 + (grids_->Nmoms-1)/dB[c].z);
   }
+ printf("nLC TOT is %d\n", nLC_tot);    
 
   set_callbacks();
   

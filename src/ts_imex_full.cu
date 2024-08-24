@@ -18,7 +18,9 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   Gr = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  if (pars_->implicit_omega != 1.0){
+    G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  }
   phi_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   apar_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
@@ -34,7 +36,9 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     Gc[is] = new MomentsG (pars_, grids_, is_glob);
     Gr[is] = new MomentsG (pars_, grids_, is_glob);
     G0[is] = new MomentsG (pars_, grids_, is_glob);
-    G2[is] = new MomentsG (pars_, grids_, is_glob);
+    if(pars_->implicit_omega != 1.0){
+      G2[is] = new MomentsG (pars_, grids_, is_glob);
+    }
     checkCuda(cudaMalloc((void**) &phi_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
     checkCuda(cudaMalloc((void**) &apar_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
  
@@ -123,7 +127,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
 	if(pars_->fapar > 0.){
 	  apply_flr_phi<<<dG, dB>>>(apar_l[is], f->apar, kperp2_, *(G1[is]->species));
 	}
-        G2[is]->copyFrom(G1[is]);
+	if(omega != 1.0){
+          G2[is]->copyFrom(G1[is]);
+	}
         Gr[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
       }
@@ -137,7 +143,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
      
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
-        G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
+	if (omega != 1.0){
+          G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
+	}
       }
 
     }
@@ -184,7 +192,9 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 	  apply_flr_phi<<<dG, dB>>>(apar_l[is], f->apar, kperp2_, *(G1[is]->species));
 	  grad_par->zft_nmoms(apar_l[is], apar_l[is], grids_->Nl);
 	}
-        G2[is]->copyFrom(G1[is]);
+	if(omega != 1.0){
+          G2[is]->copyFrom(G1[is]);
+	}
         Gr[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
 	grad_par->zft(G1[is]);
@@ -207,7 +217,9 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
-        G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
+	if(omega != 1.0){
+          G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
+	}
       }
 
     }
