@@ -120,7 +120,7 @@ N_Vector GXV_Clone( N_Vector other )
 
 void GXV_Destroy( N_Vector v )
 {
-	delete v->content;
+	delete reinterpret_cast<GXVector*>(v->content);
 	v->content = nullptr;
 	v->ops = nullptr;
 	N_VFreeEmpty( v );
