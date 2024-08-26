@@ -4011,7 +4011,7 @@ __global__ void add_const_kernel( cuComplex* g, float b )
   }
 }
 __device__ __constant__ unsigned int M_cut,L_cut,kx_cut,ky_cut;
-__device__ __constant__ float rtol_grid;
+__device__ __constant__ float rtol_loose;
 
 void setWeightingConstants( unsigned int Mc, unsigned int Lc, unsigned int kxc, unsigned int kyc, float rtg )
 {
@@ -4019,7 +4019,7 @@ void setWeightingConstants( unsigned int Mc, unsigned int Lc, unsigned int kxc, 
   cudaMemcpyToSymbol( L_cut, &Lc, sizeof(unsigned int) );
   cudaMemcpyToSymbol( kx_cut, &kxc, sizeof(unsigned int) );
   cudaMemcpyToSymbol( ky_cut, &kyc, sizeof(unsigned int) );
-  cudaMemcpyToSymbol( rtol_grid, &rtg, sizeof(float) );
+  cudaMemcpyToSymbol( rtol_loose, &rtg, sizeof(float) );
 }
 
 
