@@ -4023,7 +4023,7 @@ void setWeightingConstants( unsigned int Mc, unsigned int Lc, unsigned int kxc, 
 }
 
 
-__global__ __inline__ void reltol_smoothed( unsigned int idxy, unsigned int idlm, float rtol )
+__device__ float reltol_smoothed( unsigned int idxy, unsigned int idlm, float rtol )
 {
   // disable this function by setting rtol_loose to rtol
   if( rtol == rtol_loose ) return rtol;
