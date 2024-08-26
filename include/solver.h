@@ -22,6 +22,7 @@ class Solver {
   virtual float** getQneutFacPhi_inv_l() {return nullptr;};
   virtual float* get_max_qneutFacPhi_inv() {return nullptr;};
   virtual float** get_max_qneutFacPhi_inv_l() {return nullptr;};
+  virtual float** get_max_Jflr() {return nullptr;};
   virtual float* get_max_qneutFacBpar_inv() {return nullptr;};
   virtual float* get_max_ampereParFac_inv() {return nullptr;};
   virtual float* get_max_amperePerpFacPhi_inv() {return nullptr;};
@@ -46,6 +47,7 @@ class Solver_GK : public Solver {
 
   float* get_max_qneutFacPhi_inv() {return max_qneutFacPhi_inv;};
   float** get_max_qneutFacPhi_inv_l() {return max_qneutFacPhi_inv_l;};
+  float** get_max_Jflr() {return max_Jflr;};
   float* get_max_ampereParFac_inv() {return max_ampereParFac_inv;};
   float* get_max_qneutFacBpar_inv() {return max_qneutFacBpar_inv;};
   float* get_max_amperePerpFacPhi_inv() {return max_amperePerpFacPhi_inv;};
@@ -77,6 +79,7 @@ private:
   float * ampereParFac;
   float * qneutFacPhi;
   float ** qneutFacPhi_inv_l;
+  float ** max_Jflr;
   float * qneutFacBpar;
   float * amperePerpFacPhi;
   float * amperePerpFacBpar;

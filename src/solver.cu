@@ -9,7 +9,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo),
   tmp(nullptr), nbar(nullptr), jparbar(nullptr), jperpbar(nullptr), phiavgdenom(nullptr), 
   qneutFacPhi(nullptr), ampereParFac(nullptr),
-  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr), qneutFacPhi_inv_l(nullptr), max_qneutFacPhi_inv(nullptr), max_qneutFacPhi_inv_l(nullptr), max_ampereParFac_inv(nullptr), max_qneutFacBpar_inv(nullptr), max_amperePerpFacPhi_inv(nullptr), max_amperePerpFacBpar_inv(nullptr)
+  qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr), BparDenom(nullptr), qneutFacPhi_inv_l(nullptr), max_qneutFacPhi_inv(nullptr), max_qneutFacPhi_inv_l(nullptr), max_Jflr(nullptr), max_ampereParFac_inv(nullptr), max_qneutFacBpar_inv(nullptr), max_amperePerpFacPhi_inv(nullptr), max_amperePerpFacBpar_inv(nullptr)
 {
 
   if (pars_->ks) return;
@@ -51,6 +51,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
  
   qneutFacPhi_inv_l = (float**) malloc(sizeof(float*)*grids_->Nspecies); 
   max_qneutFacPhi_inv_l = (float**) malloc(sizeof(float*)*grids_->Nspecies);  
+  max_Jflr = (float**) malloc(sizeof(float*)*grids_->Nspecies);  
 
 
   if(pars_->fphi > 0.) {
@@ -61,7 +62,9 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
       cudaMemset(qneutFacPhi_inv_l[is], 0., sizeof(float)*grids_->NxNycNz*grids_->Nl);   
       cudaMalloc(&max_qneutFacPhi_inv_l[is],    sizeof(float)*grids_->NxNyc*grids_->Nl);
       cudaMemset(max_qneutFacPhi_inv_l[is], 0., sizeof(float)*grids_->NxNyc*grids_->Nl);    
-   
+      cudaMalloc(&max_Jflr[is],    sizeof(float)*grids_->NxNyc*grids_->Nl);
+      cudaMemset(max_Jflr[is], 0., sizeof(float)*grids_->NxNyc*grids_->Nl);    
+  
     }
     cudaMalloc(&max_qneutFacPhi_inv,    sizeof(float)*grids_->NxNyc);
     cudaMemset(max_qneutFacPhi_inv, 0., sizeof(float)*grids_->NxNyc);    
@@ -110,7 +113,7 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
 
     
-    find_max_fac_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv, qneutFacPhi_inv_l[is_glob], max_qneutFacPhi_inv_l[is_glob], qneutFacBpar, max_qneutFacBpar_inv, ampereParFac, max_ampereParFac_inv, amperePerpFacPhi, max_amperePerpFacPhi_inv, amperePerpFacBpar, max_amperePerpFacBpar_inv, BparDenom, geo_->bmagInv, pars_->fapar, pars_->fbpar);   
+    find_max_fac_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv, qneutFacPhi_inv_l[is_glob], max_qneutFacPhi_inv_l[is_glob], qneutFacBpar, max_qneutFacBpar_inv, ampereParFac, max_ampereParFac_inv, amperePerpFacPhi, max_amperePerpFacPhi_inv, amperePerpFacBpar, max_amperePerpFacBpar_inv, BparDenom, max_Jflr[is_glob], geo_->kperp2, pars_->species_h[is_glob], geo_->bmagInv, pars_->fapar, pars_->fbpar);   
     checkCudaErrors(cudaGetLastError()); 
    
     

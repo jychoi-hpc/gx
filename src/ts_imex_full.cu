@@ -59,7 +59,6 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     printf("USING GRADPARALLELLINKED!!!\n");
     grad_par = new GradParallelLinked(pars_, grids_);
   }
-  
 
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
@@ -112,7 +111,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+//        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+        grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+
       }
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
@@ -138,7 +139,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
+//        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
+        grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
+
       }
      
       for(int is = 0; is < grids_->Nspecies; is++){
@@ -147,6 +150,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
           G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
 	}
       }
+
+      solver_->fieldSolve(G1, f);
+      
 
     }
   }
