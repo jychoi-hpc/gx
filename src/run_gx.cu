@@ -61,6 +61,9 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     }
     solver -> fieldSolve(G, fields);                
 
+    if( pars_->scheme_opt == Tmethod::sundials )
+      pars_->write_free_energy = true; // Always have to have Wg available
+
     // set up diagnostics
     if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");
     diagnostics = new Diagnostics_GK(pars, grids, geo, linear, nonlinear);
@@ -208,6 +211,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+    if( pars->scheme_opt == Tmethod::sundials )
+      reinterpret_cast<SundialsStepper*>(timestep)->inform_;
     timestep -> advance(&time, G, fields);
     if (checkstop) break;
 

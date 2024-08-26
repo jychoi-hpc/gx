@@ -4016,15 +4016,60 @@ __global__ void add_const_kernel( cuComplex* g, float b )
     g[ ig ].x += b;
   }
 }
+__device__ __constant__ unsigned int M_cut,L_cut,kx_cut,ky_cut;
+__device__ __constant__ float rtol_grid;
+
+void setWeightingConstants( unsigned int Mc, unsigned int Lc, unsigned int kxc, unsigned int kyc, float rtg )
+{
+  cudaMemcpyToSymbol( M_cut, &Mc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( L_cut, &Lc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( kx_cut, &kxc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( ky_cut, &kyc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( rtol_grid, &rtg, sizeof(float) );
+}
+
 
 __global__ __inline__ void reltol_smoothed( unsigned int idxy, unsigned int idlm, float rtol )
 {
+  // disable this function by setting rtol_loose to rtol
+  if( rtol == rtol_loose ) return rtol;
+
   // This is where to put adjustments that are grid-location-dependent
-  // currently, we just treat everything the same
-  return rtol;
+  // currently smoothly goes from rtol at M_cut to rtol_grid at M_max
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+  unsigned int idl = idlm % nl;
+  unsigned int idm = idlm / nl;
+
+  // this shouldn't be called for masked elements, but if we are, just say that
+  // they don't matter for error control
+  if( !unmasked(idx,idy) )
+    return 0;
+
+  // m_pos is 0 for idm in [0,M_cut] and 1 at M_max, disable by setting M_cut to Nm
+  float m_pos = ( idm < M_cut ) ? 0 : ( idm + 1 - M_cut ) / ( nm - M_cut ) ;
+  float l_pos = ( idl < L_cut ) ? 0 : ( idl + 1 - L_cut ) / ( nl - L_cut ) ;
+
+  unsigned int ky_max = (ny - 1)/3 + 1;
+  unsigned int kx_max = (nx - 1)/3 + 1;
+
+  float y_pos = ( idy < ky_cut ) ? 0 : ( idy + 1 - ky_cut ) / ( ky_max - ky_cut ) ;
+
+  unsigned int kx_abs = abs(get_ikx( idx ));
+  float x_pos = ( kx_abs < kx_cut ) ? 0 : ( kx_abs - kx_cut ) / ( kx_max - kx_cut ) ;
+
+  // convert the 4 coordinates on [0,1]^4 to a single number
+
+  float k_pos = ( y_pos > x_pos ) ? y_pos : x_pos;
+  float v_pos = ( m_pos > l_pos ) ? m_pos : l_pos;
+
+  float pos = ( k_pos > v_pos ) ? k_pos : v_pos;
+
+  return (1.0-pos)*rtol + pos*rtol_loose;
 }
 
-__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float atol, float rtol, float Wg )
+
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float rtol )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
@@ -4034,27 +4079,8 @@ __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float atol
   unsigned int idlm = get_id3();
 
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
-    float abstol = Wg > 0 ? atol*Wg : atol;
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     float reltol = reltol_smoothed( idxy, idlm, rtol );
-    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
-    wgt[ ig ].y = 0.0;
-  }
-}
-
-__global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *density, float atol, float reltol )
-{
-  unsigned int idxy = get_id1();
-  unsigned int idy = idxy % nyc;
-  unsigned int idx = idxy / nyc;
-
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-
-  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
-    float abstol = density[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-
     wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
     wgt[ ig ].y = 0.0;
   }
@@ -4064,15 +4090,15 @@ __global__ void add_complex_scaled_kernel(cuComplex* res,
 				  cuComplex c1, const cuComplex* m1,
 				  cuComplex c2, const cuComplex* m2, bool neqfix )
 {
-  unsigned int idxy = get_id1(); 
+  unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
 
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     if (neqfix || not_fixed_eq(idxy)) {
-      
+
       unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-      
+
       res[ig].x = c1.x * m1[ig].x + c2.x * m2[ig].x - c1.y * m1[ig].y - c2.y * m2[ig].y;
       res[ig].y = c1.x * m1[ig].y + c2.x * m2[ig].y + c1.y * m1[ig].x + c2.y * m2[ig].x;
     }
