@@ -654,9 +654,6 @@ __global__ void eig_residual(double* y, double* A, double* x, double* R,
   }
 }
 
-__global__ void est_eval(double eval, double *fLf, double* f2) {eval = fLf[0]/f2[0];}
-
-
 __global__ void inv_scale_kernel(double* res, const double* f, const double* scalar, int N)
 {
   unsigned int n = get_id1();
@@ -1268,7 +1265,6 @@ __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex elemen
 
 __device__ void scale_ky(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
 {
-  unsigned int idy = offset % nyc;
   ((cuComplex*)dataOut)[offset] = element/(ny);
 }
 
@@ -2834,7 +2830,7 @@ __global__ void dampEnds_linked(cuComplex* G,
     // set damping region width to 1/8 of extended domain (on either side)
     // widthfac = 1./8.;
     int width = (int) nz*nLinks*widthfrac;  
-    float L = (float) 2*M_PI*zp*nLinks*widthfrac;
+    // float L = (float) 2*M_PI*zp*nLinks*widthfrac;
     float vmax = sqrtf(2*nm_glob); // estimate of max vpar on grid
     if (idzl <= width ) {
       float x = ((float) idzl)/width;
@@ -2901,7 +2897,7 @@ __global__ void dampEnds_linkedNTFT(cuComplex* G,
     int width = (int) nLinks * widthfrac;  
     if (width == 0) width = 1; //sometimes links are less than 1/widthfrac long in NTFT, this makes sure we don't get divide by zero errors
     
-    float L = (float) 2*M_PI*zp*(int(nLinks/nz)+1)*widthfrac; //calculate L by rounding up nLinks to a multiple of Nz (like the conventional), or else the damping term becomes too large and Phi2 blows up
+    // float L = (float) 2*M_PI*zp*(int(nLinks/nz)+1)*widthfrac; //calculate L by rounding up nLinks to a multiple of Nz (like the conventional), or else the damping term becomes too large and Phi2 blows up
     float vmax = sqrtf(2*nm_glob); // estimate of max vpar on grid
     if (idzl < width ) {
       float x = ((float) idzl)/width;
@@ -3091,7 +3087,6 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
     const float nz_ = sp.nz;
     const float nu_ = sp.nu_ss; 
     const float tprim_ = sp.tprim;
-    const float uprim_ = sp.uprim;
     const float fprim_ = sp.fprim;
     const float kperp2_ = kperp2[idxyz];
     const float b_s = kperp2_ * sp.rho2;
@@ -3266,7 +3261,6 @@ __global__ void krehm_collisions(const cuComplex* g,
     const cuComplex apar_     = apar[idxyz];
     const cuComplex apar_ext_ = apar_ext[idxyz];
 
-    const float rhos_ov_de = rhos/de;
     const float kperp2 = kx[idx]*kx[idx] + ky[idy]*ky[idy];
 
     for (unsigned int m = m_lo; m < m_up; m++) {

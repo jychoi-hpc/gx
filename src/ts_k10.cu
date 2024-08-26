@@ -54,8 +54,12 @@ void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fi
     G_q1[is]->sync();
 
     // compute timestep (if necessary)
-    if (setdt && is==0 && nonlinear_ != nullptr) { // dt will be computed same for all species, so just do first time through species loop
-      dt_ = nonlinear_->cfl(f, dt_);
+    if (setdt && is==0) { // dt will be computed same for all species, so just do first time through species loop
+      linear_->get_max_frequency(omega_max);
+      if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
+      double wmax = 0.;
+      for(int i=0; i<3; i++) wmax += omega_max[i];
+      dt_ = min(pars_->cfl/wmax, dt_max);
     }
 
     // compute and increment nonlinear term

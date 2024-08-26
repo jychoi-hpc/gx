@@ -125,15 +125,15 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   maxSharedSize = prop.sharedMemPerBlockOptin;
 
   DEBUGPRINT("For linear RHS: size of shared memory block = %f KB\n", sharedSize/1024.);
-  if(sharedSize>maxSharedSize && grids_->m_ghost == 0) {
+
+  if( sharedSize > maxSharedSize && grids_->m_ghost == 0) {
     printf("Error: currently cannot support this velocity resolution due to shared memory constraints.\n");
     printf("If you wish to try to keep this velocity resolution, ");
     printf("you can try lowering i_share in your input file.\n");
     printf("You are using i_share = %d now, perhaps by default.\n", pars_->i_share);
-    printf("The size of the shared memory block should be less than %d KB ", maxSharedSize/1024);
+    printf("The size of the shared memory block should be less than %ld KB ", maxSharedSize/1024);
     printf("which means i_share*(nhermite+4)*(nlaguerre+2) < %d. \n", 12*1024);
-    printf("Presently, you have set i_share*(nhermite+4)*(nlaguerre+2) = %d. \n",
-	   pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
+    printf("Presently, you have set i_share*(nhermite+4)*(nlaguerre+2) = %d. \n", pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
     exit(1);
   }
 
@@ -296,14 +296,19 @@ Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo) :
   }
  
   switch (pars_->closure_model_opt)
-    {
+  {
     case Closure::none      :
+      // OK, no closure specified, no need to print anything
+      break;
+    default:
+      // A closure was specified, but we aren't using it, best to inform the user.
+      fprintf(stderr, "Ignoring closure option. Closures not supported for KREHM");
       break;
     case Closure::smithpar  :
       DEBUGPRINT("Initializing Smith parallel closures\n");
       //closures = new SmithPar(pars_, grids_, geo_, grad_par);
       break;
-    }
+  }
   
   int nn1 = grids_->Nyc;   int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;    int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;

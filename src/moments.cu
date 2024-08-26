@@ -17,7 +17,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
   
   DEBUGPRINT("Allocated a G_lm array of size %.2f MB\n", lhsize/1024./1024.);
 
-  int Nm = grids_->Nm;
+  // int Nm = grids_->Nm;
   int Nl = grids_->Nl;
 
   // set up pointers for named moments that point to parts of G_lm
@@ -670,7 +670,7 @@ void MomentsG::restart_read(double* time)
   
   // handles
   int id_nz, id_Nkx, id_Nky;
-  int id_nh, id_nl, id_ns;
+  int id_nh, id_nl;
   int id_G, id_time;
 
   char stra[NC_MAX_NAME+1];
@@ -790,7 +790,7 @@ void MomentsG::restart_read(double* time)
     int old_Naky = 1 +    (Ny/pars_->ny_mult - 1)/3;    int jj; 
     int old_Nakx = 1 + 2*((Nx/pars_->nx_mult - 1)/3);   int ii; 
     int old_Nx = Nx/pars_->nx_mult;
-    int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
+    // int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
     int old_Nm = Nm - pars_->nm_add;
     int old_Nl = Nl - pars_->nl_add;
     

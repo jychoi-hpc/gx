@@ -177,37 +177,37 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   }    
   checkCudaErrors(cudaGetLastError());
 
-  Timestepper * timestep;
+  Timestepper * timestep = nullptr;
   switch (pars->scheme_opt)
-    {
+  {
     case Tmethod::k10   : timestep = new Ketcheson10 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
-    case Tmethod::k2    : timestep = new K2          (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
-    case Tmethod::g3    : timestep = new G3          (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     case Tmethod::rk3   : timestep = new RungeKutta3 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
-    case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
 
     case Tmethod::sundials: timestep = new SundialsStepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
-    }
+
+    default:
+      printf("Unknown timestepper id (%u). Aborting.",static_cast<unsigned int>(pars->scheme_opt) );
+      exit(1);
+  }
 
   fflush(stdout);
   MPI_Barrier(pars->mpcom);
   printDeviceMemoryUsage(pars->iproc);
   MPI_Barrier(pars->mpcom);
   fflush(stdout);
-  
+
   //  if (pars->write_moms) diagnostics -> write_init(G, fields);
-	 
+
   // TIMESTEP LOOP
   int counter = 0;           float timer = 0;          cudaEvent_t start, stop;    bool checkstop = false;
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
-  bool bvar; 
 
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
-  
+
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
@@ -222,16 +222,13 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     checkCudaErrors(cudaGetLastError());
     counter++;
     if (counter==pars->nstep || time>=pars->t_max) {
-      bvar = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+      [[maybe_unused]] auto unused = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     }
   }
 
   if (pars->save_for_restart) diagnostics -> restart_write(G, &time);
 
-  if (pars->eqfix && (
-		      (pars->scheme_opt == Tmethod::k10) ||
-		      (pars->scheme_opt == Tmethod::g3) ||
-		      (pars->scheme_opt == Tmethod::k2))) {
+  if (pars->eqfix && (pars->scheme_opt == Tmethod::k10) ) {
     printf("\n");
     printf("\n");
     printf(ANSI_COLOR_MAGENTA);
@@ -242,10 +239,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
     printf(ANSI_COLOR_BLUE);
     printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_RESET);    
+    printf(ANSI_COLOR_RESET);
     printf("\n");
     printf("\n");
-  }  
+  }
   
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
   printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);

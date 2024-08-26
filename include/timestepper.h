@@ -21,33 +21,6 @@ class Timestepper {
   virtual double get_dt() = 0;
 };
 
-class RungeKutta2 : public Timestepper {
- public:
-  RungeKutta2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
-  ~RungeKutta2();
-  void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
-  
- private:
-  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** G, MomentsG* GRhs,
-		 Fields* f, double adt, bool setdt);
-
-  double dt_;
-  const double dt_max;
-  const double cfl_fac = 1.0;
-  double omega_max[3];
-  Linear     * linear_    ;
-  Nonlinear  * nonlinear_ ;
-  Solver     * solver_    ;
-  Parameters * pars_      ;
-  Grids      * grids_     ;
-  Forcing    * forcing_   ;
-  ExB        * exb_       ;
-  MomentsG   * GRhs       ;
-  MomentsG  ** G1         ;
-};
-
 class RungeKutta3 : public Timestepper {
  public:
   RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
@@ -118,6 +91,7 @@ class Ketcheson10 : public Timestepper {
   void EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fields* f,  bool setdt);
   const double dt_max;
   double dt_;
+  double omega_max[3];
 
   Linear       * linear_    ;
   Nonlinear    * nonlinear_ ;
@@ -130,34 +104,6 @@ class Ketcheson10 : public Timestepper {
   MomentsG    ** G_q1       ;
   MomentsG    ** G_q2       ;
   MomentsG     * Gtmp       ;
-};
-
-class K2 : public Timestepper {
- public:
-  K2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-     Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
-  ~K2();
-  void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
-
- private:
-  void EulerStep(MomentsG** G_q1, MomentsG** GRhs, Fields* f, bool setdt);
-  void FinalStep(MomentsG** G_q1, MomentsG** G_q2, MomentsG** GRhs, Fields* f);
-  const double dt_max;
-  double dt_;
-  int stages_;
-  double sm1inv;
-  double sinv;
-  
-  Linear     * linear_    ;
-  Nonlinear  * nonlinear_ ;
-  Solver     * solver_    ;
-  Parameters * pars_      ;
-  Grids      * grids_     ;
-  Forcing    * forcing_   ;
-  ExB        * exb_       ;
-  MomentsG  ** G_q1       ;
-  MomentsG  ** G_q2       ;
 };
 
 class SSPx2 : public Timestepper {
@@ -223,34 +169,10 @@ class SSPx3 : public Timestepper {
   double dt_;
 };
 
-class G3 : public Timestepper {
- public:
-  G3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-     Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in);
-  ~G3();
-  void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
-
- private:
-  void EulerStep(MomentsG** G_q1, MomentsG** GRhs, Fields* f,  bool setdt);
-  const double dt_max;
-  double dt_;
-
-  Linear     * linear_    ;
-  Nonlinear  * nonlinear_ ;
-  Solver     * solver_    ;
-  Parameters * pars_      ;
-  Grids      * grids_     ;
-  Forcing    * forcing_   ;
-  ExB        * exb_       ;
-  MomentsG  ** G_u1       ;
-  MomentsG  ** G_u2       ;
-};
-
 class SundialsStepper : public Timestepper {
  public:
-  SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	      Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
+   SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+                   Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -289,6 +211,5 @@ class SundialsStepper : public Timestepper {
   Grids      * grids_     ;
   ExB        * exb_       ;
   Forcing    * forcing_   ;
-  Fields	    * fields_    ;
+  Fields     * fields_    ;
 };
-

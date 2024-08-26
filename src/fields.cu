@@ -216,7 +216,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
               //float kc2 = static_cast<float>(kc*kc);
 
               //float k2 = static_cast<float>(kx*kx+ky*ky);
-	      int k2_int = kx*kx + ky*ky;
+	      // int k2_int = kx*kx + ky*ky;
 	      float z_coord = static_cast<float>(idz) / static_cast<float>(Nz);
 	      //float z_mode = (cos(2.0 * M_PI * z_coord) + cos(2.0 * M_PI * 2.0 * z_coord) + cos(2.0 * M_PI * 3.0 * z_coord) + cos(2.0 * M_PI * 4.0 * z_coord) + cos(2.0 * M_PI * 5.0 * z_coord) + cos(2.0 * M_PI * 6.0 * z_coord) )/6.0;
 	      //float z_mode = cos(2.0 * M_PI * z_coord);

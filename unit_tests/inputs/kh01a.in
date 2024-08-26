@@ -79,7 +79,6 @@ Pspectra.z                = true
  temp  = [ 1.0,       1.0     ]
  tprim = [ 0.0,       0.0     ]
  fprim = [ 0.0,       0.0     ]
- uprim = [ 0.0,       0.0     ]
  vnewk = [ 0.0,       0.0     ]
  type  = [ "ion",  "electron" ]
 

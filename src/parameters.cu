@@ -669,7 +669,6 @@ void Parameters::get_nml_vars(char* filename)
   species_h = (specie *) malloc(nspec_in*sizeof(specie));
   if (nml.contains("species")) {
     for (int is=0; is < nspec_in; is++) {
-      species_h[is].uprim = 0.;
       species_h[is].nu_ss = 0.;
       species_h[is].temp = 1.;
       
@@ -679,7 +678,6 @@ void Parameters::get_nml_vars(char* filename)
       if(nml.at("species").count("temp")>0) species_h[is].temp  = toml::find <float>  (nml, "species", "temp",  is);
       species_h[is].tprim = toml::find <float>  (nml, "species", "tprim", is);
       species_h[is].fprim = toml::find <float>  (nml, "species", "fprim", is);
-      if(nml.at("species").count("uprim")>0) species_h[is].uprim = toml::find <float>  (nml, "species", "uprim", is);
       if(nml.at("species").count("vnewk")>0) species_h[is].nu_ss = toml::find <float>  (nml, "species", "vnewk", is);
       string stype        = toml::find <string> (nml, "species", "type",  is);
       species_h[is].type = stype == "ion" ? 0 : 1;
@@ -772,17 +770,13 @@ void Parameters::get_nml_vars(char* filename)
   else if( stir_field == "pperp"  ) { stirf = stirs::pperp  ; }
   
   if (scheme == "sspx3") scheme_opt = Tmethod::sspx3;
-  if (scheme == "g3")    scheme_opt = Tmethod::g3;
   if (scheme == "k10")   scheme_opt = Tmethod::k10;
-  if (scheme == "k2")    scheme_opt = Tmethod::k2;
   if (scheme == "rk4")   scheme_opt = Tmethod::rk4;
   if (scheme == "rk3")   scheme_opt = Tmethod::rk3;
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
-  if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "sundials") scheme_opt = Tmethod::sundials;
 
-
-  if (eqfix && iproc==0 && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
+  if (eqfix && iproc==0 && scheme_opt == Tmethod::k10) {
     printf("\n");
     printf("\n");
     printf(ANSI_COLOR_MAGENTA);
@@ -827,7 +821,7 @@ void Parameters::get_nml_vars(char* filename)
 void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   // open the netcdf4 file for this run
   // store all inputs for future reference
-  int retval, idim, sdim, wdim, pdim, adim, qdim, gamdim, phi2dim, nc_out, nc_inputs, nc_diss;
+  int retval, nc_inputs, nc_diss;
   if (retval = nc_def_grp(ncid,      "Inputs",         &nc_inputs)) ERR(retval);
   if (retval = nc_def_grp(nc_inputs, "Domain",         &nc_dom))    ERR(retval);  
   if (retval = nc_def_grp(nc_inputs, "Time",           &nc_time))   ERR(retval);  
@@ -1333,7 +1327,7 @@ void Parameters::init_species(specie* species)
 	     species[s].rho2, species[s].nt, species[s].nz);
       printf("jparfac, jperpfac = %f, %f \n", 
              species[s].jparfac, species[s].jperpfac);
-      printf("nu_ss = %f, tprim = %f, fprim = %f, uprim = %f\n\n", species[s].nu_ss, species[s].tprim, species[s].fprim, species[s].uprim);
+      printf("nu_ss = %f, tprim = %f, fprim = %f\n\n", species[s].nu_ss, species[s].tprim, species[s].fprim);
     }      
     vtmax = max(vtmax, species[s].vt);
     vtmin = min(vtmin, species[s].vt);
@@ -1373,9 +1367,9 @@ void Parameters::putbool (int ncid, const char varname[], bool val) {
 bool Parameters::getbool (int ncid, const char varname[]) {
   int idum, ires, retval;
   bool res;
-  if (debug) printf("%s = %i \n", varname, ires);
   if (retval = nc_inq_varid(ncid, varname, &idum))   ERR(retval);
   if (retval = nc_get_var  (ncid, idum, &ires)) ERR(retval);
+  if (debug) printf("%s = %i \n", varname, ires);
   res = (ires!=0) ? true : false ;
   return res;
 }
@@ -1383,9 +1377,9 @@ bool Parameters::getbool (int ncid, const char varname[]) {
 float Parameters::get_real (int ncid, const char varname[]) {
   int idum, retval;
   float res;
-  if (debug) printf("%s = %f \n",varname, res);
   if (retval = nc_inq_varid(ncid, varname, &idum))   ERR(retval);
   if (retval = nc_get_var  (ncid, idum, &res)) ERR(retval);
+  if (debug) printf("%s = %f \n",varname, res);
   return res;
 }
 
@@ -1465,7 +1459,7 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   // this stuff should all be in species itself!
   // reason for all this is basically legacy + cuda does not support <vector>
   
-  std::vector <float> zs, ms, ns, Ts, Tps, nps, ups, nus;
+  std::vector <float> zs, ms, ns, Ts, Tps, nps, nus;
   std::vector <int> types;
   
   for (int is=0; is<nspec; is++) {
@@ -1475,7 +1469,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
     Ts.push_back(spec[is].temp);
     Tps.push_back(spec[is].tprim);
     nps.push_back(spec[is].fprim);
-    ups.push_back(spec[is].uprim);
     nus.push_back(spec[is].nu_ss);
     types.push_back(spec[is].type);
   }
@@ -1485,7 +1478,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   float *T0 = &Ts[0];
   float *Tp = &Tps[0];
   float *np = &nps[0];
-  float *up = &ups[0];
   float *nu = &nus[0];
   int *st = &types[0];
   
@@ -1500,9 +1492,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
 
   if (retval = nc_inq_varid(ncid, "n0_prime", &idum))   ERR(retval);
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, np))  ERR(retval);
-
-  if (retval = nc_inq_varid(ncid, "u0_prime", &idum))   ERR(retval);
-  if (retval = nc_put_vara (ncid, idum, is_start, is_count, up))  ERR(retval);
 
   if (retval = nc_inq_varid(ncid, "T0", &idum))   ERR(retval);
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, T0))  ERR(retval);

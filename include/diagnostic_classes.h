@@ -26,7 +26,7 @@ using namespace std;
 // the output is real-valued
 class SpectraDiagnostic {
  public:
-  SpectraDiagnostic::SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
+  SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
   ~SpectraDiagnostic() {};
   virtual void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf) = 0;
   virtual void set_dt_data(MomentsG** G_old, Fields* f_old, float dt) {};

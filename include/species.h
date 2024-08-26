@@ -8,7 +8,6 @@ typedef struct {
   float temp;
   float tprim;
   float fprim;
-  float uprim;
   float nu_ss;
   float rho2;           
   float rho2_long_wavelength_GK;
