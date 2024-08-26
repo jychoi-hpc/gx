@@ -381,7 +381,6 @@ Complex GXVector::dotProduct( GXVector const & w ) const
 
 float GXVector::Norm() const
 {
-	assert( w.array.size() == array.size() );
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
