@@ -106,10 +106,12 @@ void GradParallelPeriodic::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cu
   //Not needed for periodic.
 }
 
-void GradParallelPeriodic::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv, float** max_qneutFacPhi_inv_l, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi)
+void GradParallelPeriodic::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi) 
 {
   //Not needed for periodic.
 }
+
+
 void GradParallelPeriodic::zft_streaming_invert_full_laguerre(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv,float** max_qneutFacPhi_inv_l, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi)
 {
   //Not needed for periodic.
@@ -239,10 +241,12 @@ void GradParallelLocal::zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComple
 void GradParallelLocal::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi){
   //Not needed for local.
 }
-void GradParallelLocal::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv, float** max_qneutFacPhi_inv_l, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi)
+
+void GradParallelLocal::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi) 
 {
   //Not needed for local.
 }
+
 
 void GradParallelLocal::zft_streaming_invert_full_laguerre(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv,float** max_qneutFacPhi_inv_l, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi)
 {

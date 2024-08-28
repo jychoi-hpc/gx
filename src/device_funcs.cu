@@ -3166,7 +3166,7 @@ __global__ void sherman_morrison_linked_full_laguerre(cuComplex* g1i, cuComplex*
 }
 
 
-__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3180,20 +3180,11 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
   unsigned int idxy = idy + nyc*idx;
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     float Q = max_qneutFacPhi_inv[idy*nLinks];
-    float Q_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + nLinks*nChains*idl];
-    float Q_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + nLinks*nChains*idl];
 
     for (int ik = 0; ik < nLinks; ik++){
         if (Q < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
-	if (abs(Q_l_i) < abs(max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl])){
-	  Q_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl];
-	}
-	if (abs(Q_l_e) < abs(max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl])){
-	  Q_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl];
-	}
-
     }
     int idms;
     unsigned int globalIdx; 
@@ -3201,15 +3192,8 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
 
 
-//    cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-//    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk]; 
-/*    cuComplex v0y0_i = spi.nz*Q_l_i*g1i[idzk + nznk*idl] + spe.nz*Q_l_i*g1e[idzk + nznk*idl];
-    cuComplex v0z0_i = spi.nz*Q_l_i*g2i[idzk + nznk*idl] + spe.nz*Q_l_i*g2e[idzk + nznk*idl]; 
-    
-    cuComplex v0y0_e = spi.nz*Q_l_e*g1i[idzk + nznk*idl] + spe.nz*Q_l_e*g1e[idzk + nznk*idl];
-    cuComplex v0z0_e = spi.nz*Q_l_e*g2i[idzk + nznk*idl] + spe.nz*Q_l_e*g2e[idzk + nznk*idl]; */
-    cuComplex v0y0 = spi.nz*g1i[idzk + nznk*idl] + spe.nz*g1e[idzk + nznk*idl];
-    cuComplex v0z0 = spi.nz*g2i[idzk + nznk*idl] + spe.nz*g2e[idzk + nznk*idl];
+    cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
+    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk]; 
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
@@ -3505,7 +3489,7 @@ __global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex*
 }
 
 
-__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
+__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
 {
 
   unsigned int idz  = get_id1();
@@ -3521,24 +3505,12 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
   if (idz < nz && idk < nLinks*nChains && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q_avg = max_qneutFacPhi_inv[idy*nLinks];
-    float Q_avg_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + nLinks*nChains*idl];
-    float Q_avg_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + nLinks*nChains*idl];
 
     for (int ik = 0; ik < nLinks; ik++){
         if (Q_avg < max_qneutFacPhi_inv[idy*nLinks + ik]){
           Q_avg = max_qneutFacPhi_inv[idy*nLinks + ik];
         }
-	if(abs(Q_avg_l_i) < abs(max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl])){
-	  Q_avg_l_i = max_qneutFacPhi_inv_l_i[idy*nLinks + ik + nLinks*nChains*idl];
-	}
-	if(abs(Q_avg_l_e) < abs(max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl])){
-	  Q_avg_l_e = max_qneutFacPhi_inv_l_e[idy*nLinks + ik + nLinks*nChains*idl];
-	}
-
       }
-//    if(idz == 0) printf("At idy = %d, il = %d, max_q_l is %f\n", idy, idl, Q_avg_l_i);
-
-//    printf("At idy = %d, Q is %f\n", idy, Q_avg);
 
     int idm = 0; // this cannot be unsigned (see below)
     int idms = 0;
@@ -3576,38 +3548,35 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
 	if (idm < nm){
           rm = gi[globalIdx];
 	  if(full_phi && idm == 1){
-/*	    if(idl == 0){
+	    if(idl == 0){
 	      rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idzk]*Q_avg + spe.nz*gre[idzk]*Q_avg - phi_i[idzk + nznk*idl]);
 	    }
 	    else{
 	      rm = rm + sdtvt*ikz*gradpar*spi.zt*(-phi_i[idzk + nznk*idl]);
-	    }*/
-	    rm = rm + sdtvt*ikz*gradpar*spi.zt*(spi.nz*gri[idzk + nznk*idl]*Q_avg_l_i + spe.nz*gre[idzk + nznk*idl]*Q_avg_l_i - phi_i[idzk + nznk*idl]);
+	    }
 
 	  }
 	}
 	else{
 	  rm = ge[globalIdx];
 	  if(full_phi && idm == nm+1){
-/*	    if(idl == 0){
+	    if(idl == 0){
 	      rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idzk]*Q_avg + spe.nz*gre[idzk]*Q_avg - phi_e[idzk + nznk*idl]);
 	    }
 	    else{
 	      rm = rm + sdtvt*ikz*gradpar*spe.zt*(-phi_e[idzk + nznk*idl]);
-	    }*/
-	    rm = rm + sdtvt*ikz*gradpar*spe.zt*(spi.nz*gri[idzk + nznk*idl]*Q_avg_l_e + spe.nz*gre[idzk + nznk*idl]*Q_avg_l_e - phi_e[idzk + nznk*idl]);
+	    }
 
 	  }
 
 	}
       }
-//      else if (stage == 1 && idl==0){
-      else if(stage == 1){
+      else if (stage == 1 && idl==0){
 	if(idm == 1){
-	  rm = sdtvt*ikz*gradpar*spi.zt*Q_avg_l_i;
+	  rm = sdtvt*ikz*gradpar*spi.zt;
 	}
 	else if(idm == nm+1){
-	  rm = sdtvt*ikz*gradpar*spe.zt*Q_avg_l_e;
+	  rm = sdtvt*ikz*gradpar*spe.zt;
 	}
       }
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
