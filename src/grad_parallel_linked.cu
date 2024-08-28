@@ -517,6 +517,24 @@ void GradParallelLinked::zft_streaming_invert_full_laguerre(MomentsG** G, Moment
   }
 }
 
+void GradParallelLinked::zft_sherman_morrison_subsolve(MomentsG** Gc, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar) 
+{
+  for(int c=0; c<nClasses; c++) {
+
+//    linkedCopy GCHAINS (Gc[0]->G(), Gc_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+//    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc_linked[c], Gc_linked[c], CUFFT_FORWARD));
+//    linkedCopy GCHAINS (Gc[1]->G(), Gc2_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+//    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc2_linked[c], Gc2_linked[c], CUFFT_FORWARD));
+
+    linkedCopy_f GCHAINS (max_qneutFacPhi_inv, max_qneutFacPhi_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
+
+    sherman_morrison_subsolve_linked_full<<<dG_inv[c], dB_inv[c]>>>(Gc_linked[c], Gc2_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], spi, spe, sdt, gradpar, nLinks[c], nChains[c]);  
+
+    linkedCopyBack GCHAINS (Gc_linked[c], Gc[0]->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+    linkedCopyBack GCHAINS (Gc2_linked[c], Gc[1]->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+
+  }
+}
 
 
 void GradParallelLinked::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, MomentsG** Gr, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi) 
@@ -529,9 +547,7 @@ void GradParallelLinked::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, 
     checkCuda(cufftExecC2C (zft_plan_forward[c], G2_linked[c], G2_linked[c], CUFFT_FORWARD));
 
     linkedCopy GCHAINS (Gc[0]->G(), Gc_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc_linked[c], Gc_linked[c], CUFFT_FORWARD));
     linkedCopy GCHAINS (Gc[1]->G(), Gc2_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc2_linked[c], Gc2_linked[c], CUFFT_FORWARD));
 
 
     linkedCopy GCHAINS (Gr[0]->G(), Gr_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
@@ -548,8 +564,6 @@ void GradParallelLinked::zft_streaming_invert_full(MomentsG** G, MomentsG** Gc, 
     linkedCopy_f GCHAINS (max_qneutFacPhi_inv, max_qneutFacPhi_inv_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1, 1);
 
     tridiag_streaming_linked_full<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], G2_linked[c], Gr_linked[c], Gr2_linked[c], phi_linked[c], phi2_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], spi, spe, sdt, gradpar, 0, full_phi, nLinks[c], nChains[c]);  
-
-    tridiag_streaming_linked_full<<<dG_inv[c], dB_inv[c]>>>(Gc_linked[c], Gc2_linked[c], Gr_linked[c], Gr2_linked[c], phi_linked[c], phi2_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], spi, spe, sdt, gradpar, 1, false, nLinks[c], nChains[c]);  
 
     sherman_morrison_linked_full<<<dG_inv[c], dB_inv[c]>>>(G_linked[c], G2_linked[c], Gc_linked[c], Gc2_linked[c], Gr_linked[c], Gr2_linked[c], kzLinked[c], max_qneutFacPhi_inv_linked[c], spi, spe, sdt, gradpar, nLinks[c], nChains[c]);  
 

@@ -105,6 +105,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
 {
   int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
+
+  grad_par->zft_sherman_morrison_subsolve(Gc,solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
+
   for(int count = 0; count < max_iter; count++){
     if(count == 0){
       if(pars_->fapar > 0.){
