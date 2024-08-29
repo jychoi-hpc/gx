@@ -167,6 +167,8 @@ class GradParallelLinked : public GradParallel {
   dim3 * dB_inv_l;
   dim3 * dG_inv_lw;
   dim3 * dB_inv_lw;
+  dim3 * dG_cp_lw;
+  dim3 * dB_cp_lw;
 
 };
 

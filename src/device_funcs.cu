@@ -3186,14 +3186,14 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
 
 
     cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-//    cuComplex v0z0 = spi.nz*Q*g2i[idz + nz*idx] + spe.nz*Q*g2e[idz + nz*idx]; 
-    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz + nz*idx] + spe.nz*Q*g2e[idz + nz*idx]; 
+//    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz]; 
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idzk + nznk * (idl + nl*idms); 
-//      globalIdx_lw = idz +nz*(idx +  nLinks*(idl + nl*idms));
-      globalIdx_lw = idz + nz*(idl + nl*idms);
+      globalIdx_lw = idz +nz*(idx +  nLinks*(idl + nl*idms));
+//      globalIdx_lw = idz + nz*(idl + nl*idms);
       if(idm < nm){
 	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx_lw];
       } 

@@ -128,7 +128,6 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
   float omega = pars_->implicit_omega;
 
 //  grad_par->zft_sherman_morrison_subsolve_lw(Gc, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0);
-    sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gc[0],Gc[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0);
 
   if(pars_->fapar > 0.){
     sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gr[0],Gr[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1);
