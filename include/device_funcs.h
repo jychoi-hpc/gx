@@ -327,10 +327,15 @@ __global__ void linkedFilterEnds(cuComplex* G, int ifilter,
 __global__ void linkedCopy(const cuComplex* __restrict__ G, cuComplex* __restrict__ G_linked, int nLinks, int nChains,
 			   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
 
+__global__ void linkedCopy_lw(const cuComplex* __restrict__ G, cuComplex* __restrict__ G_linked, int nLinks, int nChains,
+			   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
+
 __global__ void linkedCopy_f(const float* __restrict__ G, float* __restrict__ G_linked, int nLinks, int nChains,
                            const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, int Nz);
 
 __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked, cuComplex* __restrict__ G, int nLinks, int nChains,
+			       const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
+__global__ void linkedCopyBack_lw(const cuComplex* __restrict__ G_linked, cuComplex* __restrict__ G, int nLinks, int nChains,
 			       const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);
 
 __global__ void linkedAccumulateBack(const cuComplex* __restrict__ G_linked, cuComplex* __restrict__ G, int nLinks, int nChains,
@@ -414,6 +419,7 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
 __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains);
 __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* ge, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains);
 __global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage);
+__global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, int nLinks, int nChains);
 __global__ void tridiag_streaming_linked_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi, int nLinks, int nChains);
 __global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi);
 __global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi);

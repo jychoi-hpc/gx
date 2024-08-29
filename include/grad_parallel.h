@@ -27,6 +27,7 @@ class GradParallel {
   virtual void zft_streaming_invert_full_em(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, cuComplex** apar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const float beta, const float gradpar, bool full_phi) = 0;
   virtual void zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi) = 0;
   virtual void zft_sherman_morrison_subsolve(cuComplex** Gc, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar){};
+  virtual void zft_sherman_morrison_subsolve_lw(cuComplex** Gc, const specie spi, const specie spe, const double sdt, const float gradpar, int stage){};
 
 
   virtual void dealias(MomentsG* G) {};
@@ -93,6 +94,7 @@ class GradParallelLinked : public GradParallel {
   void zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const float* max_qneutFacBpar_inv, const float* max_amperePerpFacPhi_inv, const float* max_amperePerpFacBpar_inv, const double sdtvt, const float gradpar, bool full_phi);
   void zft_streaming_invert_full_em(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, cuComplex** apar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const float beta, const float gradpar, bool full_phi);
   void zft_sherman_morrison_subsolve(cuComplex** Gc, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar);
+  void zft_sherman_morrison_subsolve_lw(cuComplex** Gc, const specie spi, const specie spe, const double sdt, const float gradpar, int stage);
 
   void applyBCs(MomentsG* G, MomentsG* GRhs, Fields* f, float* kperp2, double dt);
 
@@ -163,6 +165,8 @@ class GradParallelLinked : public GradParallel {
   dim3 * dB_inv;
   dim3 * dG_inv_l;
   dim3 * dB_inv_l;
+  dim3 * dG_inv_lw;
+  dim3 * dB_inv_lw;
 
 };
 
