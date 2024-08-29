@@ -153,7 +153,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     CP_TO_GPU(ikyLinked[c], ikyLinked_h[c], sizeof(int)*nLC);
     nLC_tot += nLC;
     size_t sLClmz = sizeof(cuComplex)*nLC*grids_->Nl*grids_->Nm*grids_->Nz;
-    size_t sLClmz_lw = sizeof(cuComplex)*grids_->Nl*grids_->Nm*grids_->Nz*nChains[c];
+    size_t sLClmz_lw = sizeof(cuComplex)*grids_->Nl*grids_->Nm*grids_->Nz*nLinks[c];
     size_t sLClmz_f = sizeof(float)*nLC*grids_->Nl*grids_->Nz;
 
     printf("nLinks is %d\n", nLinks[c]);    
@@ -566,7 +566,7 @@ void GradParallelLinked::zft_streaming_invert_full(MomentsG** G, cuComplex** Gc,
 //    linkedCopy_lw <<<dG_cp_lw[c], dB_cp_lw[c]>>> (Gc[0], Gc_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
 //    linkedCopy_lw <<<dG_cp_lw[c], dB_cp_lw[c]>>> (Gc[1], Gc2_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
 
-    sherman_morrison_subsolve_linked_lw<<<dG_inv_lw[c], dB_inv_lw[c]>>>(Gc_linked[c], Gc2_linked[c], kzLinked[c], spi, spe, sdt, gradpar, 0, nLinks[c], nChains[c]);
+//    sherman_morrison_subsolve_linked_lw<<<dG_inv_lw[c], dB_inv_lw[c]>>>(Gc_linked[c], Gc2_linked[c], kzLinked[c], spi, spe, sdt, gradpar, 0, nLinks[c], nChains[c]);
 
     linkedCopy GCHAINS (phi[0], phi_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nl);
     cufftExecC2C(zft_plan_forward_laguerre[c], phi_linked[c], phi_linked[c], CUFFT_FORWARD);
