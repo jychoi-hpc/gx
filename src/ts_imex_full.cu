@@ -15,12 +15,11 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   B2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
   B3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  Gr = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+
+  Gc = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
+  Gr = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  if (pars_->implicit_omega != 1.0){
-    G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  }
+  G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   phi_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   apar_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
@@ -33,12 +32,21 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     B2[is] = new MomentsG (pars_, grids_, is_glob);
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
-    Gc[is] = new MomentsG (pars_, grids_, is_glob);
-    Gr[is] = new MomentsG (pars_, grids_, is_glob);
-    G0[is] = new MomentsG (pars_, grids_, is_glob);
-    if(pars_->implicit_omega != 1.0){
-      G2[is] = new MomentsG (pars_, grids_, is_glob);
+
+    if(pars_->implicit_preconditioner == "long_wavelength"){
+      checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+      if(pars_->fapar > 0){
+        checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+      }
     }
+    else{
+      checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
+      if(pars_->fapar > 0){
+        checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
+      }
+    }
+    G0[is] = new MomentsG (pars_, grids_, is_glob);
+    G2[is] = new MomentsG (pars_, grids_, is_glob);
     checkCuda(cudaMalloc((void**) &phi_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
     checkCuda(cudaMalloc((void**) &apar_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
  
@@ -63,9 +71,17 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
   int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
-  
+
+  int nn4 = grids_->Nz;              int nt4 = min(nn4,  16);   int nb4 = 1 + (nn4-1)/nt4;
+  int nn5 = grids_->Nl;   int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
+
+
   dB = dim3(nt1, nt2, nt3);
-  dG = dim3(nb1, nb2, nb3);  
+  dG = dim3(nb1, nb2, nb3); 
+
+  dB_lw = dim3(nt4, nt5, 1);
+  dG_lw = dim3(nb4, nb5, 1);  
+
 }
 
 IMEX_3stage_Full::~IMEX_3stage_Full()
@@ -101,21 +117,24 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
   int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
 
-  grad_par->zft_sherman_morrison_subsolve(Gc,solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
+  sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gc[0],Gc[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_,0);
 
+  if(pars_->fapar > 0.){
+    sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gr[0],Gr[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1);
+ 
+  }
   for(int count = 0; count < max_iter; count++){
     if(count == 0){
       if(pars_->fapar > 0.){
-        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
+        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
-//        grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+        grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
 
       }
       for(int is = 0; is < grids_->Nspecies; is++){
@@ -131,21 +150,60 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
 	if(pars_->fapar > 0.){
 	  apply_flr_phi<<<dG, dB>>>(apar_l[is], f->apar, kperp2_, *(G1[is]->species));
 	}
-	if(omega != 1.0){
-          G2[is]->copyFrom(G1[is]);
-	}
-        Gr[is]->copyFrom(G1[is]);
+        
+	G2[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
       }
       
       if(pars_->fapar > 0.){
-        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
+        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
-//        grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, phi_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
-
+        grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
       }
+     
+      for(int is = 0; is < grids_->Nspecies; is++){
+        grad_par->zft_inverse(G1[is]);
+	if (omega != 1.0){
+          G1[is]->add_scaled(omega,G1[is], 1-omega,G2[is]);
+	}
+      }
+
+      solver_->fieldSolve(G1, f);
+      
+    }
+  }
+
+}
+
+
+void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+{
+  int max_iter = pars_->implicit_max_iter;
+  float omega = pars_->implicit_omega;
+
+  grad_par->zft_sherman_morrison_subsolve(Gc,solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
+
+  for(int count = 0; count < max_iter; count++){
+    if(count == 0){
+      grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false);
+      
+      for(int is = 0; is < grids_->Nspecies; is++){
+        grad_par->zft_inverse(G1[is]);
+      }
+
+    }
+    else{
+      solver_->fieldSolve(G1, f);
+      for(int is = 0; is < grids_->Nspecies; is++){
+	apply_flr_phi<<<dG, dB>>>(phi_l[is], f->phi, kperp2_, *(G1[is]->species));
+        
+	G2[is]->copyFrom(G1[is]);
+	G1[is]->copyFrom(G0[is]);
+      }
+      
+      grad_par->zft_streaming_invert_full_laguerre(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv_l(), solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true);
+ 
      
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
@@ -163,7 +221,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc
 }
 
 
-void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
   int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
@@ -171,19 +229,23 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
     grad_par->zft(G1[is]);
   }
 
+  sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gc[0],Gc[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_,0);
+
+  if(pars_->fapar > 0.){
+    sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gr[0],Gr[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1);
+ 
+  }
+ 
   for(int count = 0; count < max_iter; count++){
     if(count == 0){
 
       if(pars_->fapar > 0.0){
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, 0, false, f->apar);
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, pars_->beta, gradpar_, 1, false, f->apar);
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, pars_->beta, gradpar_, 2, false, f->apar);
-        sherman_morrison_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_);
+        tridiag_streaming_periodic_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), G2[0]->G(), G2[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, 0, false);
+        sherman_morrison_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0], Gc[1], Gr[0], Gr[1], solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_);
       }
       else{
-        tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, false);
-        tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
-        sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);  
+        tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), G2[0]->G(), G2[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, false);
+        sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0], Gc[1], Gr[0], Gr[1], solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);  
       }
 
       for(int is = 0; is < grids_->Nspecies; is++){
@@ -192,7 +254,6 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
     }
     else{
       solver_->fieldSolve(G1, f);
-//      grad_par->zft(f->phi,f->phi);
       for(int is = 0; is < grids_->Nspecies; is++){
 	apply_flr_phi<<<dG, dB>>>(phi_l[is], f->phi, kperp2_, *(G1[is]->species));
 	grad_par->zft_nmoms(phi_l[is], phi_l[is], grids_->Nl);
@@ -201,29 +262,21 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, MomentsG** Gc, Momen
 	  apply_flr_phi<<<dG, dB>>>(apar_l[is], f->apar, kperp2_, *(G1[is]->species));
 	  grad_par->zft_nmoms(apar_l[is], apar_l[is], grids_->Nl);
 	}
-	if(omega != 1.0){
-          G2[is]->copyFrom(G1[is]);
-	}
-        Gr[is]->copyFrom(G1[is]);
+        
+	G2[is]->copyFrom(G1[is]);
 	G1[is]->copyFrom(G0[is]);
 	grad_par->zft(G1[is]);
-	grad_par->zft(Gr[is]);
+	grad_par->zft(G2[is]);
       }
-
-      grad_par->zft(f->apar,f->apar);
 
       if(pars_->fapar > 0.0){
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, 0, true, f->apar);
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, pars_->beta, gradpar_, 1, false, f->apar);
-        tridiag_streaming_periodic_full_em<<<dG, dB>>>(Gr[0]->G(), Gr[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(Gr[0]->species), *(Gr[ielectron]->species), sdt, pars_->beta, gradpar_, 2, false, f->apar);
-        sherman_morrison_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_);
+        tridiag_streaming_periodic_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), G2[0]->G(), G2[ielectron]->G(), phi_l[0], phi_l[ielectron], apar_l[0], apar_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, 0, true);
+        sherman_morrison_full_em<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0], Gc[1], Gr[0], Gr[1], solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_);
       }
       else{
-         tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, true);
-        tridiag_streaming_periodic_full<<<dG, dB>>>(Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(Gc[0]->species), *(Gc[ielectron]->species), sdt, gradpar_, 1, false);
-        sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0]->G(), Gc[ielectron]->G(), Gr[0]->G(), Gr[ielectron]->G(), solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);  
+        tridiag_streaming_periodic_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), G2[0]->G(), G2[ielectron]->G(), phi_l[0], phi_l[ielectron], grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, 0, true);
+        sherman_morrison_full<<<dG, dB>>>(G1[0]->G(), G1[ielectron]->G(), Gc[0], Gc[1], Gr[0], Gr[1], solver_->get_max_qneutFacPhi_inv(), grids_->kz, *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);  
       }
-
       for(int is = 0; is < grids_->Nspecies; is++){
         grad_par->zft_inverse(G1[is]);
 	if(omega != 1.0){
@@ -342,11 +395,15 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
     if(pars_->boundary_option_periodic){
-//    if(true){
       invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
     }
     else{
-      invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
+      if(pars_->implicit_preconditioner == "long_wavelength"){
+        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
+      }
+      else{
+        invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
+      }
     }
 
     solver_->fieldSolve(G1, f);
@@ -365,11 +422,15 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
   if(pars_->boundary_option_periodic){
-//  if(true){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
   }
   else{
-    invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
+    if(pars_->implicit_preconditioner == "long_wavelength"){
+      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
+    }
+    else{
+      invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
+    }
   }
   solver_->fieldSolve(G1, f);        
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
@@ -386,12 +447,15 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   // G1 = inv(I - u_*dt*B)*G1
   if(pars_->boundary_option_periodic){
-//  if(true){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else{
-    invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
-
+    if(pars_->implicit_preconditioner == "long_wavelength"){
+      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
+    }
+    else{
+      invert_implicit_terms_linked(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
+    }
   }
     solver_->fieldSolve(G1, f);          
   if (pars_->dealias_kz) grad_par->dealias(f->phi);

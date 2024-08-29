@@ -2569,6 +2569,21 @@ __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked,
   }
 }
 
+/*__global__ void linkedCopyBack_lw(const cuComplex* __restrict__ G_linked,
+			       cuComplex* __restrict__ G,
+			       int nMoms)
+{
+  unsigned int idz  = get_id1();
+  unsigned int idlm = get_id2();
+
+  if (idz < nz && idlm < nMoms) {
+    unsigned int idlink = idz + nz*idlm;
+    unsigned int globalIdx = (idz + nz*idlm));
+    G[globalIdx] = G_linked[idlink];
+  }
+}*/
+
+
 __global__ void linkedAccumulateBack(const cuComplex* __restrict__ G_linked,
                                      cuComplex* __restrict__ G,
                                      int nLinks,
@@ -3031,6 +3046,7 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
     int idm;
     int idms;
     unsigned int globalIdx;
+    unsigned int globalIdx_lw;
     cuComplex ikpar = make_cuComplex(0.0f,kz[idz]*gradpar);
     cuComplex y1 = make_cuComplex(0.0f, 0.0f);
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
@@ -3038,12 +3054,12 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
     float F = max_ampereParFac_inv[idxy];
 
     cuComplex v0y0 = spi.nz*Q*g1i[idxy + nxnyc*idz] + spe.nz*Q*g1e[idxy + nxnyc*idz];
-    cuComplex v0z0 = spi.nz*Q*g2i[idxy + nxnyc*idz] + spe.nz*Q*g2e[idxy + nxnyc*idz];
-    cuComplex v0zp = spi.nz*Q*g3i[idxy + nxnyc*idz] + spe.nz*Q*g3e[idxy + nxnyc*idz]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz];
+    cuComplex v0zp = spi.nz*Q*g3i[idz] + spe.nz*Q*g3e[idz]; 
 
     cuComplex v1y0 = beta/2*F*(spi.nz*spi.vt*g1i[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*g1e[idxy + nxnyc*(idz + nlnz)]);
-    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*g2e[idxy + nxnyc*(idz + nlnz)]);
-    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idxy + nxnyc*(idz + nlnz)] + spe.nz*spe.vt*g3e[idxy + nxnyc*(idz + nlnz)]);
+    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idz + nlnz] + spe.nz*spe.vt*g2e[idz + nlnz]);
+    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idz + nlnz] + spe.nz*spe.vt*g3e[idz + nlnz]);
 
     cuComplex v1y1 = v1y0 - v1z0 * v0y0/(1 + v0z0);
     cuComplex v1z1 = v1zp - v1z0 * v0zp/(1 + v0z0);
@@ -3052,15 +3068,16 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idxy + nxnyc*(idzl + nlnz*idms);
+      globalIdx_lw = idzl + nlnz*idms;
       if(idm < nm){
-	y1 = g1i[globalIdx] - g2i[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3i[globalIdx] - g2i[globalIdx] * v0zp/(1 + v0z0);
+	y1 = g1i[globalIdx] - g2i[globalIdx_lw] * v0y0/(1 + v0z0);
+	z1 = g3i[globalIdx_lw] - g2i[globalIdx_lw] * v0zp/(1 + v0z0);
 
 	g1i[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
       } 
       else{
-	y1 = g1e[globalIdx] - g2e[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3e[globalIdx] - g2e[globalIdx] * v0zp/(1 + v0z0);
+	y1 = g1e[globalIdx] - g2e[globalIdx_lw] * v0y0/(1 + v0z0);
+	z1 = g3e[globalIdx_lw] - g2e[globalIdx_lw] * v0zp/(1 + v0z0);
 
 	g1e[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
       }
@@ -3070,7 +3087,7 @@ __global__ void sherman_morrison_full_em(cuComplex* g1i, cuComplex* g1e, cuCompl
 
 }
 
-__global__ void sherman_morrison_linked_full_laguerre(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_linked_full_laguerre(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3116,7 +3133,7 @@ __global__ void sherman_morrison_linked_full_laguerre(cuComplex* g1i, cuComplex*
 }
 
 
-__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3137,22 +3154,24 @@ __global__ void sherman_morrison_linked_full(cuComplex* g1i, cuComplex* g1e, cuC
         }
     }
     int idms;
-    unsigned int globalIdx; 
+    unsigned int globalIdx;
+    unsigned int globalIdx_lw; 
     cuComplex y1 = make_cuComplex(0.0f, 0.0f);
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
 
 
     cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz]; 
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idzk + nznk * (idl + nl*idms); 
+      globalIdx_lw = idz + nz*(idl + nl*idms);
       if(idm < nm){
-	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx];
+	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx_lw];
       } 
       else{
-        g1e[globalIdx] = g1e[globalIdx] - v0y0/(1 + v0z0) * g2e[globalIdx];
+        g1e[globalIdx] = g1e[globalIdx] - v0y0/(1 + v0z0) * g2e[globalIdx_lw];
       }
     }
   
@@ -3176,6 +3195,7 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
     int idm;
     int idms;
     unsigned int globalIdx;
+    unsigned int globalIdx_lw;
     cuComplex y1 = make_cuComplex(0.0f, 0.0f);
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
     float Q = max_qneutFacPhi_inv[idy*nLinks];
@@ -3190,12 +3210,12 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
     }
 
     cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-    cuComplex v0z0 = spi.nz*Q*g2i[idzk] + spe.nz*Q*g2e[idzk];
-    cuComplex v0zp = spi.nz*Q*g3i[idzk] + spe.nz*Q*g3e[idzk]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz];
+    cuComplex v0zp = spi.nz*Q*g3i[idz] + spe.nz*Q*g3e[idz]; 
 
     cuComplex v1y0 = beta/2*F*(spi.nz*spi.vt*g1i[idzk + nznk*nl] + spe.nz*spe.vt*g1e[idzk + nznk*nl]);
-    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idzk + nznk*nl] + spe.nz*spe.vt*g2e[idzk + nznk*nl]);
-    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idzk + nznk*nl] + spe.nz*spe.vt*g3e[idzk + nznk*nl]);
+    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idz + nz*nl] + spe.nz*spe.vt*g2e[idz + nz*nl]);
+    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idz + nz*nl] + spe.nz*spe.vt*g3e[idz + nz*nl]);
 
     cuComplex v1y1 = v1y0 - v1z0 * v0y0/(1 + v0z0);
     cuComplex v1z1 = v1zp - v1z0 * v0zp/(1 + v0z0);
@@ -3204,15 +3224,16 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idzk + nznk*(idl + nl*idms);
+      globalIdx_lw = idz + nz*(idl + nl*idms);
       if(idm < nm){
-	y1 = g1i[globalIdx] - g2i[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3i[globalIdx] - g2i[globalIdx] * v0zp/(1 + v0z0);
+	y1 = g1i[globalIdx] - g2i[globalIdx_lw] * v0y0/(1 + v0z0);
+	z1 = g3i[globalIdx_lw] - g2i[globalIdx_lw] * v0zp/(1 + v0z0);
 
 	g1i[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
       } 
       else{
-	y1 = g1e[globalIdx] - g2e[globalIdx] * v0y0/(1 + v0z0);
-	z1 = g3e[globalIdx] - g2e[globalIdx] * v0zp/(1 + v0z0);
+	y1 = g1e[globalIdx] - g2e[globalIdx_lw] * v0y0/(1 + v0z0);
+	z1 = g3e[globalIdx_lw] - g2e[globalIdx_lw] * v0zp/(1 + v0z0);
 
 	g1e[globalIdx] = y1 - z1 * v1y1/(1+v1z1);
       }
@@ -3235,6 +3256,7 @@ __global__ void sherman_morrison_full(cuComplex* g1i, cuComplex* g1e, cuComplex*
     int idm;
     int idms;
     unsigned int globalIdx;
+    unsigned int globalIdx_lw;
     cuComplex ikpar = make_cuComplex(0.0f,kz[idz]*gradpar);
     cuComplex y1 = make_cuComplex(0.0f, 0.0f);
     cuComplex z1 = make_cuComplex(0.0f, 0.0f);
@@ -3242,17 +3264,18 @@ __global__ void sherman_morrison_full(cuComplex* g1i, cuComplex* g1e, cuComplex*
 
 
     cuComplex v0y0 = spi.nz*Q*g1i[idxy + nxnyc*idz] + spe.nz*Q*g1e[idxy + nxnyc*idz];
-    cuComplex v0z0 = spi.nz*Q*g2i[idxy + nxnyc*idz] + spe.nz*Q*g2e[idxy + nxnyc*idz]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz]; 
 
 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idxy + nxnyc*(idzl + nlnz*idms);
+      globalIdx_lw = idzl + nlnz*idms;
       if(idm < nm){
-	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx];
+	g1i[globalIdx] = g1i[globalIdx] - v0y0/(1 + v0z0) * g2i[globalIdx_lw];
       } 
       else{
-        g1e[globalIdx] = g1e[globalIdx] - v0y0/(1 + v0z0) * g2e[globalIdx];
+        g1e[globalIdx] = g1e[globalIdx] - v0y0/(1 + v0z0) * g2e[globalIdx_lw];
       }
     }
   
@@ -3290,7 +3313,7 @@ __device__ float find_max_linked(const float* arr, int nLinks, int nChains, int 
   return max_val;
 }
 
-__global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const float* max_Jflr_i, const float* max_Jflr_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, int nL, int nM)
+__global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const float* max_Jflr_i, const float* max_Jflr_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, int nL, int nM)
 {
 
   unsigned int idz  = get_id1();
@@ -3438,39 +3461,30 @@ __global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex*
   }
 }
 
-__global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* ge, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains)
+__global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage)
 {
 
   unsigned int idz  = get_id1();
-  unsigned int idk  = get_id2();
-  unsigned int idl  = get_id3();
+  unsigned int idl  = get_id2();
 
-  unsigned int idzk = idz + nz * idk;     
-  unsigned int nznk = nz * nLinks * nChains;
-  unsigned int nxnyc = nx*nyc;
-  unsigned int idx = idk % nLinks;
-  unsigned int idy = idk / nLinks;
-  unsigned int idxy = idy + nyc*idx;
-  if (idz < nz && idk < nLinks*nChains && idl < nl) {
+  if (idz < nz && idl < nl) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
-    float Q_avg = max_qneutFacPhi_inv[idy*nLinks];
-
-    for (int ik = 0; ik < nLinks; ik++){
-        if (Q_avg < max_qneutFacPhi_inv[idy*nLinks + ik]){
-          Q_avg = max_qneutFacPhi_inv[idy*nLinks + ik];
-        }
-      }
 
     int idm = 0; // this cannot be unsigned (see below)
     int idms = 0;
-    unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
-    cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
+    unsigned int globalIdx = idz + nz*(idl + nl*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     
     cuComplex rm = make_cuComplex(0.0f, 0.0f);
     double sdtvt;
     sdtvt = sdt * spi.vt;
+    
+    if(stage == 1 && idl==0){
+      rm = -sdtvt*ikz*gradpar*spi.zt*spi.vt;
+    }
+
     gi[globalIdx] = rm/bet;
 
     for(idm=1; idm<2*nm; idm++) {
@@ -3481,8 +3495,8 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
         sdtvt = sdt * spe.vt;
       }
       idms = idm % nm;
-      globalIdx = idzk + nznk * (idl + nl*idms);
-      unsigned int mm1 = idzk + nznk * (idl + nl*(idms-1));
+      globalIdx = idz + nz * (idl + nl*idms);
+      unsigned int mm1 = idz + nz * (idl + nl*(idms-1));
       // compute matrix coefficients
       // c[m-1]
       cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idms); 
@@ -3490,7 +3504,7 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
       cuComplex am = sdtvt*ikz*gradpar*sqrtf(idms);
       rm = make_cuComplex(0.0f, 0.0f);
 
-      if (idl==0){
+      if (stage == 0 && idl==0){
 	if(idm == 1){
 	  rm = sdtvt*ikz*gradpar*spi.zt;
 	}
@@ -3498,6 +3512,18 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
 	  rm = sdtvt*ikz*gradpar*spe.zt;
 	}
       }
+      else if (stage == 1 && idl==0){
+	if(idm == 2){
+	  rm = -sdtvt*ikz*gradpar*spi.zt*spi.vt*sqrtf(2.0);
+	}
+	else if(idm == nm){
+	  rm = -sdtvt*ikz*gradpar*spe.zt*spe.vt;
+	}
+	else if(idm == nm + 2){
+	  rm = -sdtvt*ikz*gradpar*spe.zt*spe.vt*sqrtf(2.0);
+	}
+      }
+
       // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
       //logic block for iteration scheme. full_phi = true means that we're using the full
       //phi for the rhs.
@@ -3509,7 +3535,7 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
         gi[globalIdx] = (rm - am*gi[mm1])/bet;
       }
       else if(idm == nm){
-        int mlast = idzk + nznk * (idl + nl*(idm-1));
+        int mlast = idz + nz * (idl + nl*(idm-1));
 	ge[globalIdx] = (rm - am*gi[mlast])/bet;
       }
       else{
@@ -3518,14 +3544,14 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
     }
     for(idm=(2*nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
       idms = idm % nm;
-      globalIdx = idzk + nznk * (idl + nl*idms);
-      unsigned int mp1 = idzk + nznk * (idl + nl*(idms+1));
+      globalIdx = idz + nz * (idl + nl*idms);
+      unsigned int mp1 = idz + nz * (idl + nl*(idms+1));
       // backsubstitution
       if (idm < nm){
         gi[globalIdx] = gi[globalIdx] - gam[idm+1]*gi[mp1];
       }
       else if(idm == nm-1){
-        int mfirst = idzk + nznk*idl;
+        int mfirst = idz + nz*idl;
  	gi[globalIdx] = gi[globalIdx] - gam[idm+1]*ge[mfirst];
       }
       else{
@@ -3536,6 +3562,119 @@ __global__ void sherman_morrison_subsolve_linked_full(cuComplex* gi, cuComplex* 
   }
 }
 
+__global__ void sherman_morrison_subsolve_laguerre(cuComplex* gi, cuComplex* ge, const float* kz, const float* max_Jflr_i, const float* max_Jflr_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, int nLinks, int nChains)
+{
+
+  unsigned int idz  = get_id1();
+  unsigned int idk  = get_id2();
+
+  unsigned int idzk = idz + nz * idk;     
+  unsigned int nznk = nz * nLinks * nChains;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idx = idk % nLinks;
+  unsigned int idy = idk / nLinks;
+  unsigned int idxy = idy + nyc*idx;
+  if (idz < nz && idk < nLinks*nChains) {
+    cuComplex gam[4096]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    float Jflr_i = 0.0f;
+    float Jflr_e = 0.0f;
+
+    int idlm = 0; // this cannot be unsigned (see below)
+    int idlms = 0;
+    int idms = 0;
+    int idls = 0;
+    unsigned int globalIdx = idzk + nznk * (idlm); 
+    cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    
+    cuComplex rm = make_cuComplex(0.0f, 0.0f);
+    double sdtvt;
+    sdtvt = sdt * spi.vt;
+
+    gi[globalIdx] = rm/bet;
+    
+    for(idlm=1; idlm<2*nm*nl; idlm++) {
+      if (idlm < nm*nl){
+        sdtvt = sdt * spi.vt;
+      }
+      else{
+        sdtvt = sdt * spe.vt;
+      }
+      idlms = idlm % (nl*nm);
+      idms = idlms % nm;
+      idls =  int(idlms / nm);
+      globalIdx = idzk + nznk * (idls + nl*idms);
+
+      unsigned int mm1;
+      if (idms == 0){
+        mm1 = idzk + nznk * ((idls-1) + nl*(nm-1)); 
+      }
+      else{
+        mm1 = idzk + nznk * (idls + nl*(idms-1)); 
+      }
+
+      Jflr_i = find_max_linked(max_Jflr_i,nLinks,nChains,idy,idls);
+      Jflr_e = find_max_linked(max_Jflr_e,nLinks,nChains,idy,idls);
+
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idms); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idms);
+      rm = make_cuComplex(0.0f, 0.0f);
+
+      if(stage == 0){
+	if(idms == 1 && idlm < nl*nm){
+	  rm = sdtvt*ikz*gradpar*spi.zt*Jflr_i;
+	}
+	else if(idms == 1 && idlm > nl*nm){
+	  rm = sdtvt*ikz*gradpar*spe.zt*Jflr_e;
+	}
+      }
+      // decomposition and forward substitution
+      gam[idlm] = cmm1/bet;
+      bet = bm - am*gam[idlm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      if (idlm < nm*nl){
+        gi[globalIdx] = (rm - am*gi[mm1])/bet;
+      }
+      else if(idlm == nm*nl){
+        int mlast = idzk + nznk * ((nl-1) + nl*(nm-1));
+	ge[globalIdx] = (rm - am*gi[mlast])/bet;
+      }
+      else{
+        ge[globalIdx] = (rm - am*ge[mm1])/bet;
+      }
+    }
+    for(idlm=(2*nm*nl-2); idlm>=0; idlm--) { // this is why idm cannot be unsigned
+      idlms = idlm % (nl*nm);
+      idms = idlms % nm;
+      idls =  int(idlms / nm);
+      globalIdx = idzk + nznk * (idls + nl*(idms));
+
+      unsigned int mp1;
+      if(idms == nm-1){
+        mp1 = idzk + nznk*((idls+1));
+      }
+      else{
+        mp1 = idzk + nznk*(idls + nl*(idms+1));
+      }
+      // backsubstitution
+      if (idlm < nm*nl){
+        gi[globalIdx] = gi[globalIdx] - gam[idlm+1]*gi[mp1];
+      }
+      else if(idlm == nl*nm-1){
+        int mfirst = idzk;
+ 	gi[globalIdx] = gi[globalIdx] - gam[idlm+1]*ge[mfirst];
+      }
+      else{
+        ge[globalIdx] = ge[globalIdx] - gam[idlm+1]*ge[mp1]; 
+
+      }
+    }
+  }
+}
 
 __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
 {
@@ -3971,7 +4110,7 @@ __global__ void tridiag_streaming_periodic_full(cuComplex* gi, cuComplex* ge, cu
 }
 
 
-__global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi, cuComplex* apar )
+__global__ void tridiag_streaming_periodic_full_em(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e,  cuComplex* apar_i, cuComplex* apar_e, const float* kz, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const specie spi, const specie spe, const double sdt, const double beta, const float gradpar, int stage, bool full_phi)
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();

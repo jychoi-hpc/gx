@@ -258,7 +258,7 @@ class Parameters {
   //  char restart_to_file[512];
   
   std::string scheme, forcing_type, init_field, stir_field;
-  std::string closure_model, boundary, source;
+  std::string closure_model, boundary, source, implicit_preconditioner;
   
   // char scheme[32], forcing_type[32], init_field[32], stir_field[32];
   // char boundary[32], closure_model[32], source[32];

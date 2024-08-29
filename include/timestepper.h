@@ -1,6 +1,7 @@
 #pragma once
 
 #include "moments.h"
+#include "moments_long_wavelength.h"
 #include "fields.h"
 #include "grids.h"
 #include "linear.h"
@@ -246,8 +247,9 @@ class IMEX_3stage_Full : public Timestepper {
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
-  void invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gc, MomentsG** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_linked(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
 
 
  private:
@@ -262,8 +264,8 @@ class IMEX_3stage_Full : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
-  MomentsG     ** Gc         ;
-  MomentsG     ** Gr         ;
+  cuComplex    ** Gc         ;
+  cuComplex    ** Gr         ;
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
   MomentsG     ** A1         ;
@@ -283,7 +285,7 @@ class IMEX_3stage_Full : public Timestepper {
   const float gradpar_;
   const float* bmagInv_;
   const float* kperp2_;
-  dim3 dG, dB;
+  dim3 dG, dB, dG_lw, dB_lw;
 };
 
 

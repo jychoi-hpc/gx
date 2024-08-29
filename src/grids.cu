@@ -101,6 +101,8 @@ Grids::Grids(Parameters* pars) :
   
   Nmoms = Nm * Nl;
   size_G = sizeof(cuComplex) * NxNycNz * (Nm + 2*m_ghost) * Nl; // this includes ghosts on either end of m grid
+  size_G_lw = sizeof(cuComplex) * Nz * (Nm + 2*m_ghost) * Nl; // this includes ghosts on either end of m grid
+
   // kz is defined without the factor of gradpar
   
   checkCuda(cudaGetLastError());

@@ -31,6 +31,7 @@ class Grids {
   int NycNz;
   int Nmoms;
   size_t size_G;
+  size_t size_G_lw;
   int * kzm;  
   float * ky;       float * kx;    float * kz;    float * kxs;
   float * ky_h;     float * kx_h;  float * kz_h;  float * kzp;
