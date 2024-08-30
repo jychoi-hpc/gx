@@ -121,6 +121,7 @@ class GradParallelLinked : public GradParallel {
   int * nChains ;
   int **ikxLinked_h, **ikyLinked_h;
   int **ikxLinked, **ikyLinked;
+  int **ikxLinked_lw_h, **ikxLinked_lw;
   float **kzLinked;
   cuComplex **G_linked;
   cuComplex **Gr_linked;

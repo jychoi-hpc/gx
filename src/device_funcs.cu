@@ -2573,9 +2573,7 @@ __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked,
 __global__ void linkedCopy_lw(const cuComplex* __restrict__ G,
 			   cuComplex* __restrict__ G_linked,
 			   int nLinks,
-			   int nChains,
 			   const int* __restrict__ ikx,
-			   const int* __restrict__ iky,
 			   int nMoms)
 {
   unsigned int idz  = get_id1();
@@ -2594,9 +2592,7 @@ __global__ void linkedCopy_lw(const cuComplex* __restrict__ G,
 __global__ void linkedCopyBack_lw(const cuComplex* __restrict__ G_linked,
 			       cuComplex* __restrict__ G,
 			       int nLinks,
-			       int nChains,
 			       const int* __restrict__ ikx,
-			       const int* __restrict__ iky,
 			       int nMoms)
 {
   unsigned int idz  = get_id1();
@@ -3237,12 +3233,12 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
     }
 
     cuComplex v0y0 = spi.nz*Q*g1i[idzk] + spe.nz*Q*g1e[idzk];
-    cuComplex v0z0 = spi.nz*Q*g2i[idz] + spe.nz*Q*g2e[idz];
-    cuComplex v0zp = spi.nz*Q*g3i[idz] + spe.nz*Q*g3e[idz]; 
+    cuComplex v0z0 = spi.nz*Q*g2i[idz + nz*idx] + spe.nz*Q*g2e[idz + nz*idx];
+    cuComplex v0zp = spi.nz*Q*g3i[idz + nz*idx] + spe.nz*Q*g3e[idz + nz*idx]; 
 
     cuComplex v1y0 = beta/2*F*(spi.nz*spi.vt*g1i[idzk + nznk*nl] + spe.nz*spe.vt*g1e[idzk + nznk*nl]);
-    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idz + nz*nl] + spe.nz*spe.vt*g2e[idz + nz*nl]);
-    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idz + nz*nl] + spe.nz*spe.vt*g3e[idz + nz*nl]);
+    cuComplex v1z0 = beta/2*F*(spi.nz*spi.vt*g2i[idz + nz*(idx + nLinks*nl)] + spe.nz*spe.vt*g2e[idz + nz*(idx + nLinks*nl)]);
+    cuComplex v1zp = beta/2*F*(spi.nz*spi.vt*g3i[idz + nz*(idx + nLinks*nl)] + spe.nz*spe.vt*g3e[idz + nz*(idx + nLinks*nl)]);
 
     cuComplex v1y1 = v1y0 - v1z0 * v0y0/(1 + v0z0);
     cuComplex v1z1 = v1zp - v1z0 * v0zp/(1 + v0z0);
@@ -3251,7 +3247,7 @@ __global__ void sherman_morrison_linked_full_em(cuComplex* g1i, cuComplex* g1e, 
     for(int idm = 0; idm < 2*nm; idm++){
       idms = idm % nm;
       globalIdx = idzk + nznk*(idl + nl*idms);
-      globalIdx_lw = idz + nz*(idl + nl*idms);
+      globalIdx_lw = idz + nz*(idx + nLinks*(idl + nl*idms));
       if(idm < nm){
 	y1 = g1i[globalIdx] - g2i[globalIdx_lw] * v0y0/(1 + v0z0);
 	z1 = g3i[globalIdx_lw] - g2i[globalIdx_lw] * v0zp/(1 + v0z0);

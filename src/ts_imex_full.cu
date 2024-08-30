@@ -41,7 +41,12 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
         checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
       }
       if(pars_->fapar > 0){
-        checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+	if(pars_->boundary_option_periodic){
+          checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+	}
+	else{
+	  checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
+	}
       }
     }
     else{
@@ -130,8 +135,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
   grad_par->zft_sherman_morrison_subsolve_lw(Gc, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0);
 
   if(pars_->fapar > 0.){
-    sherman_morrison_subsolve_lw<<<dG_lw,dB_lw>>>(Gr[0],Gr[1], grids_->kz, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1);
- 
+    grad_par->zft_sherman_morrison_subsolve_lw(Gr, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1); 
   }
   for(int count = 0; count < max_iter; count++){
     if(count == 0){
