@@ -190,7 +190,6 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, cuComplex** G
 {
   int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
-
   grad_par->zft_sherman_morrison_subsolve(Gc,solver_->get_max_Jflr(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_);
 
   for(int count = 0; count < max_iter; count++){
@@ -431,6 +430,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   // G1_e = inv(I - r_*dt*B)*G1_e
   if(pars_->boundary_option_periodic){
+//  if(false){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
   }
   else{
@@ -456,6 +456,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   // G1 = inv(I - u_*dt*B)*G1
   if(pars_->boundary_option_periodic){
+//  if(false){
     invert_implicit_terms(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else{

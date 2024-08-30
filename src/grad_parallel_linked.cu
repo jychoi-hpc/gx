@@ -523,9 +523,7 @@ void GradParallelLinked::zft_streaming_invert_full_laguerre(MomentsG** G, cuComp
     checkCuda(cufftExecC2C (zft_plan_forward[c], G2_linked[c], G2_linked[c], CUFFT_FORWARD));
 
     linkedCopy GCHAINS (Gc[0], Gc_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc_linked[c], Gc_linked[c], CUFFT_FORWARD));
     linkedCopy GCHAINS (Gc[1], Gc2_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-    checkCuda(cufftExecC2C (zft_plan_forward[c], Gc2_linked[c], Gc2_linked[c], CUFFT_FORWARD));
 
 
     linkedCopy GCHAINS (G2[0]->G(), Gr_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
