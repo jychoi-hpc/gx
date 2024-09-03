@@ -28,6 +28,9 @@ class Green {
   cuComplex** A_phi;
   cuComplex** d_A_phi;
 
+  cuComplex*** A_phi_linked;
+  cuComplex*** d_A_phi_linked;
+
   cuComplex** A_phi_copy;
 
   cuComplex     ** phi_rhs;
@@ -71,6 +74,10 @@ class Green {
   int* infoArray_h;
   double* dcoeff;
   size_t nz2;
+
+  int** d_Ipiv_linked;
+  int** infoArray;
+  int** infoArray_h;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream = NULL;

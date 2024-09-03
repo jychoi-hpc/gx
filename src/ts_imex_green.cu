@@ -116,6 +116,24 @@ void IMEX_3stage_Green::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
+void IMEX_3stage_Green::invert_implicit_terms_linked(MomentsG** G1, MomentsG** Gh, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
+{
+  // tridiag from numerical recipes
+  for(int is = 0; is<grids_->Nspecies; is++){
+    grad_par->inhomogenous_sol_linked(Gh[is]->G(), *(Gh[is]->species), sdt, gradpar_);
+    grad_par->zft_inverse(Gh[is]);
+  }
+  solver_->fieldSolve(Gh,f);
+  green_->invert_linked(f->phi);
+  for(int is = 0; is<grids_->Nspecies; is++){
+    apply_flr_phi<<<dG, dB>>>(phi_i, f->phi, kperp2, *(G1[is]->species));
+    grad_par->full_sol_linked(G1[is]->G(), phi_i, *(G1[is]->species), sdt, gradpar_); 
+    grad_par->zft_inverse(G1[is]);
+  }
+//  cublas_->invert_stream(G1[ielectron]->G(), 0);
+}
+
+
 void IMEX_3stage_Green::invert_implicit_terms(MomentsG** G1, MomentsG** Gh, Fields *f, double sdt,const float gradpar_, const float* kperp2, int ielectron)
 {
   // tridiag from numerical recipes

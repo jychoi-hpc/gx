@@ -17,31 +17,6 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
       num_coeff = 3;
     }
   }
-  
-  A_phi = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
-  d_A_phi = nullptr;
-  d_phi_rhs = nullptr;
-  A_phi_copy = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
-
-  phi_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
-  res = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
-  prod = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
-
-  cuComplex* LU = (cuComplex*) malloc(nz2); 
-  checkCuda(cudaMalloc((void**) &d_Ipiv, sizeof(int)*grids_->Nz*grids_->NxNyc));
-  checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->NxNyc));
-  infoArray_h = (int*) malloc(sizeof(int)*grids_->NxNyc);
-  G = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  for(int is=0; is<grids_->Nspecies; is++) {
-    int is_glob = is+grids->is_lo;
-    G[is] = new MomentsG (pars_, grids_, is_glob);
-    G[is]->set_zero();
-  }
-  checkCuda(cudaMalloc((void**) &phi_r, sizeof(cuComplex)*grids_->NxNycNz));
-  checkCuda(cudaMalloc((void**) &d_A_phi, sizeof(cuComplex*)*grids_->NxNyc));
-
-//  checkCuda(cudaMalloc((void**) &phi_r, sizeof(cuComplex)*grids_->NxNycNz));
-
 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
@@ -54,34 +29,32 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   }
 
 
-  dcoeff = (double*) malloc(sizeof(double)*num_coeff);
-  if (num_coeff == 1){
-    dcoeff[0] = r_;
-  }
-  else if (num_coeff == 2){
-    dcoeff[0] = r_;
-    dcoeff[1] = u_;
+  if(pars_->boundary_options_periodic){  
+    A_phi = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->NxNyc);
+    checkCuda(cudaMalloc((void**) &d_Ipiv, sizeof(int)*grids_->Nz*grids_->NxNyc));
+    checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->NxNyc));
+    infoArray_h = (int*) malloc(sizeof(int)*grids_->NxNyc);
+    checkCuda(cudaMalloc((void**) &phi_r, sizeof(cuComplex)*grids_->NxNycNz));
+    checkCuda(cudaMalloc((void**) &d_A_phi, sizeof(cuComplex*)*grids_->NxNyc));
+    checkCuda(cudaMalloc((void**) &d_phi_rhs, sizeof(cuComplex*)*grids_->NxNyc*num_coeff));
+
+    for (int i = 0; i < num_coeff; i++){
+      for (int j = 0; j < grids_->NxNyc; j++){
+        checkCuda(cudaMalloc((void**) &A_phi[j + i*num_coeff], nz2));
+      } 
+    }
+
   }
   else{
-    dcoeff[0] = p_;
-    dcoeff[1] = r_;
-    dcoeff[2] = u_;
+    grad_par->allocate_response_matrix(A_phi_linked, d_A_phi_linked, phi_rhs, num_coeff);
 
   }
-  checkCuda(cudaMalloc((void**) &d_phi_rhs, sizeof(cuComplex*)*grids_->NxNyc*num_coeff));
-
-  for (int i = 0; i < num_coeff; i++){
-    for (int j = 0; j < grids_->NxNyc; j++){
-      checkCuda(cudaMalloc((void**) &A_phi[j + i*num_coeff], nz2));
-      checkCuda(cudaMalloc((void**) &A_phi_copy[j + i*num_coeff], nz2));
-      checkCuda(cudaMalloc((void**) &phi_rhs[j + i*num_coeff], sizeof(cuComplex)*grids_->Nz));
-      checkCuda(cudaMalloc((void**) &res[j + i*num_coeff], sizeof(cuComplex)*grids_->Nz));
-      checkCuda(cudaMalloc((void**) &prod[j + i*num_coeff], sizeof(cuComplex)*grids_->Nz));
-
-    } 
+  G = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is+grids->is_lo;
+    G[is] = new MomentsG (pars_, grids_, is_glob);
+    G[is]->set_zero();
   }
-
-  checkCuda(cudaMemcpy(d_phi_rhs, phi_rhs, sizeof(cuComplex*)*grids_->NxNyc*num_coeff, cudaMemcpyHostToDevice));
 
   int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
 
@@ -109,28 +82,57 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   dG_lu = dim3(nt9, nt2, nt3);
   dB_lu = dim3(nb9, nb2, nb3);
 
-  compute_response_matrix_periodic();
+
+  dcoeff = (double*) malloc(sizeof(double)*num_coeff);
+  if (num_coeff == 1){
+    dcoeff[0] = r_;
+  }
+  else if (num_coeff == 2){
+    dcoeff[0] = r_;
+    dcoeff[1] = u_;
+  }
+  else{
+    dcoeff[0] = p_;
+    dcoeff[1] = r_;
+    dcoeff[2] = u_;
+
+  }
   
-  checkCuda(cudaMemcpy(d_A_phi, A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyHostToDevice));
+
+  checkCuda(cudaMemcpy(d_phi_rhs, phi_rhs, sizeof(cuComplex*)*grids_->NxNyc*num_coeff, cudaMemcpyHostToDevice));
+
+  if(pars_->boundary_options_periodic){
+    compute_response_matrix_periodic();
+    checkCuda(cudaMemcpy(d_A_phi, A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyHostToDevice));
+  }
+  else{
+    grad_par->compute_response_matrix(G, A_phi_linked, d_A_phi_linked, num_coeff, dcoeff, geo_->kperp2, solver_->getQneutDenom());
+  }
+  
 
   checkCudaErrors(cudaGetLastError());
-  
 
   CUBLAS_CHECK(cublasCreate(&cublasH));
 
   CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   CUBLAS_CHECK(cublasSetStream(cublasH, stream));
-  
-  CUBLAS_CHECK(cublasCgetrfBatched(cublasH,
+
+  if(pars_->boundary_options_periodic){
+
+    CUBLAS_CHECK(cublasCgetrfBatched(cublasH,
                                    grids_->Nz,
                                    d_A_phi,
                                    grids_->Nz,
                                    d_Ipiv,
                                    infoArray,
                                    grids_->NxNyc*num_coeff));
-  checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaMemcpy(A_phi, d_A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyDeviceToHost));
 
-  checkCuda(cudaMemcpy(A_phi, d_A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyDeviceToHost));
+  }
+  else{
+    grad_par->lu_decomposition(cublasH, d_A_phi_linked, d_Ipiv_linked, infoArray_linked);    
+  }
 /*  checkCuda(cudaMemcpy(LU, A_phi[2], nz2, cudaMemcpyDeviceToHost));
   for (int i = 0; i < grids_->Nz; i++) {
         for (int j = 0; j < grids_->Nz; j++) {
@@ -161,6 +163,16 @@ Green::~Green(){
   if(stream != nullptr) cudaStreamDestroy(stream);
 
   if(G) delete G;
+}
+
+void Green::compute_response_matrix_linked()
+{
+  grad_par->compute_response_matrix(G, A_phi, num_coeff, d_coeff, geo_->kperp2, solver_->getQneutDenom()); 
+}
+
+void Green::invert_linked(cuComplex* phi_i)
+{
+  grad_par->invert_phi_linked(cuComplex*** d_A_phi, phi_i);
 }
 
 void Green::compute_response_matrix_periodic()

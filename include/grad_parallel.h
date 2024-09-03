@@ -86,6 +86,9 @@ class GradParallelLinked : public GradParallel {
   void abs_dz(cuComplex* m, cuComplex* res, bool accumulate=false);
   void linkPrint();
   void identity(MomentsG* G); // for testing
+  int get_nLC_tot() {return nLC_tot};
+
+  int nLC_tot;
 
  private:
   Parameters * pars_;
@@ -110,6 +113,7 @@ class GradParallelLinked : public GradParallel {
   cuComplex **bpar_linked;
 
   float **qneutDenom_linked;
+  float **kperp2_linked;
   float **max_qneutFacPhi_inv_linked;
   float **max_qneutFacBpar_inv_linked;
   float **max_ampereParFac_inv_linked;
