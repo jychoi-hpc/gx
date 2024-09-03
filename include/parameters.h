@@ -140,6 +140,11 @@ class Parameters {
   float tri, tripri, drhodpsi, epsl, kxfac, cfl, phi_ext, scale, tau_fac;
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
   float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps, implicit_omega, implicit_linked;
+  std::string imex_scheme;
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
+
   int ikpar_init;
   float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;
   float forcing_amp, pos_forcing_amp, neg_forcing_amp, me_ov_mi, nu_ei, eta, nu_hyper, D_hyper;

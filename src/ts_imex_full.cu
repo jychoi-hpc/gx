@@ -2,8 +2,8 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
+	     Parameters *pars, Grids *grids, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2) :
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), cublas_(cublas), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv), kperp2_(kperp2)
 {
   
@@ -84,6 +84,10 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
 
   int nn4 = grids_->Nz;              int nt4 = min(nn4,  16);   int nb4 = 1 + (nn4-1)/nt4;
   int nn5 = grids_->Nl;   int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
+  
+  a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
+  p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
+  sdirk = pars_->sdirk;
 
 
   dB = dim3(nt1, nt2, nt3);
@@ -110,7 +114,12 @@ void IMEX_3stage_Full::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, boo
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     A[is]->set_zero();
-    linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    if(is == ielectron){
+      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
+    }
+    else{
+      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+    }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
       if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
@@ -123,7 +132,12 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
-    linear_->rhs_streaming(G[is], f, B[is], dt_);
+    if(is == ielectron){
+      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+    }
+    else{
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
+    }
   }
 }
 
@@ -294,6 +308,9 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuCo
 
     }
   }
+
+  cublas_->invert_stream(G1[ielectron]->G(), 0);
+
 
 }
 

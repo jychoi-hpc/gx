@@ -406,6 +406,46 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   cuComplex* __restrict__ rhs,
 			   bool ei_colls);
 
+__global__ void bounce_rhs(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls);
+
+__global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
+			   const cuComplex* __restrict__ phi,
+			   const cuComplex* __restrict__ apar,
+			   const cuComplex* __restrict__ bpar,
+			   const cuComplex* __restrict__ upar_bar,
+			   const cuComplex* __restrict__ uperp_bar,
+			   const cuComplex* __restrict__ t_bar,
+			   const float* __restrict__ kperp2,
+			   const float* __restrict__ cv_d,
+			   const float* __restrict__ gb_d,
+			   const float* __restrict__ bmag,
+			   const float* __restrict__ bgrad,
+			   const float* __restrict__ ky,
+			   const specie sp,
+			   const specie sp_i,
+			   cuComplex* __restrict__ rhs,
+			   bool ei_colls);
+
+
+
+__global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz);
+__global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex* g);
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacPhi_inv_l, float* max_qneutFacPhi_inv_l, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, float* max_Jflr, const float* kperp2, const specie sp, const float* bmagInv, const float fapar, const float fbpar);
 __device__ float find_max_linked(const float* arr, int nLinks, int nChains, int idy, int idl);
 __global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp);

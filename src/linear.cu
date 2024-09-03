@@ -168,6 +168,22 @@ void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt)
 
 }
 
+void Linear_GK::rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
+  // Free-streaming requires parallel FFTs, so do that first
+  if(grids_->Nz>1) {
+    streaming_rhs <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, geo_->gradpar, *(G->species), GRhs->G());
+    grad_par->dz(GRhs, GRhs, false);
+  }
+  
+  cudaFuncSetAttribute(bounce_rhs, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
+  bounce_rhs<<<dimGrid, dimBlock, sharedSize>>>
+      	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
+        geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+
+}
+
+
 void Linear_GK::rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   // Free-streaming requires parallel FFTs, so do that first
   if(grids_->Nz>1) {
@@ -184,6 +200,79 @@ void Linear_GK::rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
     grad_par->dz(GRhs, GRhs, false);
   }
 }
+
+void Linear_GK::rhs_nonstreaming_nonbounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
+
+  // calculate conservation terms for collision operator
+  int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
+  if (pars_->collisions && pars_->coll_conservation)  conservation_terms <<< nb1, nt1 >>>
+			    (upar_bar, uperp_bar, t_bar, G->G(), f->phi, f->apar, f->bpar, geo_->kperp2, *(G->species));  
+  // calculate most of the RHS
+  cudaFuncSetAttribute(rhs_linear_nonbounce, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
+  rhs_linear_nonbounce<<<dimGrid, dimBlock, sharedSize>>>
+      	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
+        geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+
+  // hyper model by Hammett and Belli
+  if (pars_->HB_hyper) {
+    
+    int nt1 = min(128, grids_->Nx);
+    int nb1 = 1 + (grids_->Nx*grids_->Nyc-1)/nt1;
+    
+    fieldlineaverage <<< nb1, nt1 >>> (favg, df, f->phi, vol_fac);
+
+    get_s01 <<< 1, 1 >>> (s01, favg, grids_->kx, pars_->w_osc);
+    nt1 = min(128, grids_->Nz);
+    nb1 = 1 + (grids_->Nz-1)/nt1;
+    
+    get_s1 <<< nb1, nt1 >>> (s10, s11, grids_->kx, grids_->ky, df, pars_->w_osc);
+    
+    HB_hyper <<< dG_all, dB_all >>> (G->G(), s01, s10, s11,
+				     grids_->kx, grids_->ky, pars_->D_HB, pars_->p_HB, GRhs->G());
+    
+  }
+  
+  // closures
+  switch (pars_->closure_model_opt) {
+  case Closure::none : break;
+  case Closure::beer42 : closures->apply_closures(G, GRhs); break;
+  case Closure::smithperp : closures->apply_closures(G, GRhs); break;
+  case Closure::smithpar : closures->apply_closures(G, GRhs); break;
+  }
+
+  // hypercollisions with const coefficient
+  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+		  						   pars_->nu_hyper_l,
+								   pars_->nu_hyper_m,
+								   G->species->vt/pars_->vtmax*pars_->nu_hyper_lm/dt,
+								   pars_->p_hyper_l,
+								   pars_->p_hyper_m, 
+								   pars_->p_hyper_lm, 
+								   GRhs->G(), G->species->vt);
+
+  // hypercollisions with coefficient propto kz
+  if(pars_->hypercollisions_kz) {
+    float M = (float) grids_->Nm_glob-1;
+    float p = (float) pars_->p_hyper_m;
+    float vt = G->species->vt;
+    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*geo_->gradpar;
+    tmpG->set_zero();
+    hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
+    grad_par->abs_dz(tmpG, GRhs, true);
+  }
+
+  // hyper in k-space
+  if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
+						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
+
+  if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z/dt, true);
+  
+  // apply parallel boundary conditions. for linked BCs, this involves applying 
+  // a damping operator to the RHS near the boundaries of extended domain.
+  if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2, dt);
+}
+
 
 
 void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {

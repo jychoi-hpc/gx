@@ -9,6 +9,7 @@
 #include "solver.h"
 #include "forcing.h"
 #include "grad_parallel.h"
+#include "cublas_test.h"
 
 class Timestepper {
  public:
@@ -241,7 +242,7 @@ class SSPRK3 : public Timestepper {
 class IMEX_3stage_Full : public Timestepper {
  public:
   IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
+	Parameters *pars, Grids *grids, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
   ~IMEX_3stage_Full();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
@@ -250,6 +251,9 @@ class IMEX_3stage_Full : public Timestepper {
   void invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
   void invert_implicit_terms_linked(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
   void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
 
 
  private:
@@ -261,6 +265,7 @@ class IMEX_3stage_Full : public Timestepper {
   Solver       * solver_    ;
   Parameters   * pars_      ;
   Grids        * grids_     ;
+  Cublas_test  * cublas_    ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
