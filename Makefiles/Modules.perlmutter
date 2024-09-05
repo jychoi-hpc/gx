@@ -1,0 +1,17 @@
+# Module script for perlmutter
+
+module load PrgEnv-gnu/8.3.3
+module load gcc/11.2.0
+module load nvhpc-mixed/22.7
+module load cudatoolkit/11.7
+module load cray-mpich/8.1.25
+module load cray-hdf5-parallel
+module load cray-netcdf-hdf5parallel
+module load nccl/2.15.5-ofi
+module load python
+spack env activate -V gcc
+spack load gsl
+
+export GSL_ROOT=$(spack location -i gsl)
+export LD_LIBRARY_PATH=$GSL_ROOT/lib:$LD_LIBRARY_PATH
+

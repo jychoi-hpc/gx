@@ -1,0 +1,23 @@
+# No #! line as this should be sourced, not executed
+
+if [ -v $GK_SYSTEM ]; then
+  echo "You must set GK_SYSTEM"
+  exit 1
+fi
+
+MODULE_FILE=$(realpath "./Makefiles/Modules.$GK_SYSTEM")
+if [ -v "$MODULE_FILE" ]; then
+  if [ ! -v "$AUTO_MODULES" ]; then
+    echo "AUTO_MODULES set but MODULE_FILE doesn't exist."
+    exit 2
+  fi
+elif [ ! -v "$AUTO_MODULES" ]; then
+  if [ -f "$MODULE_FILE" ]; then
+    echo "Loading $GK_SYSTEM modules from $MODULE_FILE"
+    source $MODULE_FILE
+  else
+    echo "AUTO_MODULES set but MODULE_FILE isn't a readable file."
+    exit 2
+  fi
+fi
+
