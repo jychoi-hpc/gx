@@ -16,4 +16,4 @@ source module-config
 cd $GX_DIR;
 
 make clean;
-make -j8;
+exec make -j8;
