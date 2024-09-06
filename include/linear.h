@@ -12,7 +12,10 @@ class Linear {
   virtual ~Linear() {};
   virtual void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) = 0;
   virtual void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
+  virtual void rhs_streaming_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt, bool negate) {};
   virtual void rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
+  virtual void rhs_streaming_bounce_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt, bool negate) {};
+  virtual void rhs_bounce_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
   virtual void rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt){}
   virtual void rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
   virtual void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {};
@@ -31,7 +34,10 @@ public:
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
+  void rhs_streaming_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt, bool negate);
   void rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
+  void rhs_streaming_bounce_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt, bool negate);
+  void rhs_bounce_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_streaming_no_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_fields(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);

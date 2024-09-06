@@ -104,7 +104,9 @@ void Parameters::get_nml_vars(char* filename)
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
   imex_scheme = toml::find_or <string> (tnml, "imex_scheme",    "conde_ssprk3_dirk"   );
   implicit_max_iter = toml::find_or <int>   (tnml, "implicit_max_iter",   1 );
+  implicit_max_iter_streaming = toml::find_or <int>   (tnml, "implicit_max_iter_streaming",   1 );
   implicit_omega = toml::find_or <float> (tnml, "implicit_omega", 1.0);
+  implicit_omega_streaming = toml::find_or <float> (tnml, "implicit_omega_streaming", 1.0);
   implicit_linked = toml::find_or <bool> (tnml, "implicit_linked", false);
   implicit_preconditioner = toml::find_or <string> (tnml, "implicit_preconditioner", "long_wavelength");
   cfl = toml::find_or <float> (tnml, "cfl", 0.9);

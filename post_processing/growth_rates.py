@@ -8,7 +8,7 @@ from matplotlib.ticker import AutoMinorLocator
 import sys
 from netCDF4 import Dataset
 
-def growth_rates(fname, ikx=0, navgfac=0.5, label=None, plot=True, ax=None, Lref="a", refsp="i"):
+def growth_rates(fname, ikx=0, navgfac=0.25, label=None, plot=True, ax=None, Lref="a", refsp="i"):
     # read data from file
     data = Dataset(fname, mode='r')
     t = data.groups['Grids'].variables['time'][:]
@@ -30,9 +30,9 @@ def growth_rates(fname, ikx=0, navgfac=0.5, label=None, plot=True, ax=None, Lref
     if plot:
         if ax.any() == None:
             fig, ax = plt.subplots(2)
-        
-        ax[0].plot(ky, gamavg, 'o', fillstyle='none')
-        ax[1].plot(ky, omavg, 'o', fillstyle='none', label=label)
+        start_ind = 0
+        ax[0].plot(ky[start_ind:], gamavg[start_ind:], 'o', fillstyle='none')
+        ax[1].plot(ky[start_ind:], omavg[start_ind:], 'o', fillstyle='none', label=label)
         
         ax[0].xaxis.set_minor_locator(AutoMinorLocator())
         ax[1].xaxis.set_minor_locator(AutoMinorLocator())
@@ -72,4 +72,5 @@ if __name__ == "__main__":
             print(' usage: python growth_rates.py [list of .nc files]')
     
     #plt.savefig("growth_rates.png")
+    plt.legend(["Explicit", "IMEX x60"])
     plt.show()
