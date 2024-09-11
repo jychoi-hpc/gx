@@ -3551,10 +3551,9 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
   } // idxyz < NxNycNz
 }
 
-__global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz){
-  unsigned int i = get_id1();
 
-  if(i < LM){
+void initialize_A_bounce_loop(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz){
+  for(int i = 0; i < LM; i++){
     int il = int(i / M);
     int im = i % M;
 
@@ -3580,6 +3579,7 @@ __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int
 	}
 
         if (im != 0 && il != L-1){
+//	  if(i == 15 && iz == 11) {printf("lp1m is %f\n", lp1m.x);}
           A_bounce[i*LM + i+M-1] = lp1m;
 	}
     }
@@ -3648,6 +3648,234 @@ __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int
     }
   }
 }
+
+
+
+__global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz){
+  unsigned int i = get_id1();
+
+  if(i < LM){
+    int il = int(i / M);
+    int im = i % M;
+
+    cuComplex one = make_cuComplex(1.0,0);
+    double prefac = bgrad[iz] * dt * vte * coeff;
+    cuComplex lp1mp1 = make_cuComplex(-(il+1)*sqrtf(im+1),0.0)*prefac;
+    cuComplex lm = make_cuComplex(il*sqrtf(im),0.0)*prefac;
+    cuComplex lp1m = make_cuComplex((il+1)*sqrtf(im),0.0)*prefac;
+    cuComplex lmp1 = make_cuComplex(-il*sqrtf(im+1),0.0)*prefac;
+    
+    if (i == 0){
+        A_bounce[i] = one;
+        A_bounce[i+1] = lp1mp1;
+    }
+    else if(i >= 1 and i < M){
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+
+        if (im != 0 && il != L-1){
+//	  if(i == 15 && iz == 11) {printf("lp1m is %f\n", lp1m.x);}
+          A_bounce[i*LM + i+M-1] = lp1m;
+	}
+    }
+    else if(i >= M && i <= L*M-M-1){
+        if (im != M-1 and il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+
+        if (im != 0 && il != L-1){
+          A_bounce[i*LM + i+M-1] = lp1m;
+	}
+    }
+    else if(i > L*M-M-1 && i < LM-1){
+        if (im != M-1 && il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+
+        if (im != M-1){
+          A_bounce[i*LM + i+1] = lp1mp1;
+	}
+    }
+    else{
+        if (im != M-1 && il != 0){
+          A_bounce[i*LM + i-M+1] = lmp1;
+	}
+
+        if (im != 0){
+          A_bounce[i*LM + i-1] = lm;
+	}
+
+        A_bounce[i*LM + i] = one;
+    }
+
+/*    int row;
+    int col;
+    int trans;
+    int ind;
+    cuComplex temp;
+    for (int j = 0; j < LM; j++){
+      for (int k = j; k < LM; k++){
+        row = j;
+        col = k;
+	ind = row*LM + col;
+        trans = col*LM + row;
+
+        temp = A_bounce[ind];
+        A_bounce[ind] = A_bounce[trans];
+        A_bounce[trans] = temp;
+      }
+    }*/
+  }
+  
+}
+
+
+__global__ void transpose_A(cuComplex* A_bounce, int LM){
+  unsigned int i = get_id1();
+
+  if(i < 1){
+    int row;
+    int col;
+    int trans;
+    int ind;
+    cuComplex temp;
+    for (int j = 0; j < LM; j++){
+      for (int k = j; k < LM; k++){
+        row = j;
+        col = k;
+	ind = row*LM + col;
+        trans = col*LM + row;
+
+        temp = A_bounce[ind];
+        A_bounce[ind] = A_bounce[trans];
+        A_bounce[trans] = temp;
+      }
+    }
+ 
+  }
+
+}
+
+__global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(iz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    brhs[b_ind] = g[globalIdx]; 
+  }
+} 
+
+__global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  if ((idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(iz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    g[globalIdx] = brhs[b_ind];    
+  }
+
+}
+
+
+__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g){
+  unsigned int idy = get_id1();
+  unsigned int idxz = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  unsigned int idx = int(idxz / nz);
+  unsigned int idz = idxz % nz;
+  if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    brhs[idz][b_ind] = g[globalIdx]; 
+  }
+} 
+
+__global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs){
+  unsigned int idy = get_id1();
+  unsigned int idxz = get_id2();
+  unsigned int idlm = get_id3();
+  unsigned int idm = int(idlm / nl);
+  unsigned int idl = idlm % nl;
+  unsigned int idx = int(idxz / nz);
+  unsigned int idz = idxz % nz;
+  if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
+    unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
+    unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
+    g[globalIdx] = brhs[idz][b_ind];    
+  }
+
+}
+
+__global__ void lu_backsub_bounce(cuComplex* A_bounce, cuComplex* g, int idz){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nxnycnz = nxnyc*nz;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int idxyz = idy + nyc*idx + nxnyc*idz;
+  if ((idx < nx) && (idy < nyc) && (unmasked(idx,idy)) && (idz < nz)){
+    cuComplex interm;
+    unsigned int idm, idl;
+    for(int lmi = 0; lmi  < nm*nl; lmi++){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int lmj = 0; lmj < lmi; lmj++){
+	idm = lmj % nm;
+	idl = int(lmj / nm);
+        interm = interm + A_bounce[lmi + nl*nm*lmj] * g[idxyz + nxnycnz*(idl + nl*idm)];
+//	interm = interm + A_bounce[idz][lmi + nl*nm*lmj] * g[idz][idxyz + nxnycnz*lmj];
+
+      }
+      idm = lmi % nm;
+      idl = int(lmi / nm);
+      g[idxyz + nxnycnz*(idl + nl*idm)] = g[idxyz + nxnycnz*(idl + nl*idm)] - interm;
+    }
+
+    for(int lmi = nm*nl-1; lmi >= 0; lmi--){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int lmj = lmi+1; lmj < nm*nl; lmj++){
+	idm = lmj % nm;
+	idl = int(lmj / nm);
+        interm = interm + A_bounce[lmi + nm*nl*lmj] * g[idxyz + nxnycnz*(idl + nl*idm)];
+      }
+      idm = lmi % nm;
+      idl = int(lmi / nm);
+      g[idxyz + nxnycnz*(idl + nl*idm)] = (g[idxyz + nxnycnz*(idl + nl*idm)] - interm)/A_bounce[lmi + nm*nl*lmi];
+    }
+
+  }
+}
+
 
 __global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex* g){
   unsigned int idy = get_id1();

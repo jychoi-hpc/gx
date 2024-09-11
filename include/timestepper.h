@@ -10,6 +10,7 @@
 #include "forcing.h"
 #include "grad_parallel.h"
 #include "cublas_test.h"
+#include "cusolve.h"
 
 class Timestepper {
  public:
@@ -243,14 +244,14 @@ class SSPRK3 : public Timestepper {
 class Lie_Trotter : public Timestepper {
  public:
   Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
+	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
   ~Lie_Trotter();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
 
-  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
   void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt);
 
   double a21, a31, a32, w1, w2, w3;
@@ -265,6 +266,7 @@ class Lie_Trotter : public Timestepper {
   Linear       * linear_    ;
   Nonlinear    * nonlinear_ ;
   Solver       * solver_    ;
+  Geometry     * geo_       ;
   Parameters   * pars_      ;
   Grids        * grids_     ;
   Cublas_test  * cublas_    ;
@@ -281,6 +283,8 @@ class Lie_Trotter : public Timestepper {
   MomentsG     ** B1         ;
   MomentsG     ** B2         ;
   MomentsG     ** B3         ;
+  Cublas_test  ** mirror     ;
+//  Cusolve      ** mirror    ;
   Fields	* f1	     ;
   cuComplex    ** phi_l      ;
   cuComplex    ** apar_l      ;

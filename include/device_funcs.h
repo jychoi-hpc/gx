@@ -472,7 +472,14 @@ __global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
 
 
 __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz);
+void initialize_A_bounce_loop(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz);
+__global__ void transpose_A(cuComplex* A_bounce, int LM);
+__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g);
+__global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs);
+__global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz);
+__global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz);
 __global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex* g);
+__global__ void lu_backsub_bounce(cuComplex* A_bounce, cuComplex* g, int idz);
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacPhi_inv_l, float* max_qneutFacPhi_inv_l, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, float* max_Jflr, const float* kperp2, const specie sp, const float* bmagInv, const float fapar, const float fbpar);
 __device__ float find_max_linked(const float* arr, int nLinks, int nChains, int idy, int idl);
 __global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp);
