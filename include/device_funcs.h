@@ -116,7 +116,6 @@ __global__ void update_state(double* res, double* A, double* x, int K, int N);
 __global__ void myPrep(double* x, double* r, int* col, int NK);
 __global__ void mySpMV(double* x2, double* xy, double* y2,
 		       double* y, double* x, double* A, double* r, int K, int N);
-__global__ void est_eval(double e, double* fLf, double * f2);
 __global__ void setA(double* A, double fac, int N);
 __global__ void inv_scale_kernel(double* res, const double* f, const double* scalar, int N);
 __global__ void eig_residual(double* y, double* A, double* x, double* R,

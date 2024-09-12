@@ -26,7 +26,7 @@ using namespace std;
 // the output is real-valued
 class SpectraDiagnostic {
  public:
-  SpectraDiagnostic::SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
+  SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
   ~SpectraDiagnostic() {};
   virtual void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf) = 0;
   virtual void set_dt_data(MomentsG** G_old, Fields* f_old, float dt) {};
@@ -159,7 +159,6 @@ class GrowthRateDiagnostic {
  private:
   void dealias_and_reorder(cuComplex* fold, float* fnew);
 
-  string tag;
   int ndim, N, Nwrite;
   int dims[6];
   size_t count[6] = {0};
@@ -185,7 +184,6 @@ class FieldsDiagnostic {
  private:
   void dealias_and_reorder(cuComplex* fold, float* fnew);
 
-  string tag;
   int ndim, N, Nwrite;
   int dims[6];
   size_t count[6] = {0};
@@ -211,11 +209,10 @@ class FieldsXYDiagnostic {
  private:
   void dealias_and_reorder(float* fold, float* fnew);
 
-  string tag;
   int ndim, N, Nwrite;
-  int dims[6];
-  size_t count[6] = {0};
-  size_t start[6] = {0};
+  int dims[4];
+  size_t count[4] = {0};
+  size_t start[4] = {0};
   int varids[3];
 
   string varnames[3];
@@ -234,18 +231,22 @@ class FieldsXYDiagnostic {
 
 class MomentsDiagnostic {
  public:
-  MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, string varname);
+  MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf, string varname);
   ~MomentsDiagnostic() {
     free(f_h);
     free(cpu);
+    if(pars_->nonlinear_mode) {
+      free(fXY_h);
+      free(cpuXY);
+    }
   }
   void calculate_and_write(MomentsG** G, Fields* f, cuComplex* tmp);
  protected:
-  virtual void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d) = 0;
-  void transform(cuComplex* mom, cuComplex* out);
+  //virtual void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d) = 0;
+  virtual void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d) = 0;
   void dealias_and_reorder(cuComplex* fold, float* fnew);
+  void dealias_and_reorder_XY(float* fold, float* fnew);
 
-  string tag;
   int ndim, N, Nwrite;
   int dims[6];
   size_t count[6] = {0};
@@ -253,7 +254,14 @@ class MomentsDiagnostic {
   size_t dummy_count[6] = {0};
   size_t dummy_start[6] = {0};
   int varid;
-  string varname_;
+
+  int ndimXY, NXY;
+  int dimsXY[5];
+  size_t countXY[5] = {0};
+  size_t startXY[5] = {0};
+  size_t dummy_countXY[5] = {0};
+  size_t dummy_startXY[5] = {0};
+  int varidXY;
 
   int nc_group, nc_type;
   dim3 dG, dB;
@@ -261,56 +269,62 @@ class MomentsDiagnostic {
   Grids* grids_;
   Geometry* geo_;
   NetCDF* ncdf_;
+  Nonlinear* nonlinear_;
+  GradPerp* grad_perp_;
 
   cuComplex *f_h;
   float *cpu;
+
+  float *fXY;
+  float *fXY_h;
+  float *cpuXY;
   bool skipWrite;
 };
 
 class DensityDiagnostic : public MomentsDiagnostic {
  public:
-  DensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  DensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class UparDiagnostic : public MomentsDiagnostic {
  public:
-  UparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  UparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class TparDiagnostic : public MomentsDiagnostic {
  public:
-  TparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  TparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class TperpDiagnostic : public MomentsDiagnostic {
  public:
-  TperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  TperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class ParticleDensityDiagnostic : public MomentsDiagnostic {
  public:
-  ParticleDensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  ParticleDensityDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class ParticleUparDiagnostic : public MomentsDiagnostic {
  public:
-  ParticleUparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  ParticleUparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class ParticleUperpDiagnostic : public MomentsDiagnostic {
  public:
-  ParticleUperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  ParticleUperpDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
 class ParticleTempDiagnostic : public MomentsDiagnostic {
  public:
-  ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
-  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, cuComplex* tmp_d);
+  ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
+  void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };

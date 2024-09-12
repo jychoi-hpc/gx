@@ -68,9 +68,9 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     cudaMemset(amperePerpFacBpar, 0., sizeof(float)*grids_->NxNycNz);    
   }
   
-  int threads, blocks;
-  threads = min(grids_->NxNycNz, 128);
-  blocks = 1 + (grids_->NxNycNz-1)/threads;
+  // int threads, blocks;
+  // threads = min(grids_->NxNycNz, 128);
+  // blocks = 1 + (grids_->NxNycNz-1)/threads;
   
   // compute qneutFacPhi  = sum_s z_s^2*n_s/tau_s*(1- sum_l J_l^2)
   //         qneutFacBpar = -sum_s z_s*n_s*sum_l J_l*(J_l + J_{l-1})

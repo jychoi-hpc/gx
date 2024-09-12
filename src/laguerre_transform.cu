@@ -111,13 +111,14 @@ void LaguerreTransform::transformToGrid(float* G_in, float* g_res)
   int ldc = grids_->NxNyNz;
   int strideC = grids_->NxNyNz*J;
   //  printf("J = %d \n",J);
-  int status; 
-  status = cublasSgemmStridedBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+  cublasStatus_t status = cublasSgemmStridedBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
      m, n, k, &alpha,
      G_in, lda, strideA,
      toGrid, ldb, strideB,
      &beta, g_res, ldc, strideC,
-     batch_size_); 
+     batch_size_);
+  if( status != CUBLAS_STATUS_SUCCESS )
+    fprintf( stderr, "ERROR in transformToGrid in cublasSgemmStridedBatched (%d: %s)", status, cublasGetStatusName(status) );
 }
 
 void LaguerreTransform::transformToSpectral(float* g_in, float* G_res)
@@ -159,13 +160,14 @@ void LaguerreTransform::transformToSpectral(float* g_in, float* G_res)
   // ldc=K  ///////////////////////// yes
   // strideC=K*L    //////////////  yes
 
-  int status;
-  status = cublasSgemmStridedBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+  cublasStatus_t status = cublasSgemmStridedBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
      m, n, k, &alpha,
      g_in, lda, strideA,
      toSpectral, ldb, strideB,
      &beta, G_res, ldc, strideC,
-     batch_size_); 
+     batch_size_);
+  if( status != CUBLAS_STATUS_SUCCESS )
+    fprintf( stderr, "ERROR in transformToSpectral in cublasSgemmStridedBatched (%d: %s)", status, cublasGetStatusName(status) );
 }
 
 

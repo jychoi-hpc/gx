@@ -82,9 +82,11 @@ static const char *_cudaGetErrorEnum(cublasStatus_t error) {
 
     case CUBLAS_STATUS_LICENSE_ERROR:
       return "CUBLAS_STATUS_LICENSE_ERROR";
+
+    default:
+      return "<unknown CUBLAS error>";
   }
 
-  return "<unknown>";
 }
 #endif
 
@@ -142,9 +144,10 @@ static const char *_cudaGetErrorEnum(cufftResult error) {
 
     case CUFFT_NOT_SUPPORTED:
       return "CUFFT_NOT_SUPPORTED";
-  }
 
-  return "<unknown>";
+    default:
+      return "<unknown cuFFT Result>";
+  }
 }
 #endif
 
@@ -178,9 +181,10 @@ static const char *_cudaGetErrorEnum(cusparseStatus_t error) {
 
     case CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED:
       return "CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED";
-  }
 
-  return "<unknown>";
+    default:
+      return "<unknown>";
+  }
 }
 #endif
 
@@ -212,9 +216,10 @@ static const char *_cudaGetErrorEnum(cusolverStatus_t error) {
       return "CUSOLVER_STATUS_ZERO_PIVOT";
     case CUSOLVER_STATUS_INVALID_LICENSE:
       return "CUSOLVER_STATUS_INVALID_LICENSE";
+    default:
+      return "<unknown cuSOLVER Status>";
   }
 
-  return "<unknown>";
 }
 #endif
 
@@ -260,9 +265,10 @@ static const char *_cudaGetErrorEnum(curandStatus_t error) {
 
     case CURAND_STATUS_INTERNAL_ERROR:
       return "CURAND_STATUS_INTERNAL_ERROR";
-  }
 
-  return "<unknown>";
+    default:
+      return "<unknown cuRAND Status>";
+  }
 }
 #endif
 
@@ -296,9 +302,11 @@ static const char *_cudaGetErrorEnum(nvjpegStatus_t error) {
 
     case NVJPEG_STATUS_INTERNAL_ERROR:
       return "NVJPEG_STATUS_INTERNAL_ERROR";
+
+    default:
+      return "<unknown>";
   }
 
-  return "<unknown>";
 }
 #endif
 
@@ -557,9 +565,10 @@ static const char *_cudaGetErrorEnum(NppStatus error) {
     case NPP_CORRUPTED_DATA_ERROR:
       return "NPP_CORRUPTED_DATA_ERROR";
 #endif
+    default:
+      return "<unknown>";
   }
 
-  return "<unknown>";
 }
 #endif
 

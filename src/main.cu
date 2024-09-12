@@ -24,7 +24,6 @@ int main(int argc, char* argv[])
   MPI_Comm_rank(mpcom, &iproc);
   MPI_Comm_size(mpcom, &nprocs);
   
-  int devid = 0; // This should be determined (optionally) on the command line
   int nGPUs = 0;
   checkCuda(cudaGetDeviceCount(&nGPUs));
   checkCuda(cudaSetDevice(iproc%nGPUs));
@@ -76,11 +75,6 @@ int main(int argc, char* argv[])
   // Prepare to define the various coefficients that determine the geometry of the simulation
   //
   Geometry    * geo         = nullptr;
-
-  //
-  // Prepare to define a diagnostics object
-  // 
-  Diagnostics * diagnostics = nullptr;
 
   geo = init_geo(pars, grids);
 

@@ -35,24 +35,24 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
 
   laguerre = new LaguerreTransform(grids_, grids_->Nm);
   laguerre_single = new LaguerreTransform(grids_, 1);
-  int nR = grids_->NxNyNz;
+
   std::vector<int32_t> modes{'r', 'x', 'z'};
   std::vector<int32_t> modesRed{};
   red = new Reduction<float>(grids_, modes, modesRed); 
   cudaDeviceSynchronize();
-  
+
   nBatch = grids_->Nz*grids_->Nl*grids_->Nm; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl*grids_->Nm); 
 
   nBatch = grids_->Nz*grids_->Nl; 
   grad_perp_G_single = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nl); 
-  
+
   nBatch = grids_->Nz*grids_->Nj; 
   grad_perp_J0f = new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nj); 
 
   nBatch = grids_->Nz;
   grad_perp_f =   new GradPerp(grids_, nBatch, grids_->NxNycNz);
-  
+
   checkCuda(cudaMalloc(&dG,    sizeof(float)*grids_->NxNyNz*grids_->Nl*grids_->Nm));
   checkCuda(cudaMalloc(&dg_dx, sizeof(float)*grids_->NxNyNz*grids_->Nj*grids_->Nm));
   checkCuda(cudaMalloc(&dg_dy, sizeof(float)*grids_->NxNyNz*grids_->Nj*grids_->Nm));
@@ -86,6 +86,8 @@ Nonlinear_GK::Nonlinear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
 
   checkCuda(cudaMalloc(&val1,  sizeof(float)));
   cudaMemset(val1, 0., sizeof(float));
+
+  fXY = dphi; // this is just a pointer for use in diagnostics
 
   int nxyz = grids_->NxNyNz;
   int nlag = grids_->Nj;
@@ -393,17 +395,16 @@ Nonlinear_KREHM::Nonlinear_KREHM(Parameters* pars, Grids* grids) :
   G_tmp = nullptr;
 
   grad_perp_f = grad_perp_G = nullptr;
-  
+
   nBatch = grids_->Nz*grids_->Nm; 
   grad_perp_G =     new GradPerp(grids_, nBatch, grids_->NxNycNz*grids_->Nm); 
 
   nBatch = grids_->Nz; 
   grad_perp_f = new GradPerp(grids_, nBatch, grids_->NxNycNz);
-  
-  int nR = grids_->NxNyNz;
+
   red = new Reduction<float>(grids_, {'r', 'x', 'z'}, {}); 
   cudaDeviceSynchronize();
-  
+
   checkCuda(cudaMalloc(&tmp_c, sizeof(cuComplex)*grids_->NxNycNz));
   G_tmp = new MomentsG(pars_, grids_);
 
@@ -565,18 +566,17 @@ Nonlinear_cetg::Nonlinear_cetg(Parameters* pars, Grids* grids) :
   dg_dy = nullptr;
   dphi_dx = nullptr;
   dphi_dy = nullptr;
-  
+
   nBatch = 2*grids_->Nz; 
   grad_perp_G =     new GradPerp(grids_, nBatch, 2 * grids_->NxNycNz); 
 
   nBatch = grids_->Nz; 
   grad_perp_f = new GradPerp(grids_, nBatch, grids_->NxNycNz);
-  
-  int nR = grids_->NxNyNz;
+
   std::vector<int32_t> modes{'r', 'x', 'z'};
   std::vector<int32_t> modesRed{};
   red = new Reduction<float>(grids_, modes, modesRed); 
-  
+
   checkCuda(cudaMalloc(&dG,    sizeof(float)*2*grids_->NxNyNz));  cudaMemset(dG,    0., 2*grids_->NxNyNz);
   checkCuda(cudaMalloc(&dg_dx, sizeof(float)*2*grids_->NxNyNz));  cudaMemset(dg_dx, 0., 2*grids_->NxNyNz);
   checkCuda(cudaMalloc(&dg_dy, sizeof(float)*2*grids_->NxNyNz));  cudaMemset(dg_dy, 0., 2*grids_->NxNyNz);
@@ -733,10 +733,6 @@ void Nonlinear_KS::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   grad_perp_G -> R2C(g_res, G_res->G(), true);
   
 }
-double Nonlinear_KS::cfl(Fields *f, double dt_max)
-{
-  return dt_max;
-}
 
 //===========================================
 // Nonlinear_VP
@@ -815,7 +811,3 @@ void Nonlinear_VP::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
   grad_perp_G -> R2C(g_res, G_res->G(), true);
 }
 
-double Nonlinear_VP::cfl(Fields *f, double dt_max)
-{
-  return dt_max;
-}

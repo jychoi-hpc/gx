@@ -12,6 +12,15 @@
 
 #define ERR(e) {printf("Error: %s. See file: %s, line %d\n", nc_strerror(e),__FILE__,__LINE__); exit(2);}
 
+#define NC_SUCCESS 0
+#define NC_ERR( expr ) {\
+  int retval = (expr);\
+  if ( retval != NC_SUCCESS ) {\
+    fprintf(stderr, "NetCDF Error: %s (retval = %d) in \"%s\" at %s:%d \n", nc_strerror(retval), static_cast<unsigned int>(retval), #expr, __FILE__, __LINE__);\
+    exit(2);\
+  }\
+}
+
 #include "species.h"
 // #include <cufft.h>
 #include <string>
@@ -28,7 +37,7 @@
 
 enum class inits {density, upar, tpar, tperp, qpar, qperp, all};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
-enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2, rk4gxv, sundials}; 
+enum class Tmethod {sspx2, sspx3, rk3, rk4, k10, sundials};
 enum class Closure {none, beer42, smithperp, smithpar};
 enum WSpectra {WSPECTRA_species,
 	       WSPECTRA_kx,
@@ -148,7 +157,7 @@ class Parameters {
   float nu_hyper_z;
   float D_HB, w_osc;
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
-  float ion_z, ion_mass, ion_dens, ion_fprim, ion_uprim, ion_temp, ion_tprim, ion_vnewk;
+  float ion_z, ion_mass, ion_dens, ion_fprim, ion_temp, ion_tprim, ion_vnewk;
   float avail_cpu_time, margin_cpu_time;
   //  float NLdensfac, NLuparfac, NLtparfac, NLtprpfac, NLqparfac, NLqprpfac;
   float tp_t0, tp_tf, tprim0, tprimf;

@@ -571,7 +571,7 @@ void GradParallelNTFT::kFill_ntft(int nClasses, int *nChains, int *nLinks, int *
   // fill order in kx depends on sign of jtwist, but will always fill from -z to +z
  
   int nshift = nx - nakx;
-  int n, p, idy, idx, idx0, idz;
+  int n, p, idx0;
   int idz_prime, idx_constant, idx_prime, idz_start; 
   int extraLinkCounter;
   for(int ic=0; ic<nClasses; ic++) {

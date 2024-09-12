@@ -63,10 +63,10 @@ CXX = CC
 
 NVCC   = nvcc
 CFLAGS = -fPIC
-NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
 
 ifeq ($(debug),on)
-  NVCCFLAGS += -g -G 
+  NVCCFLAGS += -g -G -DDEBUG
 else
   NVCCFLAGS += -O3
 endif

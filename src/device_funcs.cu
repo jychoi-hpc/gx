@@ -654,9 +654,6 @@ __global__ void eig_residual(double* y, double* A, double* x, double* R,
   }
 }
 
-__global__ void est_eval(double eval, double *fLf, double* f2) {eval = fLf[0]/f2[0];}
-
-
 __global__ void inv_scale_kernel(double* res, const double* f, const double* scalar, int N)
 {
   unsigned int n = get_id1();
@@ -1268,7 +1265,6 @@ __device__ void mask_and_scale(void *dataOut, size_t offset, cufftComplex elemen
 
 __device__ void scale_ky(void *dataOut, size_t offset, cufftComplex element, void *data, void * sharedPtr)
 {
-  unsigned int idy = offset % nyc;
   ((cuComplex*)dataOut)[offset] = element/(ny);
 }
 
@@ -2834,7 +2830,7 @@ __global__ void dampEnds_linked(cuComplex* G,
     // set damping region width to 1/8 of extended domain (on either side)
     // widthfac = 1./8.;
     int width = (int) nz*nLinks*widthfrac;  
-    float L = (float) 2*M_PI*zp*nLinks*widthfrac;
+    // float L = (float) 2*M_PI*zp*nLinks*widthfrac;
     float vmax = sqrtf(2*nm_glob); // estimate of max vpar on grid
     if (idzl <= width ) {
       float x = ((float) idzl)/width;
@@ -2901,7 +2897,7 @@ __global__ void dampEnds_linkedNTFT(cuComplex* G,
     int width = (int) nLinks * widthfrac;  
     if (width == 0) width = 1; //sometimes links are less than 1/widthfrac long in NTFT, this makes sure we don't get divide by zero errors
     
-    float L = (float) 2*M_PI*zp*(int(nLinks/nz)+1)*widthfrac; //calculate L by rounding up nLinks to a multiple of Nz (like the conventional), or else the damping term becomes too large and Phi2 blows up
+    // float L = (float) 2*M_PI*zp*(int(nLinks/nz)+1)*widthfrac; //calculate L by rounding up nLinks to a multiple of Nz (like the conventional), or else the damping term becomes too large and Phi2 blows up
     float vmax = sqrtf(2*nm_glob); // estimate of max vpar on grid
     if (idzl < width ) {
       float x = ((float) idzl)/width;
@@ -3091,7 +3087,6 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
     const float nz_ = sp.nz;
     const float nu_ = sp.nu_ss; 
     const float tprim_ = sp.tprim;
-    const float uprim_ = sp.uprim;
     const float fprim_ = sp.fprim;
     const float kperp2_ = kperp2[idxyz];
     const float b_s = kperp2_ * sp.rho2;
@@ -3266,7 +3261,6 @@ __global__ void krehm_collisions(const cuComplex* g,
     const cuComplex apar_     = apar[idxyz];
     const cuComplex apar_ext_ = apar_ext[idxyz];
 
-    const float rhos_ov_de = rhos/de;
     const float kperp2 = kx[idx]*kx[idx] + ky[idy]*ky[idy];
 
     for (unsigned int m = m_lo; m < m_up; m++) {
@@ -3916,6 +3910,26 @@ __global__ void wrmsKernel(float * res, const cuComplex* g, const cuComplex* w)
   }
 }
 
+__global__ void normKernel(float * res, const cuComplex* g)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
+
+  if ( idxy < nx*nyc && idz < nz && idlm < nl*nm ) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    // For the FFT padding modes, just pad the output with 0
+    if ( unmasked( idx, idy ) ) {
+      res[ ig ] = ( g[ ig ].x * g[ ig ].x + g[ ig ].y * g[ ig ].y );
+    } else {
+      res[ ig ] = 0.0;
+    }
+  }
+}
+
 // Needed to calc min { Re[ x ] }, by doing max{ -Re[x] }
 __global__ void minusRealKernel(float* res, const cuComplex* in)
 {
@@ -3996,24 +4010,60 @@ __global__ void add_const_kernel( cuComplex* g, float b )
     g[ ig ].x += b;
   }
 }
+__device__ __constant__ unsigned int M_cut,L_cut,kx_cut,ky_cut;
+__device__ __constant__ float rtol_loose;
 
-__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol )
+void setWeightingConstants( unsigned int Mc, unsigned int Lc, unsigned int kxc, unsigned int kyc, float rtg )
 {
-  unsigned int idxy = get_id1();
-  unsigned int idy = idxy % nyc;
-  unsigned int idx = idxy / nyc;
-
-  unsigned int idz  = get_id2();
-  unsigned int idlm = get_id3();
-
-  if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
-    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
-    wgt[ ig ].y = 0.0;
-  }
+  cudaMemcpyToSymbol( M_cut, &Mc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( L_cut, &Lc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( kx_cut, &kxc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( ky_cut, &kyc, sizeof(unsigned int) );
+  cudaMemcpyToSymbol( rtol_loose, &rtg, sizeof(float) );
 }
 
-__global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *density, float atol, float reltol )
+
+__device__ float reltol_smoothed( unsigned int idxy, unsigned int idlm, float rtol )
+{
+  // disable this function by setting rtol_loose to rtol
+  if( rtol == rtol_loose ) return rtol;
+
+  // This is where to put adjustments that are grid-location-dependent
+  // currently smoothly goes from rtol at M_cut to rtol_grid at M_max
+  unsigned int idy = idxy % nyc;
+  unsigned int idx = idxy / nyc;
+  unsigned int idl = idlm % nl;
+  unsigned int idm = idlm / nl;
+
+  // this shouldn't be called for masked elements, but if we are, just say that
+  // they don't matter for error control
+  if( !unmasked(idx,idy) )
+    return 0;
+
+  // m_pos is 0 for idm in [0,M_cut] and 1 at M_max, disable by setting M_cut to Nm
+  float m_pos = ( idm < M_cut ) ? 0 : ( idm + 1 - M_cut ) / ( nm - M_cut ) ;
+  float l_pos = ( idl < L_cut ) ? 0 : ( idl + 1 - L_cut ) / ( nl - L_cut ) ;
+
+  unsigned int ky_max = (ny - 1)/3 + 1;
+  unsigned int kx_max = (nx - 1)/3 + 1;
+
+  float y_pos = ( idy < ky_cut ) ? 0 : ( idy + 1 - ky_cut ) / ( ky_max - ky_cut ) ;
+
+  unsigned int kx_abs = abs(get_ikx( idx ));
+  float x_pos = ( kx_abs < kx_cut ) ? 0 : ( kx_abs - kx_cut ) / ( kx_max - kx_cut ) ;
+
+  // convert the 4 coordinates on [0,1]^4 to a single number
+
+  float k_pos = ( y_pos > x_pos ) ? y_pos : x_pos;
+  float v_pos = ( m_pos > l_pos ) ? m_pos : l_pos;
+
+  float pos = ( k_pos > v_pos ) ? k_pos : v_pos;
+
+  return (1.0-pos)*rtol + pos*rtol_loose;
+}
+
+
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float rtol )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
@@ -4023,8 +4073,8 @@ __global__ void setWeightsKernelLinear( cuComplex* wgt, cuComplex *g, float *den
   unsigned int idlm = get_id3();
 
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
-    float abstol = density[ idxy + nx*nyc*idz ] * atol; // Make abstol relative to the density moment
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+    float reltol = reltol_smoothed( idxy, idlm, rtol );
     wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
     wgt[ ig ].y = 0.0;
   }
@@ -4034,15 +4084,15 @@ __global__ void add_complex_scaled_kernel(cuComplex* res,
 				  cuComplex c1, const cuComplex* m1,
 				  cuComplex c2, const cuComplex* m2, bool neqfix )
 {
-  unsigned int idxy = get_id1(); 
+  unsigned int idxy = get_id1();
   unsigned int idz  = get_id2();
   unsigned int idlm = get_id3();
 
   if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
     if (neqfix || not_fixed_eq(idxy)) {
-      
+
       unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
-      
+
       res[ig].x = c1.x * m1[ig].x + c2.x * m2[ig].x - c1.y * m1[ig].y - c2.y * m2[ig].y;
       res[ig].y = c1.x * m1[ig].y + c2.x * m2[ig].y + c1.y * m1[ig].x + c2.y * m2[ig].x;
     }
