@@ -470,6 +470,7 @@ __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abst
 __global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cuComplex* m1, cuComplex c2, const cuComplex* m2, bool neqfix = true);
 
 __global__ void complexDotProductKernel(cuComplex* res, const cuComplex*, const cuComplex* );
+__global__ void normKernel(float *, const cuComplex* );
 
 
 // ExB Kernels
