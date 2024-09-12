@@ -83,6 +83,18 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
         ARKODECheck( ERKStepSetCFLFraction( ERKStepMem, pars_->cfl ) );
     }
 
+    
+    // By default be more relaxed in the last 25% in every grid dimension
+    unsigned int ky_max = (ny - 1)/3 + 1;
+    unsigned int kx_max = (nx - 1)/3 + 1;
+    setWeightingConstants( 
+            std::ceil( 0.75 * grids_->Nm ),
+            std::ceil( 0.75 * grids_->Nl ),
+            std::ceil( 0.75 * kx_max ),
+            std::ceil( 0.75 * ky_max ),
+            std::sqrt( reltol ) );
+
+
 }
 
 SundialsStepper::~SundialsStepper()
