@@ -199,7 +199,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 //        if( Wg_data.size() == grids_->Nspecies )
 //          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, Wg_data[ i ] );
 //        else
-        setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, 0.0 );
+        setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, wg_tol, 0.0 );
 
         checkCuda( cudaGetLastError() );
     }

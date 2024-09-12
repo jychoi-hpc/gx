@@ -196,6 +196,7 @@ class SundialsStepper : public Timestepper {
   const double dt_;
   double reltol = 1e-3;
   double abstol = 1e-3;
+  double wg_tol = 1e-4;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;

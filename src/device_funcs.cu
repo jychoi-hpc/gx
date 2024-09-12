@@ -4063,7 +4063,7 @@ __device__ float reltol_smoothed( unsigned int idxy, unsigned int idlm, float rt
 }
 
 
-__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float rtol )
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float rtol, float wg_tol, float wg )
 {
   unsigned int idxy = get_id1();
   unsigned int idy = idxy % nyc;
@@ -4075,7 +4075,7 @@ __global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abst
   if ( unmasked(idx,idy) && idz < nz && idlm < nl*nm ) {
     unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
     float reltol = reltol_smoothed( idxy, idlm, rtol );
-    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) );
+    wgt[ ig ].x = 1. / ( abstol + reltol * cuCabsf(g[ig]) + wg_tol * wg );
     wgt[ ig ].y = 0.0;
   }
 }
