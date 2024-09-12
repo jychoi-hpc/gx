@@ -184,13 +184,6 @@ class SundialsStepper : public Timestepper {
   static int SundialsErrorWeights( N_Vector, N_Vector, void* );
   int ErrorWeights( GXVector *, GXVector * );
 
-  void inform_Wg( std::vector<float>& Wg_new )
-  {
-    Wg_data = Wg_new;
-    if( Wg_data.size() != grids_->Nspecies )
-      throw std::runtime_error("Timestepper was informed of the wrong number of ||g||^2 's ");
-  }
-
  private:
 
   std::vector<float> Wg_data;

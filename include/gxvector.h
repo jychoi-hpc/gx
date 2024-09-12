@@ -87,7 +87,7 @@ class GXVector {
 			ctx(ctx_),owns_data(false)
 		{ 
 			array.resize( G[0]->grids_->Nspecies );
-			for( int i = 0; i < array.size(); ++i )
+			for( size_t i = 0; i < array.size(); ++i )
 				array[ i ] = G[ i ];
 		};
 
