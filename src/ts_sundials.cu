@@ -51,8 +51,6 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
         throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
     }
 
-    int retval;
-
     // Load from parameters
     reltol = pars->SundialsRelTol;
     abstol = pars->SundialsAbsTol;
@@ -193,7 +191,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     // weights[i] = 1/(abstol + reltol*|g[i]|)
     // but with one fused kernel to avoid multiple passes over the data
 
-    for( int i = 0; i < g->nSpecies(); ++i )
+    for( size_t i = 0; i < g->nSpecies(); ++i )
     {
         MomentsG const & m = *((*g)[ i ]);
 //        if( Wg_data.size() == grids_->Nspecies )
