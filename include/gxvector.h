@@ -76,6 +76,7 @@ class GXVector {
 
 		float MaxNorm() const;
 		float WrmsNorm( GXVector const & ) const;
+		float Norm( GXVector const & ) const;
 
 
 		float MinReal() const;

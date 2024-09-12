@@ -381,7 +381,6 @@ Complex GXVector::dotProduct( GXVector const & w ) const
 
 float GXVector::Norm() const
 {
-	assert( w.array.size() == array.size() );
 	// Reduction object
 	std::vector<int32_t> modes{'y', 'x', 'z', 'l', 'm', 's'};
 	std::vector<int32_t> modesRed{};
@@ -400,7 +399,7 @@ float GXVector::Norm() const
 	checkCuda(cudaMemset(SumResult, 0., sizeof(float)));
 
 
-	// do tmp_i = w_i^2 ||g_i||^2 on GPU
+	// do tmp_i = ||g_i||^2 on GPU
 	MomentsG const & m = *(array[ 0 ]);
 	for( int i = 0; i < array.size(); ++i )
 	{
