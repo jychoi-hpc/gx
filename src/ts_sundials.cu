@@ -85,8 +85,8 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
     
     // By default be more relaxed in the last 25% in every grid dimension
-    unsigned int ky_max = (ny - 1)/3 + 1;
-    unsigned int kx_max = (nx - 1)/3 + 1;
+    unsigned int ky_max = (grids_->Ny - 1)/3 + 1;
+    unsigned int kx_max = (grids_->Nx - 1)/3 + 1;
     setWeightingConstants( 
             std::ceil( 0.75 * grids_->Nm ),
             std::ceil( 0.75 * grids_->Nl ),
@@ -206,12 +206,4 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 
     return 0;
 }
-
-void SundialsStepper::inform_Wg( std::vector<float>& Wg_new )
-{
-    Wg_data = Wg_new;
-    if( Wg_data.size() != grids_->Nspecies )
-      throw std::runtime_error("Wrong number of species in call to inform_Wg");
-}
-
 

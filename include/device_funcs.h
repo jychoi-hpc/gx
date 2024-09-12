@@ -472,6 +472,7 @@ __global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cu
 __global__ void complexDotProductKernel(cuComplex* res, const cuComplex*, const cuComplex* );
 __global__ void normKernel(float *, const cuComplex* );
 
+void setWeightingConstants( unsigned int , unsigned int , unsigned int , unsigned int , float );
 
 // ExB Kernels
 __global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
