@@ -15,7 +15,7 @@ SpectraDiagnostic::SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* g
 void SpectraDiagnostic::add_spectra(SpectraCalc *spectra)
 {
   spectraList.push_back(spectra);
-  int varid = spectra->define_nc_variable(varname, nc_group, description);
+  int varid = spectra->define_nc_variable(varname, nc_group, description, pars_->restart && pars_->append_on_restart);
   spectraIds.push_back(varid);
 }
 
@@ -479,8 +479,13 @@ GrowthRateDiagnostic::GrowthRateDiagnostic(Parameters* pars, Grids* grids, NetCD
   Nwrite = grids->Nakx*grids->Naky*2;
 
   int retval;
-  if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
-  if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  if (pars_->restart && pars_->append_on_restart) {
+    if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  } else {
+    if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  }
 
   cudaMalloc (&omg_d, sizeof(cuComplex) * N);
   omg_h = (cuComplex*) malloc  (sizeof(cuComplex) * N);
@@ -509,30 +514,30 @@ void GrowthRateDiagnostic::calculate_and_write(Fields* fields, Fields* fields_ol
   start[0] = ncdf_->nc_grids->time_index;
   if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);
 
-  // print to screen
-  int Nx = grids_->Nx;
-  int Naky = grids_->Naky;
-  int Nyc  = grids_->Nyc;
+  if( pars_->iproc == 0) {
+	  // print to screen
+	  int Nx = grids_->Nx;
+	  int Naky = grids_->Naky;
+	  int Nyc  = grids_->Nyc;
 
-  if(grids_->iproc==0) {
 	  printf("\nky\tkx\t\tomega\t\tgamma\n");
 
 	  for(int j=0; j<Naky; j++) {
-		 for(int i= 1 + 2*Nx/3; i<Nx; i++) {
-			int index = j + Nyc*i;
-			printf("%.4f\t%.4f\t\t%.6f\t%.6f",  grids_->ky_h[j], grids_->kx_h[i], omg_h[index].x, omg_h[index].y);
-			printf("\n");
-		 }
-		 for(int i=0; i < 1 + (Nx-1)/3; i++) {
-			int index = j + Nyc*i;
-			if(index!=0) {
-			  printf("%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], omg_h[index].x, omg_h[index].y);
+		  for(int i= 1 + 2*Nx/3; i<Nx; i++) {
+			  int index = j + Nyc*i;
+			  printf("%.4f\t%.4f\t\t%.6f\t%.6f",  grids_->ky_h[j], grids_->kx_h[i], omg_h[index].x, omg_h[index].y);
 			  printf("\n");
-			} else {
-			  printf("%.4f\t%.4f\n", grids_->ky_h[j], grids_->kx_h[i]);
-			}
-		 }
-		 if (Nx>1) printf("\n");
+		  }
+		  for(int i=0; i < 1 + (Nx-1)/3; i++) {
+			  int index = j + Nyc*i;
+			  if(index!=0) {
+				  printf("%.4f\t%.4f\t\t%.6f\t%.6f", grids_->ky_h[j], grids_->kx_h[i], omg_h[index].x, omg_h[index].y);
+				  printf("\n");
+			  } else {
+				  printf("%.4f\t%.4f\n", grids_->ky_h[j], grids_->kx_h[i]);
+			  }
+		  }
+		  if (Nx>1) printf("\n");
 	  }
   }
 
@@ -604,8 +609,13 @@ FieldsDiagnostic::FieldsDiagnostic(Parameters* pars, Grids* grids, NetCDF* ncdf)
 
   int retval;
   for(int i=0; i<3; i++) {
-    if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);
-    if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    if (pars_->restart && pars_->append_on_restart) {
+      if (retval = nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    } else {
+      if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    }
   }
 
   f_h = (cuComplex*) malloc  (sizeof(cuComplex) * N);
@@ -722,8 +732,13 @@ FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear
    
   int retval;
   for(int i=0; i<3; i++) {
-    if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);
-    if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    if (pars_->restart && pars_->append_on_restart) {
+      if (retval = nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    } else {
+      if (retval = nc_def_var(nc_group, varnames[i].c_str(), nc_type, ndim, dims, &varids[i])) ERR(retval);
+      if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
+    }
   }
 
   N = grids->NxNyNz;
@@ -814,8 +829,13 @@ MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* g
   Nwrite = grids->Nakx*grids->Naky*grids->Nz*grids->Nspecies*2;
 
   int retval;
-  if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
-  if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  if (pars_->restart && pars_->append_on_restart) {
+    if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  } else {
+    if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  }
 
   f_h = (cuComplex*) malloc  (sizeof(cuComplex) * N);
   cpu = (float*) malloc  (sizeof(float) * Nwrite);

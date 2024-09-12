@@ -44,6 +44,7 @@ Diagnostics.free_energy = true
  
 Restart.restart = true
 Restart.restart_from_file = "kh01_restart.nc"
+Restart.restart_with_perturb = true
 
 Restart.save_for_restart = true
 Restart.restart_to_file = "kh01a_restart.nc"

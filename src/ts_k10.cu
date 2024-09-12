@@ -13,7 +13,7 @@
 Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), pars_(pars), grids_(grids), 
-  forcing_(forcing), exb_(exb), dt_max(dt_in), dt_(dt_in), G_q1(nullptr), G_q2(nullptr), Gtmp(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(pars->dt_max), dt_(dt_in), G_q1(nullptr), G_q2(nullptr), Gtmp(nullptr)
 {
   // new objects for temporaries
   Gtmp = new MomentsG (pars_, grids_);

@@ -16,12 +16,18 @@ void SpectraCalc::allocate()
   cpu = (float*) malloc  (sizeof(float) * Nwrite);
 }
 
-int SpectraCalc::define_nc_variable(string varstem, int nc_group, string description)
+int SpectraCalc::define_nc_variable(string varstem, int nc_group, string description, bool append)
 {
   int varid, retval;
-  if (retval = nc_def_var(nc_group, (varstem + tag).c_str(), NC_FLOAT, ndim, dims, &varid)) ERR(retval);
-  if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
-  if (retval = nc_put_att_text(nc_group, varid, "description", strlen(description.c_str()), description.c_str())) ERR(retval);
+  if(append) {
+    if (retval = nc_inq_varid(nc_group, (varstem + tag).c_str(), &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  } else {
+    if (retval = nc_def_var(nc_group, (varstem + tag).c_str(), NC_FLOAT, ndim, dims, &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+    if (retval = nc_put_att_text(nc_group, varid, "description", strlen(description.c_str()), description.c_str())) ERR(retval);
+  }
+
   return varid;
 }
 

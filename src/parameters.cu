@@ -100,6 +100,10 @@ void Parameters::get_nml_vars(char* filename)
   tnml = nml;  
   if (nml.contains("Time")) tnml = toml::find (nml, "Time");
   dt      = toml::find_or <float> (tnml, "dt",       0.05 );
+  dt_max  = toml::find_or <float> (tnml, "dt_max",   static_cast<float>(dt) );
+  dt_min  = toml::find_or <float> (tnml, "dt_min",   1e-7 );
+  fixed_dt = toml::find_or <bool> (tnml, "fixed_dt", false );
+
   nstep   = toml::find_or <int>   (tnml, "nstep",   2e9 );
   nstep_restart   = toml::find_or <int>   (tnml, "nstep_restart",   -1 );
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
@@ -126,7 +130,7 @@ void Parameters::get_nml_vars(char* filename)
   init_field = toml::find_or <string> (tnml, "init_field", "density");
   init_amp   = toml::find_or <float>  (tnml, "init_amp",   1.0e-5   );
   kpar_init  = toml::find_or <float>  (tnml, "kpar_init",     0.0   );
-  ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     (long) kpar_init  );
+  ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     static_cast<int>(kpar_init)  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   gaussian_init = toml::find_or <bool> (tnml, "gaussian_init", false);
   gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     1.0   );
@@ -137,16 +141,26 @@ void Parameters::get_nml_vars(char* filename)
   tprpfac = toml::find_or <float> (tnml, "tprpfac", 1.0);
   qparfac = toml::find_or <float> (tnml, "qparfac", 1.0);
   qprpfac = toml::find_or <float> (tnml, "qprpfac", 1.0);
+
+  random_seed = toml::find_or <unsigned int> (tnml, "random_seed", 22);
+
   if (random_init) ikpar_init = 0; 
 
   if (nml.contains("Restart")) tnml = toml::find(nml, "Restart");
   restart           = toml::find_or <bool>   (tnml, "restart",                 false  );
+  restart_if_exists = toml::find_or <bool>   (tnml, "restart_if_exists",       false  );
   save_for_restart  = toml::find_or <bool>   (tnml, "save_for_restart",         true  );
   restart_to_file   = toml::find_or <string> (tnml, "restart_to_file", default_restart_filename);
   restart_from_file = toml::find_or <string> (tnml, "restart_from_file", default_restart_filename);  
+  restart_with_perturb = toml::find_or <bool> (tnml, "restart_with_perturb", false  );
+  append_on_restart = toml::find_or <bool> (tnml, "append_on_restart", true);
   scale             = toml::find_or <float>  (tnml, "scale",                      1.0 );
   nsave   = toml::find_or <int>   (tnml, "nsave", 10000 );
   nsave = max(1, nsave);
+  if (restart_if_exists) {
+    if (access(restart_from_file.c_str(), F_OK) == 0) restart = true;
+    else restart = false;
+  }
 
   if (nml.contains("Dissipation")) tnml = toml::find(nml, "Dissipation");
   closure_model  = toml::find_or <string> (tnml, "closure_model", "none" );
@@ -326,6 +340,7 @@ void Parameters::get_nml_vars(char* filename)
   }    
   
   tnml = nml;
+  /*
   if (nml.contains("Controls")) tnml = toml::find (nml, "Controls");
   dealias_kz = toml::find_or <bool>   (tnml, "dealias_kz",  dealias_kz   ); // included for backwards-compat. now specified in expert
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    false );  linear = !nonlinear_mode; // included for backwards-compat. nonlinear_mode now specified in Physics
@@ -355,6 +370,7 @@ void Parameters::get_nml_vars(char* filename)
   random_init     = toml::find_or <bool> (tnml, "random_init",     random_init); // include for backwards-compat. now specified in Initialization
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     init_electrons_only); // include for backwards-compat. now specified in Initialization
   if (random_init) ikpar_init = 0; 
+  */
   
   if (write_omega && fixed_amplitude) {
     if (nonlinear_mode || nwrite < 3) fixed_amplitude = false;
@@ -1228,7 +1244,7 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putint   (nc_con,  "stages",          stages          );
   put_real (nc_con,  "cfl",             cfl             );
   put_real (nc_con,  "init_amp",        init_amp        );
-  put_real (nc_con,  "ikpar_init",      ikpar_init       );
+  putint   (nc_con,  "ikpar_init",      ikpar_init      );
   putbool  (nc_con,  "random_init",     random_init     );
   putbool  (nc_con,  "dealias_kz",      dealias_kz      );
   putbool  (nc_con,  "nonlinear_mode",  nonlinear_mode  );   
