@@ -184,10 +184,10 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     for( int i = 0; i < g->nSpecies(); ++i )
     {
         MomentsG const & m = *((*g)[ i ]);
-        if( Wg_data.size() == grids_->Nspecies )
-          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, Wg_data[ i ] );
-        else
-          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, 0.0 );
+//        if( Wg_data.size() == grids_->Nspecies )
+//          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, Wg_data[ i ] );
+//        else
+        setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, 0.0 );
 
         checkCuda( cudaGetLastError() );
     }
