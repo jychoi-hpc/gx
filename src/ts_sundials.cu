@@ -24,7 +24,7 @@ template <typename T> inline void __checkARKODEErrors__(T code, const char *func
 
 // ============= Sundials-based Timestepping =============
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-        Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** g0, double t0, ARKodeButcherTable bt ) :
+        Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** g0, double t0 ) :
     linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
     forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
