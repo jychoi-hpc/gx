@@ -24,8 +24,9 @@ def heat_flux(data, ispec=0, navgfac=0.5, label=None, plot=True, fig=None, Lref=
 
     # compute time-average and std dev
     istart_avg = int(len(t)*navgfac)
-    qavg = np.mean(q[istart_avg:])
-    qstd = np.std(q[istart_avg:])
+    iend_avg = int(len(t)*400/400);
+    qavg = np.mean(q[istart_avg:iend_avg])
+    qstd = np.std(q[istart_avg:iend_avg])
     if label == None:
         label = data.filepath()
     print(r"%s: Q_%s/Q_GB = %.5g +/- %.5g" % (label, species_tag, qavg, qstd))
@@ -34,7 +35,7 @@ def heat_flux(data, ispec=0, navgfac=0.5, label=None, plot=True, fig=None, Lref=
     if plot:
         if fig == None:
             fig = plt.figure(0)
-        plt.plot(t,q,'-',label=r"%s: $Q_%s/Q_\mathrm{GB}$ = %.5g"%(label, species_tag, qavg))
+        plt.plot(t[:iend_avg],q[:iend_avg],'-',label=r"%s: $Q_%s/Q_\mathrm{GB}$ = %.5g"%(label, species_tag, qavg))
         plt.ylabel(r"$Q/Q_\mathrm{GB}$")
         plt.xlabel(r"$t\ (v_{t%s}/%s)$"%(refsp, Lref))
         legend = plt.legend(loc='upper left')

@@ -4358,7 +4358,7 @@ __global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex*
   }
 }
 
-__global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage)
+__global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage) 
 {
 
   unsigned int idz  = get_id1();
@@ -4376,6 +4376,7 @@ __global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const
     
     cuComplex rm = make_cuComplex(0.0f, 0.0f);
     double sdtvt;
+    double vt;
     sdtvt = sdt * spi.vt;
     
     if(stage == 1 && idl==0){
@@ -4387,9 +4388,11 @@ __global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const
     for(idm=1; idm<2*nm; idm++) {
       if (idm < nm){
         sdtvt = sdt * spi.vt;
+	vt = spi.vt;
       }
       else{
         sdtvt = sdt * spe.vt;
+	vt = spe.vt;
       }
       idms = idm % nm;
       globalIdx = idz + nz * (idl + nl*idms);
@@ -4399,6 +4402,7 @@ __global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const
       cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idms); 
       // a[m]
       cuComplex am = sdtvt*ikz*gradpar*sqrtf(idms);
+
       rm = make_cuComplex(0.0f, 0.0f);
 
       if (stage == 0 && idl==0){
@@ -4459,7 +4463,7 @@ __global__ void sherman_morrison_subsolve_lw(cuComplex* gi, cuComplex* ge, const
   }
 }
 
-__global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, int nLinks, int nChains)
+__global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge, const float* kz, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, int nLinks, int nChains,bool hyperc, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 {
 
   unsigned int idz  = get_id1();
@@ -4481,6 +4485,8 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
     
     cuComplex rm = make_cuComplex(0.0f, 0.0f);
     double sdtvt;
+    double vt;
+    float nu_hyper_lm_scaled;
     sdtvt = sdt * spi.vt;
     
     if(stage == 1 && idl==0){
@@ -4492,9 +4498,15 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
     for(idm=1; idm<2*nm; idm++) {
       if (idm < nm){
         sdtvt = sdt * spi.vt;
+	vt = spi.vt;
+	nu_hyper_lm_scaled = vt/vt_max*nu_hyper_lm/dt; 
+
       }
       else{
         sdtvt = sdt * spe.vt;
+	vt = spe.vt;
+	nu_hyper_lm_scaled = vt/vt_max*nu_hyper_lm/dt; 
+
       }
       idms = idm % nm;
       globalIdx = idzx + nznx * (idl + nl*idms);
@@ -4504,6 +4516,21 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
       cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idms); 
       // a[m]
       cuComplex am = sdtvt*ikz*gradpar*sqrtf(idms);
+
+      if(hyperc && (idms > 2 || idl > 1)){
+        float scaled_nu_hyp_l = (float) nl * nu_hyper_l;
+        float scaled_nu_hyp_m = (float) nm * nu_hyper_m; // scaling appropriate for curvature. Too big for slab
+	bm = bm + sdt*(nu_hyper_lm_scaled*powf((float) (2*idl + idms)/(2*nl + nm), p_hyper_lm)
+             + vt*(scaled_nu_hyp_l*powf((float) idl/nl, (float) p_hyper_l)                              
+             + scaled_nu_hyp_m*powf((float) idms/nm, (float) p_hyper_m)));
+
+      
+      }
+
+
+
+
+
       rm = make_cuComplex(0.0f, 0.0f);
 
       if (stage == 0 && idl==0){
@@ -4678,7 +4705,7 @@ __global__ void sherman_morrison_subsolve_laguerre(cuComplex* gi, cuComplex* ge,
   }
 }
 
-__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains)
+__global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, bool hyperc, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 {
 
   unsigned int idz  = get_id1();
@@ -4710,6 +4737,9 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
     
     cuComplex rm = make_cuComplex(0.0f, 0.0f);
     double sdtvt;
+    double vt;
+    float nu_hyper_lm_scaled;
+
     sdtvt = sdt * spi.vt;
     if(stage == 0){
       rm = gi[globalIdx];
@@ -4719,9 +4749,14 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
     for(idm=1; idm<2*nm; idm++) {
       if (idm < nm){
         sdtvt = sdt * spi.vt;
+	vt = spi.vt;
+	nu_hyper_lm_scaled = vt/vt_max*nu_hyper_lm/dt; 
       }
       else{
         sdtvt = sdt * spe.vt;
+	vt = spe.vt;
+	nu_hyper_lm_scaled = vt/vt_max*nu_hyper_lm/dt; 
+
       }
       idms = idm % nm;
       globalIdx = idzk + nznk * (idl + nl*idms);
@@ -4731,6 +4766,17 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
       cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idms); 
       // a[m]
       cuComplex am = sdtvt*ikz*gradpar*sqrtf(idms);
+
+      if(hyperc && (idms > 2 || idl > 1)){
+        float scaled_nu_hyp_l = (float) nl * nu_hyper_l;
+        float scaled_nu_hyp_m = (float) nm * nu_hyper_m; // scaling appropriate for curvature. Too big for slab
+	bm = bm + sdt*(nu_hyper_lm_scaled*powf((float) (2*idl + idms)/(2*nl + nm), p_hyper_lm)
+             + vt*(scaled_nu_hyp_l*powf((float) idl/nl, (float) p_hyper_l)                              
+             + scaled_nu_hyp_m*powf((float) idms/nm, (float) p_hyper_m)));
+
+      
+      }
+
       rm = make_cuComplex(0.0f, 0.0f);
 
       if (stage == 0){

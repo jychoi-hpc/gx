@@ -166,6 +166,17 @@ void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt)
     grad_par->dz(GRhs, GRhs, false);
   }
 
+  // hypercollisions with const coefficient
+  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+		  						   pars_->nu_hyper_l,
+								   pars_->nu_hyper_m,
+								   G->species->vt/pars_->vtmax*pars_->nu_hyper_lm/dt,
+								   pars_->p_hyper_l,
+								   pars_->p_hyper_m, 
+								   pars_->p_hyper_lm, 
+								   GRhs->G(), G->species->vt);
+
+
 }
 
 void Linear_GK::rhs_streaming_id(MomentsG* G, Fields* f, MomentsG* GRhs, double dt, bool negate) {
@@ -190,6 +201,17 @@ void Linear_GK::rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, dou
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
 	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+
+  // hypercollisions with const coefficient
+  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+		  						   pars_->nu_hyper_l,
+								   pars_->nu_hyper_m,
+								   G->species->vt/pars_->vtmax*pars_->nu_hyper_lm/dt,
+								   pars_->p_hyper_l,
+								   pars_->p_hyper_m, 
+								   pars_->p_hyper_lm, 
+								   GRhs->G(), G->species->vt);
+
 
 }
 
@@ -277,14 +299,14 @@ void Linear_GK::rhs_nonstreaming_nonbounce(MomentsG* G, Fields* f, MomentsG* GRh
   }
 
   // hypercollisions with const coefficient
-  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+/*  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
 		  						   pars_->nu_hyper_l,
 								   pars_->nu_hyper_m,
 								   G->species->vt/pars_->vtmax*pars_->nu_hyper_lm/dt,
 								   pars_->p_hyper_l,
 								   pars_->p_hyper_m, 
 								   pars_->p_hyper_lm, 
-								   GRhs->G(), G->species->vt);
+								   GRhs->G(), G->species->vt);*/
 
   // hypercollisions with coefficient propto kz
   if(pars_->hypercollisions_kz) {
@@ -351,14 +373,14 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
   }
 
   // hypercollisions with const coefficient
-  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
+/*  if(pars_->hypercollisions_const) hypercollisions<<<dimGridh,dimBlockh>>>(G->G(),
 		  						   pars_->nu_hyper_l,
 								   pars_->nu_hyper_m,
 								   G->species->vt/pars_->vtmax*pars_->nu_hyper_lm/dt,
 								   pars_->p_hyper_l,
 								   pars_->p_hyper_m, 
 								   pars_->p_hyper_lm, 
-								   GRhs->G(), G->species->vt);
+								   GRhs->G(), G->species->vt);*/
 
   // hypercollisions with coefficient propto kz
   if(pars_->hypercollisions_kz) {
