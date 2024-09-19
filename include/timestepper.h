@@ -216,5 +216,5 @@ class SunRK4Stepper : public SundialsStepper {
 
  private:
   ARKodeButcherTable rk4table;
-  static const sunrealtype c[4],b[4],a[16];
+  static sunrealtype c[4],b[4],a[16];
 };
