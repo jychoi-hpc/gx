@@ -187,6 +187,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
 
     case Tmethod::sundials: timestep = new SundialsStepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
+    case Tmethod::sunrk4: timestep = new SunRK4Stepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
+
 
     default:
       printf("Unknown timestepper id (%u). Aborting.",static_cast<unsigned int>(pars->scheme_opt) );

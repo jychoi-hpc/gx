@@ -775,6 +775,7 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "rk3")   scheme_opt = Tmethod::rk3;
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
   if (scheme == "sundials") scheme_opt = Tmethod::sundials;
+  if (scheme == "sunrk4") scheme_opt = Tmethod::sunrk4;
 
   if (eqfix && iproc==0 && scheme_opt == Tmethod::k10) {
     printf("\n");

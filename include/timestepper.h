@@ -207,3 +207,14 @@ class SundialsStepper : public Timestepper {
   Forcing    * forcing_   ;
   Fields     * fields_    ;
 };
+
+class SunRK4Stepper : public SundialsStepper {
+ public:
+   SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+                   Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
+  ~SunRK4Stepper();
+
+ private:
+  ARKodeButcherTable rk4table;
+  static const sunrealtype c[4],b[4],a[16];
+};
