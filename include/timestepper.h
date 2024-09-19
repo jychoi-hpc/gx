@@ -175,7 +175,7 @@ class SundialsStepper : public Timestepper {
                    Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
+  double get_dt();
 
   // Wrapper around the rhs of dy/dt = F(y,t)
   static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );

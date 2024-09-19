@@ -205,3 +205,15 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     return 0;
 }
 
+double SundialsStepper::get_dt() 
+{
+    double step;
+    int retval = ARKodeGetCurrentStep( ERKStepMem, &step );
+    if( retval == ARK_SUCCESS ) {
+        return step;
+    } else {
+        throw std::runtime_error("Error Encountered in ARKodeGetCurrentStep");
+        return -1.0;
+    }
+}
+
