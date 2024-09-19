@@ -233,7 +233,7 @@ SunRK4Stepper::SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solve
    if( rk4table == nullptr )
        throw std::runtime_error("Could not create RK4 ButcherTable!");
 
-   ARKodeCheck( ERKStepSetTable( ERKStepMem, rk4table ) );
+   ARKODECheck( ERKStepSetTable( ERKStepMem, rk4table ) );
 
    ARKODECheck( ERKStepSetFixedStep( ERKStepMem, dt_ ) );
 }
