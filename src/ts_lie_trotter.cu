@@ -188,7 +188,7 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
 {
 
   if(!flip){
-    if(pars_->fapar > 0.){
+/*    if(pars_->fapar > 0.){
       for(int is = 0; is < grids_->Nspecies; is++){
         G2[is]->copyFrom(G1[is]); 
       }
@@ -199,13 +199,13 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
       mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
 
       add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
-    }
+    }*/
     for(int is = ielectron; is < grids_->Nspecies; is++){
       mirror[is]->invert_stream(G1[is]->G(), 0);
       
-      if(pars_->fapar > 0.){
+/*      if(pars_->fapar > 0.){
         sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
-      }
+      }*/
       G0[is]->copyFrom(G1[is]);
     }
   }
