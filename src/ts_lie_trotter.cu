@@ -93,7 +93,8 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 
   int nn4 = grids_->Nz;              int nt4 = min(nn4,  16);   int nb4 = 1 + (nn4-1)/nt4;
   int nn5 = grids_->Nl;   int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
-  
+  int nn6 = grids_->Nm;   int nt6 = min(nn6,  4);   int nb6 = 1 + (nn6-1)/nt6;
+
   a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
   p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
   sdirk = pars_->sdirk;
@@ -103,7 +104,13 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dG = dim3(nb1, nb2, nb3); 
 
   dB_lw = dim3(nt4, nt5, 1);
-  dG_lw = dim3(nb4, nb5, 1);  
+  dG_lw = dim3(nb4, nb5, 1); 
+
+  dB_m1 = dim3(nt4, nt5, nt6);
+  dG_m1 = dim3(nb4, nb5, nb6);  
+  dB_m2 = dim3(nt1, nt2, nt4);
+  dG_m2 = dim3(nb1, nb2, nb4);  
+
   flip = false;
 }
 
@@ -181,8 +188,24 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
 {
 
   if(!flip){
+    if(pars_->fapar > 0.){
+      for(int is = 0; is < grids_->Nspecies; is++){
+        G2[is]->copyFrom(G1[is]); 
+      }
+      G2[ielectron]->set_zero();
+      solver_->fieldSolve(G2, f);
+      
+      set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+      mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
+
+      add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
+    }
     for(int is = ielectron; is < grids_->Nspecies; is++){
       mirror[is]->invert_stream(G1[is]->G(), 0);
+      
+      if(pars_->fapar > 0.){
+        sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
+      }
       G0[is]->copyFrom(G1[is]);
     }
   }

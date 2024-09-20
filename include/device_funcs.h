@@ -483,6 +483,14 @@ __global__ void lu_backsub_bounce(cuComplex* A_bounce, cuComplex* g, int idz);
 __global__ void find_max_fac_inv(float* qneutFacPhi, float* max_qneutFacPhi_inv, float* qneutFacPhi_inv_l, float* max_qneutFacPhi_inv_l, float* qneutFacBpar, float* max_qneutFacBpar_inv, float* ampereParFac, float* max_ampereParFac_inv, float* amperePerpFacPhi, float* max_amperePerpFacPhi_inv, float* amperePerpFacBpar, float* max_amperePerpFacBpar_inv, float* BparDenom, float* max_Jflr, const float* kperp2, const specie sp, const float* bmagInv, const float fapar, const float fbpar);
 __device__ float find_max_linked(const float* arr, int nLinks, int nChains, int idy, int idl);
 __global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp);
+
+
+__global__ void sherman_morrison_mirror(cuComplex* g, cuComplex* u, const float* ampereParFac); 
+__global__ void add_apar_rhs(cuComplex* g, cuComplex* apar, const specie sp, const float sdt, const float* bgrad);
+__global__ void set_mirror_apar_rhs(cuComplex* g, const specie sp, const float* bgrad, const float beta, const float sdt);
+__global__ void lu_backsub_bounce_d_sm(cuComplex** A_bounce, cuComplex* u);
+
+
 __global__ void sherman_morrison_linked_full_laguerre(cuComplex* g1i, cuComplex* g1e, cuComplex* g2i, cuComplex* g2e, cuComplex* g3i, cuComplex* g3e, const float* kz, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const specie spi, const specie spe, const double sdt, const float gradpar, int nLinks, int nChains);
 __global__ void tridiag_streaming_linked_full_laguerre(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv_l_i, const float* max_qneutFacPhi_inv_l_e, const float* max_Jflr_i, const float* max_Jflr_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, int nL, int nM);
 __global__ void sherman_morrison_subsolve_laguerre(cuComplex* gi, cuComplex* ge, const float* kz, const float* max_Jflr_i, const float* max_Jflr_e, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, int nLinks, int nChains);

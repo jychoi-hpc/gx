@@ -3876,6 +3876,110 @@ __global__ void lu_backsub_bounce(cuComplex* A_bounce, cuComplex* g, int idz){
   }
 }
 
+__global__ void sherman_morrison_mirror(cuComplex* g, cuComplex* u, const float* ampereParFac) 
+{
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nxnycnz = nxnyc*nz;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && (unmasked(idx,idy))) {
+    cuComplex v0y0 = make_cuComplex(0.0f, 0.0f);
+    cuComplex v0z0 = make_cuComplex(0.0f, 0.0f);
+
+    v0y0 = g[idxyz + nxnycnz*nl]/ampereParFac[idxyz];
+    v0z0 = u[idz + nz*nl]/ampereParFac[idxyz];
+
+    unsigned int globalIdx; 
+    unsigned int idl;
+    unsigned int idm;
+    for(int idlm = 0; idlm < nl*nm; idlm++){
+      idm = idlm % nm;
+      idl = int(idlm / nm);
+      globalIdx = idxyz + nxnycnz*(idl + nl*idm);
+      g[globalIdx] = g[globalIdx] - v0y0/(1 + v0z0) * u[idz + nz*(idl + nl*idm)];
+    }
+  
+  }
+
+}
+
+__global__ void add_apar_rhs(cuComplex* g, cuComplex* apar, const specie sp, const float sdt, const float* bgrad)
+{
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nxnycnz = nxnyc*nz;
+  unsigned int idxyz = idy + nyc*idx + nxnyc*idz;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && (unmasked(idx,idy))) {
+    unsigned int globalIdx_0 = idxyz;
+    unsigned int globalIdx_1 = idxyz + nxnycnz;
+
+    g[globalIdx_0] = g[globalIdx_0] - sdt * sp.vt * sp.vt * sp.zt * apar[idxyz] * bgrad[idz];
+    g[globalIdx_1] = g[globalIdx_1] - sdt * sp.vt * sp.vt * sp.zt * apar[idxyz] * bgrad[idz];
+
+  }
+
+}
+
+__global__ void set_mirror_apar_rhs(cuComplex* g, const specie sp, const float* bgrad, const float beta, const float sdt)
+{
+  unsigned int idz = get_id1();
+  unsigned int idl = get_id2();
+  unsigned int idm = get_id3();
+
+  if ((idz < nz) && (idl < nl) && (idm < nm)){
+    int ind = idz + nz*(idl + nl*idm);
+    if((idl == 0 || idl == 1) && idm == 0){
+      g[ind] = make_cuComplex(sdt * sp.vt * sp.vt * sp.vt * sp.zt * beta/2 * sp.nz * bgrad[idz],0.0f);
+    }
+    else{
+      g[ind] = make_cuComplex(0.0f,0.0f);
+    } 
+  
+  }
+
+
+}	
+
+__global__ void lu_backsub_bounce_d_sm(cuComplex** A_bounce, cuComplex* u){
+  unsigned int idz = get_id1();
+  if ((idz < nz)){
+    cuComplex interm;
+    unsigned int idm, idl;
+    for(int lmi = 0; lmi  < nm*nl; lmi++){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int lmj = 0; lmj < lmi; lmj++){
+	idm = lmj % nm;
+	idl = int(lmj / nm);
+        interm = interm + A_bounce[idz][lmi + nl*nm*lmj] * u[idz+nz*(idl + nl*idm)];
+
+      }
+      idm = lmi % nm;
+      idl = int(lmi / nm);
+      u[idz + nz*(idl + nl*idm)] = u[idz + nz*(idl + nl*idm)] - interm;
+    }
+
+    for(int lmi = nm*nl-1; lmi >= 0; lmi--){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int lmj = lmi+1; lmj < nm*nl; lmj++){
+	idm = lmj % nm;
+	idl = int(lmj / nm);
+        interm = interm + A_bounce[idz][lmi + nm*nl*lmj] * u[idz + nz*(idl + nl*idm)];
+      }
+      idm = lmi % nm;
+      idl = int(lmi / nm);
+      u[idz + nz*(idl + nl*idm)] = (u[idz + nz*(idl + nl*idm)] - interm)/A_bounce[idz][lmi + nm*nl*lmi];
+    }
+
+  }
+}
+
 
 __global__ void lu_backsub_bounce_d(cuComplex** A_bounce, cuComplex* g){
   unsigned int idy = get_id1();

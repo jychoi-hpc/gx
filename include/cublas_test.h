@@ -24,6 +24,8 @@ class Cublas_test{
   ~Cublas_test();
 
   void invert_stream(cuComplex* G, int stage);
+  void invert_sherman_morrison(cuComplex* u);
+
   cuComplex** A_bounce;
   cuComplex     ** bounce_rhs;
   cuComplex     ** res;
@@ -44,6 +46,8 @@ class Cublas_test{
   dim3 dB_bd;
   dim3 dG_lu;
   dim3 dB_lu;
+  dim3 dG_lu_sm;
+  dim3 dB_lu_sm;
 
   double p_;
   double r_;

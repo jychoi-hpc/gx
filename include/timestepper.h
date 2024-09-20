@@ -297,7 +297,7 @@ class Lie_Trotter : public Timestepper {
   const float* bmagInv_;
   const float* kperp2_;
   bool flip;
-  dim3 dG, dB, dG_lw, dB_lw;
+  dim3 dG, dB, dG_lw, dB_lw, dG_m1, dB_m1, dG_m2, dB_m2;
 };
 
 

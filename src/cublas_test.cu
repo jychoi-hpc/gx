@@ -88,6 +88,10 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   dB_lu = dim3(nt4, nt5, nt8);
   dG_lu = dim3(nb4, nb5, nb8);
 
+  dB_lu_sm = dim3(nt8, 1, 1);
+  dG_lu_sm = dim3(nb8, 1, 1);
+
+
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
        initialize_A_bounce<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM, pars_->nm_in, pars_->nl_in, geo_->bgrad, dcoeff[i], dt_,vte,j);
@@ -233,6 +237,12 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
 
 
   checkCudaErrors(cudaGetLastError());
+
+}
+
+void Cublas_test::invert_sherman_morrison(cuComplex* u)
+{
+  lu_backsub_bounce_d_sm<<<dG_lu_sm, dB_lu_sm>>>(d_A_bounce, u);
 
 }
 
