@@ -111,7 +111,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dB_m2 = dim3(nt1, nt2, nt4);
   dG_m2 = dim3(nb1, nb2, nb4);  
 
-  flip = false;
+  flip = true;
 }
 
 Lie_Trotter::~Lie_Trotter()

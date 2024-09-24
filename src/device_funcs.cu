@@ -4809,6 +4809,21 @@ __global__ void sherman_morrison_subsolve_laguerre(cuComplex* gi, cuComplex* ge,
   }
 }
 
+__global__ void negate_add_id(cuComplex* g, cuComplex* g1, const float sdt)
+{
+  unsigned int idxy = get_id1();
+  unsigned int idz = get_id2();
+  unsigned int idlm = get_id3();
+
+  unsigned int nxnyc = nx*nyc;
+//  if((idx < nx) && (idy < ny) && unmasked(idx,idy) && (idz < nz) && (idl < nl) && (idm < nm)){
+  if (idxy < nx*nyc && idz < nz && idlm < nl*nm) {
+    unsigned int globalIdx = idxy + nxnyc*(idz + nz*idlm);
+    g[globalIdx] = g1[globalIdx] - sdt*g[globalIdx]; 
+  }
+
+}
+
 __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, bool hyperc, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 {
 
