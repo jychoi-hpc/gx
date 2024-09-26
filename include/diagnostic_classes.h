@@ -232,7 +232,7 @@ class FieldsXYDiagnostic {
 class MomentsDiagnostic {
  public:
   MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf, string varname);
-  ~MomentsDiagnostic() {
+  virtual ~MomentsDiagnostic() {
     free(f_h);
     free(cpu);
     if(pars_->nonlinear_mode) {
