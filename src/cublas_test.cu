@@ -81,8 +81,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
 
 
-  dG_bd = dim3(nt4, nt7, nt6);
-  dB_bd = dim3(nb4, nb7, nb6);
+  dB_bd = dim3(nt4, nt7, nt6);
+  dG_bd = dim3(nb4, nb7, nb6);
 
 
   dB_lu = dim3(nt4, nt5, nt8);

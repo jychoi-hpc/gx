@@ -188,6 +188,7 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
 {
 
   if(!flip){
+//  if(true){
 /*    if(pars_->fapar > 0.){
       for(int is = 0; is < grids_->Nspecies; is++){
         G2[is]->copyFrom(G1[is]); 

@@ -28,7 +28,7 @@
 
 enum class inits {density, upar, tpar, tperp, qpar, qperp, all};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
-enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2, ssprk3, imex3, imex4, imex_full, lie_trotter}; 
+enum class Tmethod {sspx2, sspx3, rk2, rk3, rk4, k10, g3, k2, ssprk3, imex3, imex4, imex_full, lie_trotter, lie_trotter_green, imex_green}; 
 enum class Closure {none, beer42, smithperp, smithpar};
 enum WSpectra {WSPECTRA_species,
 	       WSPECTRA_kx,
@@ -141,8 +141,9 @@ class Parameters {
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
   float x0, y0, z0, dt, fphi, fapar, fbpar, kpar_init, shaping_ps, implicit_omega, implicit_omega_streaming, implicit_linked;
   std::string imex_scheme;
-  double a21, a31, a32, w1, w2, w3;
-  double p_, q_, r_, s_, t_, u_;
+  int nstages;
+  double a21, a31, a32, a41, a42, a43, a44, w1, w2, w3, w4;
+  double p_, q_, r_, s_, t_, u_, w_, x_, y_, z_;
   bool sdirk;
 
   int ikpar_init;

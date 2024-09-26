@@ -174,13 +174,24 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
 
   Cublas_test* cublas;
-
+  Green* green;
 /*  if (pars->scheme_opt == Tmethod::lie_trotter){
     double vte = G[1]->species->vt; 
     cublas = new Cublas_test(pars, grids, geo, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
  
   }*/
+  if (pars->scheme_opt == Tmethod::lie_trotter_green){
+    double vte = G[1]->species->vt; 
+    green = new Green(pars, grids, geo, solver, 0.0, 1.0, 0.0, true, (double) pars->dt, vte);
 
+  }
+
+  if (pars->scheme_opt == Tmethod::imex_green){
+    double vte = G[1]->species->vt; 
+    cublas = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+    green = new Green(pars, grids, geo, solver, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+
+  }
 
   if (pars->scheme_opt == Tmethod::imex_full){
     double vte = G[1]->species->vt; 
@@ -202,6 +213,9 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
     case Tmethod::imex_full : timestep = new IMEX_3stage_Full (linear, nonlinear, solver, pars, grids, geo, cublas, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
+    case Tmethod::lie_trotter_green : timestep = new Lie_Trotter_Green (linear, nonlinear, solver, pars, grids, green, geo, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
+    case Tmethod::imex_green : timestep = new IMEX_3stage_Green (linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
+
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
 

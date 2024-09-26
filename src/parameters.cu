@@ -759,9 +759,12 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "imex4") scheme_opt = Tmethod::imex4;
   if (scheme == "imex_full") scheme_opt = Tmethod::imex_full;
   if (scheme == "lie_trotter") scheme_opt = Tmethod::lie_trotter;
+  if (scheme == "lie_trotter_green") scheme_opt = Tmethod::lie_trotter_green;
+  if (scheme == "imex_green") scheme_opt = Tmethod::imex_green;
 
-  if (scheme == "imex3" || scheme == "imex" || scheme == "imex_full") {
+  if (scheme == "imex3" || scheme == "imex" || scheme == "imex_full" || "imex_green") {
     // Pareschi-Russo SSP2(3,3,2)
+    nstages = 3;
     if(imex_scheme == "pareschi_russo_ssp2_332") {
       a21 = 0.5;
       a31 = 0.5;
@@ -831,6 +834,32 @@ void Parameters::get_nml_vars(char* filename)
       s_ = 1./sqrtf(8.);
       t_ = 1./sqrtf(8.);
       u_ = 1.-1./sqrtf(2.);
+      sdirk = true;
+    } else if (imex_scheme == "sundials_ark3"){
+      a21 = 1767732205903./2027836641118.;
+      a31 = 5535828885825./10492691773637.;
+      a32 = 788022342437./10882634858940.;
+      a41 = 6485989280629./16251701735622.;
+      a42 = -4246266847089./9704473918619.;
+      a43 = 10755448449292./10357097424841.;
+
+      p_ = 0.;
+      q_ = 1767732205903./4055673282236.;
+      r_ = 1767732205903./4055673282236.;
+      s_ = 2746238789719./10658868560708.;
+      t_ = -640167445237./6845629431997.;
+      u_ = 1767732205903./4055673282236.;
+      w_ = 1471266399579./7840856788654.;
+      x_ = -4482444167858./7529755066697.;
+      y_ = 11266239266428./11593286722821.;
+      z_ = 1767732205903./4055673282236.;
+      
+      w1 = 1471266399579./7840856788654.;
+      w2 = -4482444167858./7529755066697.;
+      w3 = 11266239266428./11593286722821.;
+      w4 = 1767732205903./4055673282236.;
+
+      nstages = 4;
       sdirk = true;
     }
 

@@ -513,6 +513,23 @@ __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex*
 __global__ void tridiag_streaming_linked_em(cuComplex* g, cuComplex* gr, cuComplex* phi, cuComplex* apar, cuComplex* bpar, const float* kz, float* max_qneutFacPhi_inv, float* max_qneutFacBpar_inv, float* max_ampereParFac_inv, float* max_amperePerpFacPhi_inv, float* max_amperePerpFacBpar_inv, const float beta, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains);
 __global__ void tridiag_streaming_local(cuComplex* g, cuComplex* phi, const float kz, const float* qneutDenom, const specie sp, const double sdtvt);
 __global__ void tridiag_streaming_local_em(cuComplex* g, cuComplex* phi, cuComplex* apar, const float kz, const float* qneutDenom, const float* ampereParFac, const specie sp, const double sdtvt, const float beta);
+__global__ void copy_prhs_from_p(cuComplex* prhs, cuComplex* p, int ik);
+__global__ void copy_p_from_prhs(cuComplex* p, cuComplex* prhs, int ik);
+__global__ void copy_prhs_from_p_d(cuComplex** prhs, cuComplex* p);
+__global__ void copy_p_from_prhs_d(cuComplex* p, cuComplex** prhs);
+__global__ void lu_backsub_d(cuComplex** A_phi, cuComplex** phi ,cuComplex* phi_rhs);
+
+__global__ void apply_flr_phi_add(cuComplex* phi_r, cuComplex* phi, cuComplex* phi_copy, const float* kperp2, const specie sp);
+__global__ void apply_flr_phi(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp);
+__global__ void apply_flr_phi_loop(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp, int idl);
+__global__ void set_delta_phi(cuComplex* phi, int iz, float val, float* kperp2, const specie sp, int il);
+__global__ void compute_full_sol_loop(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar, int idl);
+__global__ void compute_full_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar);
+__global__ void compute_inhomogenous_sol(cuComplex* g, const float* kz, const specie sp, const double sdt, const float gradpar);
+__global__ void compute_homogenous_sol_loop(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar, int idl);
+__global__ void compute_homogenous_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar);
+__global__ void compute_response_matrix(cuComplex* A_phi, cuComplex* g, const specie sp, float* kperp2, const float* qneutFacPhi, int ik, int zj);
+__global__ void add_id_response_matrix(cuComplex* A_phi);
 
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);

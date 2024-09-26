@@ -3778,6 +3778,51 @@ __global__ void transpose_A(cuComplex* A_bounce, int LM){
 
 }
 
+__global__ void copy_prhs_from_p(cuComplex* prhs, cuComplex* p, int ik){
+  unsigned int idz = get_id1();
+  unsigned int idx = int(ik / nyc);
+  unsigned int idy = ik % nyc;
+  unsigned int nxnyc = nx*nyc;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && unmasked(idx, idy)){
+    prhs[idz] = p[ik + nxnyc*idz]; 
+  }
+} 
+
+__global__ void copy_p_from_prhs(cuComplex* p, cuComplex* prhs, int ik){
+  unsigned int idz = get_id1();
+  unsigned int idx = int(ik / nyc);
+  unsigned int idy = ik % nyc;
+  unsigned int nxnyc = nx*nyc;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && unmasked(idx, idy)){
+    p[ik + nxnyc*idz] = prhs[idz]; 
+  }
+}
+
+__global__ void copy_prhs_from_p_d(cuComplex** prhs, cuComplex* p){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && unmasked(idx, idy)){
+    prhs[idxy][idz] = p[idxyz]; 
+  }
+} 
+
+__global__ void copy_p_from_prhs_d(cuComplex* p, cuComplex** prhs){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idz < nz) && (idx < nx) && (idy < nyc) && unmasked(idx, idy)){
+    p[idxyz] = prhs[idxy][idz]; 
+  }
+}
+
+
 __global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz){
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
@@ -3836,6 +3881,34 @@ __global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs){
   }
 
 }
+
+__global__ void lu_backsub_d(cuComplex** A_phi, cuComplex** phi ,cuComplex* phi_rhs){
+  unsigned int ik = get_id1();
+  unsigned int idx = int(ik / nyc);
+  unsigned int idy = ik % nyc;
+  unsigned int nxnyc = nx*nyc;
+
+  if ((idx < nx) && (idy < nyc) && (unmasked(idx,idy))){
+    cuComplex interm;
+    for(int zi = 0; zi < nz; zi++){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int zj = 0; zj < zi; zj++){
+        interm = interm + A_phi[ik][zi + nz*zj] * phi[ik][zj];
+      }
+      phi[ik][zi] = phi_rhs[ik + nxnyc*zi] - interm;
+    }
+
+    for(int zi = nz-1; zi >= 0; zi--){
+      interm = make_cuComplex(0.0f,0.0f);
+      for (int zj = zi+1; zj < nz; zj++){
+        interm = interm + A_phi[ik][zi + nz*zj] * phi[ik][zj];
+      }
+      phi[ik][zi] = (phi[ik][zi] - interm)/A_phi[ik][zi + nz*zi];
+    }
+
+  }
+}
+
 
 __global__ void lu_backsub_bounce(cuComplex* A_bounce, cuComplex* g, int idz){
   unsigned int idy = get_id1();
@@ -6011,6 +6084,375 @@ __global__ void tridiag_streaming_local_em(cuComplex* g, cuComplex* phi, cuCompl
     }
   }
 }
+
+__global__ void compute_inhomogenous_sol(cuComplex* g, const float* kz, const specie sp, const double sdt, const float gradpar)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    double sdtvt = sdt * sp.vt;
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+//      printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+//      if(isnan(g[globalIdx].x) || isnan(g[globalIdx].y)) printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+
+    }
+  }
+}
+
+__global__ void apply_flr_phi_add(cuComplex* phi_r, cuComplex* phi, cuComplex* phi_copy, const float* kperp2, const specie sp){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz; 
+  unsigned int idl = int(idzl / nz);  
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && (idzl < nl*nz) && unmasked(idx,idy)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+//    if(isnan(phi[idxyz].x) || isnan(phi[idxyz].y)) printf("phi.x is %4.3e, phi.y is %4.3e\n", phi[idxyz].x, phi[idxyz].y);
+//    phi_r[idxyzl] = Jflr(idl,b_s) * (phi[idxyz] + phi_copy[idxyz]);
+    phi_r[idxyzl] = Jflr(idl,b_s) * (phi[idxyz]);
+
+
+  }
+}
+
+__global__ void apply_flr_phi_loop(cuComplex* phi_r, cuComplex* phi, const float* kperp2, const specie sp, int idl){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idz = get_id3();
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idy < nyc) && (idx < nx) && (idz < nz) && unmasked(idx,idy)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+//    if(isnan(phi[idxyz].x) || isnan(phi[idxyz].y)) printf("phi.x is %4.3e, phi.y is %4.3e\n", phi[idxyz].x, phi[idxyz].y);
+    phi_r[idxyz] = Jflr(idl,b_s) * phi[idxyz];
+
+  }
+}
+
+
+
+__global__ void set_delta_phi(cuComplex* phi, int iz, float val, float* kperp2, const specie sp, int il){
+  unsigned int idy = get_id1();
+  unsigned int idx = get_id2();
+  unsigned int idl = get_id3();
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxyz = idxy + nxnyc*iz;
+  unsigned int idxyzl = idxyz + nxnyc*nz*idl;
+  if ((idy < nyc) && (idx < nx) && (idl < nl) && unmasked(idx, idy)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+    phi[idxyz] = make_cuComplex(Jflr(idl,b_s) * val,0.0f);
+//    if ((iz == 0) && (idl == 0) && (idy == 2)) printf("IN DELTA At idy == %d, phi.x is %f, phi.y is %f\n", idy, phi[idxyzl].x, phi[idxyzl].y);
+
+//    phi[idxyz] = make_cuComplex(val,0.0f);
+  }
+}
+
+__global__ void compute_full_sol_loop(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar, int idl)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idz = get_id3();
+  unsigned int idzl = idz + nz*idl;
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idz < nz)) {
+    double sdtvt = sdt * sp.vt;
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+//      if(idm==1 && idz==idzl) {
+      if (idm==1){
+        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxyz];
+//          rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	 
+	
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+//      if (abs(g[globalIdx].x) > 1e-12 || (g[globalIdx].y) > 1e-12) printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);	
+//      printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+//      if(isnan(g[globalIdx].x) || isnan(g[globalIdx].y)) printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+
+    }
+  }
+}
+
+
+
+__global__ void compute_full_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    double sdtvt = sdt * sp.vt;
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = g[globalIdx];
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+//      if(idm==1 && idz==idzl) {
+      if (idm==1){
+        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxyzl];
+//          rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	 
+	
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+//      if (abs(g[globalIdx].x) > 1e-12 || (g[globalIdx].y) > 1e-12) printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);	
+//      printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+//      if(isnan(g[globalIdx].x) || isnan(g[globalIdx].y)) printf("g.x is %4.3e, g.y is %4.3e\n", g[globalIdx].x, g[globalIdx].y);
+
+    }
+  }
+}
+
+__global__ void compute_homogenous_sol_loop(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdt, const float gradpar, int idl)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idz = get_id3();
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idzl = idz + nz*idl;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  unsigned int idxyz = idxy + nxnyc*idz;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    double sdtvt = sdt * sp.vt;
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    cuComplex rm = make_cuComplex(0.0f,0.0f);
+    g[globalIdx] = rm/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      rm = make_cuComplex(0.0f,0.0f);
+      // RHS vector
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+//      if(idm==1 && idl==0) {
+      if(idm == 1){
+        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxyz];	  
+//        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  
+        if ((idz == 0) && (idl == 0) && (idy == 2)) printf("At idy == %d, ikz = %f, phi.x is %f, phi.y is %f\n", idy, ikz.y, phi[idxyzl].x, phi[idxyzl].y);
+
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+/*    for(int idm = 0; idm < nm; idm++){
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      if (idz == 0){
+        printf("g.x is %f, g.y is %f ", g[globalIdx]);
+      }
+    }
+    printf("\n");*/
+  }
+}
+
+
+__global__ void compute_homogenous_sol(cuComplex* g, cuComplex* phi, const float* kz, const specie sp, const double sdtvt, const float gradpar)
+{
+  unsigned int idy  = get_id1();
+  unsigned int idx  = get_id2();
+  unsigned int idzl = get_id3();
+  unsigned int idz = idzl % nz;     
+  unsigned int idxy = idy + nyc*idx;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int nlnz = nl*nz;
+  unsigned int idxyzl = idxy + nxnyc*idzl;
+  if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
+    cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
+    int idm = 0; // this cannot be unsigned (see below)
+    unsigned int globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+    cuComplex ikz = make_cuComplex(0.0f, kz[idz]);
+    cuComplex bm = make_cuComplex(1.0f, 0.0f);
+    cuComplex bet = bm;
+    g[globalIdx] = g[globalIdx]/bet;
+    for(idm=1; idm<nm; idm++) {
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mm1 = idxy + nxnyc*(idzl + nlnz*(idm-1));
+      // compute matrix coefficients
+      // c[m-1]
+      cuComplex cmm1 = sdtvt*ikz*gradpar*sqrtf(idm); 
+      // a[m]
+      cuComplex am = sdtvt*ikz*gradpar*sqrtf(idm);
+      // RHS vector
+      cuComplex rm = make_cuComplex(0.0f,0.0f);
+      // for m=1, l=0 there are additional terms (note idz==idzl checks idl==0)
+      //logic block for iteration scheme. full_phi = true means that we're using the full
+      //phi for the rhs.
+      if(idm==1) {
+        rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxyzl];	 
+      }
+              
+      // decomposition and forward substitution
+      gam[idm] = cmm1/bet;
+      bet = bm - am*gam[idm];
+      if(bet.x == 0.0 && bet.y == 0.0) printf("ERROR\n");
+      g[globalIdx] = (rm - am*g[mm1])/bet;
+      }
+    for(idm=(nm-2); idm>=0; idm--) { // this is why idm cannot be unsigned
+      globalIdx = idxy + nxnyc*(idzl + nlnz*idm);
+      unsigned int mp1 = idxy + nxnyc*(idzl + nlnz*(idm+1));
+      // backsubstitution
+      g[globalIdx] = g[globalIdx] - gam[idm+1]*g[mp1];
+    }
+  }
+}
+
+
+__global__ void add_id_response_matrix(cuComplex* A_phi){
+  unsigned int zi = get_id1();
+  if((zi < nz)){
+    A_phi[zi + nz*zi] = A_phi[zi + nz*zi] + make_cuComplex(1.0f,0.0f);
+  }
+  
+}
+
+
+__global__ void compute_response_matrix(cuComplex* A_phi, cuComplex* g, const specie sp, float* kperp2, const float* qneutFacPhi, int ik, int zj){
+  unsigned int zi = get_id1();
+  unsigned int idx = int(ik / nyc);
+  unsigned int idy = ik % nyc;
+  unsigned int nxnyc = nx*nyc;
+  unsigned int idxyz = ik + nxnyc*zi;
+  if((zi < nz) && (idx < nx) && (idy < nyc) && unmasked(idx, idy)){
+    float b_s = kperp2[idxyz] * sp.rho2;
+    unsigned int globalIdx;
+/*    if (ik == 2 && (zj == nz-1)){
+      printf("kperp2 is %f\n", kperp2[idxyz]);
+      printf("qneutFacPhi is %f\n", qneutFacPhi[idxyz]);
+      printf("g.x is %f, g.y is %f\n", g[ik].x, g[ik].y);
+    }*/
+    for (int idl = 0; idl < nl; idl++){
+      globalIdx = ik + nxnyc*(zi + nz*idl);
+      A_phi[zi + nz*zj] = A_phi[zi + nz*zj] - sp.nz*Jflr(idl,b_s)*g[globalIdx]/qneutFacPhi[idxyz];
+    }
+  }
+  
+}
+
 
 __global__ void rhs_linear_krehm(const cuComplex* g,
 				 const cuComplex* phi,
