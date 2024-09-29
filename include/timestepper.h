@@ -1,7 +1,6 @@
 #pragma once
 
 #include "moments.h"
-#include "moments_long_wavelength.h"
 #include "fields.h"
 #include "grids.h"
 #include "linear.h"
