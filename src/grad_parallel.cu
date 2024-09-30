@@ -106,7 +106,7 @@ void GradParallelPeriodic::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cu
   //Not needed for periodic.
 }
 
-void GradParallelPeriodic::zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
+void GradParallelPeriodic::zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, bool hyper_kz, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 {
   //Not needed for periodic.
 }
@@ -242,7 +242,7 @@ void GradParallelLocal::zft_streaming_invert_em(MomentsG* G, MomentsG* Gr, cuCom
   //Not needed for local.
 }
 
-void GradParallelLocal::zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
+void GradParallelLocal::zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, bool hyper_kz, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 
 {
   //Not needed for local.

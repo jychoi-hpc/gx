@@ -176,6 +176,17 @@ void Linear_GK::rhs_streaming(MomentsG* G, Fields* f, MomentsG* GRhs, double dt)
 								   pars_->p_hyper_lm, 
 								   GRhs->G(), G->species->vt);
 
+  // hypercollisions with coefficient propto kz
+/*  if(pars_->hypercollisions_kz) {
+    float M = (float) grids_->Nm_glob-1;
+    float p = (float) pars_->p_hyper_m;
+    float vt = G->species->vt;
+    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*geo_->gradpar;
+    tmpG->set_zero();
+    hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
+    grad_par->abs_dz(tmpG, GRhs, true);
+  }*/
+
 
 }
 
@@ -211,6 +222,16 @@ void Linear_GK::rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, dou
 								   pars_->p_hyper_m, 
 								   pars_->p_hyper_lm, 
 								   GRhs->G(), G->species->vt);
+  // hypercollisions with coefficient propto kz
+/*  if(pars_->hypercollisions_kz) {
+    float M = (float) grids_->Nm_glob-1;
+    float p = (float) pars_->p_hyper_m;
+    float vt = G->species->vt;
+    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*geo_->gradpar;
+    tmpG->set_zero();
+    hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
+    grad_par->abs_dz(tmpG, GRhs, true);
+  }*/
 
 
 }
@@ -309,7 +330,7 @@ void Linear_GK::rhs_nonstreaming_nonbounce(MomentsG* G, Fields* f, MomentsG* GRh
 								   GRhs->G(), G->species->vt);*/
 
   // hypercollisions with coefficient propto kz
-  if(pars_->hypercollisions_kz) {
+/*  if(pars_->hypercollisions_kz) {
     float M = (float) grids_->Nm_glob-1;
     float p = (float) pars_->p_hyper_m;
     float vt = G->species->vt;
@@ -317,7 +338,7 @@ void Linear_GK::rhs_nonstreaming_nonbounce(MomentsG* G, Fields* f, MomentsG* GRh
     tmpG->set_zero();
     hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
     grad_par->abs_dz(tmpG, GRhs, true);
-  }
+  }*/
 
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
@@ -383,7 +404,7 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
 								   GRhs->G(), G->species->vt);*/
 
   // hypercollisions with coefficient propto kz
-  if(pars_->hypercollisions_kz) {
+/*  if(pars_->hypercollisions_kz) {
     float M = (float) grids_->Nm_glob-1;
     float p = (float) pars_->p_hyper_m;
     float vt = G->species->vt;
@@ -391,7 +412,7 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
     tmpG->set_zero();
     hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
     grad_par->abs_dz(tmpG, GRhs, true);
-  }
+  }*/
 
   // hyper in k-space
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
