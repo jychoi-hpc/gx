@@ -4701,10 +4701,10 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
              + vt*(scaled_nu_hyp_l*powf((float) idl/nl, (float) p_hyper_l)                              
              + scaled_nu_hyp_m*powf((float) idms/nm, (float) p_hyper_m))); 
       }
-/*      if(hyper_kz && idms > 2){
+      if(hyper_kz && idms > 2){
         float nu_hyp_m = nu_hyper_m*(p_hyper_m + 0.5)/powf(nm-1, p_hyper_m + 0.5)*2.3*vt*gradpar;
-	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
-      }*/
+//	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
+      }
 
 
 
@@ -4756,7 +4756,7 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
       globalIdx = idzx + nznx * (idl + nl*idms);
       unsigned int mp1 = idzx + nznx * (idl + nl*(idms+1));
       // backsubstitution
-      if (idm < nm){
+      if (idm < nm-1){
         gi[globalIdx] = gi[globalIdx] - gam[idm+1]*gi[mp1];
       }
       else if(idm == nm-1){
@@ -4900,6 +4900,7 @@ __global__ void negate_add_id(cuComplex* g, cuComplex* g1, const float sdt)
 
 }
 
+
 __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuComplex* gri, cuComplex* gre, cuComplex* phi_i, cuComplex* phi_e, const float* kz, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, int stage, bool full_phi, int nLinks, int nChains, bool hyperc, bool hyper_kz, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt)
 {
 
@@ -4971,10 +4972,10 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
 
       
       }
-/*      if(hyper_kz && idms > 2){
+      if(hyper_kz && idms > 2){
         float nu_hyp_m = nu_hyper_m*(p_hyper_m + 0.5)/powf(nm-1, p_hyper_m + 0.5)*2.3*vt*gradpar;
-	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
-      }*/
+//	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
+      }
 
       rm = make_cuComplex(0.0f, 0.0f);
 
@@ -5036,7 +5037,7 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
       globalIdx = idzk + nznk * (idl + nl*idms);
       unsigned int mp1 = idzk + nznk * (idl + nl*(idms+1));
       // backsubstitution
-      if (idm < nm){
+      if (idm < nm-1){
         gi[globalIdx] = gi[globalIdx] - gam[idm+1]*gi[mp1];
       }
       else if(idm == nm-1){
