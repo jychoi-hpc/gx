@@ -258,7 +258,12 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
 	}
         
 	G2[is]->copyFrom(G1[is]);
-	G1[is]->copyFrom(G0[is]);
+	if(count_outer == 0){
+	  G1[is]->copyFrom(G0[is]);
+	}
+	else{
+	  G1[is]->copyFrom(G4[is]);
+	}
       }
       
       if(pars_->fapar > 0.){
