@@ -4657,6 +4657,7 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
     int idms = 0;
     unsigned int globalIdx = idzx + nznx * (idl + nl*idm); 
     cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
+    float abs_kz = abs(kz[nz*idz + idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     
@@ -4702,8 +4703,10 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
              + scaled_nu_hyp_m*powf((float) idms/nm, (float) p_hyper_m))); 
       }
       if(hyper_kz && idms > 2){
-        float nu_hyp_m = nu_hyper_m*(p_hyper_m + 0.5)/powf(nm-1, p_hyper_m + 0.5)*2.3*vt*gradpar;
-//	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
+	float M = (float) nm-1;
+        float p = (float) p_hyper_m;	
+        float nu_hyp_m = nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*gradpar;
+	bm = bm + abs_kz*sdt*nu_hyp_m*powf((float) idms, p);
       }
 
 
@@ -4928,6 +4931,7 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
     int idms = 0;
     unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
     cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
+    float abs_kz = abs(kz[nz*idz + idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     
@@ -4973,8 +4977,10 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
       
       }
       if(hyper_kz && idms > 2){
-        float nu_hyp_m = nu_hyper_m*(p_hyper_m + 0.5)/powf(nm-1, p_hyper_m + 0.5)*2.3*vt*gradpar;
-//	bm = bm + ikz*sdt*nu_hyp_m*powf((float) idms, p_hyper_m);
+	float M = (float) nm-1;
+        float p = (float) p_hyper_m;	
+        float nu_hyp_m = nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*gradpar;
+	bm = bm + abs_kz*sdt*nu_hyp_m*powf((float) idms, p);
       }
 
       rm = make_cuComplex(0.0f, 0.0f);
