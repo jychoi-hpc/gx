@@ -185,6 +185,7 @@ class SundialsStepper : public Timestepper {
   int ErrorWeights( GXVector *, GXVector * );
 
   long int getRHSEvals();
+  long int getNSteps();
 
  protected:
 
