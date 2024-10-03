@@ -217,6 +217,19 @@ double SundialsStepper::get_dt()
     }
 }
 
+long int SundialsStepper::getRHSEvals()
+{
+    long int nRHS = 0;
+    ARKODECheck( ERKStepGetNumRhsEvals( ERKStepMem, &nRHS ) );
+    return nRHS;
+}
+
+long int SundialsStepper::getNSteps()
+{
+    long int nSteps = 0;
+    ARKODECheck( ERKStepGetNumSteps( ERKStepMem, &nSteps ) );
+    return nSteps;
+}
 
 // Fixed implementations of non-adaptive RK4 / SSPX2 / SSPX3 / K10 to allow for seamless transition
 sunrealtype SunRK4Stepper::c[4] = {0.0,0.5,0.5,1.0};

@@ -184,6 +184,8 @@ class SundialsStepper : public Timestepper {
   static int SundialsErrorWeights( N_Vector, N_Vector, void* );
   int ErrorWeights( GXVector *, GXVector * );
 
+  long int getRHSEvals();
+
  protected:
 
   std::vector<float> Wg_data;
