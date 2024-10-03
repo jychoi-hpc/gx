@@ -247,12 +247,12 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
 
   printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);
-  if( pars->scheme_opt == Tmethod::sundials || pars->scheme_opt == Tmethod::sunrk4 )
+  if( pars->iproc == 0 && ( pars->scheme_opt == Tmethod::sundials || pars->scheme_opt == Tmethod::sunrk4 ) )
   {
       long int nRHS = dynamic_cast<SundialsStepper*>(timestep)->getRHSEvals();
       long int nSteps = dynamic_cast<SundialsStepper*>(timestep)->getNSteps();
 
-      printf("\tTotal Number of RHS Evaluations in time advance %ld (to perform %ld timesteps, at %ld evaluations per timestep) ", nRHS, nSteps, nRHS/nSteps );
+      printf("Total Number of RHS Evaluations in time advance %ld (to perform %ld timesteps, at %f evaluations per timestep) \n", nRHS, nSteps, static_cast<double>(nRHS)/static_cast<double>(nSteps) );
   }
 
   diagnostics->finish(G, fields, time);
