@@ -60,7 +60,7 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
     if( pars_->SundialsExplicitOrder > 0 ) { // If order is specified, this overrides a specific name
         ARKODECheck( ARKodeSetOrder( ARKodeMem, pars_->SundialsExplicitOrder ) );
     } else { // If order not specified, choose by name, which has a default
-        ARKODECheck( ARKodeSetTableName( ARKodeMem, pars_->SundialsExplicitScheme.c_str() ) );
+        ARKODECheck( ERKStepSetTableName( ARKodeMem, pars_->SundialsExplicitScheme.c_str() ) );
     }
 
     ARKODECheck( ARKodeSetMinStep( ARKodeMem, pars_->SundialsMinStep ) );
@@ -220,7 +220,7 @@ double SundialsStepper::get_dt()
 long int SundialsStepper::getRHSEvals()
 {
     long int nRHS = 0;
-    ARKODECheck( ARKodeGetNumRhsEvals( ARKodeMem, &nRHS ) );
+    ARKODECheck( ERKStepGetNumRhsEvals( ARKodeMem, &nRHS ) );
     return nRHS;
 }
 
@@ -246,7 +246,7 @@ SunRK4Stepper::SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solve
    if( rk4table == nullptr )
        throw std::runtime_error("Could not create RK4 ButcherTable!");
 
-   ARKODECheck( ARKodeSetTable( ARKodeMem, rk4table ) );
+   ARKODECheck( ERKStepSetTable( ARKodeMem, rk4table ) );
 
    ARKODECheck( ARKodeSetFixedStep( ARKodeMem, dt_ ) );
 }
