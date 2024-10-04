@@ -175,7 +175,7 @@ class SundialsStepper : public Timestepper {
                    Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
   ~SundialsStepper();
   void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
+  double get_dt();
 
   // Wrapper around the rhs of dy/dt = F(y,t)
   static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
@@ -184,14 +184,10 @@ class SundialsStepper : public Timestepper {
   static int SundialsErrorWeights( N_Vector, N_Vector, void* );
   int ErrorWeights( GXVector *, GXVector * );
 
-  void inform_Wg( std::vector<float>& Wg_new )
-  {
-    Wg_data = Wg_new;
-    if( Wg_data.size() != grids_->Nspecies )
-      throw std::runtime_error("Timestepper was informed of the wrong number of ||g||^2 's ");
-  }
+  long int getRHSEvals();
+  long int getNSteps();
 
- private:
+ protected:
 
   std::vector<float> Wg_data;
 
@@ -203,6 +199,7 @@ class SundialsStepper : public Timestepper {
   const double dt_;
   double reltol = 1e-3;
   double abstol = 1e-3;
+  double wg_tol = 1e-4;
 
   Linear     * linear_    ;
   Nonlinear  * nonlinear_ ;
@@ -212,4 +209,15 @@ class SundialsStepper : public Timestepper {
   ExB        * exb_       ;
   Forcing    * forcing_   ;
   Fields     * fields_    ;
+};
+
+class SunRK4Stepper : public SundialsStepper {
+ public:
+   SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+                   Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
+  ~SunRK4Stepper();
+
+ private:
+  ARKodeButcherTable rk4table;
+  static sunrealtype c[4],b[4],a[16];
 };

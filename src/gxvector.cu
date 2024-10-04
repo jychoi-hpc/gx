@@ -29,7 +29,7 @@ GXVector::GXVector( GXVector const& other )
 	: owns_data( true )
 {
 	ctx = other.ctx;
-	for( int i = 0; i < other.array.size(); ++i )
+	for( size_t i = 0; i < other.array.size(); ++i )
 	{
 		MomentsG const& element = *(other[i]);
 		// This creates a new MomentsG, so allocates a new G_lm with the same parameters / grids / species indices
@@ -64,7 +64,7 @@ void GXVector::SetConst( Complex C )
 GXVector & GXVector::operator=( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 		array[ i ]->copyFrom( other.array[ i ] );
 	return *this;
 }
@@ -98,7 +98,7 @@ void GXVector::SetInv( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
 	MomentsG& m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		set_inv_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 		checkCuda( cudaGetLastError() );
@@ -109,7 +109,7 @@ void GXVector::SetAbs( GXVector const & other )
 {
 	assert( other.array.size() == array.size() );
 	MomentsG& m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		set_abs_kernel <<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 		checkCuda( cudaGetLastError() );
@@ -137,7 +137,7 @@ float GXVector::MaxNorm() const
 
 	// do tmp_i = ||g_i|| on GPU
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		absValKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
@@ -182,7 +182,7 @@ float GXVector::WrmsNorm( GXVector const & w ) const
 
 	// do tmp_i = w_i^2 ||g_i||^2 on GPU
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		wrmsKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
@@ -231,7 +231,7 @@ float GXVector::MinReal() const
 
 	// do tmp_i = - Re( this[i] ) on GPU
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		minusRealKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );
@@ -257,7 +257,7 @@ float GXVector::MinReal() const
 void GXVector::Div( GXVector const& x, GXVector const& y )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		elem_div_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
 		checkCuda( cudaGetLastError() );
@@ -267,7 +267,7 @@ void GXVector::Div( GXVector const& x, GXVector const& y )
 void GXVector::Prod( GXVector const& x, GXVector const& y )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		elem_prod_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(x.array[ i ]), *(y.array[ i ]) );
 		checkCuda( cudaGetLastError() );
@@ -278,7 +278,7 @@ void GXVector::Prod( GXVector const& x, GXVector const& y )
 void GXVector::LinearSum( float a, GXVector const& x, float b, GXVector const& y )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		// Note the last argument is true to force-ignore eqfix
 		add_scaled_kernel<<< m.dG_all, m.dB_all >>> ( gData(i), a, x.gData( i ), b, y.gData( i ), true );
@@ -291,7 +291,7 @@ void GXVector::LinearSum( Complex a, GXVector const& x, Complex b, GXVector cons
 	MomentsG const & m = *(array[ 0 ]);
 	cuComplex A = make_cuComplex( a.real(), a.imag() );
 	cuComplex B = make_cuComplex( b.real(), b.imag() );
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		add_complex_scaled_kernel<<< m.dG_all, m.dB_all >>> ( gData(i), A, x.gData( i ), B, y.gData( i ) );
 		checkCuda( cudaGetLastError() );
@@ -301,7 +301,7 @@ void GXVector::LinearSum( Complex a, GXVector const& x, Complex b, GXVector cons
 GXVector & GXVector::operator+=( GXVector const& other )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		accumulate_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), *(other.array[ i ]) );
 		checkCuda( cudaGetLastError() );
@@ -328,7 +328,7 @@ void GXVector::update_tprim( double t )
 void GXVector::AddConst( sunrealtype b )
 {
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		add_const_kernel<<< m.dG_all, m.dB_all >>> ( *(array[ i ]), static_cast<float>(b) );
 		checkCuda( cudaGetLastError() );
@@ -356,7 +356,7 @@ Complex GXVector::dotProduct( GXVector const & w ) const
 
 	// do tmp_i = x_i y*_i on GPU
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		cuComplex *tmp_species_i = tmp + i * array[0]->getN();
 		complexDotProductKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]), *(w.array[ i ]) );
@@ -399,9 +399,9 @@ float GXVector::Norm() const
 	checkCuda(cudaMemset(SumResult, 0., sizeof(float)));
 
 
-	// do tmp_i = w_i^2 ||g_i||^2 on GPU
+	// do tmp_i = ||g_i||^2 on GPU
 	MomentsG const & m = *(array[ 0 ]);
-	for( int i = 0; i < array.size(); ++i )
+	for( size_t i = 0; i < array.size(); ++i )
 	{
 		float *tmp_species_i = tmp + i * array[0]->getN();
 		normKernel<<< m.dG_all, m.dB_all >>> ( tmp_species_i, *(array[ i ]) );

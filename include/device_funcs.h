@@ -465,12 +465,14 @@ __global__ void accumulate_kernel(cuComplex* res, const cuComplex* in);
 __global__ void elem_prod_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
 __global__ void elem_div_kernel(cuComplex* res, const cuComplex* in1, const cuComplex* in2);
 __global__ void add_const_kernel( cuComplex* g, float b );
-__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol );
+__global__ void setWeightsKernel( cuComplex* wgt, const cuComplex *g, float abstol, float reltol, float wg_tol, float wg );
 
 __global__ void add_complex_scaled_kernel(cuComplex* res, cuComplex c1, const cuComplex* m1, cuComplex c2, const cuComplex* m2, bool neqfix = true);
 
 __global__ void complexDotProductKernel(cuComplex* res, const cuComplex*, const cuComplex* );
+__global__ void normKernel(float *, const cuComplex* );
 
+void setWeightingConstants( unsigned int , unsigned int , unsigned int , unsigned int , float );
 
 // ExB Kernels
 __global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);

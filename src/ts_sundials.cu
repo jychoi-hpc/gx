@@ -51,8 +51,6 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
         throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
     }
 
-    int retval;
-
     // Load from parameters
     reltol = pars->SundialsRelTol;
     abstol = pars->SundialsAbsTol;
@@ -82,6 +80,18 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
     if( pars_->cfl > 0.0 ) {
         ARKODECheck( ERKStepSetCFLFraction( ERKStepMem, pars_->cfl ) );
     }
+
+    
+    // By default be more relaxed in the last 25% in every grid dimension
+    unsigned int ky_max = (grids_->Ny - 1)/3 + 1;
+    unsigned int kx_max = (grids_->Nx - 1)/3 + 1;
+    setWeightingConstants( 
+            std::ceil( 0.75 * grids_->Nm ),
+            std::ceil( 0.75 * grids_->Nl ),
+            std::ceil( 0.75 * kx_max ),
+            std::ceil( 0.75 * ky_max ),
+            std::sqrt( reltol ) );
+
 
 }
 
@@ -181,13 +191,13 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     // weights[i] = 1/(abstol + reltol*|g[i]|)
     // but with one fused kernel to avoid multiple passes over the data
 
-    for( int i = 0; i < g->nSpecies(); ++i )
+    for( size_t i = 0; i < g->nSpecies(); ++i )
     {
         MomentsG const & m = *((*g)[ i ]);
-        if( Wg_data.size() == grids_->Nspecies )
-          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, Wg_data[ i ] );
-        else
-          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, 0.0 );
+//        if( Wg_data.size() == grids_->Nspecies )
+//          setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, Wg_data[ i ] );
+//        else
+        setWeightsKernel<<< m.dG_all, m.dB_all >>> ( weights->gData( i ), m, abstol, reltol, wg_tol, 0.0 );
 
         checkCuda( cudaGetLastError() );
     }
@@ -195,11 +205,54 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
     return 0;
 }
 
-void SundialsStepper::inform_Wg( std::vector<float>& Wg_new )
+double SundialsStepper::get_dt() 
 {
-    Wg_data = Wg_new;
-    if( Wg_data.size() != grids_->Nspecies )
-      throw std::runtime_error("Wrong number of species in call to inform_Wg");
+    double step;
+    int retval = ARKodeGetCurrentStep( ERKStepMem, &step );
+    if( retval == ARK_SUCCESS ) {
+        return step;
+    } else {
+        throw std::runtime_error("Error Encountered in ARKodeGetCurrentStep");
+        return -1.0;
+    }
 }
 
+long int SundialsStepper::getRHSEvals()
+{
+    long int nRHS = 0;
+    ARKODECheck( ERKStepGetNumRhsEvals( ERKStepMem, &nRHS ) );
+    return nRHS;
+}
+
+long int SundialsStepper::getNSteps()
+{
+    long int nSteps = 0;
+    ARKODECheck( ERKStepGetNumSteps( ERKStepMem, &nSteps ) );
+    return nSteps;
+}
+
+// Fixed implementations of non-adaptive RK4 / SSPX2 / SSPX3 / K10 to allow for seamless transition
+sunrealtype SunRK4Stepper::c[4] = {0.0,0.5,0.5,1.0};
+sunrealtype SunRK4Stepper::b[4] = {1.0/6.0,1.0/3.0,1.0/3.0,1.0/6.0};
+sunrealtype SunRK4Stepper::a[16] = {0.0,0.0,0.0,0.0,
+                                    0.5,0.0,0.0,0.0,
+                                    0.0,0.5,0.0,0.0,
+                                    0.0,0.0,1.0,0.0};
+
+SunRK4Stepper::SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solver, Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 ) 
+    : SundialsStepper( linear, nonlinear, solver, pars, grids, forcing, exb, dt_in, G0, t0 ), rk4table( nullptr )
+{
+   rk4table = ARKodeButcherTable_Create( 4, 4, 0, c, a, b, nullptr ); 
+   if( rk4table == nullptr )
+       throw std::runtime_error("Could not create RK4 ButcherTable!");
+
+   ARKODECheck( ERKStepSetTable( ERKStepMem, rk4table ) );
+
+   ARKODECheck( ERKStepSetFixedStep( ERKStepMem, dt_ ) );
+}
+
+SunRK4Stepper::~SunRK4Stepper()
+{
+    ARKodeButcherTable_Free( rk4table );
+}
 

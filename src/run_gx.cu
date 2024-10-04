@@ -61,8 +61,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     }
     solver -> fieldSolve(G, fields);                
 
-    if( pars_->scheme_opt == Tmethod::sundials )
-      pars_->write_free_energy = true; // Always have to have Wg available
+    if( pars->scheme_opt == Tmethod::sundials )
+      pars->write_free_energy = true; // Always have to have Wg available for error norms
 
     // set up diagnostics
     if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");
@@ -187,6 +187,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
 
     case Tmethod::sundials: timestep = new SundialsStepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
+    case Tmethod::sunrk4: timestep = new SunRK4Stepper(linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt, G, time); break;
+
 
     default:
       printf("Unknown timestepper id (%u). Aborting.",static_cast<unsigned int>(pars->scheme_opt) );
@@ -211,8 +213,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
-    if( pars->scheme_opt == Tmethod::sundials )
-      reinterpret_cast<SundialsStepper*>(timestep)->inform_;
     timestep -> advance(&time, G, fields);
     if (checkstop) break;
 
@@ -245,7 +245,15 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   }
   
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
+
   printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);
+  if( pars->iproc == 0 && ( pars->scheme_opt == Tmethod::sundials || pars->scheme_opt == Tmethod::sunrk4 ) )
+  {
+      long int nRHS = dynamic_cast<SundialsStepper*>(timestep)->getRHSEvals();
+      long int nSteps = dynamic_cast<SundialsStepper*>(timestep)->getNSteps();
+
+      printf("Total Number of RHS Evaluations in time advance %ld (to perform %ld timesteps, at %f evaluations per timestep) \n", nRHS, nSteps, static_cast<double>(nRHS)/static_cast<double>(nSteps) );
+  }
 
   diagnostics->finish(G, fields, time);
 
