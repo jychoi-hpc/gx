@@ -76,8 +76,6 @@ class GXVector {
 
 		float MaxNorm() const;
 		float WrmsNorm( GXVector const & ) const;
-		float Norm() const;
-
         float Norm() const; // L^2 norm
 
 
