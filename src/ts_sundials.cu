@@ -17,7 +17,7 @@ extern "C" {
 template <typename T> inline void __checkARKODEErrors__(T code, const char *func, const char *file, int line) 
 {
     if (code != ARK_SUCCESS) {
-        fprintf(stderr, "SUNDIALS ARKODE Error: %s (code=%d)  \"%s\" at %s:%d \n", ERKStepGetReturnFlagName(code), (unsigned int)code, func, file, line);
+        fprintf(stderr, "SUNDIALS ARKODE Error: %s (code=%d)  \"%s\" at %s:%d \n", ARKodeGetReturnFlagName(code), (unsigned int)code, func, file, line);
         throw std::runtime_error("Error in SUNDIALS AKRODE. Aborting");
     }
 }
@@ -26,9 +26,9 @@ template <typename T> inline void __checkARKODEErrors__(T code, const char *func
 SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
         Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** g0, double t0 ) :
     linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-    forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ERKStepMem(nullptr), gInternal(nullptr), fields_(nullptr)
+    forcing_(forcing), exb_(exb), dt_(dt_in), ctx(), ARKodeMem(nullptr), gInternal(nullptr), fields_(nullptr)
 {
-    if( ERKStepMem != nullptr ) {
+    if( ARKodeMem != nullptr ) {
         throw std::runtime_error("Double Initialisation of Sundials Timestepper. Aborting.");
     }
 
@@ -43,11 +43,11 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
     gInternalNV = gInternal->asNVector();
 
-    std::cout << "Initialising SUNDIALS ERKStep library for timestepping." << std::endl;
+    std::cout << "Initialising SUNDIALS ARKode library for timestepping." << std::endl;
 
-    ERKStepMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
+    ARKodeMem = ERKStepCreate( SundialsStepper::SundialsF, t0, gInternalNV, ctx );
 
-    if( ERKStepMem == nullptr ) {
+    if( ARKodeMem == nullptr ) {
         throw std::runtime_error("Unable to allocate SUNDIALS Memory. ABORT.");
     }
 
@@ -55,30 +55,30 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
     reltol = pars->SundialsRelTol;
     abstol = pars->SundialsAbsTol;
 
-    ARKODECheck( ERKStepWFtolerances( ERKStepMem, SundialsStepper::SundialsErrorWeights ) );
+    ARKODECheck( ARKodeWFtolerances( ARKodeMem, SundialsStepper::SundialsErrorWeights ) );
 
     if( pars_->SundialsExplicitOrder > 0 ) { // If order is specified, this overrides a specific name
-        ARKODECheck( ERKStepSetOrder( ERKStepMem, pars_->SundialsExplicitOrder ) );
+        ARKODECheck( ARKodeSetOrder( ARKodeMem, pars_->SundialsExplicitOrder ) );
     } else { // If order not specified, choose by name, which has a default
-        ARKODECheck( ERKStepSetTableName( ERKStepMem, pars_->SundialsExplicitScheme.c_str() ) );
+        ARKODECheck( ARKodeSetTableName( ARKodeMem, pars_->SundialsExplicitScheme.c_str() ) );
     }
 
-    ARKODECheck( ERKStepSetMinStep( ERKStepMem, pars_->SundialsMinStep ) );
+    ARKODECheck( ARKodeSetMinStep( ARKodeMem, pars_->SundialsMinStep ) );
 
-    ARKODECheck( ERKStepSetMaxStep( ERKStepMem, pars_->SundialsMaxStep ) );
+    ARKODECheck( ARKodeSetMaxStep( ARKodeMem, pars_->SundialsMaxStep ) );
 
-    ARKODECheck( ERKStepSetUserData( ERKStepMem, static_cast<void*>(this) ) );
+    ARKODECheck( ARKodeSetUserData( ARKodeMem, static_cast<void*>(this) ) );
 
-    ARKODECheck( ERKStepSetInitStep( ERKStepMem, dt_ ) );
+    ARKODECheck( ARKodeSetInitStep( ARKodeMem, dt_ ) );
 
-    ARKODECheck( ERKStepSetMaxNumSteps( ERKStepMem, pars_->SundialsMaxInternalSteps ) );
+    ARKODECheck( ARKodeSetMaxNumSteps( ARKodeMem, pars_->SundialsMaxInternalSteps ) );
 
     if( pars_->SundialsFixedTimestep ) {
-        ARKODECheck( ERKStepSetFixedStep( ERKStepMem, dt_ ) );
+        ARKODECheck( ARKodeSetFixedStep( ARKodeMem, dt_ ) );
     }
 
     if( pars_->cfl > 0.0 ) {
-        ARKODECheck( ERKStepSetCFLFraction( ERKStepMem, pars_->cfl ) );
+        ARKODECheck( ARKodeSetCFLFraction( ARKodeMem, pars_->cfl ) );
     }
 
     
@@ -97,8 +97,8 @@ SundialsStepper::SundialsStepper(Linear *linear, Nonlinear *nonlinear, Solver *s
 
 SundialsStepper::~SundialsStepper()
 {
-    if( ERKStepMem != nullptr )
-        ERKStepFree( &ERKStepMem );
+    if( ARKodeMem != nullptr )
+        ARKodeFree( &ARKodeMem );
     if( gInternal != nullptr )
         delete gInternal;
     if( gTmp != nullptr )
@@ -117,10 +117,10 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
     // Needed for when sunrealtype is float not double
     sunrealtype time = *t;
 
-    retval = ERKStepEvolve( ERKStepMem, t_out, gInternalNV, &time, ARK_NORMAL );
+    retval = ARKodeEvolve( ARKodeMem, t_out, gInternalNV, &time, ARK_NORMAL );
 
     if( retval != ARK_SUCCESS ) {
-        throw std::runtime_error("Error in ERKStepEvolve.");
+        throw std::runtime_error("Error in ARKodeEvolve.");
     }
 
     *t = time;
@@ -208,7 +208,7 @@ int SundialsStepper::ErrorWeights( GXVector *g, GXVector *weights )
 double SundialsStepper::get_dt() 
 {
     double step;
-    int retval = ARKodeGetCurrentStep( ERKStepMem, &step );
+    int retval = ARKodeGetCurrentStep( ARKodeMem, &step );
     if( retval == ARK_SUCCESS ) {
         return step;
     } else {
@@ -220,14 +220,14 @@ double SundialsStepper::get_dt()
 long int SundialsStepper::getRHSEvals()
 {
     long int nRHS = 0;
-    ARKODECheck( ERKStepGetNumRhsEvals( ERKStepMem, &nRHS ) );
+    ARKODECheck( ARKodeGetNumRhsEvals( ARKodeMem, &nRHS ) );
     return nRHS;
 }
 
 long int SundialsStepper::getNSteps()
 {
     long int nSteps = 0;
-    ARKODECheck( ERKStepGetNumSteps( ERKStepMem, &nSteps ) );
+    ARKODECheck( ARKodeGetNumSteps( ARKodeMem, &nSteps ) );
     return nSteps;
 }
 
@@ -246,13 +246,46 @@ SunRK4Stepper::SunRK4Stepper(Linear *linear, Nonlinear *nonlinear, Solver *solve
    if( rk4table == nullptr )
        throw std::runtime_error("Could not create RK4 ButcherTable!");
 
-   ARKODECheck( ERKStepSetTable( ERKStepMem, rk4table ) );
+   ARKODECheck( ARKodeSetTable( ARKodeMem, rk4table ) );
 
-   ARKODECheck( ERKStepSetFixedStep( ERKStepMem, dt_ ) );
+   ARKODECheck( ARKodeSetFixedStep( ARKodeMem, dt_ ) );
 }
 
 SunRK4Stepper::~SunRK4Stepper()
 {
     ARKodeButcherTable_Free( rk4table );
+}
+
+
+// We rely on the fact that the MomentsG is the same one we were told about initially
+void SunRK4Stepper::advance(double *t, MomentsG** , Fields* f)
+{
+    double t_out = *t + dt_; // Advance one time step to t_out
+
+    int retval;
+
+    fields_ = f;
+
+    // Needed for when sunrealtype is float not double
+    sunrealtype time = *t;
+
+    retval = ARKodeEvolve( ARKodeMem, t_out, gInternalNV, &time, ARK_ONE_STEP );
+
+    if( retval != ARK_SUCCESS ) {
+        throw std::runtime_error("Error in ARKodeEvolve.");
+    }
+
+    *t = time;
+
+    if( fabsf( *t - t_out ) > 1e-3 )
+    {
+        throw std::runtime_error("Unable to advance to requested time " + std::to_string(t_out) + " reached " + std::to_string(*t) + " aborting.");
+    }
+
+    // Set fields_ to be the fields consistent with the final state (for diagnostics etc)
+    solver_->fieldSolve( *gInternal, fields_ );
+    checkCuda( cudaGetLastError() );
+    checkCuda( cudaDeviceSynchronize() );
+    checkCuda( cudaGetLastError() );
 }
 
