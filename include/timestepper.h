@@ -192,7 +192,7 @@ class SundialsStepper : public Timestepper {
   std::vector<float> Wg_data;
 
   sundials::Context ctx;
-  void *ERKStepMem;
+  void *ARKodeMem;
   GXVector *gInternal, *gTmp;
   N_Vector gInternalNV;
 
