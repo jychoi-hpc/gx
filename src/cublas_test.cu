@@ -7,9 +7,11 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   A_bounce = nullptr;	
   d_A_bounce = nullptr;
   d_bounce_rhs = nullptr;
+  bounce_rhs = nullptr;
   size_t nzlm = sizeof(int) * grids_->Nz * grids_->Nz * pars_->nm_in * pars_->nl_in;
   LM = pars_->nm_in * pars_-> nl_in;
   size_t LM2 = sizeof(cuComplex) *LM*LM;
+  test = (cuComplex*) malloc(sizeof(cuComplex)*grids_->Nyc*grids_->Nx*grids_->Nm*grids_->Nl);
   if (sdirk_){
     num_coeff = 1;
   }
@@ -29,6 +31,10 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->Nz)); 
   infoArray_h = (int*) malloc(sizeof(int)*grids_->Nz);
 
+  info = 0;
+//  checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->Nz)); 
+ 
+
   double* dcoeff = (double*) malloc(sizeof(double)*num_coeff);
   if (num_coeff == 1){
     dcoeff[0] = r_;
@@ -44,11 +50,27 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   }
 
+  bounce_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
+  size_t brhs_size = sizeof(cuComplex)*pars_->nm_in*pars_->nl_in*grids_->Nyc*grids_->Nx;
+  checkCuda(cudaMalloc((void**) &d_bounce_rhs, sizeof(cuComplex*)*grids_->Nz));
+
+  for(int i = 0; i < grids_->Nz; i++){
+    checkCuda(cudaMalloc((void**) &bounce_rhs[i], brhs_size));
+    checkCuda(cudaMemset(bounce_rhs[i],0.,brhs_size));
+
+  }
+  checkCuda(cudaMemcpy(d_bounce_rhs, bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
       checkCuda(cudaMalloc((void**) &A_bounce[j + i*num_coeff], LM2));
-//      checkCuda(cudaMalloc((void**) &d_Ipiv[j + i*num_coeff], sizeof(int64_t)*LM)); 
+/*      checkCuda(cudaMemset(A_bounce[j + i*num_coeff], 0., LM2));
+      checkCuda(cudaStreamSynchronize(0));
+
+//      checkCuda(cudaMalloc((void**) &d_Ipiv[j + i*num_coeff], sizeof(int64_t)*LM));
+      checkCuda(cudaMalloc((void**) &bounce_rhs[j], brhs_size));
+      checkCuda(cudaMemset(bounce_rhs[j],0.,brhs_size));
+      checkCuda(cudaStreamSynchronize(0));*/
 
     }
   }
@@ -93,7 +115,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   float* bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
   checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
-  printf("bgrad is %f\n", bgrad_h_test[11]);
+  printf("bgrad is %f\n", bgrad_h_test[10]);
+
 
 
   for (int i = 0; i < num_coeff; i++){
@@ -107,7 +130,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   checkCuda(cudaMemcpy(d_A_bounce, A_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
 /*  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
-  float* bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
+  bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
   checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
 
   printf("coeff is %f\n", dcoeff[0]); 
@@ -128,18 +151,22 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   CUBLAS_CHECK(cublasCreate(&cublasH));
 
-  CUDA_CHECK(cudaStreamCreateWithFlags(&stream_cublas, cudaStreamNonBlocking));
+//  CUDA_CHECK(cudaStreamCreateWithFlags(&stream_cublas, cudaStreamNonBlocking));
+  CUDA_CHECK(cudaStreamCreateWithFlags(&stream_cublas, cudaStreamDefault));
+
   CUBLAS_CHECK(cublasSetStream(cublasH, stream_cublas));
   
   CUBLAS_CHECK(cublasCgetrfBatched(cublasH,
                                    LM,
                                    d_A_bounce,
                                    LM,
-//                                   d_Ipiv,
-				   NULL,
+                                   d_Ipiv,
+//				   NULL,
                                    infoArray,
                                    grids_->Nz));
-//  checkCuda(cudaMemcpy(A_bounce, d_A_bounce,sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+  checkCuda(cudaStreamSynchronize(stream_cublas));
+
+  checkCuda(cudaMemcpy(A_bounce, d_A_bounce,sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
 //  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
 
 
@@ -157,6 +184,9 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
         }
         std::printf("\n\n");
   }*/
+
+
+
 
 
 /*  checkCuda(cudaMalloc((void**) &d_bounce_rhs, sizeof(cuComplex*)*grids_->Nz));
@@ -198,7 +228,29 @@ Cublas_test::~Cublas_test(){
 }
 
 void Cublas_test::invert_stream(cuComplex* G, int stage){
-  lu_backsub_bounce_d<<<dG_lu, dB_lu>>>(d_A_bounce, G);
+
+  copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(d_bounce_rhs, G, false);
+
+  CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
+                                   CUBLAS_OP_N,
+                                   LM,
+                                   grids_->Nyc*grids_->Nx,
+                                   d_A_bounce,
+                                   LM,
+                                   d_Ipiv,
+//				   NULL,
+                                   d_bounce_rhs,
+                                   LM,
+//                                   infoArray_h,
+				   &info,
+                                   grids_->Nz));
+
+  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, d_bounce_rhs);
+  checkCuda(cudaStreamSynchronize(stream_cublas));
+
+
+//  lu_backsub_bounce_d<<<dG_lu, dB_lu>>>(d_A_bounce, G);
+
 
   checkCudaErrors(cudaGetLastError());
 

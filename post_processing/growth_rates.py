@@ -66,11 +66,16 @@ if __name__ == "__main__":
     for fname in sys.argv[1:]:
     
         try:
-            growth_rates(fname, ax=ax)
+            #growth_rates(fname, ax=ax)
+            om, ga = growth_rates(fname, ax=ax)
+            print("ga[12] is " + str(om[2]))
         
         except:
             print(' usage: python growth_rates.py [list of .nc files]')
     
     #plt.savefig("growth_rates.png")
-    plt.legend(["Explicit", "IMEX x60"])
+#    plt.legend(["Explicit", "Lie-Trotter 15x", "IMEX 15x"],loc='upper left')
+    plt.legend(["Explicit", "IMEX x50"])
+#    plt.legend(["Explicit", "0 Iterations", "1 Iteration"])
+    plt.tight_layout()
     plt.show()

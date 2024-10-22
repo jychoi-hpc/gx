@@ -27,7 +27,7 @@ class Cublas_test{
   void invert_sherman_morrison(cuComplex* u);
 
   cuComplex** A_bounce;
-  cuComplex     ** bounce_rhs;
+  cuComplex** bounce_rhs;
   cuComplex     ** res;
   cuComplex** d_A_bounce;
   cuComplex** d_bounce_rhs;
@@ -62,6 +62,9 @@ class Cublas_test{
   int* infoArray_h;
   int pivot_on;
   int num_coeff;
+  int info;
+
+  cuComplex* test;
 
   cublasHandle_t cublasH = NULL;
   cudaStream_t stream_cublas = NULL;

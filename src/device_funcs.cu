@@ -3851,18 +3851,23 @@ __global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz){
 }
 
 
-__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g){
+__global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g, bool one){
   unsigned int idy = get_id1();
   unsigned int idxz = get_id2();
   unsigned int idlm = get_id3();
-  unsigned int idm = int(idlm / nl);
-  unsigned int idl = idlm % nl;
-  unsigned int idx = int(idxz / nz);
-  unsigned int idz = idxz % nz;
+  unsigned int idm = idlm % nm;
+  unsigned int idl = idlm / nm;
+  unsigned int idz = idxz / nx;
+  unsigned int idx = idxz % nx;
   if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
     unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
     unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);
-    brhs[idz][b_ind] = g[globalIdx]; 
+    if(!one){
+      brhs[idz][b_ind] = g[globalIdx]; 
+    }
+    else{
+      brhs[idz][b_ind] = make_cuComplex(1.0f,1.0f);
+    }
   }
 } 
 
@@ -3870,10 +3875,10 @@ __global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs){
   unsigned int idy = get_id1();
   unsigned int idxz = get_id2();
   unsigned int idlm = get_id3();
-  unsigned int idm = int(idlm / nl);
-  unsigned int idl = idlm % nl;
-  unsigned int idx = int(idxz / nz);
-  unsigned int idz = idxz % nz;
+  unsigned int idm = idlm % nm;
+  unsigned int idl = idlm / nm;
+  unsigned int idz = idxz / nx;
+  unsigned int idx = idxz % nx;
   if ((idz < nz) && (idlm < nl*nm) && (idx < nx) && (idy < nyc) && unmasked(idx,idy)){
     unsigned int globalIdx = idy + nyc*(idx + nx*(idz + nz*(idl + nl*idm)));
     unsigned int b_ind = idm + nm*idl + nl*nm*(idy + nyc*idx);

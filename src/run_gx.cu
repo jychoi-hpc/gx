@@ -195,7 +195,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
   if (pars->scheme_opt == Tmethod::imex_full){
     double vte = G[1]->species->vt; 
-    cublas = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
+//    cublas = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, vte);
   }
 
 
@@ -211,7 +211,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
     case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
-    case Tmethod::imex_full : timestep = new IMEX_3stage_Full (linear, nonlinear, solver, pars, grids, geo, cublas, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
+    case Tmethod::imex_full : timestep = new IMEX_3stage_Full (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::lie_trotter_green : timestep = new Lie_Trotter_Green (linear, nonlinear, solver, pars, grids, green, geo, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
     case Tmethod::imex_green : timestep = new IMEX_3stage_Green (linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;

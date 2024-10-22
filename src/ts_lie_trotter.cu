@@ -37,6 +37,8 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     G1[is] = new MomentsG (pars_, grids_, is_glob);
 
     mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
+    checkCudaErrors(cudaGetLastError());
+
 //    mirror[is] = new Cusolve(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
 
 
@@ -319,15 +321,14 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
         G0[is]->copyFrom(G[is]);
     }
 
-    solver_->fieldSolve(G, f);        
+    solver_->fieldSolve(G, f);       
+    checkCudaErrors(cudaGetLastError()); 
+
     invert_implicit_terms_linked_lw(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);        
     
     ssprk3(A1, A2, A3, G, G1, f, false); 
     solver_->fieldSolve(G,f);
-
-
-    checkCudaErrors(cudaGetLastError()); 
 
   }
 

@@ -2,8 +2,8 @@
 #include <stdio.h>
 // ======= 3-stage addivte RK IMEX methods =======
 IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Geometry *geo, Cublas_test *cublas, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2) :
-  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), geo_(geo), cublas_(cublas), pars_(pars),
+	     Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2) :
+  linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), geo_(geo), pars_(pars),
   forcing_(forcing), dt_max(dt_in), dt_(dt_in), ielectron(-1), gradpar_(gradpar), bmagInv_(bmagInv), kperp2_(kperp2)
 {
   
@@ -20,6 +20,8 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   Gr = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+
+  mirror = (Cublas_test**) malloc(sizeof(void*)*grids_->Nspecies);
 
   if(pars_->implicit_max_iter > 1){
     G3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -43,6 +45,8 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     B2[is] = new MomentsG (pars_, grids_, is_glob);
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
+
+    mirror[is] = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, A1[is]->species->vt);
 
 
     if(pars_->nstages > 3){
@@ -206,10 +210,10 @@ void IMEX_3stage_Full::apply_preconditioner(MomentsG** B, MomentsG** G, Fields* 
 }
 
 
-void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, MomentsG** G3, MomentsG** G4, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, MomentsG** G3, MomentsG** G4, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, int max_iter)
 {
   int max_iter_streaming = pars_->implicit_max_iter_streaming;
-  int max_iter = pars_->implicit_max_iter;
+//  int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
   float omega_streaming = pars_->implicit_omega_streaming;
 
@@ -295,13 +299,13 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
     solver_->fieldSolve(G2, f);
       
     set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
-    cublas_->invert_sherman_morrison(Gc[ielectron]);
+    mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
 
     add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
 
 
-  cublas_->invert_stream(G1[ielectron]->G(), 0);
+  mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
   if(pars_->fapar > 0.){
     sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[ielectron]->G(), Gc[ielectron], solver_->getAmpereParFac()); 
   }
@@ -360,7 +364,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked(MomentsG** G1, cuComplex** G
     }
   }
 
-  cublas_->invert_stream(G1[ielectron]->G(), 0);
+  mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
 
 }
 
@@ -430,7 +434,7 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuCo
     }
   }
 
-  cublas_->invert_stream(G1[ielectron]->G(), 0);
+  mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
 
 
 }
@@ -545,7 +549,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     }
     else{
       if(pars_->implicit_preconditioner == "long_wavelength"){
-        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron);
+        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron, 1);
 //        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron, false);
 
       }
@@ -576,7 +580,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   else{
     if(pars_->implicit_preconditioner == "long_wavelength"){
-      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron);
+      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron, pars_->implicit_max_iter);
 //        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, r_*dt_,gradpar_, bmagInv_, ielectron, false);
 
     }
@@ -604,7 +608,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   else{
     if(pars_->implicit_preconditioner == "long_wavelength"){
-      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
+      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron, pars_->implicit_max_iter);
 //        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_, bmagInv_, ielectron, false);
 
     }
@@ -639,7 +643,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
   }
   else{
     if(pars_->implicit_preconditioner == "long_wavelength"){
-      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron);
+      invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, u_*dt_,gradpar_,bmagInv_, ielectron, pars_->implicit_max_iter);
 //        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, u_*dt_,gradpar_, bmagInv_, ielectron, false);
 
     }
