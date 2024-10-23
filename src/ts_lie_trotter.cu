@@ -113,7 +113,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dB_m2 = dim3(nt1, nt2, nt4);
   dG_m2 = dim3(nb1, nb2, nb4);  
 
-  flip = true;
+  flip = false;
 }
 
 Lie_Trotter::~Lie_Trotter()
@@ -126,6 +126,16 @@ Lie_Trotter::~Lie_Trotter()
   if (B3)    delete B3; 
   if (G1)    delete G1; 
   if (grad_par) delete grad_par;
+}
+
+double Lie_Trotter::get_dt()
+{
+  if(pars_->flip_flop){
+    return dt_;
+  }
+  else{
+    return dt_;
+  }
 }
 
 /*void Lie_Trotter::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool setdt)
@@ -339,8 +349,11 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
   }
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
-  *t += dt_;
   checkCudaErrors(cudaGetLastError());
-//  flip = !flip;
+  *t += dt_;
+
+  if(pars_->flip_flop){
+    flip = !flip;
+  }
 }
 

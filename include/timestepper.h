@@ -247,7 +247,8 @@ class Lie_Trotter : public Timestepper {
 	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
   ~Lie_Trotter();
   void advance(double* t, MomentsG** G, Fields* fields);
-  double get_dt() {return dt_;};
+//  double get_dt() {return dt_;};
+  double get_dt();
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
 
@@ -342,6 +343,8 @@ class IMEX_3stage_Full : public Timestepper {
   MomentsG     ** G1         ;
   cuComplex    ** Gc         ;
   cuComplex    ** Gr         ;
+  cuComplex    ** Ga         ;
+
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
   MomentsG     ** G3	     ;

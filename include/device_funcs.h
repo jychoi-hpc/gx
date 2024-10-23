@@ -473,6 +473,8 @@ __global__ void rhs_linear_nonbounce(const cuComplex* __restrict__ g,
 
 __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz);
 void initialize_A_bounce_loop(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz);
+__global__ void copy_brhs_apar_from_g_d(cuComplex** brhs, cuComplex* g);
+__global__ void copy_g_from_brhs_apar_d(cuComplex* g, cuComplex** brhs);
 __global__ void transpose_A(cuComplex* A_bounce, int LM);
 __global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g, bool one);
 __global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs);

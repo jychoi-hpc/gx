@@ -31,7 +31,8 @@ class Cublas_test{
   cuComplex     ** res;
   cuComplex** d_A_bounce;
   cuComplex** d_bounce_rhs;
-
+  cuComplex** bounce_rhs_apar;
+  cuComplex** d_bounce_rhs_apar;
 
  private:
   Parameters* pars_;

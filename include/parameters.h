@@ -144,7 +144,7 @@ class Parameters {
   int nstages;
   double a21, a31, a32, a41, a42, a43, a44, w1, w2, w3, w4;
   double p_, q_, r_, s_, t_, u_, w_, x_, y_, z_;
-  bool sdirk;
+  bool sdirk, flip_flop;
 
   int ikpar_init;
   float densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac;

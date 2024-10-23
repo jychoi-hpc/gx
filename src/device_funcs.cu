@@ -3851,6 +3851,29 @@ __global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz){
 }
 
 
+__global__ void copy_brhs_apar_from_g_d(cuComplex** brhs, cuComplex* g){
+  unsigned int idm = get_id1();
+  unsigned int idl = get_id2();
+  unsigned int idz = get_id3();
+  if ((idz < nz) && (idl < nl) && (idm < nm)){
+    unsigned int globalIdx = idz + nz*(idl + nl*idm); 
+    unsigned int b_ind = idm + nm*idl;;
+    brhs[idz][b_ind] = g[globalIdx]; 
+  }
+} 
+
+__global__ void copy_g_from_brhs_apar_d(cuComplex* g, cuComplex** brhs){
+  unsigned int idm = get_id1();
+  unsigned int idl = get_id2();
+  unsigned int idz = get_id3();
+  if ((idz < nz) && (idl < nl) && (idm < nm)){
+    unsigned int globalIdx = idz + nz*(idl + nl*idm); 
+    unsigned int b_ind = idm + nm*idl;;
+    g[globalIdx] = brhs[idz][b_ind];
+  }
+}
+
+
 __global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g, bool one){
   unsigned int idy = get_id1();
   unsigned int idxz = get_id2();

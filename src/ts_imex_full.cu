@@ -18,6 +18,8 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
 
   Gc = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   Gr = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
+  Ga = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
+
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 
@@ -67,6 +69,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
 	}
 	else{
 	  checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
+          checkCuda(cudaMalloc((void**) &Ga[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
 	}
       }
     }
@@ -221,6 +224,10 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
 
   if(pars_->fapar > 0.){
     grad_par->zft_sherman_morrison_subsolve_lw(Gr, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_); 
+    
+    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Ga[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+    mirror[ielectron]->invert_sherman_morrison(Ga[ielectron]);
+
   }
 
   for(int count_outer = 0; count_outer < max_iter; count_outer++){
@@ -298,8 +305,8 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
     G2[ielectron]->set_zero();
     solver_->fieldSolve(G2, f);
       
-    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
-    mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
+//    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+//    mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
 
     add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
@@ -307,7 +314,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
 
   mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
   if(pars_->fapar > 0.){
-    sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[ielectron]->G(), Gc[ielectron], solver_->getAmpereParFac()); 
+    sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[ielectron]->G(), Ga[ielectron], solver_->getAmpereParFac()); 
   }
 
   if(count_outer != 0){

@@ -109,6 +109,7 @@ void Parameters::get_nml_vars(char* filename)
   implicit_omega_streaming = toml::find_or <float> (tnml, "implicit_omega_streaming", 1.0);
   implicit_linked = toml::find_or <bool> (tnml, "implicit_linked", false);
   implicit_preconditioner = toml::find_or <string> (tnml, "implicit_preconditioner", "long_wavelength");
+  flip_flop = toml::find_or <bool> (tnml, "flip_flop", false);
   cfl = toml::find_or <float> (tnml, "cfl", 0.9);
   stages = toml::find_or <int>    (tnml, "stages",  10   );
   t_max = toml::find_or <float> (tnml, "t_max", 1.e20);
