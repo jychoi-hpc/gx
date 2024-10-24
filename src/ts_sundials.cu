@@ -133,8 +133,6 @@ void SundialsStepper::advance(double *t, MomentsG** , Fields* f)
     // Set fields_ to be the fields consistent with the final state (for diagnostics etc)
     solver_->fieldSolve( *gInternal, fields_ );
     checkCuda( cudaGetLastError() );
-    checkCuda( cudaDeviceSynchronize() );
-    checkCuda( cudaGetLastError() );
 }
 
 int SundialsStepper::SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* userdata )
@@ -284,8 +282,6 @@ void SunRK4Stepper::advance(double *t, MomentsG** , Fields* f)
 
     // Set fields_ to be the fields consistent with the final state (for diagnostics etc)
     solver_->fieldSolve( *gInternal, fields_ );
-    checkCuda( cudaGetLastError() );
-    checkCuda( cudaDeviceSynchronize() );
     checkCuda( cudaGetLastError() );
 }
 
