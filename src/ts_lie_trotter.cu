@@ -197,33 +197,34 @@ void Lie_Trotter::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-
-void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
+void Lie_Trotter::invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
 {
-
-  if(!flip){
-//  if(true){
-    if(pars_->fapar > 0.){
-      for(int is = 0; is < grids_->Nspecies; is++){
-        G2[is]->copyFrom(G1[is]); 
-      }
-      G2[ielectron]->set_zero();
-      solver_->fieldSolve(G2, f);
+  if(pars_->fapar > 0.){
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G2[is]->copyFrom(G1[is]); 
+    }
+    G2[ielectron]->set_zero();
+    solver_->fieldSolve(G2, f);
       
-      set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
-      mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
+    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+    mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
 
-      add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
-    }
-    for(int is = ielectron; is < grids_->Nspecies; is++){
-      mirror[is]->invert_stream(G1[is]->G(), 0);
-
-      if(pars_->fapar > 0.){
-        sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
-      }
-      G0[is]->copyFrom(G1[is]);
-    }
+    add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
+  for(int is = ielectron; is < grids_->Nspecies; is++){
+    mirror[is]->invert_stream(G1[is]->G(), 0);
+
+    if(pars_->fapar > 0.){
+      sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
+    }
+  } 
+}
+
+/*void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
+*/
+
+void Lie_Trotter::invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
+{
 
   int max_iter_streaming = pars_->implicit_max_iter_streaming;
   float omega_streaming = pars_->implicit_omega_streaming;
@@ -281,33 +282,6 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
       
     }
   }
-   
-  if(flip){
-    if(pars_->fapar > 0.){
-      for(int is = 0; is < grids_->Nspecies; is++){
-        G2[is]->copyFrom(G1[is]); 
-      }
-      G2[ielectron]->set_zero();
-      solver_->fieldSolve(G2, f);
-      
-      set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
-      mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
-
-      add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
-    }
-    for(int is = ielectron; is < grids_->Nspecies; is++){
-      mirror[is]->invert_stream(G1[is]->G(), 0);
-      
-      if(pars_->fapar > 0.){
-        sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
-      }
-
-/*    for(int is = ielectron; is < grids_->Nspecies; is++){
-      mirror[is]->invert_stream(G1[is]->G(), 0);
-    }*/
-    }
-  }
- 
 }
 
 void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt){
@@ -342,28 +316,50 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
 
   if(!flip){
     checkCudaErrors(cudaGetLastError()); 
-    ssprk3(A1, A2, A3, G, G1, f, false); 
 
+    ssprk3(A1, A2, A3, G, G1, f, false); 
+    solver_->fieldSolve(G, f);       
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
     }
 
-    solver_->fieldSolve(G, f);       
-    invert_implicit_terms_linked_lw(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-    solver_->fieldSolve(G, f);
+    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      G0[is]->copyFrom(G[is]);
+    }
+
+//    solver_->fieldSolve(G, f);
+    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    for(int is=0; is<grids_->Nspecies; is++) {
+      G0[is]->copyFrom(G[is]);
+    }*/
+
+//    solver_->fieldSolve(G, f);
   }
   else{
     for(int is=0; is<grids_->Nspecies; is++) {
         G0[is]->copyFrom(G[is]);
     }
 
+    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    for(int is=0; is<grids_->Nspecies; is++) {
+      G0[is]->copyFrom(G[is]);
+    }*/
+
+//    solver_->fieldSolve(G, f);       
+    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    for(int is=0; is<grids_->Nspecies; is++) {
+      G0[is]->copyFrom(G[is]);
+    }*/
+
     solver_->fieldSolve(G, f);       
     checkCudaErrors(cudaGetLastError()); 
-
-    invert_implicit_terms_linked_lw(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-    solver_->fieldSolve(G, f);        
     
-    ssprk3(A1, A2, A3, G, G1, f, false); 
+    ssprk3(A1, A2, A3, G, G1, f, false);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      G0[is]->copyFrom(G[is]);
+    }
+
     solver_->fieldSolve(G,f);
 
   }
