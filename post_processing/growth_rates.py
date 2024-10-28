@@ -75,7 +75,7 @@ if __name__ == "__main__":
     
     #plt.savefig("growth_rates.png")
 #    plt.legend(["Explicit", "Lie-Trotter 15x", "IMEX 15x"],loc='upper left')
-    plt.legend(["Explicit", "IMEX x50"])
+#    plt.legend(["Explicit", "IMEX x50"])
 #    plt.legend(["Explicit", "0 Iterations", "1 Iteration"])
     plt.tight_layout()
     plt.show()

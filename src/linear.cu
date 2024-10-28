@@ -199,6 +199,16 @@ void Linear_GK::rhs_streaming_id(MomentsG* G, Fields* f, MomentsG* GRhs, double 
 
 }
 
+void Linear_GK::rhs_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
+  // Free-streaming requires parallel FFTs, so do that first
+  cudaFuncSetAttribute(bounce_rhs, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
+  bounce_rhs<<<dimGrid, dimBlock, sharedSize>>>
+      	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
+        geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls); 
+}
+
+
 
 void Linear_GK::rhs_streaming_bounce(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   // Free-streaming requires parallel FFTs, so do that first

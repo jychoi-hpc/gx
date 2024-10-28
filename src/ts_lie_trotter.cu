@@ -19,6 +19,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   Gr = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+//  G3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 
   phi_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   apar_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -35,7 +36,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     B2[is] = new MomentsG (pars_, grids_, is_glob);
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
-
+    
     mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
     checkCudaErrors(cudaGetLastError());
 
@@ -67,6 +68,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     }
     G0[is] = new MomentsG (pars_, grids_, is_glob);
     G2[is] = new MomentsG (pars_, grids_, is_glob);
+//    G3[is] = new MomentsG (pars_, grids_, is_glob);
 
     checkCuda(cudaMalloc((void**) &phi_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
     checkCuda(cudaMalloc((void**) &apar_l[is], sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl));
@@ -113,7 +115,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dB_m2 = dim3(nt1, nt2, nt4);
   dG_m2 = dim3(nb1, nb2, nb4);  
 
-  flip = false;
+  flip = true;
 }
 
 Lie_Trotter::~Lie_Trotter()
@@ -201,7 +203,7 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
 
   if(!flip){
 //  if(true){
-/*    if(pars_->fapar > 0.){
+    if(pars_->fapar > 0.){
       for(int is = 0; is < grids_->Nspecies; is++){
         G2[is]->copyFrom(G1[is]); 
       }
@@ -212,28 +214,31 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
       mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
 
       add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
-    }*/
+    }
     for(int is = ielectron; is < grids_->Nspecies; is++){
       mirror[is]->invert_stream(G1[is]->G(), 0);
-      
-/*      if(pars_->fapar > 0.){
+
+      if(pars_->fapar > 0.){
         sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
-      }*/
+      }
       G0[is]->copyFrom(G1[is]);
     }
   }
+
   int max_iter_streaming = pars_->implicit_max_iter_streaming;
   float omega_streaming = pars_->implicit_omega_streaming;
   grad_par->zft_sherman_morrison_subsolve_lw(Gc, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
 
   if(pars_->fapar > 0.){
-    grad_par->zft_sherman_morrison_subsolve_lw(Gr, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_); 
+    grad_par->zft_sherman_morrison_subsolve_lw(Gr, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
+
   }
 
   for(int count = 0; count < max_iter_streaming; count++){
     if(count == 0){
       if(pars_->fapar > 0.){
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
+
       }
       else{
         grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
@@ -259,6 +264,7 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
       
       if(pars_->fapar > 0.){
         grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
+
       }
       else{
         grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
@@ -275,10 +281,30 @@ void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc,
       
     }
   }
-  
+   
   if(flip){
+    if(pars_->fapar > 0.){
+      for(int is = 0; is < grids_->Nspecies; is++){
+        G2[is]->copyFrom(G1[is]); 
+      }
+      G2[ielectron]->set_zero();
+      solver_->fieldSolve(G2, f);
+      
+      set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+      mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
+
+      add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
+    }
     for(int is = ielectron; is < grids_->Nspecies; is++){
       mirror[is]->invert_stream(G1[is]->G(), 0);
+      
+      if(pars_->fapar > 0.){
+        sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
+      }
+
+/*    for(int is = ielectron; is < grids_->Nspecies; is++){
+      mirror[is]->invert_stream(G1[is]->G(), 0);
+    }*/
     }
   }
  
