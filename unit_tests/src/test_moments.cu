@@ -216,6 +216,8 @@ TEST_F(TestMomentsG, SyncG)
   }
 }
 
+// Write test data into a MomentsG object;
+// use the restart
 TEST_F(TestMomentsG, Restart) {
   size_t size = grids->NxNycNz*grids->Nmoms*sizeof(cuComplex);
   cuComplex* init = (cuComplex*) malloc(size);
