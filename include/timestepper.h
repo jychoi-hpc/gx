@@ -321,8 +321,8 @@ class IMEX_3stage_Full : public Timestepper {
   MomentsG     ** B4         ;
 
   Fields	* f1	     ;
-  cuComplex    ** phi_l      ;
-  cuComplex    ** apar_l      ;
+  cuComplex    ** phi_flr      ;
+  cuComplex    ** apar_flr      ;
 
   double dt_;
   int ielectron;
