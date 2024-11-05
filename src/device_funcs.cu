@@ -4959,7 +4959,7 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
     int idms = 0;
     unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
     cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
-    float abs_kz = abs(kz[nz*idz + idz]);
+    float abs_kz = abs(kz[nz*idx + idz]);
     cuComplex bm = make_cuComplex(1.0f, 0.0f);
     cuComplex bet = bm;
     
@@ -5834,7 +5834,7 @@ __global__ void tridiag_streaming_linked_em(cuComplex* g, cuComplex* gr, cuCompl
         if (Z < max_amperePerpFacBpar_inv[idy*nLinks + ik]){
           Z = max_amperePerpFacBpar_inv[idy*nLinks + ik];
         }
-        if (F < max_ampereParFac_inv[idy*nLinks + ik]){
+        if (F > max_ampereParFac_inv[idy*nLinks + ik]){
           F = max_ampereParFac_inv[idy*nLinks + ik];
         }
 

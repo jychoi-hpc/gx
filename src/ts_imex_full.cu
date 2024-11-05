@@ -320,7 +320,7 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex*
   if(count_outer != 0){
     for(int is = 0; is < grids_->Nspecies; is++){
       G1[is]->add_scaled(1.,G3[is], -1., G1[is]);
-      G1[is]->add_scaled(omega, G1[is], (1-omega), G3[is]);
+      G1[is]->add_scaled(omega, G1[is], (1.-omega), G3[is]);
 
     }
   }
@@ -556,7 +556,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     }
     else{
       if(pars_->implicit_preconditioner == "long_wavelength"){
-        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron, 1);
+        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, G3, G4, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron, pars_->implicit_max_iter);
 //        invert_implicit_terms_linked_lw(G1, Gc, Gr, G0, G2, f, phi_l, apar_l, p_*dt_,gradpar_, bmagInv_, ielectron, false);
 
       }
