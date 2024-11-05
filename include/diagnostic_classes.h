@@ -328,3 +328,31 @@ class ParticleTempDiagnostic : public MomentsDiagnostic {
   ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
   void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
+
+// Angular Momentum Flux (Pi)
+class AngularMomentumFluxDiagnostic : public SpectraDiagnostic {
+ public:
+  AngularMomentumFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+/* TODO:
+class AngularMomentumFluxESDiagnostic : public SpectraDiagnostic {
+ public:
+  AngularMomentumFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+class AngularMomentumFluxAparDiagnostic : public SpectraDiagnostic {
+ public:
+  AngularMomentumFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+class AngularMomentumFluxBparDiagnostic : public SpectraDiagnostic {
+ public:
+  AngularMomentumFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+*/
+

@@ -1150,3 +1150,134 @@ void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* 
     }
   }
 }
+
+// Construct SpectraDiagnostic object as well as 
+// setting variable name and description
+AngularMomentumFluxDiagnostic::AngularMomentumFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "AngularMomentumFlux";
+  description = "Turbulent flux of toroidal angular momentum in gyroBohm units"; 
+  isMoments = false;
+
+  // Only m = 0 & m = 1 are needed to calculate Pi, skip if we only have higher m's
+  if(grids_->m_lo>1) skipWrite = true;
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+// Calculate the angular momentum flux due to the turbulence
+// c.f. Equation (183) and subsequent in Abel et. al. 2013
+// It is assumed that f is already consistent with G.
+// tmpf is used to store the velocity-integrated data
+// tmpG is unused
+void AngularMomentumFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  // First compute the per-species 
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float p_s = pars_->species_h[is_glob].nt;
+    float vts = pars_->species_h[is_glob].vt;
+    float tzs = pars_->species_h[is_glob].tz;
+    if(grids_->Nm <= 2) {
+      G[is]->sync(true);
+    }
+    angular_momentum_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
+  }
+  write_spectra(tmpf);
+}
+
+/*
+AngularMomentumFluxESDiagnostic::AngularMomentumFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "AngularMomentumFluxES";
+  description = "Electrostatic component of turbulent heat flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // heat flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void AngularMomentumFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float p_s = pars_->species_h[is_glob].nt;
+    float vts = pars_->species_h[is_glob].vt;
+    heat_flux_ES_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts); 	
+  }
+  write_spectra(tmpf);
+}
+
+AngularMomentumFluxAparDiagnostic::AngularMomentumFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "AngularMomentumFluxApar";
+  description = "Electromagnetic (A_parallel) component of turbulent heat flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // heat flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void AngularMomentumFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float p_s = pars_->species_h[is_glob].nt;
+    float vts = pars_->species_h[is_glob].vt;
+    heat_flux_Apar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->apar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts); 	
+  }
+  write_spectra(tmpf);
+}
+
+AngularMomentumFluxBparDiagnostic::AngularMomentumFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "AngularMomentumFluxBpar";
+  description = "Electromagnetic (dB_parallel) component of turbulent heat flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // heat flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void AngularMomentumFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float p_s = pars_->species_h[is_glob].nt;
+    float tzs = pars_->species_h[is_glob].tz;
+    heat_flux_Bpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, tzs); 	
+  }
+  write_spectra(tmpf);
+}
+*/
