@@ -245,14 +245,14 @@ void Grids::init_ks_and_coords()
   // If this is a restarted run, should get kxstar from the restart file
   // otherwise:
   if (pars_->ExBshear) {
-    int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
+    int nn1, nt1, nb1, nn2, nt2, nb2, nt3, nb3;
     nn1 = Nyc;       nt1 = min(32, nn1);     nb1 = 1 + (nn1-1)/nt1;
     nn2 = Nx;        nt2 = min(16, nn2);     nb2 = 1 + (nn2-1)/nt2;
-    nn3 = 1;         nt3 = 1;                nb3 = 1;
+                     nt3 = 1;                nb3 = 1;
     dB = dim3(nt1, nt2, nt3);
     dG = dim3(nb1, nb2, nb3);
     init_kxstar_kxbar_phasefac <<< dG, dB >>> (kxstar, kxbar_ikx_new, kxbar_ikx_old, phasefac_exb, phasefacminus_exb, kx); // Do we really need th0 here? // JFP
-    //CP_TO_CPU (theta0_h, th0, sizeof(float)*Nx);  
+    //CP_TO_CPU (theta0_h, th0, sizeof(float)*Nx);
   }
   
   if (Nx<4) {
