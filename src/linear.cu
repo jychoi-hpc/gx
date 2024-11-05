@@ -31,6 +31,9 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   //  DEBUGPRINT("Using periodic for grad parallel.\n");
   //  grad_par = new GradParallelPeriodic(grids_);
   //}
+  else if(pars_->nonTwist) {
+    grad_par = new GradParallelNTFT(pars_, grids_);
+  }
   else {
     grad_par = new GradParallelLinked(pars_, grids_);
   }
@@ -122,15 +125,15 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   maxSharedSize = prop.sharedMemPerBlockOptin;
 
   DEBUGPRINT("For linear RHS: size of shared memory block = %f KB\n", sharedSize/1024.);
-  if(sharedSize>maxSharedSize && grids_->m_ghost == 0) {
+
+  if( sharedSize > maxSharedSize && grids_->m_ghost == 0) {
     printf("Error: currently cannot support this velocity resolution due to shared memory constraints.\n");
     printf("If you wish to try to keep this velocity resolution, ");
     printf("you can try lowering i_share in your input file.\n");
     printf("You are using i_share = %d now, perhaps by default.\n", pars_->i_share);
-    printf("The size of the shared memory block should be less than %d KB ", maxSharedSize/1024);
+    printf("The size of the shared memory block should be less than %ld KB ", maxSharedSize/1024);
     printf("which means i_share*(nhermite+4)*(nlaguerre+2) < %d. \n", 12*1024);
-    printf("Presently, you have set i_share*(nhermite+4)*(nlaguerre+2) = %d. \n",
-	   pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
+    printf("Presently, you have set i_share*(nhermite+4)*(nlaguerre+2) = %d. \n", pars_->i_share*(grids_->Nm+4)*(grids_->Nl+2));
     exit(1);
   }
 
@@ -374,7 +377,8 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
-	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls);
+	grids_->ky, *(G->species), pars_->species_h[0], GRhs->G(), pars_->ei_colls,
+	pars_->rhoc, pars_->g_exb, geo_->RBzeta, geo_->qsf);
 
   // hyper model by Hammett and Belli
   if (pars_->HB_hyper) {
@@ -418,7 +422,7 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
     float M = (float) grids_->Nm_glob-1;
     float p = (float) pars_->p_hyper_m;
     float vt = G->species->vt;
-    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*geo_->gradpar;
+    float nu_hyp_m = pars_->nu_hyper_m*(p + 0.5)/powf(M, p + 0.5)*2.3*vt*abs(geo_->gradpar);
     tmpG->set_zero();
     hypercollisions_kz<<<dimGridh, dimBlockh>>>(G->G(), nu_hyp_m, p, tmpG->G());
     grad_par->abs_dz(tmpG, GRhs, true);
@@ -429,7 +433,7 @@ void Linear_GK::rhs_nonstreaming(MomentsG* G, Fields* f, MomentsG* GRhs, double 
 						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
 
   if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z/dt, true);
-  
+ 
   // apply parallel boundary conditions. for linked BCs, this involves applying 
   // a damping operator to the RHS near the boundaries of extended domain.
   if(!pars_->boundary_option_periodic && !pars_->local_limit) grad_par->applyBCs(G, GRhs, f, geo_->kperp2, dt);
@@ -454,8 +458,13 @@ void Linear_GK::get_max_frequency(double *omega_max)
     omega_max[0] = pars_->tzmax*grids_->kx_max
       * (grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
   } else {
-    omega_max[0] = pars_->tzmax*grids_->kx_max/abs(geo_->shat)
-      * (grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
+    if (pars_->nonTwist) {
+      omega_max[0] = pars_->tzmax*(grids_->kx_max + grids_->m0_max / pars_->x0)
+        * (grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
+    } else {
+      omega_max[0] = pars_->tzmax*grids_->kx_max/abs(geo_->shat)
+        * (grids_->vpar_max*grids_->vpar_max*abs(geo_->cvdrift0_max) + grids_->muB_max*abs(geo_->gbdrift0_max));
+    }
   }
   omega_max[1] = pars_->tzmax*grids_->ky_max*
     (grids_->vpar_max*grids_->vpar_max*geo_->cvdrift_max + grids_->muB_max*geo_->gbdrift_max);
@@ -465,17 +474,16 @@ void Linear_GK::get_max_frequency(double *omega_max)
   float nte = pars_->ne*pars_->Te;
   float mime = pars_->vtmax*pars_->vtmax/pars_->vtmin/pars_->vtmin;
   float kperprho2 = grids_->kperp_min*grids_->kperp_min/geo_->bmag_max/geo_->bmag_max;
-  omega_max[2] = pars_->vtmax*grids_->kz_max*geo_->gradpar * 
+  omega_max[2] = pars_->vtmax*grids_->kz_max*abs(geo_->gradpar) * 
                  max(grids_->vpar_max, pars_->nspec_in > 1 ? 1/sqrt(beta*nte/2*mime + kperprho2): 0.);
-  
 }
 
 //==========================================
 // Linear_KREHM
 // object for handling linear terms in KREHM
 //==========================================
-Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids) :
-  pars_(pars), grids_(grids),
+Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo) :
+  pars_(pars), grids_(grids), geo_(geo),
   closures(nullptr), grad_par(nullptr)
 {
   // set up parallel ffts
@@ -493,14 +501,19 @@ Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids) :
   }
  
   switch (pars_->closure_model_opt)
-    {
+  {
     case Closure::none      :
+      // OK, no closure specified, no need to print anything
+      break;
+    default:
+      // A closure was specified, but we aren't using it, best to inform the user.
+      fprintf(stderr, "Ignoring closure option. Closures not supported for KREHM");
       break;
     case Closure::smithpar  :
       DEBUGPRINT("Initializing Smith parallel closures\n");
       //closures = new SmithPar(pars_, grids_, geo_, grad_par);
       break;
-    }
+  }
   
   int nn1 = grids_->Nyc;   int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;    int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
@@ -531,7 +544,7 @@ void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
 
   if(grids_->Nz>1) {
     cudaStreamSynchronize(G->syncStream);
-    rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->apar_ext, nu_ei, rho_s, d_e, GRhs->G());
+    rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->apar_ext, nu_ei, rho_s, d_e, geo_->gradpar, GRhs->G());
     grad_par->dz(GRhs, GRhs, false);
   }
   

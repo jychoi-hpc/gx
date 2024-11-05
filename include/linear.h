@@ -50,7 +50,7 @@ public:
   //  int zderiv(MomentsG *G);
 
   dim3 dimGrid, dimBlock, dG, dB, dGs, dBs, dimGridh, dimBlockh, dB_all, dG_all;
-  int sharedSize;
+  size_t sharedSize;
   
  private:
   bool ks;
@@ -79,14 +79,14 @@ public:
 
 class Linear_KREHM : public Linear {
 public:
-  Linear_KREHM(Parameters* pars, Grids* grids); 
+  Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo); 
   ~Linear_KREHM();
 
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void get_max_frequency(double* wmax);
 
   dim3 dimGrid, dimBlock, dG, dB, dGs, dBs, dimGridh, dimBlockh, dB_all, dG_all;
-  int sharedSize;
+  size_t sharedSize;
   
  private:
 

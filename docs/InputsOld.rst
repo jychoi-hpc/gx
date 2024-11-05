@@ -194,10 +194,6 @@ For the most part, there are mostly no default values provided:
      - L/Ln
      - 
    * - **species**
-     - uprim
-     - L/Lu
-     - **0.0**
-   * - **species**
      - vnewk
      - The collision frequency
      - **0.0**

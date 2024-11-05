@@ -2,9 +2,9 @@
 
 // ======= SSPx2 =======
 SSPx2::SSPx2(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	     Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+	     Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
+  forcing_(forcing), exb_(exb), dt_max(pars->dt_max), dt_(dt_in), GRhs(nullptr), G1(nullptr), G2(nullptr)
 {
   // new objects for temporaries
   GRhs  = new MomentsG (pars, grids);
@@ -43,7 +43,8 @@ void SSPx2::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, bo
       if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
       double wmax = 0.;
       for(int i=0; i<3; i++) wmax += omega_max[i];
-      dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
+	  double dt_guess = cfl_fac*pars_->cfl/wmax;
+      dt_ = min( max(dt_guess,pars_->dt_min), dt_max);
     }
 
     // compute and increment nonlinear term
@@ -67,6 +68,16 @@ void SSPx2::advance(double *t, MomentsG** G, Fields* f)
   for(int is=0; is<grids_->Nspecies; is++) {
     G[is]->update_tprim(*t);
     G1[is]->update_tprim(*t);
+  }
+
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      exb_->flow_shear_g_shift(G[is]);
+      exb_->flow_shear_g_shift(G1[is]);
+      //exb_->flow_shear_g_shift(G2[is]); // no G2 here? //JMH
+    }
   }
   // end updates
   

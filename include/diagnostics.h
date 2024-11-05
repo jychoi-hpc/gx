@@ -63,6 +63,7 @@ private:
   GrowthRateDiagnostic *growthRateDiagnostic;
   vector<unique_ptr<MomentsDiagnostic>> momentsDiagnosticList;
   FieldsDiagnostic *fieldsDiagnostic;
+  FieldsXYDiagnostic *fieldsXYDiagnostic;
 };
 
 class Diagnostics_KREHM : public Diagnostics {

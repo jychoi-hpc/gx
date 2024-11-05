@@ -79,7 +79,6 @@ void IMEX_3stage::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool set
       }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
   }
   // compute nonlinear terms explicitly for all species
@@ -499,7 +498,6 @@ void IMEX_4stage::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool set
     // compute nonlinear terms explicitly for all species
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
   }
 }

@@ -16,7 +16,7 @@ class SpectraCalc {
  public:
   virtual ~SpectraCalc();
   virtual void allocate();
-  virtual int define_nc_variable(string varstem, int nc_group, string description = "");
+  virtual int define_nc_variable(string varstem, int nc_group, string description = "", bool append=false);
   virtual void write(float *fullData, int varid, size_t time_index, int nc_group, bool isMoments, bool skip=false);
   virtual float* get_data() {return cpu;};
   virtual void dealias_and_reorder(float *fold, float *fnew) {

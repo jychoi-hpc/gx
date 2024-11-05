@@ -91,14 +91,17 @@ void Parameters::get_nml_vars(char* filename)
   // "continuous drifts": cut flux tube at a location where gbdrift0 = 0, and then use (generalized) twist-and-shift BC (currently for VMEC geometry only)
   // "fix aspect": cut flux tube at a location where y0/x0 takes the desired value, and then use (generalized) twist-and-shift BC (VMEC geometry only)
   boundary = toml::find_or <std::string> (tnml, "boundary", "linked" );
+  nonTwist = toml::find_or <bool>        (tnml, "nonTwist", false);
   long_wavelength_GK = toml::find_or <bool>   (tnml, "long_wavelength_GK",   false ); // JFP, long wavelength GK limit where bs = 0, except in quasineutrality where 1 - Gamma0(b) --> b.
   zero_shat_threshold = toml::find_or <float>   (tnml, "zero_shat_threshold", 1e-5);
-  bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
-  float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
   
   tnml = nml;  
   if (nml.contains("Time")) tnml = toml::find (nml, "Time");
   dt      = toml::find_or <float> (tnml, "dt",       0.05 );
+  dt_max  = toml::find_or <float> (tnml, "dt_max",   static_cast<float>(dt) );
+  dt_min  = toml::find_or <float> (tnml, "dt_min",   1e-7 );
+  fixed_dt = toml::find_or <bool> (tnml, "fixed_dt", false );
+
   nstep   = toml::find_or <int>   (tnml, "nstep",   2e9 );
   nstep_restart   = toml::find_or <int>   (tnml, "nstep_restart",   -1 );
   scheme = toml::find_or <string> (tnml, "scheme",    "rk3"   );
@@ -121,7 +124,7 @@ void Parameters::get_nml_vars(char* filename)
   init_field = toml::find_or <string> (tnml, "init_field", "density");
   init_amp   = toml::find_or <float>  (tnml, "init_amp",   1.0e-5   );
   kpar_init  = toml::find_or <float>  (tnml, "kpar_init",     0.0   );
-  ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     (long) kpar_init  );
+  ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     static_cast<int>(kpar_init)  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   gaussian_init = toml::find_or <bool> (tnml, "gaussian_init", false);
   gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     1.0   );
@@ -133,16 +136,26 @@ void Parameters::get_nml_vars(char* filename)
   tprpfac = toml::find_or <float> (tnml, "tprpfac", 1.0);
   qparfac = toml::find_or <float> (tnml, "qparfac", 1.0);
   qprpfac = toml::find_or <float> (tnml, "qprpfac", 1.0);
+
+  random_seed = toml::find_or <unsigned int> (tnml, "random_seed", 22);
+
   if (random_init) ikpar_init = 0; 
 
   if (nml.contains("Restart")) tnml = toml::find(nml, "Restart");
   restart           = toml::find_or <bool>   (tnml, "restart",                 false  );
+  restart_if_exists = toml::find_or <bool>   (tnml, "restart_if_exists",       false  );
   save_for_restart  = toml::find_or <bool>   (tnml, "save_for_restart",         true  );
   restart_to_file   = toml::find_or <string> (tnml, "restart_to_file", default_restart_filename);
   restart_from_file = toml::find_or <string> (tnml, "restart_from_file", default_restart_filename);  
+  restart_with_perturb = toml::find_or <bool> (tnml, "restart_with_perturb", false  );
+  append_on_restart = toml::find_or <bool> (tnml, "append_on_restart", true);
   scale             = toml::find_or <float>  (tnml, "scale",                      1.0 );
   nsave   = toml::find_or <int>   (tnml, "nsave", 10000 );
   nsave = max(1, nsave);
+  if (restart_if_exists) {
+    if (access(restart_from_file.c_str(), F_OK) == 0) restart = true;
+    else restart = false;
+  }
 
   if (nml.contains("Dissipation")) tnml = toml::find(nml, "Dissipation");
   closure_model  = toml::find_or <string> (tnml, "closure_model", "none" );
@@ -167,6 +180,7 @@ void Parameters::get_nml_vars(char* filename)
   hypercollisions_kz = toml::find_or <bool> (tnml, "hypercollisions_kz", false);
   hypercollisions_kz = toml::find_or <bool> (tnml, "hypercollisions", hypercollisions_kz); // "hypercollisions" now gives hypercollisions_kz
   hyperz = toml::find_or <bool> (tnml, "hyperz", false);
+  
 
   tnml = nml;
   if (nml.contains("Collisional_slab_ETG")) tnml = toml::find (nml, "Collisional_slab_ETG"); 
@@ -237,6 +251,8 @@ void Parameters::get_nml_vars(char* filename)
     i_share = i_share_max;
   }
   
+  fixed_dt    = toml::find_or <bool>   (tnml, "fixed_timestep",  false );
+
   dealias_kz  = toml::find_or <bool>   (tnml, "dealias_kz",  false );
   nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
   local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
@@ -321,6 +337,7 @@ void Parameters::get_nml_vars(char* filename)
   }    
   
   tnml = nml;
+  /*
   if (nml.contains("Controls")) tnml = toml::find (nml, "Controls");
   dealias_kz = toml::find_or <bool>   (tnml, "dealias_kz",  dealias_kz   ); // included for backwards-compat. now specified in expert
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    false );  linear = !nonlinear_mode; // included for backwards-compat. nonlinear_mode now specified in Physics
@@ -350,6 +367,7 @@ void Parameters::get_nml_vars(char* filename)
   random_init     = toml::find_or <bool> (tnml, "random_init",     random_init); // include for backwards-compat. now specified in Initialization
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     init_electrons_only); // include for backwards-compat. now specified in Initialization
   if (random_init) ikpar_init = 0; 
+  */
   
   if (write_omega && fixed_amplitude) {
     if (nonlinear_mode || nwrite < 3) fixed_amplitude = false;
@@ -492,6 +510,13 @@ void Parameters::get_nml_vars(char* filename)
     //printf("Be sure it is consistent with the value in the geometry file. \n");
     //printf("Using shat = %f \n",shat);
   }
+
+  RBzeta_override = toml::find_or<float>( tnml, "RBzeta", 0.0 ); // For explicitly setting I(psi) for flying-slab simulations
+  if( geo_option != "slab" && RBzeta_override != 0.0 )
+  {
+	  printf("ERROR: R B_zeta has been set explicitly, but this is only legal in a slab! Detected geo_option is %s (not 'slab')", geo_option.c_str() );
+  }
+
   
   // the following parameters are exclusively for interfacing 
   // with the GS2 geometry module via eiktest
@@ -527,8 +552,14 @@ void Parameters::get_nml_vars(char* filename)
   beta = toml::find_or <float> (tnml, "beta",    0.0 );
   if (beta == 0.0 && beta_geo > 0.0) beta = beta_geo; 
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    nonlinear_mode );  linear = !nonlinear_mode;
-  ExBshear = toml::find_or <bool> (tnml, "ExBshear",    ExBshear_domain );
-  g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
+
+  g_exb    = toml::find_or <float> (tnml, "g_exb",       0.0 );
+  // Default to ExB shear on if g_exb is nonzero
+  ExBshear = toml::find_or <bool> (tnml, "ExBshear", ( g_exb != 0.0 )  );
+  // Default to including the phase factor
+  ExBshear_phase = toml::find_or <bool> (tnml, "ExBshear_phase",  true); // If false, neglect phase correction in FFT. Only relevant for nonlinear simulations.
+
+  if (!ExBshear) ExBshear_phase = false; 
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
@@ -645,7 +676,6 @@ void Parameters::get_nml_vars(char* filename)
   species_h = (specie *) malloc(nspec_in*sizeof(specie));
   if (nml.contains("species")) {
     for (int is=0; is < nspec_in; is++) {
-      species_h[is].uprim = 0.;
       species_h[is].nu_ss = 0.;
       species_h[is].temp = 1.;
       
@@ -655,7 +685,6 @@ void Parameters::get_nml_vars(char* filename)
       if(nml.at("species").count("temp")>0) species_h[is].temp  = toml::find <float>  (nml, "species", "temp",  is);
       species_h[is].tprim = toml::find <float>  (nml, "species", "tprim", is);
       species_h[is].fprim = toml::find <float>  (nml, "species", "fprim", is);
-      if(nml.at("species").count("uprim")>0) species_h[is].uprim = toml::find <float>  (nml, "species", "uprim", is);
       if(nml.at("species").count("vnewk")>0) species_h[is].nu_ss = toml::find <float>  (nml, "species", "vnewk", is);
       string stype        = toml::find <string> (nml, "species", "type",  is);
       species_h[is].type = stype == "ion" ? 0 : 1;
@@ -748,13 +777,10 @@ void Parameters::get_nml_vars(char* filename)
   else if( stir_field == "pperp"  ) { stirf = stirs::pperp  ; }
   
   if (scheme == "sspx3") scheme_opt = Tmethod::sspx3;
-  if (scheme == "g3")    scheme_opt = Tmethod::g3;
   if (scheme == "k10")   scheme_opt = Tmethod::k10;
-  if (scheme == "k2")    scheme_opt = Tmethod::k2;
   if (scheme == "rk4")   scheme_opt = Tmethod::rk4;
   if (scheme == "rk3")   scheme_opt = Tmethod::rk3;
   if (scheme == "sspx2") scheme_opt = Tmethod::sspx2;
-  if (scheme == "rk2")   scheme_opt = Tmethod::rk2;
   if (scheme == "ssprk3") scheme_opt = Tmethod::ssprk3;
   if (scheme == "imex3" || scheme == "imex") scheme_opt = Tmethod::imex3;
   if (scheme == "imex4") scheme_opt = Tmethod::imex4;
@@ -867,7 +893,7 @@ void Parameters::get_nml_vars(char* filename)
   }
 
 
-  if (eqfix && iproc==0 && ((scheme_opt == Tmethod::k10) || (scheme_opt == Tmethod::g3)  || (scheme_opt == Tmethod::k2))) {
+  if (eqfix && iproc==0 && scheme_opt == Tmethod::k10) {
     printf("\n");
     printf("\n");
     printf(ANSI_COLOR_MAGENTA);
@@ -912,7 +938,7 @@ void Parameters::get_nml_vars(char* filename)
 void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   // open the netcdf4 file for this run
   // store all inputs for future reference
-  int retval, idim, sdim, wdim, pdim, adim, qdim, gamdim, phi2dim, nc_out, nc_inputs, nc_diss;
+  int retval, nc_inputs, nc_diss;
   if (retval = nc_def_grp(ncid,      "Inputs",         &nc_inputs)) ERR(retval);
   if (retval = nc_def_grp(nc_inputs, "Domain",         &nc_dom))    ERR(retval);  
   if (retval = nc_def_grp(nc_inputs, "Time",           &nc_time))   ERR(retval);  
@@ -992,6 +1018,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_dom, "jtwist",        NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "boundary_dum",  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_put_att_text (nc_dom, ivar, "value", boundary.size(), boundary.c_str())) ERR(retval);
+  if (retval = nc_def_var (nc_dom, "nonTwist",      NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_dom, "ExBshear_phase",      NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_dom, "long_wavelength_GK",      NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_ml, "Use_reservoir",  NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1231,6 +1259,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (geo_option=="slab") put_real (nc_dom, "z0",      z0      );
   putint   (nc_dom, "zp",      Zp      );
   putint   (nc_dom, "jtwist",  jtwist  );
+  putbool  (nc_dom, "nonTwist",nonTwist);
+  putbool  (nc_dom, "ExBshear_phase", "ExBshear_phase");
   putbool  (nc_dom, "long_wavelength_GK", long_wavelength_GK);
 
   put_real (nc_time, "dt",      dt      );
@@ -1326,7 +1356,7 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putint   (nc_con,  "stages",          stages          );
   put_real (nc_con,  "cfl",             cfl             );
   put_real (nc_con,  "init_amp",        init_amp        );
-  put_real (nc_con,  "ikpar_init",      ikpar_init       );
+  putint   (nc_con,  "ikpar_init",      ikpar_init      );
   putbool  (nc_con,  "random_init",     random_init     );
   putbool  (nc_con,  "dealias_kz",      dealias_kz      );
   putbool  (nc_con,  "nonlinear_mode",  nonlinear_mode  );   
@@ -1416,7 +1446,7 @@ void Parameters::init_species(specie* species)
 	     species[s].rho2, species[s].nt, species[s].nz);
       printf("jparfac, jperpfac = %f, %f \n", 
              species[s].jparfac, species[s].jperpfac);
-      printf("nu_ss = %f, tprim = %f, fprim = %f, uprim = %f\n\n", species[s].nu_ss, species[s].tprim, species[s].fprim, species[s].uprim);
+      printf("nu_ss = %f, tprim = %f, fprim = %f\n\n", species[s].nu_ss, species[s].tprim, species[s].fprim);
     }      
     vtmax = max(vtmax, species[s].vt);
     vtmin = min(vtmin, species[s].vt);
@@ -1456,9 +1486,9 @@ void Parameters::putbool (int ncid, const char varname[], bool val) {
 bool Parameters::getbool (int ncid, const char varname[]) {
   int idum, ires, retval;
   bool res;
-  if (debug) printf("%s = %i \n", varname, ires);
   if (retval = nc_inq_varid(ncid, varname, &idum))   ERR(retval);
   if (retval = nc_get_var  (ncid, idum, &ires)) ERR(retval);
+  if (debug) printf("%s = %i \n", varname, ires);
   res = (ires!=0) ? true : false ;
   return res;
 }
@@ -1466,9 +1496,9 @@ bool Parameters::getbool (int ncid, const char varname[]) {
 float Parameters::get_real (int ncid, const char varname[]) {
   int idum, retval;
   float res;
-  if (debug) printf("%s = %f \n",varname, res);
   if (retval = nc_inq_varid(ncid, varname, &idum))   ERR(retval);
   if (retval = nc_get_var  (ncid, idum, &res)) ERR(retval);
+  if (debug) printf("%s = %f \n",varname, res);
   return res;
 }
 
@@ -1548,7 +1578,7 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   // this stuff should all be in species itself!
   // reason for all this is basically legacy + cuda does not support <vector>
   
-  std::vector <float> zs, ms, ns, Ts, Tps, nps, ups, nus;
+  std::vector <float> zs, ms, ns, Ts, Tps, nps, nus;
   std::vector <int> types;
   
   for (int is=0; is<nspec; is++) {
@@ -1558,7 +1588,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
     Ts.push_back(spec[is].temp);
     Tps.push_back(spec[is].tprim);
     nps.push_back(spec[is].fprim);
-    ups.push_back(spec[is].uprim);
     nus.push_back(spec[is].nu_ss);
     types.push_back(spec[is].type);
   }
@@ -1568,7 +1597,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
   float *T0 = &Ts[0];
   float *Tp = &Tps[0];
   float *np = &nps[0];
-  float *up = &ups[0];
   float *nu = &nus[0];
   int *st = &types[0];
   
@@ -1583,9 +1611,6 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
 
   if (retval = nc_inq_varid(ncid, "n0_prime", &idum))   ERR(retval);
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, np))  ERR(retval);
-
-  if (retval = nc_inq_varid(ncid, "u0_prime", &idum))   ERR(retval);
-  if (retval = nc_put_vara (ncid, idum, is_start, is_count, up))  ERR(retval);
 
   if (retval = nc_inq_varid(ncid, "T0", &idum))   ERR(retval);
   if (retval = nc_put_vara (ncid, idum, is_start, is_count, T0))  ERR(retval);
@@ -1612,10 +1637,10 @@ void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
     // check consistency of boundary and geo_option
     printf(ANSI_COLOR_RED);
     if(boundary == "continuous drifts" || boundary == "fix aspect") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard twist-shift BCs (boundary = \"linked\")\n", boundary.c_str()); 
     }
     if(boundary == "exact periodic") {
-      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
+      if(geo_option != "vmec" && geo_option != "pyvmec" && geo_option != "vmec_c" && geo_option != "desc") printf("Warning: boundary option \"%s\" is not available with the requested geometry module. Using standard periodic BCs (boundary = \"periodic\")\n", boundary.c_str()); 
     }
     printf(ANSI_COLOR_RESET);
   }

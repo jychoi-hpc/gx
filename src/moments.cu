@@ -17,7 +17,7 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
   
   DEBUGPRINT("Allocated a G_lm array of size %.2f MB\n", lhsize/1024./1024.);
 
-  int Nm = grids_->Nm;
+  // int Nm = grids_->Nm;
   int Nl = grids_->Nl;
 
   // set up pointers for named moments that point to parts of G_lm
@@ -191,23 +191,29 @@ void MomentsG::initialConditions(double* time) {
       //initialize single mode
       int iky = pars_->iky_single;
       int ikx = pars_->ikx_single;
+		int ikz = pars_->ikpar_init;
       int NKX = 1;
       if (iky == 0 && ikx<1+(grids_->Nx-1)/3) NKX = 2; // reality condition for tertiary tests
-      for (int j = 0; j<NKX; j++) {
-	if (j==1) ikx = grids_->Nx-ikx;
-	DEBUG_PRINT("ikx, iky: %d \t %d \n",ikx, iky);
-	//    float fac;
-	//    if(pars_->nlpm_test && iky==0) fac = .5;
-	//    else fac = 1.;
-	//    DEBUG_PRINT("fac = %f \n",fac);
-	for(int iz=0; iz<grids_->Nz; iz++) {
-	  int index = iky + grids_->Nyc*ikx + grids_->NxNyc*iz;
-	  init_h[index].x = pars_->init_amp; //*fac;
-	  init_h[index].y = 0.;
-	  //init_h[index].y = 0.; //init_amp;
-	      	    //printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
-	}
-      }
+		for (int j = 0; j<NKX; j++) {
+			if (j==1) ikx = grids_->Nx-ikx;
+			DEBUG_PRINT("ikx, iky: %d \t %d \n",ikx, iky);
+			for(int k=0; k<grids_->Nz; k++) {
+				int index = iky + grids_->Nyc*ikx + grids_->NxNyc*ikz;
+
+				init_h[index].x = pars_->init_amp;
+				init_h[index].y = 0.0;
+
+				// Negative ikpar init means k_|| & k_|| + 1, where k_|| = |kpar_init|
+				if (ikz < 0) {		
+					int ikpar = -ikz;
+					init_h[index].x *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
+					init_h[index].y *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
+				} else {
+					init_h[index].x *= cos(ikz*z_h[k]/pars_->Zp);
+					init_h[index].y *= cos(ikz*z_h[k]/pars_->Zp);
+				}	
+			}
+		}
     } else if(pars_->gaussian_init) {
       for(int ikx=0; ikx < 1 + (grids_->Nx - 1)/3; ikx++) {
 	// No perturbation inserted for ky=0 mode because loop starts with j=1
@@ -229,7 +235,7 @@ void MomentsG::initialConditions(double* time) {
         }
       }
     } else {
-      srand(22);
+      srand( pars_->random_seed );
       float samp;
       int idx;
       //
@@ -338,10 +344,11 @@ void MomentsG::initialConditions(double* time) {
   checkCuda(cudaGetLastError());    
   free(init_h);     
   // restart_read goes here, if restart == T
-  // as in gs2, if restart_read is true, we want to *add* the restart values to anything
-  // that has happened above and also move the value of time up to the end of the previous run
   if(pars_->restart) {
-    //    set_zero(); // As noted in the comment above, setting G = 0 here is not correct. Doing so breaks the kh01a regression test
+    // if restart_with_perturb == T then the restart values will be *added* to the initial conditions above. 
+    // this is required for kh01a test, and also mimicks what gs2 does, but it is not the default behavior in GX.
+    // otherwise (default), only use restart data, regardless of init conditions specified in input file.
+    if(!pars_->restart_with_perturb) set_zero();
     DEBUG_PRINT("reading restart file \n");
     restart_read(time);
     if(pars_->t_add > 0.0) pars_->t_max = *time + pars_->t_add;
@@ -669,11 +676,11 @@ void MomentsG::restart_read(double* time)
   
   // handles
   int id_nz, id_Nkx, id_Nky;
-  int id_nh, id_nl, id_ns;
+  int id_nh, id_nl;
   int id_G, id_time;
 
   char stra[NC_MAX_NAME+1];
-  char strb[512];
+  char strb[1512];
   strcpy(strb, pars_->restart_from_file.c_str());
 
   if (retval = nc_open(strb, NC_NOWRITE, &ncres)) { printf("file: %s \n",strb); ERR(retval);}
@@ -789,7 +796,7 @@ void MomentsG::restart_read(double* time)
     int old_Naky = 1 +    (Ny/pars_->ny_mult - 1)/3;    int jj; 
     int old_Nakx = 1 + 2*((Nx/pars_->nx_mult - 1)/3);   int ii; 
     int old_Nx = Nx/pars_->nx_mult;
-    int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
+    // int old_Nz = Nz/pars_->ntheta_mult; // not yet implemented
     int old_Nm = Nm - pars_->nm_add;
     int old_Nl = Nl - pars_->nl_add;
     

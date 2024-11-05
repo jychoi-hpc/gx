@@ -48,7 +48,6 @@ void SSPRK3::EulerStep(MomentsG** G1, MomentsG** G, MomentsG* GRhs, Fields* f, b
 
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, GRhs);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
     if (pars_->dealias_kz) grad_par->dealias(GRhs);
 

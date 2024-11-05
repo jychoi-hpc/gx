@@ -13,7 +13,6 @@ class Nonlinear {
  public:
   virtual ~Nonlinear() {};
   virtual void nlps(MomentsG* G, Fields* f, MomentsG* G_res) = 0;
-  virtual double cfl(Fields *f, double dt_max) = 0;
   virtual void get_max_frequency(Fields *f, double *wmax) {};
   GradPerp* get_grad_perp_f() {return grad_perp_f;}
   float* get_fXY() {return fXY;}
@@ -29,7 +28,6 @@ class Nonlinear_GK : public Nonlinear {
   ~Nonlinear_GK();
 
   void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max) {};
   void get_max_frequency(Fields *f, double *wmax);
   void qvar(cuComplex* G, int N);
   void qvar(float* G, int N);
@@ -40,6 +38,7 @@ class Nonlinear_GK : public Nonlinear {
   size_t Size; 
   bool ks, vp;
   dim3 dGk, dBk, dGx, dBx, dGx_single, dBx_single;
+  dim3 dGx_ntft, dBx_ntft, dGx_single_ntft, dBx_single_ntft, dGphi_ntft, dBphi_ntft;
   float cfl_x_inv, cfl_y_inv;
   double dt_cfl;
 
@@ -73,6 +72,8 @@ class Nonlinear_GK : public Nonlinear {
   float vmax_y[1]     ;
   cuComplex * J0phi   ;
   cuComplex * J0apar ;
+  cuComplex * iKxG    ;
+  cuComplex * iKxG_single;
 };
 
 class Nonlinear_KREHM : public Nonlinear {
@@ -81,7 +82,6 @@ class Nonlinear_KREHM : public Nonlinear {
   ~Nonlinear_KREHM();
 
   void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max) {};
   void get_max_frequency(Fields *f, double *wmax);
   
  private:
@@ -121,7 +121,6 @@ class Nonlinear_cetg : public Nonlinear {
   ~Nonlinear_cetg();
 
   void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max) {};
   void get_max_frequency(Fields *f, double *wmax);
   
  private:
@@ -157,7 +156,6 @@ class Nonlinear_KS : public Nonlinear {
   ~Nonlinear_KS();
 
   void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max);
   void qvar(cuComplex* G, int N);
   void qvar(float* G, int N);
   
@@ -182,7 +180,6 @@ class Nonlinear_VP : public Nonlinear {
   ~Nonlinear_VP();
 
   void nlps(MomentsG* G, Fields* f, MomentsG* G_res);
-  double cfl(Fields *f, double dt_max);
   void qvar(cuComplex* G, int N);
   void qvar(float* G, int N);
   

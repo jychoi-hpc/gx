@@ -5,22 +5,23 @@
 #
 # export GK_SYSTEM=summit
 # export NVHPC_VERSION=23.9
-# export CUDA_VERSION=11.8
-# module load nvhpc/$NVHPC_VERSION
+# export CUDA_VERSION=12.2
+# export OLCF_NVHPC_ROOT=/sw/summit/nvhpc_sdk/Linux_ppc64le/23.9
 # module load cuda/$CUDA_VERSION.0
 # export NVHPC_CUDA_HOME=$CUDA_PATH
-# export LD_LIBRARY_PATH=:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/math_libs/$CUDA_VERSION/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/comm_libs/$CUDA_VERSION/nccl/lib:$LD_LIBRARY_PATH
-# module load hdf5_perf/1.10.6.gcc
-# module load gsl
-# export LD_LIBRARY_PATH=/ccs/home/nmandell/netcdf-4.9.2/lib:$LD_LIBRARY_PATH
+# export LD_LIBRARY_PATH=:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/math_libs/$CUDA_VERSION/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/22.9/math_libs/11.7/lib64:/sw/summit/nvhpc_sdk/Linux_ppc64le/$NVHPC_VERSION/comm_libs/$CUDA_VERSION/nccl/lib:$LD_LIBRARY_PATH
+# module load gcc/12.1.0
+# module load gsl/2.7.1
 # module load miniforge3
+# module load hdf5/1.14.3
+# module load netcdf-c/4.9.2
 #
 
 # paths to netcdf and hdf5
-NETCDF_ROOT = /ccs/home/nmandell/netcdf-4.9.2
+NETCDF_ROOT = ${OLCF_NETCDF_C_ROOT}
 HDF5_ROOT = ${OLCF_HDF5_ROOT}
 NETCDF_INC = -I ${NETCDF_ROOT}/include
-NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5_hl -lhdf5 -lm -lz -lbz2 -lxml2 -lcurl
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5 -lhdf5_hl -lm -lz -lxml2 -lcurl
 
 # paths to mpi
 MPI_ROOT = ${OMPI_DIR}
@@ -30,7 +31,9 @@ MPI_LIB = -L ${MPI_ROOT}/lib  -lmpi_ibm
 # paths to cuda 
 NVHPC_ROOT = ${OLCF_NVHPC_ROOT}
 NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/${CUDA_VERSION}/nccl
-MATH_ROOT = ${NVHPC_ROOT}/math_libs/${CUDA_VERSION}
+#MATH_ROOT = /sw/summit/nvhpc_sdk/Linux_ppc64le/23.9/math_libs/12.2# this causes a cufft error
+#MATH_ROOT = /sw/summit/nvhpc_sdk/Linux_ppc64le/23.9/math_libs/11.8# this causes slowdowns of the code and destroys parallel scaling
+MATH_ROOT = /sw/summit/nvhpc_sdk/Linux_ppc64le/22.9/math_libs/11.7
 CUDA_INC = -I ${MATH_ROOT}/include -I ${NCCL_ROOT}/include
 CUDA_LIB = -L ${MATH_ROOT}/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_CUDA_HOME}/lib64 -lcudart -lculibos -lnvToolsExt
 
@@ -46,7 +49,7 @@ C_LIB = -lpthread -ldl
 # V100 is compute architecture 7.0
 CUDAARCH=70
 
-CXX = nvc++
+CXX = g++
 
 NVCC   = nvcc
 CFLAGS = -fPIC

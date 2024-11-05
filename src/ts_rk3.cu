@@ -4,9 +4,9 @@
 // ============= RK3 =============
 // Heun's method
 RungeKutta3::RungeKutta3(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-			 Parameters *pars, Grids *grids, Forcing *forcing, double dt_in) :
+			 Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in) :
   linear_(linear), nonlinear_(nonlinear), solver_(solver), grids_(grids), pars_(pars),
-  forcing_(forcing), dt_max(dt_in), dt_(dt_in),
+  forcing_(forcing), exb_(exb), dt_max(pars->dt_max), dt_(dt_in),
   GRhs1(nullptr), GRhs2(nullptr), G_q1(nullptr), G_q2(nullptr)
 {
   GRhs1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -55,16 +55,13 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     if (pars_->eqfix) Gnew[is]->copyFrom(G[is]);
 
     // compute timestep (if necessary)
-    if (setdt && is==0) { // dt will be computed same for all species, so just do first time through species loop
+    if (setdt && is==0 && !pars_->fixed_dt ) { // dt will be computed same for all species, so just do first time through species loop
       linear_->get_max_frequency(omega_max);
       if (nonlinear_ != nullptr) nonlinear_->get_max_frequency(f, omega_max);
       double wmax = 0.;
       for(int i=0; i<3; i++) wmax += omega_max[i];
-      // Print the two quantities before calculating the minimum
-      //std::cout << "cfl_fac*pars_->cfl/wmax: " << cfl_fac * pars_->cfl / wmax << std::endl;
-      //std::cout << "dt_max: " << dt_max << std::endl;
-      //std::cout << "cfl_fac: " << cfl_fac << std::endl;
-      dt_ = min(cfl_fac*pars_->cfl/wmax, dt_max);
+	  double dt_guess = cfl_fac*pars_->cfl/wmax;
+      dt_ = min( max(dt_guess,pars_->dt_min), dt_max);
     }
 
     Rhs[is]->set_zero();
@@ -90,6 +87,16 @@ void RungeKutta3::advance(double *t, MomentsG** G, Fields* f)
     G[is]   -> update_tprim(*t);
     G_q1[is]-> update_tprim(*t);
     G_q2[is]-> update_tprim(*t);
+  }
+  
+  // update flow shear terms if using ExB
+  if (pars_->ExBshear) {
+    exb_->flow_shear_shift(f, dt_);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      exb_->flow_shear_g_shift(G[is]);
+      exb_->flow_shear_g_shift(G_q1[is]);
+      exb_->flow_shear_g_shift(G_q2[is]);
+    }
   }
   // end updates
 

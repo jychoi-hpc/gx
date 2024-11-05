@@ -8,6 +8,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   Solver    * solver    = nullptr;
   Linear    * linear    = nullptr;
   Nonlinear * nonlinear = nullptr;
+  ExB       * exb       = nullptr;
   Diagnostics * diagnostics = nullptr;
   MomentsG  ** G = (MomentsG**) malloc(sizeof(void*)*grids->Nspecies);
   for(int is=0; is<grids->Nspecies; is++) {
@@ -36,6 +37,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   if (pars->gx) {
     linear = new Linear_GK(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_GK(pars, grids, geo); 
+    if (pars->ExBshear)   exb       = new ExB_GK(pars, grids, geo);
     checkCudaErrors(cudaGetLastError());
 
     solver = new Solver_GK(pars, grids, geo);    
@@ -72,7 +74,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   //                          //
   //////////////////////////////  
   if (pars->krehm) {
-    linear = new Linear_KREHM(pars, grids);          
+    linear = new Linear_KREHM(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_KREHM(pars, grids);    
     if (pars->forcing_init) {
       std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;
@@ -172,7 +174,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   }    
   checkCudaErrors(cudaGetLastError());
 
-
   Cublas_test* cublas;
   Green* green;
 /*  if (pars->scheme_opt == Tmethod::lie_trotter){
@@ -202,14 +203,11 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   Timestepper * timestep;
   switch (pars->scheme_opt)
     {
-    case Tmethod::k10   : timestep = new Ketcheson10 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::k2    : timestep = new K2          (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::g3    : timestep = new G3          (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk3   : timestep = new RungeKutta3 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::rk2   : timestep = new RungeKutta2 (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
+    case Tmethod::k10   : timestep = new Ketcheson10 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::rk4   : timestep = new RungeKutta4 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::rk3   : timestep = new RungeKutta3 (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::sspx2 : timestep = new SSPx2       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
+    case Tmethod::sspx3 : timestep = new SSPx3       (linear, nonlinear, solver, pars, grids, forcing, exb, pars->dt); break;
     case Tmethod::imex3 : timestep = new IMEX_3stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt,geo->gradpar,geo->bmagInv); break;
     case Tmethod::imex_full : timestep = new IMEX_3stage_Full (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
@@ -217,8 +215,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::imex_green : timestep = new IMEX_3stage_Green (linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
 
     case Tmethod::imex4 : timestep = new IMEX_4stage (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
-    case Tmethod::ssprk3 : timestep = new SSPRK3     (linear, nonlinear, solver, pars, grids, forcing, pars->dt); break;
 
+    default:
+      printf("Unknown timestepper id (%u). Aborting.",static_cast<unsigned int>(pars->scheme_opt) );
+      exit(1);
     }
 
   fflush(stdout);
@@ -226,17 +226,16 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   printDeviceMemoryUsage(pars->iproc);
   MPI_Barrier(pars->mpcom);
   fflush(stdout);
-  
+
   //  if (pars->write_moms) diagnostics -> write_init(G, fields);
-	 
+
   // TIMESTEP LOOP
   int counter = 0;           float timer = 0;          cudaEvent_t start, stop;    bool checkstop = false;
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
-  bool bvar; 
 
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
-  
+
   while(counter<pars->nstep && time<pars->t_max) {
   checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     timestep -> advance(&time, G, fields);
@@ -248,16 +247,13 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     checkCudaErrors(cudaGetLastError());
     counter++;
     if (counter==pars->nstep || time>=pars->t_max) {
-      bvar = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+      [[maybe_unused]] auto unused = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
     }
   }
 
   if (pars->save_for_restart) diagnostics -> restart_write(G, &time);
 
-  if (pars->eqfix && (
-		      (pars->scheme_opt == Tmethod::k10) ||
-		      (pars->scheme_opt == Tmethod::g3) ||
-		      (pars->scheme_opt == Tmethod::k2))) {
+  if (pars->eqfix && (pars->scheme_opt == Tmethod::k10) ) {
     printf("\n");
     printf("\n");
     printf(ANSI_COLOR_MAGENTA);
@@ -268,10 +264,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
     printf(ANSI_COLOR_BLUE);
     printf("The eqfix option is not compatible with this time-stepping algorithm. \n");
-    printf(ANSI_COLOR_RESET);    
+    printf(ANSI_COLOR_RESET);
     printf("\n");
     printf("\n");
-  }  
+  }
   
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
   printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);
@@ -286,6 +282,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   if (linear)    delete linear;
   if (nonlinear) delete nonlinear;
   if (timestep)  delete timestep;
+  if (exb)       delete exb;
 
   if (solver)    delete solver;
   if (fields)    delete fields;

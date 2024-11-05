@@ -16,7 +16,7 @@
 
 # paths to netcdf added as part of module load
 NETCDF_INC = 
-NETCDF_LIB = -lnetcdf -lnetcdff -lhdf5 
+NETCDF_LIB = -lnetcdf -lhdf5 
 
 # paths to openmpi
 OMPI_DIR = ${MPI_HOME}

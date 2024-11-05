@@ -16,12 +16,18 @@ void SpectraCalc::allocate()
   cpu = (float*) malloc  (sizeof(float) * Nwrite);
 }
 
-int SpectraCalc::define_nc_variable(string varstem, int nc_group, string description)
+int SpectraCalc::define_nc_variable(string varstem, int nc_group, string description, bool append)
 {
-  int varid, retval;
-  if (retval = nc_def_var(nc_group, (varstem + tag).c_str(), NC_FLOAT, ndim, dims, &varid)) ERR(retval);
-  if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
-  if (retval = nc_put_att_text(nc_group, varid, "description", strlen(description.c_str()), description.c_str())) ERR(retval);
+  int varid;
+  if(append) {
+    NC_ERR( nc_inq_varid(nc_group, (varstem + tag).c_str(), &varid) );
+    NC_ERR( nc_var_par_access(nc_group, varid, NC_COLLECTIVE) );
+  } else {
+    NC_ERR( nc_def_var(nc_group, (varstem + tag).c_str(), NC_FLOAT, ndim, dims, &varid) );
+    NC_ERR( nc_var_par_access(nc_group, varid, NC_COLLECTIVE) );
+    NC_ERR( nc_put_att_text(nc_group, varid, "description", strlen(description.c_str()), description.c_str()) );
+  }
+
   return varid;
 }
 
@@ -32,14 +38,13 @@ void SpectraCalc::write(float *fullData, int varid, size_t time_index, int nc_gr
   CP_TO_CPU(tmp, data, sizeof(float)*N);
   dealias_and_reorder(tmp, cpu);
   
-  int retval;
   start[0] = time_index;
   if(skip) { 
     // sometimes we need to skip the write on a particular (set of) proc(s), 
     // but all procs still need to call nc_put_vara. so do an empty dummy write
-    if (retval=nc_put_vara(nc_group, varid, dummy_start, dummy_count, cpu)) ERR(retval);
+    NC_ERR( nc_put_vara(nc_group, varid, dummy_start, dummy_count, cpu) );
   } else {
-    if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);
+    NC_ERR( nc_put_vara(nc_group, varid, start, count, cpu) );
   }
 }
 

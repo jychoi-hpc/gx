@@ -111,7 +111,6 @@ void IMEX_3stage_Green::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bo
     }
     if(nonlinear_ != nullptr) {
       nonlinear_->nlps(G[is], f, A[is]);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
     }
   }
 }

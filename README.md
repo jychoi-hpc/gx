@@ -11,7 +11,7 @@ This means you will need access to an NVIDIA GPU to run GX.
 User documentation for the code is available at https://gx.rtfd.io (a work in progress).
 
 GX is currently under rapid development, resulting in quickly-changing functionality and capabilities. 
-A number of planned improvements to the code (such as multi-GPU capability) are listed in the issue tracker on BitBucket (https://bitbucket.org/gyrokinetics/gx/issues).
+A number of planned improvements to the code are listed in the issue tracker on BitBucket (https://bitbucket.org/gyrokinetics/gx/issues).
 
 ## Dependencies
 
@@ -96,11 +96,9 @@ After creating the environment (only needed once per system), one must always ha
 
 If you use GX in your work, please cite the following papers:
 
-N. R. Mandell, W. D. Dorland, and M. Landreman. 2018. "Laguerre-Hermite pseudo-spectral velocity formulation of gyrokinetics". J. Plasma Phys. **84**, 9058[]()40108. https://doi.org/10.1017/S0022377818000041
+N. R. Mandell, W. D. Dorland, and M. Landreman. 2018. "Laguerre-Hermite pseudo-spectral velocity formulation of gyrokinetics". J. Plasma Phys. **84**, 905840108. https://doi.org/10.1017/S0022377818000041
 
-The GX code paper is in progress, please stay tuned!
-
-N. R. Mandell, et al. (in prep). "GX: a GPU-native gyrokinetic turbulence code for tokamaks and stellarators". 
+N. R. Mandell, W. D. Dorland, I. Abel, R. Gaur, P. Kim, M. Martin, and T. Qian. 2024. "GX: a GPU-native gyrokinetic turbulence code for tokamak and stellarator design". J. Plasma Phys. **90**, 905900402. https://doi.org/10.1017/S0022377824000631
 
 ## License
 

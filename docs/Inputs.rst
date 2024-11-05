@@ -631,10 +631,6 @@ If ``nspecies=1``, only the first values of each table will be used (to set up t
      - Density gradient, :math:`L_\mathrm{ref}/L_n`
      - 
    * - ``[species]``
-     - ``uprim``
-     - Velocity gradient, :math:`L_\mathrm{ref}/L_u`. **Not yet implemented**.
-     - **0.0**
-   * - ``[species]``
      - ``vnewk``
      - The collision frequency
      - **0.0**

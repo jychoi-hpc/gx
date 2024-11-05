@@ -95,8 +95,6 @@ Reservoir::Reservoir(Parameters* pars, Grids* grids, int Min) :
   checkCuda(cudaMalloc((void**) &V,  sizeof(double)*M*N) ); setval loop_MN (V, 0., N*M);
   checkCuda(cudaMalloc((void**) &W,  sizeof(double)*N*N) ); setval loop_N2 (W, 0., N*N);
 
-  bool first = true;
-  
   double * A_h;  int * A_j;  double * W_h; 
   A_h = (double*) malloc(sizeof(double) * nnz);
   A_j = (int*) malloc(sizeof(int)   * nnz);
