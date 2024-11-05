@@ -208,7 +208,7 @@ class Lie_Trotter : public Timestepper {
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
 
-  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+  void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
 
   void invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
 
@@ -278,10 +278,10 @@ class IMEX_3stage_Full : public Timestepper {
   void implicit_terms_id(MomentsG** G1, MomentsG** G, Fields* f);
   void apply_preconditioner(MomentsG** G1, MomentsG** G, Fields* f);
 
-  void invert_implicit_terms(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
-  void invert_implicit_terms_linked(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
-  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, MomentsG** G3, MomentsG** G4, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, int max_iter);
-//  void invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+  void invert_implicit_terms(MomentsG** G1, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_linked(MomentsG** G1, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, int ielectron);
+
   double a21, a31, a32, a41, a42, a43, a44, w1, w2, w3, w4;
   double p_, q_, r_, s_, t_, u_, w_, x_, y_, z_;
   bool sdirk;
@@ -302,9 +302,9 @@ class IMEX_3stage_Full : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
-  cuComplex    ** Gc         ;
-  cuComplex    ** Gr         ;
-  cuComplex    ** Ga         ;
+  cuComplex    ** G_sm_s_phi ;
+  cuComplex    ** G_sm_s_apar;
+  cuComplex    ** G_sm_b_apar;
 
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
