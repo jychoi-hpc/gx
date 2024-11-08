@@ -1,9 +1,10 @@
 .. _quickmulti:
 
-Using multi-GPU parallelization [NEW!]
+Using multi-GPU parallelization
 +++++++++++++++++++++++++++++++
 
-GX now has the capability to parallelize a calculation over multiple GPUs. 
+GX can parallelize over multiple GPUs (both on a single node and over multiple nodes).
+This can both speed up a single calculation or enable a larger calculation that would otherwise not fit on a single GPU.
 
 .. contents::
 
@@ -52,4 +53,6 @@ Performance considerations
 --------------------------
 
 Performance will often be limited by the speed of the connection between GPUs. Typically GPUs within a single node are connected with a faster interconnect (e.g. NVLINK) than across nodes, so scaling efficiency may degrade somewhat when parallelizing across multiple nodes. For details about the scaling of the code, see Section 7 of the GX paper (Mandell et al., 2022). 
+
+A rule of thumb that gives a reasonable balance between efficiency and wall-clock performance is to have at least one *node* per species and no fewer than *4 Hermite moments* per GPU.
 
