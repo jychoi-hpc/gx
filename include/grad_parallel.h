@@ -21,6 +21,8 @@ class GradParallel {
   virtual void zft(cuComplex* m, cuComplex* res)=0;
   virtual void zft_nmoms(cuComplex* m, cuComplex* res, int Nmoms){};
   virtual void zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const float* max_qneutFacPhi_inv, const double sdtvt, const float gradpar, bool full_phi){};
+  virtual void zft_streaming_invert_apar(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const double sdtvt, const float gradpar, bool full_phi, bool hypercollisions_kz, int p_hyper_m, float nu_hyper_m){};
+
   virtual void zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, bool hyper_kz, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt){};
 
   virtual void zft_streaming_invert_full_laguerre(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi,float** max_qneutFacPhi_inv_l, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi){};
@@ -92,6 +94,8 @@ class GradParallelLinked : public GradParallel {
   void zft(MomentsG* G);   void zft(cuComplex* m, cuComplex* res);
   void zft_nmoms(cuComplex* m, cuComplex* res, int nMoms);
   void zft_streaming_invert(MomentsG* G, MomentsG* Gr, cuComplex* phi,const float* qneutDenom, const float* max_qneutFacPhi_inv, const double sdtvt, const float gradpar, bool full_phi);
+  void zft_streaming_invert_apar(MomentsG* G, MomentsG* Gr, cuComplex* phi, cuComplex* apar, const float* max_qneutFacPhi_inv, const float* max_ampereParFac_inv, const double sdtvt, const float gradpar, bool full_phi, bool hypercollisions_kz, int p_hyper_m, float nu_hyper_m);
+
   void zft_streaming_invert_full(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi, const float* max_qneutFacPhi_inv, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi, bool hyperc, bool hyper_kz, const float nu_hyper_l, const float nu_hyper_m, const float nu_hyper_lm, const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, float vt_max, float dt);
 
   void zft_streaming_invert_full_laguerre(MomentsG** G, cuComplex** Gc, cuComplex** Gr, MomentsG** G2, cuComplex** phi,float** max_qneutFacPhi_inv_l, float** max_Jflr, const specie spi, const specie spe, const double sdt, const float gradpar, bool full_phi);

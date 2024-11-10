@@ -335,17 +335,19 @@ class IMEX_3stage_Full : public Timestepper {
 
 };
 
-
 class IMEX_3stage : public Timestepper {
  public:
   IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
-	Parameters *pars, Grids *grids, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
+	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv);
   ~IMEX_3stage();
   void advance(double* t, MomentsG** G, Fields* fields);
   double get_dt() {return dt_;};
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
-  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron);
+//  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, MomentsG** G2, MomentsG** G3, MomentsG** G4, cuComplex** Gr2, cuComplex** Ga, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+
+
  private:
   void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
   const double dt_max;
@@ -355,18 +357,28 @@ class IMEX_3stage : public Timestepper {
   Solver       * solver_    ;
   Parameters   * pars_      ;
   Grids        * grids_     ;
+  Geometry     * geo_       ;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
+  Cublas_test  ** mirror    ;
   MomentsG     ** G1         ;
   MomentsG     ** Gc         ;
   MomentsG     ** Gr         ;
+  MomentsG     ** G2         ;
+  MomentsG     ** G3         ;
+  MomentsG     ** G4         ;
+
   MomentsG     ** A1         ;
   MomentsG     ** A2         ;
   MomentsG     ** A3         ;
+  MomentsG     ** A4	     ;
   MomentsG     ** B1         ;
   MomentsG     ** B2         ;
   MomentsG     ** B3         ;
+  MomentsG     ** B4	     ;
   Fields	* f1	     ;
+  cuComplex    ** Gr2	     ;
+  cuComplex    ** Ga	     ;
 
   double dt_;
   int ielectron;
@@ -374,8 +386,10 @@ class IMEX_3stage : public Timestepper {
   double zte;
   const float gradpar_;
   const float* bmagInv_;
-  dim3 dG, dB;
+  dim3 dG, dB, dG_m1, dG_m2, dB_m1, dB_m2, dG_all, dB_all;
+  int nstages;
 };
+
 
 class IMEX_4stage : public Timestepper {
  public:
