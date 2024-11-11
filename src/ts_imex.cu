@@ -95,6 +95,16 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   dG_all = dim3(nb7, nb4, nb8);
 
 
+  a21 = pars_->a21; a31 = pars_->a31; a32 = pars_->a32; w1 = pars_->w1, w2 = pars_->w2; w3 = pars_->w3;
+  p_ = pars_->p_; q_ = pars_->q_; r_ = pars_->r_; s_ = pars_->s_; t_ = pars_->t_; u_ = pars_->u_;
+  sdirk = pars_->sdirk;
+
+  nstages = pars_->nstages;
+  a41 = pars_->a41, a42 = pars_->a42, a43 = pars_->a43, a44 = pars_->a44;
+  w_ = pars_->w_, x_ = pars_->x_, y_ = pars_->y_, z_ = pars_->z_;
+  w4 = pars_->w4;
+
+
   if(pars_->fapar > 0.){
 //    grad_par->zft_sherman_morrison_subsolve_lw(Gr2, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_); 
     
@@ -273,21 +283,6 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* G0, MomentsG** 
   grad_par->zft_inverse(G1[ielectron]);
 
   if(pars_->fapar > 0.){
-/*    if(count_outer == 0){
-    for(int is = 0; is < grids_->Nspecies; is++){
-      G2[is]->copyFrom(G1[is]); 
-    }
-    G2[ielectron]->set_zero();
-    solver_->fieldSolve(G2, f);
-    }
-    else{
-      for(int is = 0; is < grids_->Nspecies; is++){
-        G2[is]->set_zero();
-      }
-      solver_->fieldSolve(G2, f);
-    }
-    add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);*/
-
     if(count_outer == 0){
       for(int is = 0; is < grids_->Nspecies; is++){
         G2[is]->copyFrom(G1[is]); 
@@ -332,105 +327,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   //     ( s    t    u  )
   //     ----------------
   //     ( w1   w2   w3 )
-  double a21, a31, a32, a41, a42, a43, w1, w2, w3, w4;
-  double p_, q_, r_, s_, t_, u_, w_, x_, y_, z_;
-  nstages = 3;
-//  std::string scheme = "giraldo_ark2";
-//  std::string scheme = "conde_ssprk3_sdirk";
-//  std::string scheme = "conde_3s3p";
-//  std::string scheme = "pareschi_russo_ssp2_322";
-  std::string scheme = "sundials_ark3";
-  // Pareschi-Russo SSP2(3,3,2)
-  if(scheme == "pareschi_russo_ssp2_332") {
-    a21 = 0.5;
-    a31 = 0.5;
-    a32 = 0.5;
-    w1 = 1./3.;
-    w2 = 1./3.;
-    w3 = 1./3.;
-    p_ = 0.25;
-    q_ = 0.;
-    r_ = 0.25;
-    s_ = 1./3.;
-    t_ = 1./3.;
-    u_ = 1./3.;
-  } else if(scheme == "pareschi_russo_ssp2_322") {
-    a21 = 0.;
-    a31 = 0.;
-    a32 = 1.;
-    w1 = 0.;
-    w2 = 1./2.;
-    w3 = 1./2.;
-    p_ = 0.5;
-    q_ = -0.5;
-    r_ = 0.5;
-    s_ = 0.;
-    t_ = 1./2.;
-    u_ = 1./2.;
-  } else if (scheme == "conde_ssprk3_sdirk") {
-    a21 = 1.;
-    a31 = 0.25;
-    a32 = 0.25;
-    w1 = 1./6.;
-    w2 = 1./6.;
-    w3 = 2./3.;
-    p_ = 0.;
-    q_ = 0.;
-    r_ = 1.;
-    s_ = 1./6.;
-    t_ = -1./3.;
-    u_ = 2./3.;
-  } else if(scheme == "conde_3s3p") {
-    a21 = 1.;
-    a31 = 0.25;
-    a32 = 0.25;
-    w1 = 1./6.;
-    w2 = 1./6.;
-    w3 = 2./3.;
-    p_ = 0.;
-    q_ = (3. - sqrtf(3.))/6.;
-    r_ = (3. + sqrtf(3.))/6.;
-    s_ = (3. - sqrtf(3.))/24.;
-    t_ = -(1. + sqrtf(3.))/8.;
-    u_ = r_;
-  } else if(scheme == "giraldo_ark2") {
-    a21 = 2. - sqrtf(2.);
-    a32 = (3. + 2.*sqrtf(2.))/6.;
-    a31 = 1. - a32;
-    w1 = 1./sqrtf(8.);
-    w2 = 1./sqrtf(8.);
-    w3 = 1.-1./sqrtf(2.);
-    p_ = 0.;
-    q_ = 1. - 1./sqrtf(2.);
-    r_ = 1. - 1./sqrtf(2.);
-    s_ = 1./sqrtf(8.);
-    t_ = 1./sqrtf(8.);
-    u_ = 1.-1./sqrtf(2.);
-  } else if (scheme == "sundials_ark3"){
-      a21 = 1767732205903./2027836641118.;
-      a31 = 5535828885825./10492691773637.;
-      a32 = 788022342437./10882634858940.;
-      a41 = 6485989280629./16251701735622.;
-      a42 = -4246266847089./9704473918619.;
-      a43 = 10755448449292./10357097424841.;
 
-      p_ = 0.;
-      q_ = 1767732205903./4055673282236.;
-      r_ = 1767732205903./4055673282236.;
-      s_ = 2746238789719./10658868560708.;
-      t_ = -640167445237./6845629431997.;
-      u_ = 1767732205903./4055673282236.;
-      w_ = 1471266399579./7840856788654.;
-      x_ = -4482444167858./7529755066697.;
-      y_ = 11266239266428./11593286722821.;
-      z_ = 1767732205903./4055673282236.;
-      
-      w1 = 1471266399579./7840856788654.;
-      w2 = -4482444167858./7529755066697.;
-      w3 = 11266239266428./11593286722821.;
-      w4 = 1767732205903./4055673282236.;
-      nstages = 4;
-  }
   checkCudaErrors(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
@@ -455,7 +352,6 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   }
   // stage 2
   // compute A1 = A(G1)
-  //the following is a shitty way to compute the ion contribution to phi.  
   explicit_terms(A1, G1, f, false);
   // compute B1 = B(G1)
   implicit_terms(B1, G1, f);

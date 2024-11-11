@@ -210,9 +210,13 @@ class Lie_Trotter : public Timestepper {
 
   void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
 
-  void invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+//  void invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
 
-  void invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+//  void invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+//
+  void invert_bounce(MomentsG** G1, Fields *f, double sdt);
+
+  void invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, bool flip);
 
 
   void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt);
@@ -236,8 +240,8 @@ class Lie_Trotter : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
-  cuComplex    ** Gc         ;
-  cuComplex    ** Gr         ;
+  cuComplex    ** G_sm_phi         ;
+  cuComplex    ** G_sm_apar         ;
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
   MomentsG     ** A1         ;
@@ -386,7 +390,12 @@ class IMEX_3stage : public Timestepper {
   const float gradpar_;
   const float* bmagInv_;
   dim3 dG, dB, dG_m1, dG_m2, dB_m1, dB_m2, dG_all, dB_all;
+
+  double a21, a31, a32, a41, a42, a43, a44, w1, w2, w3, w4;
+  double p_, q_, r_, s_, t_, u_, w_, x_, y_, z_;
+  bool sdirk;
   int nstages;
+
 };
 
 

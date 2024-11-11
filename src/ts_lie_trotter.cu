@@ -15,8 +15,8 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   B3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 
-  Gc = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
-  Gr = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
+  G_sm_phi = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
+  G_sm_apar = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 //  G3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -47,24 +47,24 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 
     if(pars_->implicit_preconditioner == "long_wavelength"){
       if(pars_->boundary_option_periodic){
-        checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+        checkCuda(cudaMalloc((void**) &G_sm_phi[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
       }
       else{
-        checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
+        checkCuda(cudaMalloc((void**) &G_sm_phi[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
       }
       if(pars_->fapar > 0){
 	if(pars_->boundary_option_periodic){
-          checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
+          checkCuda(cudaMalloc((void**) &G_sm_apar[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
 	}
 	else{
-	  checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
+	  checkCuda(cudaMalloc((void**) &G_sm_apar[is],sizeof(cuComplex)*grids_->Nx*grids_->Nz*grids_->Nl*grids_->Nm));
 	}
       }
     }
     else{
-      checkCuda(cudaMalloc((void**) &Gc[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
+      checkCuda(cudaMalloc((void**) &G_sm_phi[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
       if(pars_->fapar > 0){
-        checkCuda(cudaMalloc((void**) &Gr[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
+        checkCuda(cudaMalloc((void**) &G_sm_apar[is],sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->Nm));
       }
     }
     G0[is] = new MomentsG (pars_, grids_, is_glob);
@@ -141,28 +141,6 @@ double Lie_Trotter::get_dt()
   }
 }
 
-/*void Lie_Trotter::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool setdt)
-{
-  for (int is=0; is<grids_->Nspecies; is++) {
-    A[is]->set_zero();
-    linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
-    if(nonlinear_ != nullptr) {
-      nonlinear_->nlps(G[is], f, A[is]);
-      if (setdt) dt_ = nonlinear_->cfl(f, dt_max);
-    }
-  }
-  // compute nonlinear terms explicitly for all species
-}
-
-void Lie_Trotter::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
-{
-  for (int is=0; is<grids_->Nspecies; is++) {
-    B[is]->set_zero();
-    linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
-  }
-}*/
-
-
 void Lie_Trotter::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool setdt)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
@@ -197,7 +175,7 @@ void Lie_Trotter::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void Lie_Trotter::invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
+void Lie_Trotter::invert_bounce(MomentsG** G1, Fields *f, double sdt)
 {
   if(pars_->fapar > 0.){
     for(int is = 0; is < grids_->Nspecies; is++){
@@ -206,8 +184,8 @@ void Lie_Trotter::invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, M
     G2[ielectron]->set_zero();
     solver_->fieldSolve(G2, f);
       
-    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(Gc[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
-    mirror[ielectron]->invert_sherman_morrison(Gc[ielectron]);
+    set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(G_sm_apar[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, sdt); 
+    mirror[ielectron]->invert_sherman_morrison(G_sm_apar[ielectron]);
 
     add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
@@ -215,34 +193,31 @@ void Lie_Trotter::invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, M
     mirror[is]->invert_stream(G1[is]->G(), 0);
 
     if(pars_->fapar > 0.){
-      sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), Gc[is], solver_->getAmpereParFac()); 
+      sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), G_sm_apar[is], solver_->getAmpereParFac()); 
     }
   } 
 }
 
-/*void Lie_Trotter::invert_implicit_terms_linked_lw(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
-*/
-
-void Lie_Trotter::invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip)
+void Lie_Trotter::invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, bool flip)
 {
 
   int max_iter_streaming = pars_->implicit_max_iter_streaming;
   float omega_streaming = pars_->implicit_omega_streaming;
-  grad_par->zft_sherman_morrison_subsolve_lw(Gc, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
+  grad_par->zft_sherman_morrison_subsolve_lw(G_sm_phi, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 0, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
 
   if(pars_->fapar > 0.){
-    grad_par->zft_sherman_morrison_subsolve_lw(Gr, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
+    grad_par->zft_sherman_morrison_subsolve_lw(G_sm_apar, *(G1[0]->species), *(G1[ielectron]->species),sdt,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
 
   }
 
   for(int count = 0; count < max_iter_streaming; count++){
     if(count == 0){
       if(pars_->fapar > 0.){
-        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
+        grad_par->zft_streaming_invert_full_em(G1, G_sm_phi, G_sm_apar, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, false);
 
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
+        grad_par->zft_streaming_invert_full(G1, G_sm_phi, G_sm_apar, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, false, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
 
       }
       for(int is = 0; is < grids_->Nspecies; is++){
@@ -264,11 +239,11 @@ void Lie_Trotter::invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr
       }
       
       if(pars_->fapar > 0.){
-        grad_par->zft_streaming_invert_full_em(G1, Gc, Gr, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
+        grad_par->zft_streaming_invert_full_em(G1, G_sm_phi, G_sm_apar, G2, phi_l, apar_l, solver_->get_max_qneutFacPhi_inv(), solver_->get_max_ampereParFac_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, pars_->beta, gradpar_, true);
 
       }
       else{
-        grad_par->zft_streaming_invert_full(G1, Gc, Gr, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
+        grad_par->zft_streaming_invert_full(G1, G_sm_phi, G_sm_apar, G2, phi_l, solver_->get_max_qneutFacPhi_inv(), *(G1[0]->species), *(G1[ielectron]->species), sdt, gradpar_, true, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
       }
      
       for(int is = 0; is < grids_->Nspecies; is++){
@@ -326,28 +301,29 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
 
 
 
-/*    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
     }
-    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
     }*/
 
-   invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+//   invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+   invert_bounce(G, f, 1.*dt_);
 
 
-/*    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
       linear_->rhs_bounce(G[is], f, A1[is], dt_);
       G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
     }
-    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
@@ -360,9 +336,9 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     }
 
     solver_->fieldSolve(G, f);
-    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_streaming(G, G0, f, 1.*dt_,gradpar_, flip);
 
-/*    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
@@ -374,7 +350,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->copyFrom(G[is]);
     }
 
-    invert_streaming(G, Gc, Gr, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_streaming(G, G_sm_phi, G_sm_apar, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
@@ -394,8 +370,10 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
         G0[is]->copyFrom(G[is]);
     }
 
-//    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-    invert_streaming(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
@@ -407,7 +385,9 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->copyFrom(G[is]);
     }
 
-    invert_streaming(G, Gc, Gr, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_streaming(G, G_sm_phi, G_sm_apar, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
@@ -420,15 +400,19 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     }
 
     solver_->fieldSolve(G, f);       
-//    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+    invert_bounce(G, f, a*dt_);
+
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
       linear_->rhs_bounce(G[is], f, A1[is], dt_);
       G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
     }
-    invert_bounce(G, Gc, Gr, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+   invert_bounce(G, f, a*dt_);
+
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
