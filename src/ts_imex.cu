@@ -19,13 +19,12 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   B4 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies); 
 
   G1 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
-  Gc = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
+  G0 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   Gr = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G2 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G3 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
   G4 = (MomentsG**) malloc(sizeof(void*)*grids_->Nspecies);
 
-  Gr2 = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
   Ga = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
   mirror = (Cublas_test**) malloc(sizeof(void*)*grids_->Nspecies);
@@ -44,13 +43,12 @@ IMEX_3stage::IMEX_3stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     B4[is] = new MomentsG (pars_, grids_, is_glob);
 
     G1[is] = new MomentsG (pars_, grids_, is_glob);
-    Gc[is] = new MomentsG (pars_, grids_, is_glob);
+    G0[is] = new MomentsG (pars_, grids_, is_glob);
     Gr[is] = new MomentsG (pars_, grids_, is_glob);
     G2[is] = new MomentsG (pars_, grids_, is_glob);
     G3[is] = new MomentsG (pars_, grids_, is_glob);
     G4[is] = new MomentsG (pars_, grids_, is_glob);
 
-    checkCuda(cudaMalloc((void**) &Gr2[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
     checkCuda(cudaMalloc((void**) &Ga[is],sizeof(cuComplex)*grids_->Nz*grids_->Nl*grids_->Nm));
 
 
@@ -146,7 +144,7 @@ void IMEX_3stage::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   }
 }
 
-void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, MomentsG** G2, MomentsG** G3, MomentsG** G4, cuComplex** Gr2, cuComplex** Ga, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
+void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* G0, MomentsG** Gr, MomentsG** G2, MomentsG** G3, MomentsG** G4, cuComplex** Ga, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron)
 {
 
 
@@ -158,8 +156,8 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       solver_->fieldSolve(G1, f);
       implicit_terms(G2, G1, f);
       G3[ielectron]->copyFrom(G1[ielectron]);
-      negate_add_id<<<dG_all, dB_all>>>(G2[ielectron]->G(), G1[ielectron]->G(), sdt);
-      G1[ielectron]->add_scaled(1., G2[ielectron], -1., Gc);
+      G2[ielectron]->add_scaled(1., G1[ielectron], -sdt, G2[ielectron]);
+      G1[ielectron]->add_scaled(1., G2[ielectron], -1., G0);
       G4[ielectron]->copyFrom(G1[ielectron]);
     }
 
@@ -176,8 +174,7 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
     else{
     tridiag_streaming_local<<<dG, dB>>>(G1[ielectron]->G(), f->phi, 1./grids_->Zp, solver_->getQneutDenom(), *(G1[ielectron]->species), sdtvt);
     }
-  } //else if (pars_->boundary_option_periodic) {
-  else if(false){
+  } else if (pars_->boundary_option_periodic) {
       // FFT Phi_i
       grad_par->zft(f->phi, f->phi);
       grad_par->zft(f->apar, f->apar);
@@ -207,7 +204,7 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
           solver_->fieldSolve(G1, f);
           grad_par->zft(f->phi, f->phi);
 
-          G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
+          G1[ielectron]->copyFrom(G0); //I think for iteration scheme, need original G1
           grad_par->zft(G1[ielectron]);
           grad_par->zft(Gr[ielectron]);
           tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(),f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, true);
@@ -219,48 +216,9 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
         }
       }
 
-  } else if (!pars_->boundary_option_periodic && !pars_->implicit_linked){
-      // FFT Phi_i
-      grad_par->zft(f->phi, f->phi);
-      // FFT G_e
-      grad_par->zft(G1[ielectron]);
-
+  } else{
       int max_iter = pars_->implicit_max_iter_streaming;
       double omega = pars_->implicit_omega_streaming;
-      for (int count = 0; count < max_iter; count++){
-        if (count == 0){ //This is just using J(z=0)
-          tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(), f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, false);
-        }
-        else{
-      	  grad_par->zft_inverse(G1[ielectron]); //Calculate full potential
-	  Gr[ielectron]->copyFrom(G1[ielectron]);
-    	  solver_->fieldSolve(G1, f);
-  	  grad_par->zft(f->phi, f->phi);
-
-	  G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
-	  grad_par->zft(G1[ielectron]);
-	  grad_par->zft(Gr[ielectron]);
-  	  tridiag_streaming_periodic<<<dG, dB>>>(G1[ielectron]->G(), Gr[ielectron]->G(),f->phi, grids_->kz, solver_->get_max_qneutFacPhi_inv(), *(G1[ielectron]->species), sdtvt, gradpar_, true);
-
-	  grad_par->zft_inverse(G1[ielectron]); 
-	  grad_par->zft_inverse(Gr[ielectron]);
-	  G1[ielectron]->add_scaled(omega,G1[ielectron],(1.-omega),Gr[ielectron]); 
-	  grad_par->zft(G1[ielectron]);
-        }          
-      }
-  
-    }
-    else{
-      int max_iter = pars_->implicit_max_iter_streaming;
-      double omega = pars_->implicit_omega_streaming;
-/*      for(int is = 0; is < grids_->Nspecies; is++){
-        G2[is]->copyFrom(G1[is]); 
-      }
-      G2[ielectron]->set_zero();
-      solver_->fieldSolve(G2, f);*/
-/*      if(count_outer != 0){
-        solver_->fieldSolve(G1, f);
-      }*/
 
       if(count_outer != 0){
 	for(int is = 0; is < grids_->Nspecies; is++){
@@ -277,7 +235,6 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
           checkCudaErrors(cudaGetLastError());
 	  if(pars_->fapar > 0. || pars_->fbpar > 0.){
             checkCudaErrors(cudaGetLastError());
-//	    grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, false);
 	    grad_par->zft_streaming_invert_apar(G1[ielectron], Gr[ielectron],f->phi,f->apar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_ampereParFac_inv(), sdtvt, gradpar_, false, pars_->hypercollisions_kz, pars_->p_hyper_m, pars_->nu_hyper_m);
 
 
@@ -291,9 +248,8 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
           Gr[ielectron]->copyFrom(G1[ielectron]);
           solver_->fieldSolve(G1, f);
 
-//          G1[ielectron]->copyFrom(Gc); //I think for iteration scheme, need original G1
 	  if(count_outer == 0){
-	    G1[ielectron]->copyFrom(Gc);
+	    G1[ielectron]->copyFrom(G0);
 	  }
 	  else{
 	    G1[ielectron]->copyFrom(G4[ielectron]);
@@ -301,7 +257,6 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
 
 
           if(pars_->fapar > 0. || pars_->fbpar > 0.){
-//            grad_par->zft_streaming_invert_em(G1[ielectron], Gr[ielectron],f->phi,f->apar,f->bpar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_qneutFacBpar_inv(),solver_->get_max_ampereParFac_inv(),solver_->get_max_amperePerpFacPhi_inv(),solver_->get_max_amperePerpFacBpar_inv(),sdtvt, gradpar_, true);
 	    grad_par->zft_streaming_invert_apar(G1[ielectron], Gr[ielectron],f->phi,f->apar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_ampereParFac_inv(), sdtvt, gradpar_, true, pars_->hypercollisions_kz, pars_->p_hyper_m, pars_->nu_hyper_m);
 
 
@@ -318,7 +273,7 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
   grad_par->zft_inverse(G1[ielectron]);
 
   if(pars_->fapar > 0.){
-    if(count_outer == 0){
+/*    if(count_outer == 0){
     for(int is = 0; is < grids_->Nspecies; is++){
       G2[is]->copyFrom(G1[is]); 
     }
@@ -331,7 +286,17 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** 
       }
       solver_->fieldSolve(G2, f);
     }
-    add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
+    add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);*/
+
+    if(count_outer == 0){
+      for(int is = 0; is < grids_->Nspecies; is++){
+        G2[is]->copyFrom(G1[is]); 
+      }
+      G2[ielectron]->set_zero();
+      solver_->fieldSolve(G2, f);
+      add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
+
+    }
   }
 
 
@@ -480,11 +445,9 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G1, f);
     G1[ielectron]->copyFrom(G[ielectron]);
     // G1_e = inv(I - p_*dt*B)*G1_e
-//    invert_implicit_terms(G1[ielectron], f, p_*dt_,gradpar_);
-    Gc[ielectron]->copyFrom(G1[ielectron]);
+    G0[ielectron]->copyFrom(G1[ielectron]);
     Gr[ielectron]->copyFrom(G1[ielectron]);
-//    invert_implicit_terms(G1, Gc[ielectron], Gr, f, p_*dt_,gradpar_, bmagInv_, ielectron);
-    invert_implicit_terms(G1, Gc[ielectron], Gr, G2, G3, G4, Gr2, Ga, f, p_*dt_,gradpar_, bmagInv_, ielectron);
+    invert_implicit_terms(G1, G0[ielectron], Gr, G2, G3, G4, Ga, f, p_*dt_,gradpar_, bmagInv_, ielectron);
 
 
     solver_->fieldSolve(G1, f);
@@ -510,11 +473,9 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   // G1_e = G_e + a21*dt*A1_e + q_*dt*B1_e
   G1[ielectron]->add_scaled(1., G[ielectron], a21*dt_, A1[ielectron], q_*dt_, B1[ielectron]);
   // G1_e = inv(I - r_*dt*B)*G1_e
-//  invert_implicit_terms(G1[ielectron], f, r_*dt_,gradpar_);
-  Gc[ielectron]->copyFrom(G1[ielectron]);
+  G0[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
-//  invert_implicit_terms(G1, Gc[ielectron], Gr, f, r_*dt_,gradpar_, bmagInv_, ielectron);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, G2, G3, G4, Gr2, Ga, f, r_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, G0[ielectron], Gr, G2, G3, G4, Ga, f, r_*dt_,gradpar_, bmagInv_, ielectron);
 
 
   solver_->fieldSolve(G1, f);        
@@ -542,12 +503,10 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   G1[ielectron]->add_scaled(1., G[ielectron], a31*dt_, A1[ielectron], a32*dt_, A2[ielectron], 
 		            s_*dt_, B1[ielectron], t_*dt_, B2[ielectron]);
   // G1 = inv(I - u_*dt*B)*G1
-//  invert_implicit_terms(G1[ielectron], f, u_*dt_,gradpar_);
-  Gc[ielectron]->copyFrom(G1[ielectron]);
+  G0[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
 
-//  invert_implicit_terms(G1, Gc[ielectron], Gr, f, u_*dt_,gradpar_,bmagInv_, ielectron);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, G2, G3, G4, Gr2, Ga, f, u_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, G0[ielectron], Gr, G2, G3, G4, Ga, f, u_*dt_,gradpar_, bmagInv_, ielectron);
 
   
   solver_->fieldSolve(G1, f);          
@@ -580,12 +539,10 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   G1[ielectron]->add_scaled(1., G1[ielectron], w_*dt_, B1[ielectron], x_*dt_, B2[ielectron], y_*dt_, B3[ielectron]);
 
   // G1 = inv(I - u_*dt*B)*G1
-//  invert_implicit_terms(G1[ielectron], f, u_*dt_,gradpar_);
-  Gc[ielectron]->copyFrom(G1[ielectron]);
+  G0[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
 
-//  invert_implicit_terms(G1, Gc[ielectron], Gr, f, z_*dt_,gradpar_,bmagInv_, ielectron);
-  invert_implicit_terms(G1, Gc[ielectron], Gr, G2, G3, G4, Gr2, Ga, f, z_*dt_,gradpar_, bmagInv_, ielectron);
+  invert_implicit_terms(G1, G0[ielectron], Gr, G2, G3, G4, Ga, f, z_*dt_,gradpar_, bmagInv_, ielectron);
 
 
 

@@ -345,7 +345,7 @@ class IMEX_3stage : public Timestepper {
   void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
   void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
 //  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, Fields *f, double rdt, const float gradpar, const float* bmagInv, int ielectron);
-  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, MomentsG** G2, MomentsG** G3, MomentsG** G4, cuComplex** Gr2, cuComplex** Ga, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms(MomentsG** G1, MomentsG* Gc, MomentsG** Gr, MomentsG** G2, MomentsG** G3, MomentsG** G4, cuComplex** Ga, Fields *f, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
 
 
  private:
@@ -362,7 +362,7 @@ class IMEX_3stage : public Timestepper {
   GradParallel * grad_par   ;
   Cublas_test  ** mirror    ;
   MomentsG     ** G1         ;
-  MomentsG     ** Gc         ;
+  MomentsG     ** G0         ;
   MomentsG     ** Gr         ;
   MomentsG     ** G2         ;
   MomentsG     ** G3         ;
@@ -377,7 +377,6 @@ class IMEX_3stage : public Timestepper {
   MomentsG     ** B3         ;
   MomentsG     ** B4	     ;
   Fields	* f1	     ;
-  cuComplex    ** Gr2	     ;
   cuComplex    ** Ga	     ;
 
   double dt_;
