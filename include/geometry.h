@@ -72,6 +72,8 @@ class Geometry {
   int nperiod;
   bool zero_shat_; 
   int nfp = 1;
+
+  float RBzeta; // = I(psi) ; needed for flow shear
   
   cuComplex * bmag_complex ;
   float * bgrad_temp ;

@@ -1,5 +1,4 @@
 #include "grids.h"
-#include "hermite_transform.h"
 #include "laguerre_transform.h"
 
 Grids::Grids(Parameters* pars) :
@@ -139,7 +138,7 @@ Grids::Grids(Parameters* pars) :
   if (pars_->ExBshear) {
     cudaMalloc     ( (void**) &phasefac_exb,   sizeof(cuComplex) * Nx * Nyc);
     cudaMalloc     ( (void**) &phasefacminus_exb,   sizeof(cuComplex) * Nx * Nyc);
-    cudaMalloc     ( (void**) &kxstar,         sizeof(float) * Nx * Nyc);
+    cudaMalloc     ( (void**) &kxstar,         sizeof(double) * Nx * Nyc);
     cudaMalloc     ( (void**) &kxbar_ikx_new,  sizeof(int) * Nx * Nyc);
     cudaMalloc     ( (void**) &kxbar_ikx_old,  sizeof(int) * Nx * Nyc);
   }
@@ -246,14 +245,14 @@ void Grids::init_ks_and_coords()
   // If this is a restarted run, should get kxstar from the restart file
   // otherwise:
   if (pars_->ExBshear) {
-    int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
+    int nn1, nt1, nb1, nn2, nt2, nb2, nt3, nb3;
     nn1 = Nyc;       nt1 = min(32, nn1);     nb1 = 1 + (nn1-1)/nt1;
     nn2 = Nx;        nt2 = min(16, nn2);     nb2 = 1 + (nn2-1)/nt2;
-    nn3 = 1;         nt3 = 1;                nb3 = 1;
+                     nt3 = 1;                nb3 = 1;
     dB = dim3(nt1, nt2, nt3);
     dG = dim3(nb1, nb2, nb3);
     init_kxstar_kxbar_phasefac <<< dG, dB >>> (kxstar, kxbar_ikx_new, kxbar_ikx_old, phasefac_exb, phasefacminus_exb, kx); // Do we really need th0 here? // JFP
-    //CP_TO_CPU (theta0_h, th0, sizeof(float)*Nx);  
+    //CP_TO_CPU (theta0_h, th0, sizeof(float)*Nx);
   }
   
   if (Nx<4) {
@@ -299,14 +298,13 @@ void Grids::init_ks_and_coords()
     z_h[k] = 2.*M_PI *pars_->Zp *(k-Nz/2)/Nz;
   }
 
-  HermiteTransform * hermite = new HermiteTransform(this);
   LaguerreTransform * laguerre = new LaguerreTransform(this, 1);
-  vpar_max = hermite->get_vmax();
+  // Estimate v_parallel_max conservatively
+  vpar_max = 2.0 * sqrtf( Nm_glob );
   muB_max = laguerre->get_vmax();
   kx_max = kx_h[(Nx-1)/3];
   ky_max = ky_h[(Ny-1)/3];
   kz_max = kz_h[Nz/2];
   kperp_min = min(kx_h[1], ky_h[1]);
-  delete hermite;
   delete laguerre;
 }

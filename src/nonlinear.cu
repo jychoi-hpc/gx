@@ -303,7 +303,7 @@ void Nonlinear_GK::nlps(MomentsG* G, Fields* f, MomentsG* G_res)
       laguerre_single    -> transformToGrid(dG, dg_dy);
       bracket GBX_single (g_res, dg_dx, dJ0apar_dy, dg_dy, dJ0apar_dx, pars_->kxfac);
       laguerre_single->transformToSpectral(g_res, dG);
-      if (pars_->nonTwist || pars_->ExBshear_phase) grad_perp_G -> phase_mult(dG, pars_->nonTwist, pars_->ExBshear_phase, false);
+      if (pars_->nonTwist || pars_->ExBshear_phase) grad_perp_G_single -> phase_mult(dG, pars_->nonTwist, pars_->ExBshear_phase, false);
       grad_perp_G_single->R2C(dG, tmp_c, false); // this R2C has accumulate=false
       // NL_{m} += -vt*sqrt(m)*{G_{m-1}, Apar}
       add_scaled_singlemom_kernel <<<dGk.x,dBk.x>>> (G_res->Gm(m_local), 1., G_res->Gm(m_local), -vts*sqrtf(m), tmp_c);

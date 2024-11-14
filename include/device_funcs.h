@@ -143,6 +143,7 @@ __global__ void add_scaled_singlemom_kernel(cuComplex* res,
 __global__ void reality_kernel(cuComplex* g, int N);
 
 __device__ int get_ikx(int idx);
+__device__ int get_idx(int ikx);
 __device__ bool unmasked(int idx, int idy);
 __device__ bool   masked(int idx, int idy);
 
@@ -443,11 +444,11 @@ __global__ void hypercollisions(const cuComplex* g, const float nu_hyper_l, cons
 				const int p_hyper_l, const int p_hyper_m, const int p_hyper_lm, cuComplex* rhs, const float vt);
 __global__ void hypercollisions_kz(const cuComplex* g, const float nu, const int p, cuComplex* res);
 
-__global__ void init_kxstar_kxbar_phasefac(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, cuComplex* phasefac, cuComplex* phasefac_minus, const float* kx);
-__global__ void geo_shift(const float* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
+__global__ void init_kxstar_kxbar_phasefac(double* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, cuComplex* phasefac, cuComplex* phasefac_minus, const float* kx);
+__global__ void geo_shift(const double* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
                            const float* cv, const float* cv0, const float* gb, const float* gb0, float* omegad,
                            const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, const float shat);
-__global__ void geo_shift_ntft(const float* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
+__global__ void geo_shift_ntft(const double* kxstar, const float* ky, float* cv_d, float* gb_d, float* kperp2,
                                const float* cv, const float* cv0, const float* gb, const float* gb0, float* omegad,
                                const float* gds2, const float* gds21, const float* gds22, const float* bmagInv, const float shat,
 			       const float* ftwist, float* deltaKx, const int* m0, const float x0);
@@ -475,7 +476,7 @@ __global__ void normKernel(float *, const cuComplex* );
 void setWeightingConstants( unsigned int , unsigned int , unsigned int , unsigned int , float );
 
 // ExB Kernels
-__global__ void kxstar_phase_shift(float* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
+__global__ void kxstar_phase_shift(double* kxstar, int* kxbar_ikx_new, int* kxbar_ikx_old, const float* ky, const float* x, cuComplex* phasefac, cuComplex* phasefac_minus, const float g_exb, const double dt, const float x0, const bool ExBshear_phase);
 __global__ void field_shift(cuComplex* field_new, const cuComplex* field_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
 __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxbar_ikx_new, const int* kxbar_ikx_old, const float g_exb);
 

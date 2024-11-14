@@ -342,6 +342,8 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   float beta_e = pars->beta;
   rmaj = pars->rmaj;
   specie* species = pars->species_h;
+
+  RBzeta = rmaj; // I = R_0 B_axis = R_0 B_ref => I_N = R_0/a = rmaj
   
   gradpar = (float) abs(1./(qsf*rmaj));
   zero_shat_ = pars->zero_shat;
@@ -673,10 +675,12 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
 
   // initialize omegad and kperp2
   initializeOperatorArrays(pars, grids);
-  
+
   // calculate bgrad
   calculate_bgrad(grids);
   if(grids->iproc==0) DEBUGPRINT("bgrad calculated\n");
+
+  RBzeta = 0.0; // TODO: FIX
 }
 
 // MFM - 07/09/17
@@ -881,6 +885,8 @@ Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
   // calculate bgrad
   calculate_bgrad(grids);
   if(grids->iproc==0) CUDA_DEBUG("calc bgrad: %s \n");
+
+  RBzeta = 0.0; // TODO: FIX
 }
 
 void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {

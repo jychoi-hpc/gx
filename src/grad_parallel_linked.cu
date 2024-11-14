@@ -3,6 +3,15 @@
 #include "get_error.h"
 #define GCHAINS <<< dG[c], dB[c] >>>
 
+// Included for prime factorization, needed for checking if primes > 127 are present
+#include "util.h"
+
+// For std::max_element
+#include <algorithm>
+
+// For std::cerr
+#include <iostream>
+
 GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
  : pars_(pars), grids_(grids)
 {
@@ -51,6 +60,20 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
   nChains  = (int*) malloc(sizeof(int)*nClasses);
 
   get_nLinks_nChains(nLinks, nChains, n_k, nClasses, naky, nakx);
+
+  for( int c=0; c < nClasses; c++ ) {
+    std::vector<int> factors = factorize<int>( nLinks[ c ] );
+    int max_prime_factor = *( std::max_element( factors.begin(), factors.end() ) );
+    if( max_prime_factor >= 127 ) {
+      if( pars_->iproc == 0 ) {
+        std::cerr << std::endl;
+        std::cerr << "ERROR: In constructing the extended flux tubes, nLinks[" << c << "] = " << nLinks[c] << " which has prime factors larger than 127." << std::endl;
+        std::cerr << "ERROR: cuFFT callbacks do not support fourier transforms with large prime factors. Aborting." << std::endl << std::endl;
+        std::cerr << "We suggest adjusting nx to a nearby value." << std::endl << std::endl;
+      }
+      exit(-2);
+    }
+  }
 
   ikxLinked_h = (int**) malloc(sizeof(int*)*nClasses);
   ikyLinked_h = (int**) malloc(sizeof(int*)*nClasses);

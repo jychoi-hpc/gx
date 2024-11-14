@@ -94,8 +94,6 @@ void Parameters::get_nml_vars(char* filename)
   nonTwist = toml::find_or <bool>        (tnml, "nonTwist", false);
   long_wavelength_GK = toml::find_or <bool>   (tnml, "long_wavelength_GK",   false ); // JFP, long wavelength GK limit where bs = 0, except in quasineutrality where 1 - Gamma0(b) --> b.
   zero_shat_threshold = toml::find_or <float>   (tnml, "zero_shat_threshold", 1e-5);
-  bool ExBshear_domain = toml::find_or <bool>        (tnml, "ExBshear",    false ); // included for backwards-compat. ExBshear now specified in Physics
-  float g_exb_domain    = toml::find_or <float>       (tnml, "g_exb",        0.0  ); // included for backwards-compat. g_exb now specified in Physics
   
   tnml = nml;  
   if (nml.contains("Time")) tnml = toml::find (nml, "Time");
@@ -255,7 +253,7 @@ void Parameters::get_nml_vars(char* filename)
     if(iproc==0) printf("Using i_share = %d would exceed shared memory limits. Setting i_share = %d instead.\n", i_share, i_share_max);
     i_share = i_share_max;
   }
-
+  
   dealias_kz  = toml::find_or <bool>   (tnml, "dealias_kz",  false );
   nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
   local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
@@ -513,6 +511,13 @@ void Parameters::get_nml_vars(char* filename)
     //printf("Be sure it is consistent with the value in the geometry file. \n");
     //printf("Using shat = %f \n",shat);
   }
+
+  RBzeta_override = toml::find_or<float>( tnml, "RBzeta", 0.0 ); // For explicitly setting I(psi) for flying-slab simulations
+  if( geo_option != "slab" && RBzeta_override != 0.0 )
+  {
+	  printf("ERROR: R B_zeta has been set explicitly, but this is only legal in a slab! Detected geo_option is %s (not 'slab')", geo_option.c_str() );
+  }
+
   
   // the following parameters are exclusively for interfacing 
   // with the GS2 geometry module via eiktest
@@ -542,16 +547,19 @@ void Parameters::get_nml_vars(char* filename)
   chs_eq = toml::find_or <bool> (tnml, "chs_eq", false);
   transp_eq = toml::find_or <bool> (tnml, "transp_eq", false);
   gs2d_eq = toml::find_or <bool> (tnml, "gs2d_eq", false);
-  RBzeta = toml::find_or <float> (tnml, "RBzeta", (double) rmaj); // JFP: RBzeta = I_N(psi) R Bzeta / a Bref ?= (rmaj / a) by default until we have GX capability to calculate R(theta). But for now, assume  R Bzeta / a = Bref.
 
   tnml = nml;
   if (nml.contains("Physics")) tnml = toml::find(nml, "Physics");
   beta = toml::find_or <float> (tnml, "beta",    0.0 );
   if (beta == 0.0 && beta_geo > 0.0) beta = beta_geo; 
   nonlinear_mode = toml::find_or <bool>   (tnml, "nonlinear_mode",    nonlinear_mode );  linear = !nonlinear_mode;
-  ExBshear = toml::find_or <bool> (tnml, "ExBshear",    ExBshear_domain );
+
+  g_exb    = toml::find_or <float> (tnml, "g_exb",       0.0 );
+  // Default to ExB shear on if g_exb is nonzero
+  ExBshear = toml::find_or <bool> (tnml, "ExBshear", ( g_exb != 0.0 )  );
+  // Default to including the phase factor
   ExBshear_phase = toml::find_or <bool> (tnml, "ExBshear_phase",  true); // If false, neglect phase correction in FFT. Only relevant for nonlinear simulations.
-  g_exb    = toml::find_or <float> (tnml, "g_exb",       (double) g_exb_domain  );
+
   if (!ExBshear) ExBshear_phase = false; 
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);

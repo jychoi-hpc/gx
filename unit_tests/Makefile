@@ -49,7 +49,7 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 
 GX_HEADERS = $(GX_DIR)/include/*.h
 
-GX_OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o hermite_transform.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk2.o ts_rk4.o ts_k10.o ts_k2.o ts_g3.o diagnostics.o run_gx.o version.o trinity_interface.o
+GX_OBJS = device_funcs.o parameters.o grids.o reductions.o reservoir.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk2.o ts_rk4.o ts_k10.o ts_k2.o ts_g3.o diagnostics.o run_gx.o version.o trinity_interface.o
 GX_OBJS := $(addprefix $(GX_DIR)/obj/, $(GX_OBJS))
 
 VPATH=.:src

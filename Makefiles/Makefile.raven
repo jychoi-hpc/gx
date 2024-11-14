@@ -1,16 +1,17 @@
 # Makefile for raven (MPCDF)
-# Maintainer: Stefan Buller (sbuller@umd.edu)
+# Maintainer: Stefan Buller (sb0095@princeton.edu)
 #
 # add and uncomment the following in your .bashrc (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=raven
 # module load intel/21.2.0
 # module load nvhpcsdk/23
+# module load git
 # module load gsl/2.4
 # module load openmpi/4.1
 # module load hdf5-mpi/1.12.2
 # module load netcdf-mpi/4.8.1
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NVHPC_ROOT/comm_libs/nccl/lib:$OPENMPI_HOME/lib:$NETCDF_HOME/lib:$HDF5_HOME/lib:$GSL_HOME/lib
+# LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NVHPC_ROOT/comm_libs/nccl/lib:$OPENMPI_HOME/lib:$NETCDF_HOME/lib:$HDF5_HOME/lib:$GSL_HOME/lib:$NVHPC_ROOT:$NVHPC_CUDA_HOME/lib64
 
 
 # paths to netcdf
@@ -33,7 +34,7 @@ MPI_LIB = -L ${MPI_ROOT}/lib -lmpi
 NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/nccl/
 
 CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
-CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl -L ${NVHPC_CUDA_HOME}/lib64 -lcudart -lculibos -lnvToolsExt -lnvJitLink
 
 # paths to gsl 
 # GSL_HOME is defined by gsl module
@@ -55,6 +56,9 @@ CXX = icpc
 NVCC   = nvcc
 CFLAGS = -fPIC
 NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+
+
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

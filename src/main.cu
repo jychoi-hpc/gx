@@ -12,6 +12,7 @@
 // #include "reservoir.h"
 #include "reductions.h"
 #include <fenv.h>
+#include <limits.h>
 
 int main(int argc, char* argv[])
 {
@@ -30,14 +31,17 @@ int main(int argc, char* argv[])
   cudaDeviceSynchronize();
 
   char run_name[1000];
-  if ( argc < 1) {
-    if(iproc==0) fprintf(stderr, "The correct usage is:\n gx <runname>.in\n");
+  if ( argc != 2 ) {
+    if(iproc==0)
+        fprintf(stderr, "The correct usage is:\n gx <runname>.in\n");
     exit(1);
-  } else {    
+  } else {
     // if input filename ends in .in, remove .in
-    if(strlen(argv[1]) > 3 && !strcmp(argv[1] + strlen(argv[1]) - 3, ".in")) {
-      strncpy(run_name, argv[1], strlen(argv[1])-3);
-      run_name[strlen(argv[1])-3] = '\0';
+
+    size_t arglen = strnlen( argv[1], NAME_MAX );
+    if( arglen > 3 && !strcmp(argv[1] + arglen - 3, ".in")) {
+      strncpy(run_name, argv[1], arglen-3);
+      run_name[arglen-3] = '\0';
     } else {
       if(iproc==0) fprintf(stderr, "Argument for input filename must include \".in\". Try:\n %s %s.in\n", argv[0], argv[1]);
       exit(1);
@@ -77,13 +81,6 @@ int main(int argc, char* argv[])
   Geometry    * geo         = nullptr;
 
   geo = init_geo(pars, grids);
-
-  //    We do not need Hermite transforms for anything more than some specific diagnostics
-  //    and typically this functionality is not available because it is not sufficiently general.
-  //
-  //    DEBUGPRINT("Initializing Hermite transforms...\n");
-  //    herm = new HermiteTransform(grids, 1); // batch size could ultimately be nspec
-  //    CUDA_DEBUG("Initializing Hermite transforms: %s \n");    
 
   //
   // Hold here until all threads are ready to continue

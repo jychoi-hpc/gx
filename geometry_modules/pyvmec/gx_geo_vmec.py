@@ -14,6 +14,9 @@ python gx_geo_vmec.py <vmec_filename(with .nc)> 0 <desired output name>
 
 A portion of this script is based on Matt Landreman's vmec_geometry module for the SIMSOPT framework.
 For axisymmetric equilibria, make sure that ntor > 1 in the VMEC wout file.
+
+Author: Rahul Gaur (rgaur@terpmail.umd.ed)
+Modified: Noah Mandell 
 """
 
 import sys
@@ -1001,6 +1004,13 @@ def vmec_fieldlines(
         / (L_reference * L_reference * B_reference * B_reference * s[:, None, None])
     )
 
+    if sfac != 1 or pfac != 1:
+        print("Either sfac or pfac not 1 so grad y and grad x used for plotting are incorrect. \n")
+        print("All coefficients needed for a gx run are fine")
+
+    grad_y = L_reference* np.sqrt(s[:, None, None]) * np.array([grad_alpha_X, grad_alpha_Y, grad_alpha_Z])
+    grad_x = (sfac * shat[:, None, None]) * np.array([grad_psi_X, grad_psi_Y, grad_psi_Z]) / (L_reference * B_reference * np.sqrt(s[:, None, None]))
+
     grho = np.sqrt(
         g_sup_psi_psi
         / (L_reference * L_reference * B_reference * B_reference * s[:, None, None])
@@ -1071,7 +1081,8 @@ def vmec_fieldlines(
         "cvdrift",
         "cvdrift0",
         "grho",
-        "alpha",
+        "grad_y",
+        "grad_x",
         "zeta_center",
         "nfp"
     ]
@@ -1106,7 +1117,6 @@ geo_coeffs = vmec_fieldlines(
     vmec_fname, rhoc, betaprim, f, theta1d=theta, isaxisym=isaxisym
 )
 
-
 shat = geo_coeffs.s_hat_input
 qfac = abs(1 / geo_coeffs.iota_input)
 bmag = geo_coeffs.bmag[0][0]
@@ -1124,6 +1134,11 @@ grho = geo_coeffs.grho[0][0]
 alpha = geo_coeffs.alpha
 zeta_center = geo_coeffs.zeta_center
 nfp = geo_coeffs.nfp
+
+
+#grad_x, grad_y, and b for flux tube plotting
+grad_x = geo_coeffs.grad_x[:, 0, 0, :]
+grad_y = geo_coeffs.grad_y[:, 0, 0, :]
 
 # rho = sqrt(psi/psi_LCFS) = sqrt(rhoc)
 dpsidrho = 2 * np.sqrt(rhoc) * geo_coeffs.edge_toroidal_flux_over_2pi
@@ -1237,6 +1252,19 @@ if flux_tube_cut != "none":
     Z_spl = InterpolatedUnivariateSpline(theta, Z)
     Z = Z_spl(theta_cut)
 
+    grad_x0_spl = InterpolatedUnivariateSpline(theta, grad_x[0, :])
+    grad_x1_spl = InterpolatedUnivariateSpline(theta, grad_x[1, :])
+    grad_x2_spl = InterpolatedUnivariateSpline(theta, grad_x[2, :])
+
+    grad_y0_spl = InterpolatedUnivariateSpline(theta, grad_y[0, :])
+    grad_y1_spl = InterpolatedUnivariateSpline(theta, grad_y[1, :])
+    grad_y2_spl = InterpolatedUnivariateSpline(theta, grad_y[2, :])
+
+    grad_x = np.array([grad_x0_spl(theta_cut), grad_x1_spl(theta_cut), grad_x2_spl(theta_cut)])
+    grad_y = np.array([grad_y0_spl(theta_cut), grad_y1_spl(theta_cut), grad_y2_spl(theta_cut)])
+    b_vec = np.cross(grad_x, grad_y, axis=0)
+    b_vec = b_vec/np.linalg.norm(b_vec, axis=0)
+
     theta = theta_cut
 
 ####################################################################
@@ -1271,6 +1299,12 @@ R_GX = np.interp(theta_GX, theta_eqarc, R)
 Z_GX = np.interp(theta_GX, theta_eqarc, Z)
 gradpar_GX = gradpar_eqarc * np.ones((len(bmag_GX),))
 
+grad_x_GX = np.array([grad_x0_spl(theta_cut), grad_x1_spl(theta_cut), grad_x2_spl(theta_cut)])
+grad_y_GX = np.array([grad_y0_spl(theta_cut), grad_y1_spl(theta_cut), grad_y2_spl(theta_cut)])
+b_vec = np.cross(grad_x_GX, grad_y_GX, axis=0)
+b_vec_GX = b_vec/np.linalg.norm(b_vec, axis=0)
+
+
 #####################################################################
 ##############-----------GX SAVE FORMAT-------------#################
 #####################################################################
@@ -1283,7 +1317,8 @@ try:
 
     ds0 = ds(eikfile_nc, "w")
 
-    z_nc = ds0.createDimension("z", ntheta)
+    ds0.createDimension("z", ntheta)
+    ds0.createDimension("3", 3)
 
     theta_nc = ds0.createVariable("theta", "f8", ("z",))
     theta_PEST_nc = ds0.createVariable("theta_PEST", "f8", ("z",))
@@ -1300,6 +1335,10 @@ try:
     jacob_nc = ds0.createVariable("jacob", "f8", ("z",))
     Rplot_nc = ds0.createVariable("Rplot", "f8", ("z",))
     Zplot_nc = ds0.createVariable("Zplot", "f8", ("z",))
+
+    grad_x_nc = ds0.createVariable("grad_x", "f8", ("3", "z"))
+    grad_y_nc = ds0.createVariable("grad_y", "f8", ("3", "z"))
+    b_vec_nc = ds0.createVariable("b_vec", "f8", ("3", "z"))
 
     drhodpsi_nc = ds0.createVariable(
         "drhodpsi",
@@ -1353,6 +1392,10 @@ try:
 
     Rplot_nc[:] = R_GX[:]
     Zplot_nc[:] = Z_GX[:]
+
+    grad_x_nc[:, :] = grad_x_GX[:, :] 
+    grad_y_nc[:, :] = grad_y_GX[:, :] 
+    b_vec_nc[:, :] = b_vec_nc[:, :]
 
     drhodpsi_nc[0] = abs(1 / dpsidrho)
     kxfac_nc[0] = kxfac 

@@ -139,68 +139,43 @@ void GradPerp::dxC2R(cuComplex* G, float* dxG)
 
 void GradPerp::phase_mult(float* G, bool nonTwist, bool ExBshear, bool positive_phase)
 {
-// this function is called if you are using the NTFT and/or ExB shear, there are different cases for each
-// NTFT: phasefac_ntft = exp(i*deltaKx(idx, idy, idz)*x(idx))
-// ExB:  phasefac_exb  = exp(i*(kxstar(idx,idy) - kxbar(idy,idy))*x(idx))
+  // this function is called if you are using the NTFT and/or ExB shear, there are different cases for each
+  // NTFT: phasefac_ntft = exp(i*deltaKx(idx, idy, idz)*x(idx))
+  // ExB:  phasefac_exb  = exp(i*(kxstar(idx,idy) - kxbar(idy,idy))*x(idx))
 
   cufftExecR2C(gradperp_plan_R2Cy, G, tmp); //1D FFT in y
 
+
   // all phase factors done via grid multiplication
   if (nonTwist) {
-    
-    if (positive_phase) {
-      if (batch_size_ == grids_->Nz*grids_->Nl*grids_->Nm) { // if multiplying G
-        iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefac_ntft, false);
-      } else if (batch_size_ == grids_->Nz*grids_->Nj) { // if multiplying J0phi or J0apar
-        iKxJ0ftoGrid GBK (tmp, tmp, grids_->phasefac_ntft, false);
-      } else if (batch_size_ == grids_->Nz*grids_->Nl) { // if multiplying G_single
-        iKxgsingletoGrid GBX_single_ntft (tmp, tmp, grids_->phasefac_ntft, false);
-      } else if (batch_size_ == grids_->Nz) { // if multiplying phi (can delete this if I don't need timestep correction)
-        iKxphitoGrid GBPhi_ntft (tmp, tmp, grids_->phasefac_ntft, false);
-      }
-    } else { // if reverse, will be size of G grid only
-      iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefacminus_ntft, false);
-    }
-    
-    // this is kinda weird but might save memory - FFT1D sends G -> tmp, ntft phasefac sends tmp->iKxtmp, exb phasefac sends iKxtmp -> tmp? reusing tmps
-    if (ExBshear) {
-      if (positive_phase) {
-        if (batch_size_ == grids_->Nz*grids_->Nl*grids_->Nm) {
-          iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefac_exb, true);
-        } else if (batch_size_ == grids_->Nz*grids_->Nj) {
-          iKxJ0ftoGrid GBK (tmp, tmp, grids_->phasefac_exb, true);
-        } else if (batch_size_ == grids_->Nz*grids_->Nl) {
-          iKxgsingletoGrid GBX_single_ntft (tmp, tmp, grids_->phasefac_exb, true);
-        } else if (batch_size_ == grids_->Nz) {
-          iKxphitoGrid GBPhi_ntft (tmp, tmp, grids_->phasefac_exb, true);
-        }
-      } else {
-        iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefacminus_exb, true);
-      }
+    const cuComplex* phasefac = positive_phase ? grids_->phasefac_ntft : grids_->phasefacminus_ntft;
 
-    // if ntft + exb, do FFT on tmp, if only ntft do FFT on iKxtmp
-      cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
-    } else {
-      cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
+    if (batch_size_ == grids_->Nz*grids_->Nl*grids_->Nm) { // if multiplying G
+      iKxgtoGrid GBX_ntft (tmp, tmp, phasefac, false);
+    } else if (batch_size_ == grids_->Nz*grids_->Nj) { // if multiplying J0phi or J0apar
+      iKxJ0ftoGrid GBK (tmp, tmp, phasefac, false);
+    } else if (batch_size_ == grids_->Nz*grids_->Nl) { // if multiplying G_single
+      iKxgsingletoGrid GBX_single_ntft (tmp, tmp, phasefac, false);
+    } else if (batch_size_ == grids_->Nz) { // if multiplying phi (can delete this if I don't need timestep correction)
+      iKxphitoGrid GBPhi_ntft (tmp, tmp, phasefac, false);
     }
-
-  } else { // if ExBshear only
-    if (positive_phase) {
-      if (batch_size_ == grids_->Nz*grids_->Nl*grids_->Nm) {
-        iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefac_exb, true);
-      } else if (batch_size_ == grids_->Nz*grids_->Nj) {
-        iKxJ0ftoGrid GBK (tmp, tmp, grids_->phasefac_exb, true);
-      } else if (batch_size_ == grids_->Nz*grids_->Nl) {
-        iKxgsingletoGrid GBX_single_ntft (tmp, tmp, grids_->phasefac_exb, true);
-      } else if (batch_size_ == grids_->Nz) {
-        iKxphitoGrid GBPhi_ntft (tmp, tmp, grids_->phasefac_exb, true);
-      }
-    } else {
-      iKxgtoGrid GBX_ntft (tmp, tmp, grids_->phasefacminus_exb, true);
-    }
-    
-    cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
   }
+
+  if (ExBshear) {
+    const cuComplex* phasefac = positive_phase ? grids_->phasefac_exb : grids_->phasefacminus_exb;
+
+    if (batch_size_ == grids_->Nz*grids_->Nl*grids_->Nm) { // if multiplying G
+      iKxgtoGrid GBX_ntft (tmp, tmp, phasefac, true);
+    } else if (batch_size_ == grids_->Nz*grids_->Nj) { // if multiplying J0phi or J0apar
+      iKxJ0ftoGrid GBK (tmp, tmp, phasefac, true);
+    } else if (batch_size_ == grids_->Nz*grids_->Nl) { // if multiplying G_single
+      iKxgsingletoGrid GBX_single_ntft (tmp, tmp, phasefac, true);
+    } else if (batch_size_ == grids_->Nz) { // if multiplying phi (can delete this if I don't need timestep correction)
+      iKxphitoGrid GBPhi_ntft (tmp, tmp, phasefac, true);
+    }
+  }
+
+  cufftExecC2R(gradperp_plan_C2Ry, tmp, G);
 }
 
 void GradPerp::qvar (cuComplex* G, int N)

@@ -512,8 +512,8 @@ void GrowthRateDiagnostic::calculate_and_write(Fields* fields, Fields* fields_ol
   start[0] = ncdf_->nc_grids->time_index;
   if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);
 
-  if( pars_->iproc == 0) {
-	  // print to screen
+  // print to screen (but only on proc 0)
+  if( grids_->iproc == 0 ) {
 	  int Nx = grids_->Nx;
 	  int Naky = grids_->Naky;
 	  int Nyc  = grids_->Nyc;

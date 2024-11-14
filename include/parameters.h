@@ -145,7 +145,7 @@ class Parameters {
   Tmethod scheme_opt;
   Closure closure_model_opt;
   
-  float RBzeta, rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri;
+  float rhoc, eps, shat, qsf, rmaj, r_geo, shift, akappa, akappri, RBzeta_override;
   float tri, tripri, drhodpsi, epsl, kxfac, cfl, phi_ext, scale, tau_fac;
   float ti_ov_te, beta, g_exb, s_hat_input, beta_prime_input, init_amp;
   float x0, y0, z0, dt, dt_max, dt_min, fixed_dt;
@@ -241,7 +241,7 @@ class Parameters {
   bool long_wavelength_GK;
   bool ExBshear_phase;
   float damp_ends_widthfrac, damp_ends_amp;
-    
+
   char *scan_type;
   char *equilibrium_option, *nlpm_option;
   char run_name[1255];
