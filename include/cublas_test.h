@@ -27,10 +27,16 @@ class Cublas_test{
   void invert_sherman_morrison(cuComplex* u);
 
   cuComplex** A_bounce;
+  cuComplex** A_inv_bounce;
+
   cuComplex** bounce_rhs;
+  cuComplex** bounce_rhs_sol;
   cuComplex     ** res;
   cuComplex** d_A_bounce;
+  cuComplex** d_Ainv_bounce;
+
   cuComplex** d_bounce_rhs;
+  cuComplex** d_bounce_rhs_sol;
   cuComplex** bounce_rhs_apar;
   cuComplex** d_bounce_rhs_apar;
 
@@ -71,7 +77,7 @@ class Cublas_test{
   cudaStream_t stream_cublas = NULL;
 
   const cuComplex alpha = make_cuComplex(1.0,0.0);
-  const cuComplex beta = make_cuComplex(-1.0,0.0);
+  const cuComplex beta = make_cuComplex(0.0,0.0);
 
   cublasOperation_t transa = CUBLAS_OP_T;
   cublasOperation_t transb = CUBLAS_OP_N;
