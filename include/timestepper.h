@@ -240,8 +240,10 @@ class Lie_Trotter : public Timestepper {
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
-  cuComplex    ** G_sm_phi         ;
-  cuComplex    ** G_sm_apar         ;
+  cuComplex    ** G_sm_s_phi         ;
+  cuComplex    ** G_sm_s_apar         ;
+  cuComplex    ** G_sm_b_apar         ;
+
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
   MomentsG     ** A1         ;

@@ -53,12 +53,14 @@ if __name__ == "__main__":
 
         nspec = data.dimensions['s'].size
     
-        for ispec in np.arange(nspec):
+        for ispec in np.arange(nspec-1):
             heat_flux(data, ispec=ispec, refsp="i")
     
     plt.xlim(0)
     plt.ylim(0)
+    plt.legend(['Explicit', 'ARK KC x4', 'Lie-Trotter x4'])
     # uncomment this line to save a PNG image of the plot
     plt.tight_layout()
+    
     plt.savefig("heat_flux.png", dpi=300)
     plt.show()

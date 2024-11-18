@@ -163,7 +163,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   }
   checkCuda(cudaMemcpy(d_A_bounce, A_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
-  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
+/*  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
   bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
   checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
 
@@ -177,7 +177,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
             std::printf("%2.3e ", LU[j * LM + i].x);
         }
         std::printf("\n\n");
-  }
+  }*/
 
 
   checkCudaErrors(cudaGetLastError());
@@ -201,7 +201,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   checkCuda(cudaStreamSynchronize(stream_cublas));
 
 
-  CUBLAS_CHECK(cublasCgetriBatched(cublasH,
+/*  CUBLAS_CHECK(cublasCgetriBatched(cublasH,
                                    LM,
                                    d_A_bounce,
                                    LM,
@@ -211,10 +211,10 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 				   LM,
                                    infoArray,
                                    grids_->Nz));
-  checkCuda(cudaStreamSynchronize(stream_cublas));
+  checkCuda(cudaStreamSynchronize(stream_cublas));*/
 
 
-  checkCuda(cudaMemcpy(A_bounce, d_Ainv_bounce,sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+/*  checkCuda(cudaMemcpy(A_bounce, d_Ainv_bounce,sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
   checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
 
   checkCuda(cudaMemcpy(infoArray_h, infoArray,sizeof(int)*grids_->Nz, cudaMemcpyDeviceToHost));
@@ -248,7 +248,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
     }
   }
 
-  printf("SINGULAR IS %d\n", singular);
+  printf("SINGULAR IS %d\n", singular);*/
 }
 
 Cublas_test::~Cublas_test(){
@@ -290,7 +290,7 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
 
   copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(d_bounce_rhs, G, false);
 
-/*  CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
+  CUBLAS_CHECK(cublasCgetrsBatched(cublasH,
                                    CUBLAS_OP_N,
                                    LM,
                                    grids_->Nyc*grids_->Nx,
@@ -304,11 +304,11 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
 				   &info,
                                    grids_->Nz));
 
-  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, d_bounce_rhs);*/
+  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, d_bounce_rhs);
 
-  CUBLAS_CHECK(cublasCgemmBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, LM, grids_->Nyc*grids_->Nx, LM, &alpha, 
+/*  CUBLAS_CHECK(cublasCgemmBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, LM, grids_->Nyc*grids_->Nx, LM, &alpha, 
 			            d_Ainv_bounce, LM, d_bounce_rhs, LM, &beta, d_bounce_rhs_sol, LM, grids_->Nz));
-  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, d_bounce_rhs_sol);
+  copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, d_bounce_rhs_sol);*/
 
   checkCuda(cudaStreamSynchronize(stream_cublas));
 
