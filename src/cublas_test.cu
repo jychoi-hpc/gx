@@ -62,7 +62,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   bounce_rhs_apar = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
   size_t brhs_size = sizeof(cuComplex)*pars_->nm_in*pars_->nl_in*grids_->Nyc*grids_->Nx;
   checkCuda(cudaMalloc((void**) &d_bounce_rhs, sizeof(cuComplex*)*grids_->Nz));
-  checkCuda(cudaMalloc((void**) &d_bounce_rhs_sol, sizeof(cuComplex*)*grids_->Nz));
+//  checkCuda(cudaMalloc((void**) &d_bounce_rhs_sol, sizeof(cuComplex*)*grids_->Nz));
   checkCuda(cudaMalloc((void**) &d_bounce_rhs_apar, sizeof(cuComplex*)*grids_->Nz));
 
 
@@ -78,7 +78,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   }
   checkCuda(cudaMemcpy(d_bounce_rhs, bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
-  checkCuda(cudaMemcpy(d_bounce_rhs_sol, bounce_rhs_sol, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
+//  checkCuda(cudaMemcpy(d_bounce_rhs_sol, bounce_rhs_sol, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
   checkCuda(cudaMemcpy(d_bounce_rhs_apar, bounce_rhs_apar, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
 
@@ -102,8 +102,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   }
 
   checkCuda(cudaMalloc((void**) &d_A_bounce, sizeof(cuComplex*)*grids_->Nz));
-  checkCuda(cudaMalloc((void**) &d_Ainv_bounce, sizeof(cuComplex*)*grids_->Nz));
-  checkCuda(cudaMemcpy(d_Ainv_bounce, A_inv_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
+/*  checkCuda(cudaMalloc((void**) &d_Ainv_bounce, sizeof(cuComplex*)*grids_->Nz));
+  checkCuda(cudaMemcpy(d_Ainv_bounce, A_inv_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));*/
 
 
 
@@ -194,8 +194,8 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
                                    LM,
                                    d_A_bounce,
                                    LM,
-//                                   d_Ipiv,
-				   NULL,
+                                   d_Ipiv,
+//				   NULL,
                                    infoArray,
                                    grids_->Nz));
   checkCuda(cudaStreamSynchronize(stream_cublas));
@@ -296,8 +296,8 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
                                    grids_->Nyc*grids_->Nx,
                                    d_A_bounce,
                                    LM,
-//                                   d_Ipiv,
-				   NULL,
+                                   d_Ipiv,
+//				   NULL,
                                    d_bounce_rhs,
                                    LM,
 //                                   infoArray_h,

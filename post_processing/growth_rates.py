@@ -77,6 +77,6 @@ if __name__ == "__main__":
 #    plt.legend(["Explicit", "Lie-Trotter 15x", "IMEX 15x"],loc='upper left')
 #    plt.legend(["Explicit", "IMEX x50"])
 #    plt.legend(["Explicit", "0 Iterations", "1 Iteration"])
-    plt.legend(["Explicit", "ARK KC x10", "ARK GKC x9"])
+    plt.legend(["Explicit", "Lie-Trotter x11", "ARK KC x9"])
     plt.tight_layout()
     plt.show()

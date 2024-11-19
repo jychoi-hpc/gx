@@ -131,7 +131,9 @@ Lie_Trotter::~Lie_Trotter()
   if (B1)    delete B1; 
   if (B2)    delete B2; 
   if (B3)    delete B3; 
-  if (G1)    delete G1; 
+  if (G1)    delete G1;
+  if (G0)    delete G1; 
+
   if (grad_par) delete grad_par;
 }
 
@@ -320,15 +322,15 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
 //   invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
    invert_bounce(G, f, 1.*dt_);
 
-
-/*    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+/*    invert_bounce(G, f, a*dt_);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
       linear_->rhs_bounce(G[is], f, A1[is], dt_);
       G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
     }
-    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
+
+    invert_bounce(G, f, a*dt_);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
@@ -343,7 +345,6 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G, f);
 //    invert_streaming(G, G0, f, 1.*dt_,gradpar_, flip);
 
-//    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
@@ -357,8 +358,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->copyFrom(G[is]);
     }
 
-//    invert_streaming(G, G_sm_phi, G_sm_apar, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
-    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+    invert_streaming(G, G1, f, a*dt_,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
@@ -379,8 +379,6 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
         G0[is]->copyFrom(G[is]);
     }
 
-//    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-//    invert_streaming(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
@@ -394,7 +392,6 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
       G1[is]->copyFrom(G[is]);
     }
 
-//    invert_streaming(G, G_sm_phi, G_sm_apar, G1, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
     invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
