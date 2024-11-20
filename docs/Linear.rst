@@ -100,11 +100,11 @@ The ``[Initialization]`` group controls the initial conditions.
 .. code-block:: toml
 
   [Initialization]
-   ikpar_init = 0                  # parallel wavenumber of initial perturbation
+   gaussian_init = true            # initial perturbation is a gaussian in theta
    init_field = "density"          # initial condition set in density
-   init_amp = 1.0                  # amplitude of initial condition
+   init_amp = 1.0e-10              # amplitude of initial condition
 
-Here we set up an initial condition that is constant along the field line (``ikpar_init = 0``) with initial perturbation amplitude ``init_amp = 1.0`` in the density moment (``init_field = "density"``). By default, a random initial condition satisfying these constraints is used. For some linear cases, it can be useful to set ``fixed_amplitude = true`` in the ``[Diagnostics]`` block below, which will ensure that the amplitude never gets too large. When using this option, it is safe to use an order unity value for ``init_amp``, as we do here. Otherwise, ``init_amp`` should be set to something small (e.g. ``1e-10`` for a linear calculation).
+Here we set up an initial condition that is Gaussian along the field line (``gaussian_init = true``) with initial perturbation amplitude ``init_amp = 1.0e-10`` in the density moment (``init_field = "density"``). For some linear cases, it can be useful to set ``fixed_amplitude = true`` in the ``[Diagnostics]`` block below, which will ensure that the amplitude never gets too large. When using this option, it is safe to use an order unity value for ``init_amp``, as we do here. Otherwise, ``init_amp`` should be set to something small (e.g. ``1e-10`` for a linear calculation).
 
 .. _lingeo:
   
@@ -151,7 +151,7 @@ The ``[species]`` group specifies parameters like charge, mass, and gradients of
    vnewk = [ 0.0,       0.0     ]         # collision frequency
    type  = [ "ion",  "electron" ]         # species type
 
-Note that species parameters ``z, mass, dens, temp`` are normalized to the corresponding value of the reference species, which can be chosen arbitrarily. Here we only have a single species, so we simply choose the ions as the reference species, meaning :math:`z_i = Z_i/Z_\mathrm{ref} = 1.0` etc. Also, note that the species tables can have extra species data; only the first ``nspecies`` elements will be used.
+Note that species parameters ``z, mass, dens, temp`` are normalized to the corresponding value of the reference species, which can be chosen arbitrarily. Here we only have a single species, so we simply choose the ions as the reference species, meaning :math:`z_i = Z_i/Z_\mathrm{ref} = 1.0` etc. Also, note that the species tables can have extra species data; only the first ``nspecies`` (here ``nspecies`` = 1) elements will be used.
 
 .. _linboltz:
   
@@ -179,10 +179,6 @@ The ``[Dissipation]`` group controls numerical dissipation parameters.
   [Dissipation]
    closure_model = "none"          # no closure assumptions (just truncation)
    hypercollisions = true          # use hypercollision model
-   nu_hyper_m = 0.1                # coefficient of hermite hypercollisions
-   p_hyper_m = 6                   # power of hermite hypercollisions
-   nu_hyper_l = 0.1                # coefficient of laguerre hypercollisions
-   p_hyper_l = 6                   # power of laguerre hypercollisions
 
 We do not make any closure assumptions (``closure_model = "none"``), instead opting for a simple truncation of the moment series. In lieu of closures, hypercollisions can provide the necessary dissipation at small scales in velocity space (large hermite and laguerre index). 
 .. Here we use a hypercollision operator of the form
@@ -195,37 +191,18 @@ We do not make any closure assumptions (``closure_model = "none"``), instead opt
 Diagnostics
 ===========
 
-The ``[Diagnostics]`` group controls the diagnostic quantities that are computed and written to the NetCDF output file.
+The ``[Diagnostics]`` group controls the diagnostic quantities that are computed and written to the NetCDF output files.
 
 .. code-block:: toml
 
   [Diagnostics]
-   nwrite = 1000                   # write diagnostics every 1000 timesteps
-   omega  = true                   # compute and write growth rates and frequencies
-   fixed_amplitude = true          # avoid silly large numbers, but use only in linear cases, and without linked boundary option
+   nwrite = 100                   # write diagnostics every nwrite timesteps
+   omega  = true                  # compute and write growth rates and frequencies
+   free_energy = true             # compute and write free energy spectra (Wg, Wphi, Phi**2)
+   fields = true                  # write fields on the grid
+   moments = true                 # write moments on the grid
 
-
-  # spectra of W = |G_lm|**2
-  [Wspectra]
-   species          = false
-   hermite          = false
-   laguerre         = false
-   hermite_laguerre = true          # W(l,m) (summed over kx, ky, z)
-   kx               = false
-   ky               = true          # W(ky) (summed over kx, z, l, m)
-   kxky             = false
-   z                = false
-  
-  # spectra of P = ( 1 - Gamma_0(b_s) ) |Phi|**2
-  [Pspectra]
-   species          = false
-   kx               = false
-   ky               = true         # P(ky) (summed over kx, z)
-   kxky             = false
-   z                = true         # P(z) (summed over kx, ky)
-
-
-For linear calculations, we can request to compute and write growth rates and real frequencies by using ``omega = true``. Additionally, various spectra can be computed as specified by the ``[Wspectra]`` and ``[Pspectra]`` groups.
+For linear calculations, we can request to compute and write growth rates and real frequencies by using ``omega = true``.
 
 Running the simulation
 ----------------------
@@ -236,7 +213,7 @@ To run the simulation from the ``benchmarks/linear/ITG_cyclone`` directory, we c
 
   ../../../gx itg_miller_adiabatic_electrons.in
 
-This will generate an output file in NetCDF format called ``itg_miller_adiabatic_electrons.nc`` (in the same directory).
+This will generate an output file in NetCDF format called ``itg_miller_adiabatic_electrons.out.nc`` (in the same directory).
 
 Plotting the results
 --------------------
@@ -244,46 +221,18 @@ Plotting the results
 Growth Rates & Frequencies
 ==========================
 
-We can plot the growth rates and real frequencies using the following python script:
+We can plot the growth rates and real frequencies using the ``growth_rates.py`` script in the ``post_processing`` directory:
 
-.. code-block:: python
-  
-  import numpy as np
-  import matplotlib.pyplot as plt
-  from matplotlib.ticker import AutoMinorLocator
-  from netCDF4 import Dataset
+.. code-block:: bash
 
-  fig, (ax1, ax2) = plt.subplots(2)
-
-  # read gx data
-  stem = "itg_miller_adiabatic_electrons"
-  data = Dataset("%s.nc" % stem, mode='r')
-  t = data.variables['time'][:]
-  ky = data.variables['ky'][1:]
-  omegas = data.groups['Special'].variables['omega_v_time'][:,1:,0,0]
-  gams = data.groups['Special'].variables['omega_v_time'][:,1:,0,1]
-  omavg = np.mean(omegas[int(len(t)/2):, :], axis=0)
-  gamavg = np.mean(gams[int(len(t)/2):, :], axis=0)
-
-  # plot growth rates and frequencies
-  ax1.plot(ky, gamavg, 'o', fillstyle='none')
-  ax2.plot(ky, omavg, 'o', fillstyle='none', label='GX')
-
-  ax1.xaxis.set_minor_locator(AutoMinorLocator())
-  ax2.xaxis.set_minor_locator(AutoMinorLocator())
-  
-  ax1.yaxis.set_minor_locator(AutoMinorLocator())
-  ax2.yaxis.set_minor_locator(AutoMinorLocator())
-  
-  ax1.set_xlim(left=0)
-  ax2.set_xlim(left=0)
-  ax1.set_ylabel(r'$\gamma\ a / v_{ti}$')
-  ax2.set_ylabel(r'$\omega\ a / v_{ti}$')
-  ax2.set_xlabel(r'$k_y \rho_i$')
-  ax2.legend()
-  plt.tight_layout()
-  plt.show()
+  python post_processing/growth_rates.py itg_miller_adiabatic_electrons.out.nc
  
 .. figure:: figures/itg_miller_adiabatic_electrons_growth_rates.png
    :align: center
 
+We can plot the eigenfunctions using the ``fields.py`` script in the ``post_processing`` directory. The fields diagnostics are stored in the ``itg_miller_adiabatic_electrons.big.nc`` file.
+
+.. code-block:: bash
+
+  python post_processing/fields.py itg_miller_adiabatic_electrons.big.nc
+  
