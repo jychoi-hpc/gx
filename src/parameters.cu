@@ -118,7 +118,7 @@ void Parameters::get_nml_vars(char* filename)
   SundialsMinStep = toml::find_or<float>( tnml, "SundialsMinStep", -1.0 );
   SundialsMaxStep = toml::find_or<float>( tnml, "SundialsMaxStep", -1.0 );
   SundialsAbsTol = toml::find_or<float>( tnml, "SundialsAbsTol", 1e-2 );
-  SundialsRelTol = toml::find_or<float>( tnml, "SundialsRelTol", 1e-4 );
+  SundialsRelTol = toml::find_or<float>( tnml, "SundialsRelTol", 1e-3 );
   SundialsFixedTimestep = toml::find_or<bool>( tnml, "SundialsFixedTimestep", false );
   SundialsExplicitOrder = toml::find_or<int>( tnml, "SundialsExplicitOrder", 0 );
   SundialsMaxInternalSteps = toml::find_or<int>( tnml, "SundialsMaxInternalSteps", 0 ); // Defaulting to 0 reverts to the SUNDIALS Default
