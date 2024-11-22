@@ -171,6 +171,8 @@ class Parameters {
   float B_ref, a_ref, grhoavg, surfarea;
   float t_max, t_add;
   float zero_shat_threshold;
+  bool early_exit;
+  float early_exit_time, early_exit_threshold;
 
   unsigned int random_seed;
 

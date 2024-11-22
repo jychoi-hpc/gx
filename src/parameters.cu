@@ -111,6 +111,9 @@ void Parameters::get_nml_vars(char* filename)
   t_add = toml::find_or <float> (tnml, "t_add", -1.0);
   int nwrite_time  = toml::find_or <int>   (tnml, "nwrite",   1000    ); // included for backwards-compat. nwrite now specified in Diagnostics
   int navg_time    = toml::find_or <int>   (tnml, "navg",       10    ); // included for backwards-compat. navg now specified in Diagnostics
+  early_exit = toml::find_or <bool> (tnml, "early_exit", false);
+  early_exit_threshold = toml::find_or <float> (tnml, "early_exit_threshold", 0.01);
+  early_exit_time = toml::find_or <float> (tnml, "early_exit_time", 100.0);
 
   if (nml.contains("Initialization")) tnml = toml::find(nml, "Initialization");
   init_field = toml::find_or <string> (tnml, "init_field", "density");

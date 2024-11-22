@@ -59,6 +59,7 @@ private:
 
   void get_rh    (Fields* f);
 
+  unique_ptr<SpectraDiagnostic> heat_flux_diagnostic;
   vector<unique_ptr<SpectraDiagnostic>> spectraDiagnosticList;
   GrowthRateDiagnostic *growthRateDiagnostic;
   vector<unique_ptr<MomentsDiagnostic>> momentsDiagnosticList;

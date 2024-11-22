@@ -250,6 +250,7 @@ HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry*
   add_spectra(allSpectra->kxkyst_spectra);
   add_spectra(allSpectra->zst_spectra);
   //add_spectra(allSpectra->kxkyzst_spectra);
+  max_so_far = 0.0;
 }
 
 void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
@@ -269,6 +270,7 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
 
   // get Q(t) data to write to screen
   float *fluxes = spectraList[0]->get_data();
+  max_so_far = max(max_so_far, fluxes[0]);
 
   if(!skipWrite) {
     for (int is=0; is<grids_->Nspecies; is++) {
@@ -276,6 +278,7 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
       const char *spec_string = pars_->species_h[is_glob].type == 1 ? "e" : "i";
       printf ("Q_%s = %.3e   ", spec_string, fluxes[is]);
     }
+    printf ("Qmax = %.3e   ", max_so_far);
   }
 }
 

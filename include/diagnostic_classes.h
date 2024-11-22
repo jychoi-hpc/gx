@@ -110,6 +110,7 @@ class HeatFluxDiagnostic : public SpectraDiagnostic {
  public:
   HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+  float max_so_far = 0.0;
 };
 
 class HeatFluxESDiagnostic : public SpectraDiagnostic {

@@ -59,8 +59,9 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   }
 
   // initialize flux spectra diagnostics
+  heat_flux_diagnostic = std::make_unique<HeatFluxDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_);
   if(pars_->write_fluxes) {
-    spectraDiagnosticList.push_back(std::make_unique<HeatFluxDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
+    spectraDiagnosticList.push_back(heat_flux_diagnostic);
     spectraDiagnosticList.push_back(std::make_unique<HeatFluxESDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<HeatFluxAparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<HeatFluxBparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
@@ -396,6 +397,11 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   
   // check to see if we should stop simulation
   stop = checkstop();
+
+  if ((pars_->early_exit) && (time >= pars_->early_exit_time) && (heat_flux_diagnostic->max_so_far < pars_->early_exit_threshold)) {
+    stop = true;
+    printf("Early exit condition met: heat flux below threshold\n");
+  }
   return stop;
 }
 
