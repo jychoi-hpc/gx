@@ -13,7 +13,7 @@ else:
   iky = None
   files = sys.argv[1:]
 
-styles = ['-','--']
+styles = ['-','-','-']
 count = 0
 for fname in files:
   data = Dataset("%s"%fname, mode='r')

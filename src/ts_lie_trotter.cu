@@ -39,8 +39,9 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     B3[is] = new MomentsG (pars_, grids_, is_glob);
     G1[is] = new MomentsG (pars_, grids_, is_glob);
     
-    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
+//    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
 //    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1. + sqrtf(2.)/2., 0.0, true, (double) pars_->dt, A1[is]->species->vt);
+    mirror[is] = new Cublas_test(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[is]->species->vt);
 
     checkCudaErrors(cudaGetLastError());
 
@@ -166,13 +167,41 @@ void Lie_Trotter::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, bool set
   // compute nonlinear terms explicitly for all species
 }
 
+void Lie_Trotter::implicit_bounce(MomentsG** B, MomentsG** G, Fields* f)
+{
+  for (int is=0; is<grids_->Nspecies; is++) {
+    B[is]->set_zero();
+    if(is == ielectron){
+//      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+      linear_->rhs_bounce(G[is], f, B[is], dt_);
+
+    }
+  }
+}
+
 void Lie_Trotter::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
 {
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
     if(is == ielectron){
-      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
-//      linear_->rhs_streaming(G[is], f, B[is], dt_);
+//      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
+
+    }
+    else{
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
+    }
+  }
+}
+
+
+void Lie_Trotter::implicit_streaming(MomentsG** B, MomentsG** G, Fields* f)
+{
+  for (int is=0; is<grids_->Nspecies; is++) {
+    B[is]->set_zero();
+    if(is == ielectron){
+//      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+      linear_->rhs_streaming(G[is], f, B[is], dt_);
 
     }
     else{
@@ -266,22 +295,22 @@ void Lie_Trotter::invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, doub
   }
 }
 
-void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt){
+void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt, float dt){
   explicit_terms(A1, G, f, false);
   for(int is=0; is<grids_->Nspecies; is++) {
-    G1[is]->add_scaled(1., G[is], dt_, A1[is]);
+    G1[is]->add_scaled(1., G[is], dt, A1[is]);
   }
   solver_->fieldSolve(G1,f);
 
   explicit_terms(A2,G1,f,false);
   for(int is=0; is<grids_->Nspecies; is++) {
-    G1[is]->add_scaled(1., G[is], 1./4.*dt_, A1[is], 1./4.*dt_, A2[is]);
+    G1[is]->add_scaled(1., G[is], 1./4.*dt, A1[is], 1./4.*dt, A2[is]);
   }
   solver_->fieldSolve(G1,f);
 
   explicit_terms(A3,G1,f,false);
   for(int is=0; is<grids_->Nspecies; is++) {
-    G[is]->add_scaled(1., G[is], 1./6.*dt_, A1[is], 1./6.*dt_, A2[is], 2./3.*dt_, A3[is]);
+    G[is]->add_scaled(1., G[is], 1./6.*dt, A1[is], 1./6.*dt, A2[is], 2./3.*dt, A3[is]);
   }
   solver_->fieldSolve(G,f);
 
@@ -291,6 +320,7 @@ void Lie_Trotter::ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG**
 void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
 {
   float a = 1. + sqrtf(2.)/2.;
+  float fac = 1.;
   // update the gradients if they are evolving
   for(int is=0; is<grids_->Nspecies; is++) {
     G[is] -> update_tprim(*t);
@@ -300,7 +330,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
   if(!flip){
     checkCudaErrors(cudaGetLastError()); 
 
-    ssprk3(A1, A2, A3, G, G1, f, false); 
+    ssprk3(A1, A2, A3, G, G1, f, false, dt_/fac); 
     solver_->fieldSolve(G, f);       
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
@@ -319,23 +349,48 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
       G0[is]->copyFrom(G[is]);
     }*/
 
-//   invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-   invert_bounce(G, f, 1.*dt_);
+//   invert_bounce(G, f, 1.*dt_);
 
-/*    invert_bounce(G, f, a*dt_);
+
+    implicit_bounce(A1, G, f);
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], q_*dt_, A1[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_bounce(G, f, r_*dt_/fac);
+    solver_->fieldSolve(G, f);
+    implicit_bounce(A2, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], s_*dt_, A1[is], t_*dt_, A2[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_bounce(G, f, u_*dt_/fac);
+    solver_->fieldSolve(G, f);
+    implicit_bounce(A3, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], w1*dt_, A1[is], w2*dt_, A2[is], w3*dt_, A3[is]);
+    }
+
+
+
+/*    invert_bounce(G, f, a*dt_/fac);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
-      linear_->rhs_bounce(G[is], f, A1[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
+      linear_->rhs_bounce(G[is], f, A1[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is]);
     }
 
-    invert_bounce(G, f, a*dt_);
+    invert_bounce(G, f, a*dt_/fac);
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
-      linear_->rhs_bounce(G[is], f, A2[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is], a*dt_, A2[is]);
+      linear_->rhs_bounce(G[is], f, A2[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is], a*dt_/fac, A2[is]);
     }*/
 
     for(int is=0; is<grids_->Nspecies; is++) {
@@ -345,27 +400,51 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G, f);
 //    invert_streaming(G, G0, f, 1.*dt_,gradpar_, flip);
 
-    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+    implicit_terms(A1, G, f);
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], q_*dt_, A1[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_streaming(G, G1, f, r_*dt_/fac,gradpar_, flip);
+    solver_->fieldSolve(G, f);
+    implicit_terms(A2, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], s_*dt_, A1[is], t_*dt_, A2[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_streaming(G, G1, f, u_*dt_/fac,gradpar_, flip);
+    solver_->fieldSolve(G, f);
+    implicit_terms(A3, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], w1*dt_, A1[is], w2*dt_, A2[is], w3*dt_, A3[is]);
+    }
+
+
+/*    invert_streaming(G, G0, f, a*dt_/fac,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
-      linear_->rhs_streaming(G[is], f, A1[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
+      linear_->rhs_streaming(G[is], f, A1[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is]);
     }
     
     for(int is=0; is<grids_->Nspecies; is++) {
       G1[is]->copyFrom(G[is]);
     }
 
-    invert_streaming(G, G1, f, a*dt_,gradpar_, flip);
+    invert_streaming(G, G1, f, a*dt_/fac,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
-      linear_->rhs_streaming(G[is], f, A2[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is], a*dt_, A2[is]);
-    }
+      linear_->rhs_streaming(G[is], f, A2[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is], a*dt_/fac, A2[is]);
+    }*/
 
 
     for(int is=0; is<grids_->Nspecies; is++) {
@@ -373,58 +452,109 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     }
 
     solver_->fieldSolve(G, f);
-  }
+  }//FLIPPPPPP
   else{
     for(int is=0; is<grids_->Nspecies; is++) {
         G0[is]->copyFrom(G[is]);
     }
 
-    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+    implicit_terms(A1, G, f);
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], q_*dt_, A1[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_streaming(G, G1, f, r_*dt_/fac,gradpar_, flip);
+    solver_->fieldSolve(G, f);
+    implicit_terms(A2, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], s_*dt_, A1[is], t_*dt_, A2[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_streaming(G, G1, f, u_*dt_/fac,gradpar_, flip);
+    solver_->fieldSolve(G, f);
+    implicit_terms(A3, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], w1*dt_, A1[is], w2*dt_, A2[is], w3*dt_, A3[is]);
+    }
+
+
+/*    invert_streaming(G, G0, f, a*dt_/fac,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
-      linear_->rhs_streaming(G[is], f, A1[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
+      linear_->rhs_streaming(G[is], f, A1[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is]);
     }
-
+    
     for(int is=0; is<grids_->Nspecies; is++) {
       G1[is]->copyFrom(G[is]);
     }
 
-    invert_streaming(G, G0, f, a*dt_,gradpar_, flip);
+    invert_streaming(G, G1, f, a*dt_/fac,gradpar_, flip);
 
     solver_->fieldSolve(G, f);
     for(int is = 0; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
-      linear_->rhs_streaming(G[is], f, A2[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is], a*dt_, A2[is]);
-    }
+      linear_->rhs_streaming(G[is], f, A2[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is], a*dt_/fac, A2[is]);
+    }*/
 
+//    invert_streaming(G, G0, f, 1.*dt_,gradpar_, flip);
+    
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
     }
 
-    solver_->fieldSolve(G, f);       
-//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, 1.*dt_,gradpar_, bmagInv_, ielectron, flip);
-//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
-    invert_bounce(G, f, a*dt_);
+    solver_->fieldSolve(G, f);
+
+    implicit_bounce(A1, G, f);
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], q_*dt_, A1[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_bounce(G, f, r_*dt_/fac);
+    solver_->fieldSolve(G, f);
+    implicit_bounce(A2, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], s_*dt_, A1[is], t_*dt_, A2[is]);
+      G1[is]->copyFrom(G[is]);
+    }
+
+    invert_bounce(G, f, u_*dt_/fac);
+    solver_->fieldSolve(G, f);
+    implicit_bounce(A3, G, f);
+
+    for(int is = 0; is < grids_->Nspecies; is++){
+      G[is]->add_scaled(1., G0[is], w1*dt_, A1[is], w2*dt_, A2[is], w3*dt_, A3[is]);
+    }
+
+
+//    invert_bounce(G, f, 1.*dt_);
+
+/*    invert_bounce(G, f, a*dt_/fac);
 
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A1[is]->set_zero();
-      linear_->rhs_bounce(G[is], f, A1[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is]);
+      linear_->rhs_bounce(G[is], f, A1[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is]);
     }
-//    invert_bounce(G, G_sm_phi, G_sm_apar, G0, G2, f, phi_l, apar_l, a*dt_,gradpar_, bmagInv_, ielectron, flip);
-   invert_bounce(G, f, a*dt_);
+
+    invert_bounce(G, f, a*dt_/fac);
 
     solver_->fieldSolve(G, f);
     for(int is = ielectron; is < grids_->Nspecies; is++){
       A2[is]->set_zero();
-      linear_->rhs_bounce(G[is], f, A2[is], dt_);
-      G[is]->add_scaled(1., G0[is], (1.-a)*dt_, A1[is], a*dt_, A2[is]);
-    }
+      linear_->rhs_bounce(G[is], f, A2[is], dt_/fac);
+      G[is]->add_scaled(1., G0[is], (1.-a)*dt_/fac, A1[is], a*dt_/fac, A2[is]);
+    }*/
 
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
@@ -433,7 +563,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G, f);       
     checkCudaErrors(cudaGetLastError()); 
     
-    ssprk3(A1, A2, A3, G, G1, f, false);
+    ssprk3(A1, A2, A3, G, G1, f, false, dt_/fac);
     for(int is=0; is<grids_->Nspecies; is++) {
       G0[is]->copyFrom(G[is]);
     }

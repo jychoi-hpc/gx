@@ -699,8 +699,8 @@ void GradParallelLinked::zft_streaming_invert_apar(MomentsG* G, MomentsG* Gr, cu
 
     linkedCopyBack GCHAINS (G_linked[c], G->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
     linkedCopyBack GCHAINS (Gr_linked[c], Gr->G(), nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
-    linkedCopyBack GCHAINS (phi_linked[c], phi, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
-    linkedCopyBack GCHAINS (apar_linked[c], apar, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
+//    linkedCopyBack GCHAINS (phi_linked[c], phi, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
+//    linkedCopyBack GCHAINS (apar_linked[c], apar, nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], 1);
     
     checkCudaErrors(cudaGetLastError());
 

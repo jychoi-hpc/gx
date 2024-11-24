@@ -113,10 +113,11 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
                         pars_->species_h[is_glob], pars_->beta, is_glob==0, pars_->fapar, pars_->fbpar, pars_->long_wavelength_GK);
 
     
-    find_max_fac_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv, qneutFacPhi_inv_l[is_glob], max_qneutFacPhi_inv_l[is_glob], qneutFacBpar, max_qneutFacBpar_inv, ampereParFac, max_ampereParFac_inv, amperePerpFacPhi, max_amperePerpFacPhi_inv, amperePerpFacBpar, max_amperePerpFacBpar_inv, BparDenom, max_Jflr[is_glob], geo_->kperp2, pars_->species_h[is_glob], geo_->bmagInv, pars_->fapar, pars_->fbpar);   
-    checkCudaErrors(cudaGetLastError()); 
-   
-    
+    checkCudaErrors(cudaGetLastError());     
+
+  }
+  for(int is_glob=0; is_glob<grids_->Nspecies_glob; is_glob++){
+      find_max_fac_inv <<< dg, db >>>(qneutFacPhi, max_qneutFacPhi_inv, qneutFacPhi_inv_l[is_glob], max_qneutFacPhi_inv_l[is_glob], qneutFacBpar, max_qneutFacBpar_inv, ampereParFac, max_ampereParFac_inv, amperePerpFacPhi, max_amperePerpFacPhi_inv, amperePerpFacBpar, max_amperePerpFacBpar_inv, BparDenom, max_Jflr[is_glob], geo_->kperp2, pars_->species_h[is_glob], geo_->bmagInv, pars_->fapar, pars_->fbpar);   
 
   }
 

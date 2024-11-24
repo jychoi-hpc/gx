@@ -2361,7 +2361,7 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
         if (max_f > 1.0f/ampereParFac[idxyz]){
           max_f = 1.0f/ampereParFac[idxyz];
         }
-	//max_f += 1.0f/ampereParFac[idxyz];
+//	max_f += 1.0f/ampereParFac[idxyz];
       }
       if(fbpar > 0.){
         if (max_w < qneutFacPhi[idxyz]*bmagInv[iz]*bmagInv[iz]/(BparDenom[idxyz])){
@@ -2379,6 +2379,7 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
       }
        
     }
+    printf("max_f is %f\n", max_f);
 //    max_f = max_f / nz;
     max_qneutFacPhi_inv[idxy] = max_q;
     if(fapar > 0.){
@@ -6082,10 +6083,10 @@ __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuCom
   if ((idy < nyc) && (idx < nx) && unmasked(idx, idy) && (idzl < nz*nl)) {
     cuComplex gam[128]; // this temp array needs to have length > nhermite. 128 feels safe for now.
     float Q = 0.0f;
-    float F = 0.0f;
+    float F = 1.0/ampereParFac[idxy];
     for(int iz=0; iz<nz; iz++) {
       // compute z avg of qneutDenom so that the z dependence does not break things in k space
-      if(F < 1.0f/ampereParFac[idxy + nxnyc*iz]){
+      if(F > 1.0f/ampereParFac[idxy + nxnyc*iz]){
       	F = 1.0f/ampereParFac[idxy + nxnyc*iz];
       }
       if(Q < 1.0f/qneutDenom[idxy + nxnyc*iz]){
@@ -6102,6 +6103,8 @@ __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuCom
     cuComplex bet = bm;
     if (idz == idzl){
       g[globalIdx] = (g[globalIdx] + sdtvt * ikz * gradpar * sp.zt * sp.vt * apar[idxy + nxnyc*idz])/bet;
+//      g[globalIdx] = (g[globalIdx] + sdtvt * ikz * gradpar * sp.zt * sp.vt * apar[idxy + nxnyc*idz] - sdtvt*ikz*gradpar*F*gr[idxy + nxnyc*(idz + nlnz)])/bet;
+
  
     }
     else{
@@ -6129,12 +6132,16 @@ __global__ void tridiag_streaming_periodic_em(cuComplex* g, cuComplex* gr, cuCom
 	else{
           cmm1 = cmm1 - sdtvt * ikz * gradpar * F;
 	  am = am + sdtvt*ikz*gradpar*Q;
+//  	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz] + sdtvt*ikz*gradpar*Q*gr[idxy + nxnyc*idz];	  	  
   	  rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idxy + nxnyc*idz];	  	  
+
 	}
       }
       else if (idm == 2 && idz == idzl){
         am = am - sdtvt * ikz * gradpar * F * sqrtf(2.);
+//	rm = rm + sdtvt * ikz * gradpar * sp.zt * sp.vt * apar[idxy + nxnyc*idz] * sqrtf(2.) - sdtvt*ikz*gradpar*F*sqrtf(2.)*gr[idxy+nxnyc*(idz +nlnz)];
 	rm = rm + sdtvt * ikz * gradpar * sp.zt * sp.vt * apar[idxy + nxnyc*idz] * sqrtf(2.);	
+
 
       }
               
@@ -6382,7 +6389,6 @@ __global__ void tridiag_streaming_linked_apar(cuComplex* g, cuComplex* gr, cuCom
     }
     Q = sp.nz*sp.zt*Q;
     F = sp.nz*sp.zt*sp.vt*sp.vt*F*beta/2;
-
     int idm = 0; // this cannot be unsigned (see below)
     unsigned int globalIdx = idzk + nznk * (idl + nl*idm); 
     cuComplex ikz = make_cuComplex(0.0f, kz[nz*idx + idz]);
@@ -6400,6 +6406,7 @@ __global__ void tridiag_streaming_linked_apar(cuComplex* g, cuComplex* gr, cuCom
     else{
       if(full_phi){
         g[globalIdx] = (g[globalIdx] + sdtvt*ikz*gradpar*sp.zt*sp.vt*apar[idzk])/bet;
+
       }
       else{
         g[globalIdx] = g[globalIdx]/bet;
@@ -6421,7 +6428,7 @@ __global__ void tridiag_streaming_linked_apar(cuComplex* g, cuComplex* gr, cuCom
       //phi for the rhs.
       if(idm==1) {
 	if (idl==0){
-	  cmm1 = cmm1 - sdtvt * ikz * gradpar * F;
+	  cmm1 = cmm1 -sdtvt * ikz * gradpar * F;
 	  am = am + sdtvt*ikz*gradpar*Q;
 	  if (full_phi){
   	    rm = rm - sdtvt*ikz*gradpar*sp.zt*phi[idzk] + sdtvt*ikz*gradpar*Q*gr[idzk];
@@ -6474,6 +6481,8 @@ __global__ void tridiag_streaming_linked_apar(cuComplex* g, cuComplex* gr, cuCom
     }
   }
 }
+
+
 
 
 __global__ void tridiag_streaming_linked(cuComplex* g, cuComplex* gr, cuComplex* phi, const float* kz, float* max_qneutFacPhi_inv, const specie sp, const double sdtvt, const float gradpar, bool full_phi, int nLinks, int nChains)

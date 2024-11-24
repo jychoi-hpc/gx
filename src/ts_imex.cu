@@ -191,6 +191,7 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* G0, MomentsG** 
 
       // FFT G_e
       grad_par->zft(G1[ielectron]);
+      grad_par->zft(Gr[ielectron]);
 
       int max_iter = pars_->implicit_max_iter_streaming;
       double omega = pars_->implicit_omega_streaming;
@@ -368,6 +369,8 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G1, f);         
   // G1_e = G_e + a21*dt*A1_e + q_*dt*B1_e
   G1[ielectron]->add_scaled(1., G[ielectron], a21*dt_, A1[ielectron], q_*dt_, B1[ielectron]);
+//  solver_->fieldSolve(G1, f);        
+
   // G1_e = inv(I - r_*dt*B)*G1_e
   G0[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
@@ -399,6 +402,8 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   G1[ielectron]->add_scaled(1., G[ielectron], a31*dt_, A1[ielectron], a32*dt_, A2[ielectron], 
 		            s_*dt_, B1[ielectron], t_*dt_, B2[ielectron]);
   // G1 = inv(I - u_*dt*B)*G1
+  //solver_->fieldSolve(G1, f);        
+
   G0[ielectron]->copyFrom(G1[ielectron]);
   Gr[ielectron]->copyFrom(G1[ielectron]);
 
@@ -433,6 +438,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   
   G1[ielectron]->add_scaled(1., G[ielectron], a41*dt_, A1[ielectron], a42*dt_, A2[ielectron], a43*dt_, A3[ielectron]);
   G1[ielectron]->add_scaled(1., G1[ielectron], w_*dt_, B1[ielectron], x_*dt_, B2[ielectron], y_*dt_, B3[ielectron]);
+//  solver_->fieldSolve(G1, f);        
 
   // G1 = inv(I - u_*dt*B)*G1
   G0[ielectron]->copyFrom(G1[ielectron]);

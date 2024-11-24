@@ -196,12 +196,11 @@ class SSPRK3 : public Timestepper {
   double dt_;
 };
 
-
-class Lie_Trotter : public Timestepper {
+class Lie_Trotter_Elec : public Timestepper {
  public:
-  Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+  Lie_Trotter_Elec(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
-  ~Lie_Trotter();
+  ~Lie_Trotter_Elec();
   void advance(double* t, MomentsG** G, Fields* fields);
 //  double get_dt() {return dt_;};
   double get_dt();
@@ -216,7 +215,7 @@ class Lie_Trotter : public Timestepper {
 //
   void invert_bounce(MomentsG** G1, Fields *f, double sdt);
 
-  void invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, bool flip);
+  void invert_streaming(MomentsG** G1, MomentsG* G0, MomentsG** Gr, Fields *f, double sdt,const float gradpar_, bool flip);
 
 
   void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt);
@@ -246,6 +245,159 @@ class Lie_Trotter : public Timestepper {
 
   MomentsG     ** G0         ;
   MomentsG     ** G2         ;
+  MomentsG     ** A1         ;
+  MomentsG     ** A2         ;
+  MomentsG     ** A3         ;
+  MomentsG     ** B1         ;
+  MomentsG     ** B2         ;
+  MomentsG     ** B3         ;
+  Cublas_test  ** mirror     ;
+//  Cusolve      ** mirror    ;
+  Fields	* f1	     ;
+  cuComplex    ** phi_l      ;
+  cuComplex    ** apar_l      ;
+
+  double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  const float gradpar_;
+  const float* bmagInv_;
+  const float* kperp2_;
+  bool flip;
+  dim3 dG, dB, dG_lw, dB_lw, dG_m1, dB_m1, dG_m2, dB_m2;
+};
+
+
+class Lie_Trotter : public Timestepper {
+ public:
+  Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
+  ~Lie_Trotter();
+  void advance(double* t, MomentsG** G, Fields* fields);
+//  double get_dt() {return dt_;};
+  double get_dt();
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+  void implicit_streaming(MomentsG** G1, MomentsG** G, Fields* f);
+  void implicit_bounce(MomentsG** G1, MomentsG** G, Fields* f);
+
+  void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+
+//  void invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+
+//  void invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+//
+  void invert_bounce(MomentsG** G1, Fields *f, double sdt);
+
+  void invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, bool flip);
+
+
+  void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt, float dt);
+
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
+
+
+ private:
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
+  const double dt_max;
+
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Geometry     * geo_       ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Cublas_test  * cublas_    ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG     ** G1         ;
+  cuComplex    ** G_sm_s_phi         ;
+  cuComplex    ** G_sm_s_apar         ;
+  cuComplex    ** G_sm_b_apar         ;
+
+  MomentsG     ** G0         ;
+  MomentsG     ** G2         ;
+  MomentsG     ** A1         ;
+  MomentsG     ** A2         ;
+  MomentsG     ** A3         ;
+  MomentsG     ** B1         ;
+  MomentsG     ** B2         ;
+  MomentsG     ** B3         ;
+  Cublas_test  ** mirror     ;
+//  Cusolve      ** mirror    ;
+  Fields	* f1	     ;
+  cuComplex    ** phi_l      ;
+  cuComplex    ** apar_l      ;
+
+  double dt_;
+  int ielectron;
+  double vte;
+  double zte;
+  const float gradpar_;
+  const float* bmagInv_;
+  const float* kperp2_;
+  bool flip;
+  dim3 dG, dB, dG_lw, dB_lw, dG_m1, dB_m1, dG_m2, dB_m2;
+};
+
+
+class Strang : public Timestepper {
+ public:
+  Strang(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+	Parameters *pars, Grids *grids, Geometry *geo, Forcing *forcing, double dt_in, const float gradpar, const float* bmagInv, const float* kperp2);
+  ~Strang();
+  void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt() {return dt_;};
+//  double get_dt();
+  void explicit_terms(MomentsG** G1, MomentsG** G, Fields* f, bool setdt);
+  void implicit_terms(MomentsG** G1, MomentsG** G, Fields* f);
+
+
+  void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, int ielectron);
+
+
+//  void invert_bounce(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+
+//  void invert_streaming(MomentsG** G1, cuComplex** Gc, cuComplex** Gr, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron, bool flip);
+//
+  void invert_bounce(MomentsG** G1, Fields *f, double sdt);
+
+  void invert_streaming(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, bool flip);
+
+
+  void ssprk3(MomentsG** A1, MomentsG** A2, MomentsG** A3, MomentsG** G, MomentsG** G1, Fields* f, bool setdt, float dt);
+
+  double a21, a31, a32, w1, w2, w3;
+  double p_, q_, r_, s_, t_, u_;
+  bool sdirk;
+
+
+ private:
+  void EulerStep(MomentsG** G1, MomentsG** G0, MomentsG** GRhs, Fields* f, bool setdt);
+  const double dt_max;
+
+  Linear       * linear_    ;
+  Nonlinear    * nonlinear_ ;
+  Solver       * solver_    ;
+  Geometry     * geo_       ;
+  Parameters   * pars_      ;
+  Grids        * grids_     ;
+  Cublas_test  * cublas_    ;
+  Forcing      * forcing_   ;
+  GradParallel * grad_par   ;
+  MomentsG     ** G1         ;
+  cuComplex    ** G_sm_s_phi         ;
+  cuComplex    ** G_sm_s_apar         ;
+  cuComplex    ** G_sm_b_apar         ;
+
+  MomentsG     ** G0         ;
+  MomentsG     ** G2         ;
+  MomentsG     ** G3         ;
+  MomentsG     ** G4         ;
+
   MomentsG     ** A1         ;
   MomentsG     ** A2         ;
   MomentsG     ** A3         ;
