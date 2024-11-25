@@ -8,6 +8,8 @@ All the calculations are performed in Boozer coordinates as the geometric quanti
 
 Dependencies: booz\_xform, netcdf4. Both these packages can be installed using pip.
 
+If you use the s-alpha 3D geometry functionality for your work, please cite the [following paper](https://arxiv.org/abs/2410.04576) 
+
 ## To dos:
 
 * Currently, I have only compared the coefficients with GS2 for tokamak equilibria. I have to add tests to avoid sign-related issues described in PR #25

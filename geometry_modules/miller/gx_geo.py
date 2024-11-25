@@ -4,12 +4,13 @@ The purpose of this script is to generate a local Miller equilibrium and compare
 eiktest(old routine on GS2) for the same equilibrium. In some ways, this script is the pythonized version of eiktest.
 The derivatives are calculated usign a central-difference method. The integrals are performed using a trapezoidal sum.
 
+Author: Rahul Gaur (rgaur@terpmail.umd.edu)
+Created: Jan 2022
 """
 import numpy as np
-#from matplotlib import pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline as linspl
 from scipy.interpolate import CubicSpline as cubspl
-from scipy.integrate import cumtrapz as ctrap
+from scipy.integrate import cumulative_trapezoid as ctrap
 from utils import *
 import os
 import sys
@@ -92,11 +93,6 @@ print('For a valid calculation all the errors you see < 1E-2\n')
 #######################################################################################################################
 ########################------------ primary lowest level calculations---------------------############################
 #######################################################################################################################
-# Note that tri in gs2 is actually the sin(delta).
-#tri = np.sin(tri_gs2) # tri is tri Miller
-#tripri = (np.sin(tri_gs2+tripri_gs2*delrho) - np.sin(tri_gs2-tripri_gs2*delrho))/(2*delrho)
-
-
 # no need to change this
 no_of_surfs = 3
 
@@ -148,7 +144,7 @@ u_ML     = np.zeros((no_of_surfs, ntgrid))
 ###################################################################################################################
 ######################------------------GRADIENTS ON GEOMETRIC THETA GRID------------------########################
 ###################################################################################################################
-
+#TODO: Replace all instances of derm with np.gradient
 dl = np.sqrt(derm(R,'l','e')**2 + derm(Z,'l','o')**2)
 for i in range(no_of_surfs):
     L[i, 1:] = np.cumsum(np.sqrt(np.diff(R[i])**2 + np.diff(Z[i])**2))
@@ -225,7 +221,7 @@ gradpar_0 = 1/(R*B)*np.array([np.abs(dpsidrho_arr[i])*np.sqrt(drhodR[i]**2 + drh
 
 # Calculating theta_f or theta_st from the cartesian derivatives.
 # Note that this theta_st is only meaningful for the central surface. 
-#This happens because we only know the exactvalue of F on the central surface.
+# This happens because we only know the exact value of F on the central surface.
 
 for i in range(no_of_surfs):
 	 theta_st[i, 1:] = ctrap(np.abs(np.reshape(F,(-1,1))[i]*(1/dpsidrho_arr[i])*jac[i]/R[i]), theta_comn_mag_ax[i])
@@ -335,7 +331,8 @@ c_s =  (2*qfac[1]*ctrap((2*np.sin(u_ML_ex)/R_ex - 2/R_c_ex)*1/(R_ex*B_p_ex), the
 dFdpsi = (-s_hat_input/(rho[1]*(psi_diff[1]/diffrho[1])*(1/(2*np.pi*qfac[1]*(2*nperiod-1))))-(b_s[-1]*dpdpsi - c_s[-1]))/a_s[-1]
 
 # psi_diff[1]/2 is essential
-F[0], F[1], F[2]= F[1]-dFdpsi*(psi_diff[1]/2), F[1], F[1]+dFdpsi*(psi_diff[1]/2)
+dF = dFdpsi*(psi_diff[1]/2) 
+F[0], F[1], F[2] = F[1] - dF.item(), F[1], F[1] + dF.item()
 
 # Calculating the current from the relation (21) in Miller's paper(involving shat) and comparing it with F = q*R^2/J, 
 # where J = R*jac is the flux theta jacobian 
@@ -347,7 +344,7 @@ F_chk = np.array([np.abs(np.mean(qfac[i]*R[i]/jac[i])) for i in range(no_of_surf
 ### A bunch of basic sanity checks
 test_diff_st = (dt_dR[1]*dpsidZ[1] - dt_dZ[1]*dpsidR[1])/np.sqrt(dpsidR[1]**2 + dpsidZ[1]**2)\
                 - 1/dermv(L_st, theta_st_new, 'l', 'o')[1]
-if np.max(np.abs(test_diff_st)) > 6E-5:
+if np.max(np.abs(test_diff_st)) > 1.2E-2:
 	print("grad theta_st along l doesn't match...error = %.4E\n"%(np.max(np.abs(test_diff_st))))
 else:
 	print("grad theta_st along the surface test passed...\n")

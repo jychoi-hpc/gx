@@ -300,7 +300,7 @@ void Grids::init_ks_and_coords()
 
   LaguerreTransform * laguerre = new LaguerreTransform(this, 1);
   // Estimate v_parallel_max conservatively
-  vpar_max = 2.0 * sqrtf( Nm );
+  vpar_max = 2.0 * sqrtf( Nm_glob );
   muB_max = laguerre->get_vmax();
   kx_max = kx_h[(Nx-1)/3];
   ky_max = ky_h[(Ny-1)/3];
