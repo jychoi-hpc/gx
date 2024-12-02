@@ -1811,8 +1811,8 @@ __global__ void heat_flux_summand(float* qflux,
                                   const cuComplex* bpar,
                                   const cuComplex* g,
                                   const float* ky,
-				  const float* flxJac,
-                                  const float *kperp2,
+                                  const float* flxJac,
+                                  const float* kperp2,
                                   float rho2_s,
                                   float pres,
                                   float vts,
@@ -1822,7 +1822,7 @@ __global__ void heat_flux_summand(float* qflux,
   
   if (idy < nyc && idx < nx && idz < nz) { 
     unsigned int idxyz = get_idxyz(idx, idy, idz);
-    if (unmasked(idx, idy) && m_lo == 0) {    
+    if ( unmasked(idx, idy) && m_lo < 3 ) {    
       
       cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
       cuComplex vA_r   = make_cuComplex(0., ky[idy]) * apar[idxyz];
@@ -1834,11 +1834,42 @@ __global__ void heat_flux_summand(float* qflux,
       cuComplex p_bar = make_cuComplex(0.,0.);
       cuComplex q_bar = make_cuComplex(0.,0.);
       cuComplex qB_bar = make_cuComplex(0.,0.);
+      const cuComplex zero = make_cuComplex(0.,0.);
+
+      cuComplex *g_m0,*g_m1,*g_m2,*g_m3; // pointers to l=0 m={0,1,2,3} or nullptr if that m isn't local
+
+      if( m_lo == 0 )
+        g_m0 = &Gh_(idxyz,0,0);
+      else
+        g_m0 = nullptr;
+
+      if( m_lo <= 1 && m_up >= 1 )
+        g_m1 = &Gh_(idxyz,0,1);
+      else
+        g_m1 = nullptr;
+
+      if( m_lo <= 2 && m_up >= 2 )
+        g_m2 = &Gh_(idxyz,0,2);
+      else
+        g_m2 = nullptr;
+
+      if( m_lo <= 3 && m_up >= 3 )
+        g_m3 = &Gh_(idxyz,0,3);
+      else
+        g_m3 = nullptr;
+
+      const int shift = nx*nyc*nz;
 
       for (int il=0; il < nl; il++) {
-	p_bar = p_bar + Jfac(il, b_s)*Gh_(idxyz, il, 0) + rsqrtf(2.)*Jflr(il, b_s)*Gh_(idxyz, il, 2);
-	q_bar = q_bar + Jfac(il, b_s)*Gh_(idxyz, il, 1) + Jflr(il, b_s)*(sqrtf(1.5)*Gh_(idxyz, il, 3)+ Gh_(idxyz, il, 1));
-	qB_bar = qB_bar + (Jfac(il, b_s)+Jfac(il-1,b_s))*Gh_(idxyz, il, 0) + rsqrtf(2.)*JflrB(il, b_s)*Gh_(idxyz, il, 2);
+        cuComplex g_il_m0 = (g_m0 == nullptr) ? zero : g_m0[ shift * il ];
+        cuComplex g_il_m1 = (g_m1 == nullptr) ? zero : g_m1[ shift * il ];
+        cuComplex g_il_m2 = (g_m2 == nullptr) ? zero : g_m2[ shift * il ];
+        cuComplex g_il_m3 = (g_m3 == nullptr) ? zero : g_m3[ shift * il ];
+
+
+	p_bar = p_bar + Jfac(il, b_s)*g_il_m0 + rsqrtf(2.)*Jflr(il, b_s)*g_il_m2;
+	q_bar = q_bar + Jfac(il, b_s)*g_il_m1 + Jflr(il, b_s)*(sqrtf(1.5)*g_il_m3 + g_il_m1;
+	qB_bar = qB_bar + (Jfac(il, b_s)+Jfac(il-1,b_s))*g_il_m0 + rsqrtf(2.)*JflrB(il, b_s)*g_il_m2;
       }
     
       cuComplex fg = (cuConjf(vPhi_r) * p_bar - vts * cuConjf(vA_r) * q_bar + tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
