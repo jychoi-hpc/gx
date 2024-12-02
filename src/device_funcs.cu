@@ -1836,27 +1836,22 @@ __global__ void heat_flux_summand(float* qflux,
       cuComplex qB_bar = make_cuComplex(0.,0.);
       const cuComplex zero = make_cuComplex(0.,0.);
 
-      cuComplex *g_m0,*g_m1,*g_m2,*g_m3; // pointers to l=0 m={0,1,2,3} or nullptr if that m isn't local
+      const cuComplex *g_m0 = nullptr;
+      const cuComplex *g_m1 = nullptr;
+      const cuComplex *g_m2 = nullptr;
+      const cuComplex *g_m3 = nullptr;
 
       if( m_lo == 0 )
         g_m0 = &Gh_(idxyz,0,0);
-      else
-        g_m0 = nullptr;
 
       if( m_lo <= 1 && m_up >= 1 )
         g_m1 = &Gh_(idxyz,0,1);
-      else
-        g_m1 = nullptr;
 
       if( m_lo <= 2 && m_up >= 2 )
         g_m2 = &Gh_(idxyz,0,2);
-      else
-        g_m2 = nullptr;
 
       if( m_lo <= 3 && m_up >= 3 )
         g_m3 = &Gh_(idxyz,0,3);
-      else
-        g_m3 = nullptr;
 
       const int shift = nx*nyc*nz;
 
