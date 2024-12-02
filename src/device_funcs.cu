@@ -1862,9 +1862,9 @@ __global__ void heat_flux_summand(float* qflux,
         cuComplex g_il_m3 = (g_m3 == nullptr) ? zero : g_m3[ shift * il ];
 
 
-	p_bar = p_bar + Jfac(il, b_s)*g_il_m0 + rsqrtf(2.)*Jflr(il, b_s)*g_il_m2;
-	q_bar = q_bar + Jfac(il, b_s)*g_il_m1 + Jflr(il, b_s)*(sqrtf(1.5)*g_il_m3 + g_il_m1;
-	qB_bar = qB_bar + (Jfac(il, b_s)+Jfac(il-1,b_s))*g_il_m0 + rsqrtf(2.)*JflrB(il, b_s)*g_il_m2;
+        p_bar = p_bar + Jfac(il, b_s)*g_il_m0 + rsqrtf(2.)*Jflr(il, b_s)*g_il_m2;
+        q_bar = q_bar + Jfac(il, b_s)*g_il_m1 + Jflr(il, b_s)*(sqrtf(1.5)*g_il_m3 + g_il_m1);
+        qB_bar = qB_bar + (Jfac(il, b_s)+Jfac(il-1,b_s))*g_il_m0 + rsqrtf(2.)*JflrB(il, b_s)*g_il_m2;
       }
     
       cuComplex fg = (cuConjf(vPhi_r) * p_bar - vts * cuConjf(vA_r) * q_bar + tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
