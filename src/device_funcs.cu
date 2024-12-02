@@ -1841,16 +1841,17 @@ __global__ void heat_flux_summand(float* qflux,
       const cuComplex *g_m2 = nullptr;
       const cuComplex *g_m3 = nullptr;
 
+      // N.B. m_up is the index of the first hermite moment *not* local to this processor
       if( m_lo == 0 )
         g_m0 = &Gh_(idxyz,0,0);
 
-      if( m_lo <= 1 && m_up >= 1 )
+      if( m_lo <= 1 && m_up > 1 )
         g_m1 = &Gh_(idxyz,0,1);
 
-      if( m_lo <= 2 && m_up >= 2 )
+      if( m_lo <= 2 && m_up > 2 )
         g_m2 = &Gh_(idxyz,0,2);
 
-      if( m_lo <= 3 && m_up >= 3 )
+      if( m_lo <= 3 && m_up > 3 )
         g_m3 = &Gh_(idxyz,0,3);
 
       const int shift = nx*nyc*nz;
