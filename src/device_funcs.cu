@@ -1857,10 +1857,10 @@ __global__ void heat_flux_summand(float* qflux,
       const int shift = nx*nyc*nz;
 
       for (int il=0; il < nl; il++) {
-        cuComplex g_il_m0 = (g_m0 == nullptr) ? zero : g_m0[ shift * il ];
-        cuComplex g_il_m1 = (g_m1 == nullptr) ? zero : g_m1[ shift * il ];
-        cuComplex g_il_m2 = (g_m2 == nullptr) ? zero : g_m2[ shift * il ];
-        cuComplex g_il_m3 = (g_m3 == nullptr) ? zero : g_m3[ shift * il ];
+        cuComplex g_il_m0 = (g_m0 == nullptr) ? zero : Gh_(idxyz, il, 0);
+        cuComplex g_il_m1 = (g_m1 == nullptr) ? zero : Gh_(idxyz, il, 1);
+        cuComplex g_il_m2 = (g_m2 == nullptr) ? zero : Gh_(idxyz, il, 2);
+        cuComplex g_il_m3 = (g_m3 == nullptr) ? zero : Gh_(idxyz, il, 3);
 
 
         p_bar = p_bar + Jfac(il, b_s)*g_il_m0 + rsqrtf(2.)*Jflr(il, b_s)*g_il_m2;
