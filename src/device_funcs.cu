@@ -1828,12 +1828,12 @@ __global__ void heat_flux_summand(float* qflux,
     unsigned int idy = idxy % nyc;
     unsigned int idx = idxy / nyc;
     unsigned int idxyz = idxy + nx*nyc*idz;
-    unsigned int idl = idlm % nl;
-    unsigned int idm = idlm / nl;
-    unsigned int idm_glob = idm + m_lo;
+    unsigned int il = idlm % nl;
+    unsigned int im = idlm / nl;
+    unsigned int im_glob = im + m_lo;
 
     // only
-    if ( unmasked(idx, idy) && idm_glob < 3 ) {
+    if ( unmasked(idx, idy) && im_glob < 3 ) {
       
       cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
       cuComplex vA_r   = make_cuComplex(0., ky[idy]) * apar[idxyz];
@@ -1846,7 +1846,7 @@ __global__ void heat_flux_summand(float* qflux,
       cuComplex q_bar = make_cuComplex(0.,0.);
       cuComplex qB_bar = make_cuComplex(0.,0.);
 
-      switch( idm_glob ) {
+      switch( im_glob ) {
         case 0: // m=0 mode
           p_bar = Jfac(il, b_s)*g[ig];
           qB_bar = (Jfac(il, b_s)+Jfac(il-1,b_s))*g[ig];

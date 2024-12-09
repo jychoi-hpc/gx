@@ -67,7 +67,7 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
     if( max_prime_factor >= 127 ) {
       if( pars_->iproc == 0 ) {
         std::cerr << std::endl;
-        std::cerr << "ERROR: In constructing the extended flux tubes, nLinks[" << c << "] = " << nLinks[c] << " which has prime factors larger than 127." << std::endl;
+        std::cerr << "ERROR: In constructing the extended flux tubes, nLinks[" << c << "] = " << nLinks[c] << " which has prime factors larger than or equal to 127." << std::endl;
         std::cerr << "ERROR: cuFFT callbacks do not support fourier transforms with large prime factors. Aborting." << std::endl << std::endl;
         std::cerr << "We suggest adjusting nx to a nearby value." << std::endl << std::endl;
       }
