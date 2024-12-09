@@ -1804,7 +1804,6 @@ __global__ void Wapar_summand_krehm(float* p2,
   }
 }
 
-# define Gh_(XYZ, L, M) g[(int) (XYZ) + nx*nyc*nz*((L) + nl*(M-m_lo))]
 __global__ void heat_flux_summand(float* qflux,
                                   const cuComplex* phi,
                                   const cuComplex* apar,
@@ -1833,7 +1832,7 @@ __global__ void heat_flux_summand(float* qflux,
     unsigned int im_glob = im + m_lo;
 
     // only
-    if ( unmasked(idx, idy) && im_glob < 3 ) {
+    if ( unmasked(idx, idy) && im_glob <= 3 ) {
       
       cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
       cuComplex vA_r   = make_cuComplex(0., ky[idy]) * apar[idxyz];
@@ -1842,6 +1841,8 @@ __global__ void heat_flux_summand(float* qflux,
       float b_s = kperp2[idxyz]*rho2_s;
 
 
+      // this notation corresponds to F.2 / F.3 / F.4 of the GX paper
+      // N.B. Jfac and JflrB correspond to the appropriate square brackets in those expressions
       cuComplex p_bar = make_cuComplex(0.,0.);
       cuComplex q_bar = make_cuComplex(0.,0.);
       cuComplex qB_bar = make_cuComplex(0.,0.);
