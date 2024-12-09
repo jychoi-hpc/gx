@@ -1818,61 +1818,56 @@ __global__ void heat_flux_summand(float* qflux,
                                   float vts,
                                   float tzs)
 {
-  idXYZ;
+  unsigned int idxy = get_id1(); 
+  unsigned int idz  = get_id2();
+  unsigned int idlm = get_id3();
   
-  if (idy < nyc && idx < nx && idz < nz) { 
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    if ( unmasked(idx, idy) && m_lo < 3 ) {    
+  if (idxy < nx*nyc && idz < nz && idlm < nm*nl) {
+    unsigned int ig = idxy + nx*nyc*(idz + nz*idlm);
+
+    unsigned int idy = idxy % nyc;
+    unsigned int idx = idxy / nyc;
+    unsigned int idxyz = idxy + nx*nyc*idz;
+    unsigned int idl = idlm % nl;
+    unsigned int idm = idlm / nl;
+    unsigned int idm_glob = idm + m_lo;
+
+    // only
+    if ( unmasked(idx, idy) && idm_glob < 3 ) {
       
       cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
       cuComplex vA_r   = make_cuComplex(0., ky[idy]) * apar[idxyz];
       cuComplex vB_r   = make_cuComplex(0., ky[idy]) * bpar[idxyz];
     
       float b_s = kperp2[idxyz]*rho2_s;
-    
-      // sum over l
+
+
       cuComplex p_bar = make_cuComplex(0.,0.);
       cuComplex q_bar = make_cuComplex(0.,0.);
       cuComplex qB_bar = make_cuComplex(0.,0.);
-      const cuComplex zero = make_cuComplex(0.,0.);
 
-      const cuComplex *g_m0 = nullptr;
-      const cuComplex *g_m1 = nullptr;
-      const cuComplex *g_m2 = nullptr;
-      const cuComplex *g_m3 = nullptr;
-
-      // N.B. m_up is the index of the first hermite moment *not* local to this processor
-      if( m_lo == 0 )
-        g_m0 = &Gh_(idxyz,0,0);
-
-      if( m_lo <= 1 && m_up > 1 )
-        g_m1 = &Gh_(idxyz,0,1);
-
-      if( m_lo <= 2 && m_up > 2 )
-        g_m2 = &Gh_(idxyz,0,2);
-
-      if( m_lo <= 3 && m_up > 3 )
-        g_m3 = &Gh_(idxyz,0,3);
-
-      const int shift = nx*nyc*nz;
-
-      for (int il=0; il < nl; il++) {
-        cuComplex g_il_m0 = (g_m0 == nullptr) ? zero : Gh_(idxyz, il, 0);
-        cuComplex g_il_m1 = (g_m1 == nullptr) ? zero : Gh_(idxyz, il, 1);
-        cuComplex g_il_m2 = (g_m2 == nullptr) ? zero : Gh_(idxyz, il, 2);
-        cuComplex g_il_m3 = (g_m3 == nullptr) ? zero : Gh_(idxyz, il, 3);
-
-
-        p_bar = p_bar + Jfac(il, b_s)*g_il_m0 + rsqrtf(2.)*Jflr(il, b_s)*g_il_m2;
-        q_bar = q_bar + Jfac(il, b_s)*g_il_m1 + Jflr(il, b_s)*(sqrtf(1.5)*g_il_m3 + g_il_m1);
-        qB_bar = qB_bar + (Jfac(il, b_s)+Jfac(il-1,b_s))*g_il_m0 + rsqrtf(2.)*JflrB(il, b_s)*g_il_m2;
+      switch( idm_glob ) {
+        case 0: // m=0 mode
+          p_bar = Jfac(il, b_s)*g[ig];
+          qB_bar = (Jfac(il, b_s)+Jfac(il-1,b_s))*g[ig];
+          break;
+        case 1:
+          q_bar = (Jfac(il, b_s) + Jflr(il,b_s))*g[ig];
+          break;
+        case 2:
+          p_bar = rsqrtf(2.)*Jflr(il, b_s)*g[ig];
+          qB_bar = rsqrtf(2.)*JflrB(il, b_s)*g[ig];
+          break;
+        case 3:
+          q_bar = sqrtf(1.5)*Jflr(il, b_s)*g[ig];
+          break;
       }
-    
+
       cuComplex fg = (cuConjf(vPhi_r) * p_bar - vts * cuConjf(vA_r) * q_bar + tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
-      qflux[idxyz] = fg.x * pres;
+      qflux[ig] = fg.x * pres;
 
     } else {
-      qflux[idxyz] = 0.;
+      qflux[ig] = 0.;
     }
   }
 }

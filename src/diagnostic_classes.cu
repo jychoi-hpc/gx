@@ -239,7 +239,7 @@ HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry*
 {
   varname = "HeatFlux";
   description = "Turbulent heat flux in gyroBohm units"; 
-  isMoments = false;
+  isMoments = true;
   if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
                                        // heat flux data, so skip the write from these procs
   set_kernel_dims();
@@ -260,10 +260,7 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
     float p_s = pars_->species_h[is_glob].nt;
     float vts = pars_->species_h[is_glob].vt;
     float tzs = pars_->species_h[is_glob].tz;
-    if(grids_->Nm <= 2) {
-      G[is]->sync(true);
-    }
-    heat_flux_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
+    heat_flux_summand <<<dG, dB>>> (&tmpG[grids_->NxNycNz*grids_->Nmoms*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
   }
   write_spectra(tmpf);
 
