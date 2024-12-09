@@ -1804,6 +1804,7 @@ __global__ void Wapar_summand_krehm(float* p2,
   }
 }
 
+# define Gh_(XYZ, L, M) g[(int) (XYZ) + nx*nyc*nz*((L) + nl*(M-m_lo))]
 __global__ void heat_flux_summand(float* qflux,
                                   const cuComplex* phi,
                                   const cuComplex* apar,
