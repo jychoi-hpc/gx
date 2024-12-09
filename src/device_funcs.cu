@@ -1833,7 +1833,7 @@ __global__ void heat_flux_summand(float* qflux,
     unsigned int im_glob = im + m_lo;
 
     // only
-    if ( unmasked(idx, idy) && im_glob <= 3 ) {
+    if ( unmasked(idx, idy) && im_glob <= 3 && im < m_up ) {
       
       cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
       cuComplex vA_r   = make_cuComplex(0., ky[idy]) * apar[idxyz];
