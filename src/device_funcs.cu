@@ -1831,6 +1831,8 @@ __global__ void heat_flux_summand(float* qflux,
     unsigned int il = idlm % nl;
     unsigned int im = idlm / nl;
     unsigned int im_glob = im + m_lo;
+    // Although g is distributed qflux isn't.
+    unsigned int ig_out = idxy + nx*nyc*(idz + im_glob*nl + il);
 
     // only
     if ( unmasked(idx, idy) && im_glob <= 3 && im < m_up ) {
@@ -1866,10 +1868,10 @@ __global__ void heat_flux_summand(float* qflux,
       }
 
       cuComplex fg = (cuConjf(vPhi_r) * p_bar - vts * cuConjf(vA_r) * q_bar + tzs * cuConjf(vB_r) * qB_bar) * 2. * flxJac[idz];
-      qflux[ig] = fg.x * pres;
+      qflux[ig_out] = fg.x * pres;
 
     } else {
-      qflux[ig] = 0.;
+      qflux[ig_out] = 0.;
     }
   }
 }

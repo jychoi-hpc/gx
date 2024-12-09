@@ -262,7 +262,7 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
     float tzs = pars_->species_h[is_glob].tz;
     heat_flux_summand <<<dG, dB>>> (&tmpG[grids_->NxNycNz*grids_->Nmoms*is], f->phi, f->apar, f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, vts, tzs); 	
   }
-  write_spectra(tmpf);
+  write_spectra(tmpG);
 
   // get Q(t) data to write to screen
   float *fluxes = spectraList[0]->get_data();
@@ -360,7 +360,7 @@ void HeatFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
     float tzs = pars_->species_h[is_glob].tz;
     heat_flux_Bpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, p_s, tzs); 	
   }
-  write_spectra(tmpf);
+  write_spectra(tmpG);
 }
 
 ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
