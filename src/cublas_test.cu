@@ -8,10 +8,10 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   d_A_bounce = nullptr;
   d_bounce_rhs = nullptr;
   bounce_rhs = nullptr;
-  size_t nzlm = sizeof(int) * grids_->Nz * grids_->Nz * pars_->nm_in * pars_->nl_in;
+
   LM = pars_->nm_in * pars_-> nl_in;
   size_t LM2 = sizeof(cuComplex) *LM*LM;
-  test = (cuComplex*) malloc(sizeof(cuComplex)*grids_->Nyc*grids_->Nx*grids_->Nm*grids_->Nl);
+
   if (sdirk_){
     num_coeff = 1;
   }
@@ -23,15 +23,6 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
       num_coeff = 3;
     }
   }
-     
-  A_bounce = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->Nz);
-  cuComplex* LU = (cuComplex*) malloc(sizeof(cuComplex)*LM*LM); 
-  checkCuda(cudaMalloc((void**) &d_Ipiv, sizeof(int)*grids_->Nz*LM));
-  checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->Nz)); 
-  infoArray_h = (int*) malloc(sizeof(int)*grids_->Nz);
-
-  info = 0;
- 
 
   double* dcoeff = (double*) malloc(sizeof(double)*num_coeff);
   if (num_coeff == 1){
@@ -48,6 +39,14 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   }
 
+  A_bounce = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->Nz);
+  cuComplex* LU = (cuComplex*) malloc(sizeof(cuComplex)*LM*LM); 
+  checkCuda(cudaMalloc((void**) &d_Ipiv, sizeof(int)*grids_->Nz*LM));
+  checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->Nz)); 
+  infoArray_h = (int*) malloc(sizeof(int)*grids_->Nz);
+
+  info = 0;
+ 
   bounce_rhs = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
   bounce_rhs_apar = (cuComplex**) malloc(sizeof(cuComplex*)*grids_->Nz);
   size_t brhs_size = sizeof(cuComplex)*pars_->nm_in*pars_->nl_in*grids_->Nyc*grids_->Nx;
@@ -76,8 +75,6 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   checkCuda(cudaMalloc((void**) &d_A_bounce, sizeof(cuComplex*)*grids_->Nz));
 
-  DEBUGPRINT("Allocated an A_bounce array of size %.2f MB\n", nzlm/1024./1024.);
-
   int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
 
   nn1 = LM;		    nt1 = min(nn1, 512 );   nb1 = 1 + (nn1-1)/nt1;
@@ -97,23 +94,11 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3); 
 
-  dB_b = dim3(nt4, nt5, nt6);
-  dG_b = dim3(nb4, nb5, nb6);
-
   dB_bd = dim3(nt4, nt7, nt6);
   dG_bd = dim3(nb4, nb7, nb6);
 
-  dB_lu = dim3(nt4, nt5, nt8);
-  dG_lu = dim3(nb4, nb5, nb8);
-
   dB_lu_sm = dim3(nt9, nt10, nt8);
   dG_lu_sm = dim3(nb9, nb10, nb8);
-
-
-  float* bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
-  checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
-  printf("bgrad is %f\n", bgrad_h_test[10]);
-
 
 
   for (int i = 0; i < num_coeff; i++){
@@ -147,7 +132,6 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   CUBLAS_CHECK(cublasCreate(&cublasH));
 
-//  CUDA_CHECK(cudaStreamCreateWithFlags(&stream_cublas, cudaStreamNonBlocking));
   CUDA_CHECK(cudaStreamCreateWithFlags(&stream_cublas, cudaStreamDefault));
 
   CUBLAS_CHECK(cublasSetStream(cublasH, stream_cublas));

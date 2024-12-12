@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
         nspec = data.dimensions['s'].size
     
-        for ispec in np.arange(nspec-1):
+        for ispec in np.arange(nspec):
             heat_flux(data, ispec=ispec, refsp="i")
     
     plt.xlim(0)
