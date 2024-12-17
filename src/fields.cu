@@ -324,4 +324,5 @@ void Fields::rescale(float * phi_max) {
   dG = dim3(nb1, nb2, 1);
   rescale_kernel <<< dG, dB >>> (phi, phi_max, 1);
   if(pars_->fapar > 0.) rescale_kernel <<< dG, dB >>> (apar,  phi_max, 1);
+  if(pars_->fbpar > 0.) rescale_kernel <<< dG, dB >>> (bpar,  phi_max, 1);
 }

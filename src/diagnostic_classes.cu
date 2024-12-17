@@ -497,9 +497,8 @@ GrowthRateDiagnostic::~GrowthRateDiagnostic()
   free(cpu);
 }
 
-// need separate calculate and write methods for growth rates, 
-// so that can calculate every step but write less often
-void GrowthRateDiagnostic::calculate_and_write(Fields* fields, Fields* fields_old, double dt)
+
+void GrowthRateDiagnostic::calculate(Fields* fields, Fields* fields_old, double dt)
 {
   int nt = min(512, grids_->NxNyc) ;
   growthRates <<< 1 + (grids_->NxNyc-1)/nt, nt >>> (fields->phi, fields_old->phi, dt, omg_d);
@@ -507,7 +506,14 @@ void GrowthRateDiagnostic::calculate_and_write(Fields* fields, Fields* fields_ol
   // write to ncdf
   CP_TO_CPU(omg_h, omg_d, sizeof(cuComplex)*N);
   dealias_and_reorder(omg_h, cpu);
-  
+   
+}
+
+// need separate calculate and write methods for growth rates, 
+// so that can calculate every step but write less often
+void GrowthRateDiagnostic::write()
+{
+ 
   int retval;
   start[0] = ncdf_->nc_grids->time_index;
   if (retval=nc_put_vara(nc_group, varid, start, count, cpu)) ERR(retval);

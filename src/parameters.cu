@@ -360,10 +360,6 @@ void Parameters::get_nml_vars(char* filename)
   if (random_init) ikpar_init = 0; 
   */
   
-  if (write_omega && fixed_amplitude) {
-    if (nonlinear_mode || nwrite < 3) fixed_amplitude = false;
-  }
-
   tnml = nml;
   if (nml.contains("Forcing")) tnml = toml::find (nml, "Forcing");  
 
@@ -566,6 +562,12 @@ void Parameters::get_nml_vars(char* filename)
   gx = (!ks && !vp && !krehm && !cetg);
   assert (!(ks && vp));
   assert (ks || vp || gx || krehm || cetg);
+
+  if (write_omega && fixed_amplitude){ 
+    if (nonlinear_mode || nwrite < 3) fixed_amplitude = false;
+  }
+
+
   
 //  wspectra.resize(nw_spectra);
 //  pspectra.resize(np_spectra);

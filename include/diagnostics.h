@@ -41,7 +41,8 @@ class Diagnostics_GK : public Diagnostics {
   void finish(MomentsG** G, Fields* fields, double time);  
 
 private:
- 
+
+  float * phi_max; 
   float * tmpf;
   cuComplex * tmpC;
   float * tmpG;
@@ -49,6 +50,7 @@ private:
   GradPerp     * grad_perp     ; 
   GradParallel * grad_par      ;
   Fields       * fields_old    ;
+  Fields       * fields_old_omg;
   MomentsG     ** G_old    ;
   NetCDF       * ncdf_         ;
   NetCDF       * ncdf_big_         ;

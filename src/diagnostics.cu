@@ -41,6 +41,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   }
 
   fields_old = new Fields(pars_, grids_);
+  fields_old_omg = new Fields(pars_, grids_);
 
   // initialize energy spectra diagnostics
   // Always turn on Phi2
@@ -96,7 +97,10 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
     momentsDiagnosticList.push_back(std::make_unique<ParticleUperpDiagnostic>(pars_, grids_, geo_, nonlinear_, ncdf_big_));
     momentsDiagnosticList.push_back(std::make_unique<ParticleTempDiagnostic>(pars_, grids_, geo_, nonlinear_, ncdf_big_));
   }
-
+  int nX = grids_->Nx;
+  int nY = grids_->Nyc;
+  phi_max=nullptr;
+  if ( pars_-> fixed_amplitude) cudaMalloc (&phi_max, sizeof(float)*nX*nY);
   // set up stop file
   sprintf(stopfilename_, "%s.stop", pars_->run_name);
 }
@@ -114,10 +118,11 @@ Diagnostics_GK::~Diagnostics_GK()
   }
 
   delete allSpectra_;
-
+  if (phi_max) cudaFree  ( phi_max );
   if(pars_->write_fields) delete fieldsDiagnostic;
   if(pars_->write_fields && pars_->nonlinear_mode) delete fieldsXYDiagnostic;
   if(fields_old) delete fields_old;
+  if(fields_old_omg) delete fields_old_omg;
   if(ncdf_) delete ncdf_;
   if(ncdf_big_) delete ncdf_big_;
 }
@@ -125,6 +130,12 @@ Diagnostics_GK::~Diagnostics_GK()
 bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
 {
   bool stop = false;
+  if(pars_->write_omega){
+	growthRateDiagnostic->calculate(fields,fields_old_omg,dt);
+        fields_old_omg->copyPhiFrom(fields);
+  }
+
+
   if(counter % pars_->nwrite == 1 || time > pars_->t_max) {
     if(grids_->iproc == 0) printf("%s: Step %7d: Time = %10.5f  dt = %.3e   ", pars_->run_name, counter, time, dt);          // To screen
     for( auto & diagnostic : spectraDiagnosticList ) {
@@ -133,7 +144,8 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     }
 
     if(pars_->write_omega) {
-      growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
+      //growthRateDiagnostic->calculate(fields, fields_old, dt);
+      growthRateDiagnostic->write();
     }
 
     ncdf_->nc_grids->write_time(time);
@@ -170,6 +182,24 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     for(int is=0; is<grids_->Nspecies; is++) {
       G_old[is]->copyFrom(G[is]);
     }
+  }
+ 
+  int nw;
+  nw = pars_->nwrite;
+  int nt1 = min(32, grids_->Nyc);
+  int nb1 = 1 + (grids_->Nyc-1)/nt1;
+  
+  int nt2 = min(32, grids_->Nx);
+  int nb2 = 1 + (grids_->Nx-1)/nt2;
+  
+  dim3 dBk = dim3(nt1, nt2, 1);
+  dim3 dGk = dim3(nb1, nb2, 1);
+  if (pars_->fixed_amplitude && (counter % nw == nw-2)) {
+    maxPhi KXKY (phi_max, fields->phi);
+    for(int is=0; is<grids_->Nspecies; is++) {
+      G[is]->rescale(phi_max);
+    }
+    fields->rescale(phi_max);
   }
 
 //  int retval;
@@ -385,14 +415,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 //    }
 //    rc->add_data(gy_d);
 //  }
-//  if (pars_->fixed_amplitude && (counter % nw == nw-2)) {
-//    maxPhi KXKY (phi_max, fields->phi);
-//    for(int is=0; is<grids_->Nspecies; is++) {
-//      G[is]->rescale(phi_max);
-//    }
-//    fields->rescale(phi_max);
-//  }
-//  }
+ //  }
   
   // check to see if we should stop simulation
   stop = checkstop();
@@ -558,7 +581,8 @@ bool Diagnostics_KREHM::loop(MomentsG** G, Fields* fields, double dt, int counte
     }
 
     if(pars_->write_omega) {
-      growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
+      growthRateDiagnostic->calculate(fields, fields_old, dt);
+      growthRateDiagnostic->write();
     }
 
     ncdf_->nc_grids->write_time(time);

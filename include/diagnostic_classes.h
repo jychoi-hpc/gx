@@ -155,7 +155,8 @@ class GrowthRateDiagnostic {
  public:
   GrowthRateDiagnostic(Parameters* pars, Grids* grids, NetCDF* ncdf);
   ~GrowthRateDiagnostic();
-  void calculate_and_write(Fields* f, Fields* f_old, double dt);
+  void calculate(Fields* f, Fields* f_old, double dt);
+  void write();
  private:
   void dealias_and_reorder(cuComplex* fold, float* fnew);
 
