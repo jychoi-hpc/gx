@@ -5136,6 +5136,7 @@ __global__ void sherman_morrison_subsolve_linked_lw(cuComplex* gi, cuComplex* ge
     gi[globalIdx] = rm/bet;
 
     for(idm=1; idm<2*nm; idm++) {
+      bm = make_cuComplex(1.0f, 0.0f);
       if (idm < nm){
         sdtvt = sdt * spi.vt;
 	vt = spi.vt;
@@ -5409,6 +5410,7 @@ __global__ void tridiag_streaming_linked_full(cuComplex* gi, cuComplex* ge, cuCo
     gi[globalIdx] = rm/bet;
 
     for(idm=1; idm<2*nm; idm++) {
+      bm = make_cuComplex(1.0f, 0.0f);
       if (idm < nm){
         sdtvt = sdt * spi.vt;
 	vt = spi.vt;
