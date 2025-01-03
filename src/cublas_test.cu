@@ -12,6 +12,13 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   LM = pars_->nm_in * pars_-> nl_in;
   size_t LM2 = sizeof(cuComplex) *LM*LM;
 
+  int num_diags = 5;
+  int h_offsets[5] = {-pars_->nm_in+1, -1, 0, 1, pars_->nm_in-1};
+  int* d_offsets;
+  checkCuda(cudaMalloc((void**) &d_offsets, sizeof(int)*num_diags));
+  checkCuda(cudaMemcpy(d_offsets, h_offsets, sizeof(int)*num_diags, cudaMemcpyHostToDevice));
+
+
   if (sdirk_){
     num_coeff = 1;
   }
@@ -40,7 +47,9 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   }
 
   A_bounce = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->Nz);
+  cuComplex** h_diags = (cuComplex**) malloc(sizeof(cuComplex*)*num_coeff*grids_->Nz);
   cuComplex* LU = (cuComplex*) malloc(sizeof(cuComplex)*LM*LM); 
+  cuComplex* test_diags = (cuComplex*) malloc(sizeof(cuComplex)*LM*num_diags);
   checkCuda(cudaMalloc((void**) &d_Ipiv, sizeof(int)*grids_->Nz*LM));
   checkCuda(cudaMalloc((void**) &infoArray, sizeof(int)*grids_->Nz)); 
   infoArray_h = (int*) malloc(sizeof(int)*grids_->Nz);
@@ -69,6 +78,10 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
       checkCuda(cudaMalloc((void**) &A_bounce[j + i*num_coeff], LM2));
+      checkCuda(cudaMalloc((void**) &h_diags[j + i*num_coeff], sizeof(cuComplex)*LM*num_diags));
+      checkCuda(cudaMemset(A_bounce[j + i*num_coeff],0.,LM2));
+      checkCuda(cudaMemset(h_diags[j + i*num_coeff],0.,sizeof(cuComplex)*LM*num_diags));
+
 
     }
   }
@@ -103,28 +116,45 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
 
   for (int i = 0; i < num_coeff; i++){
     for (int j = 0; j < grids_->Nz; j++){
-       initialize_A_bounce<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM, pars_->nm_in, pars_->nl_in, geo_->bgrad, dcoeff[i], dt_,vte,j);
+       set_diags<<<dG, dB>>>(h_diags[j + i*num_coeff], LM, pars_->nm_in, pars_->nl_in, geo_->bgrad, dcoeff[i], dt_,vte,j, num_diags);
+       //initialize_A_bounce<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM, pars_->nm_in, pars_->nl_in, geo_->bgrad, dcoeff[i], dt_,vte,j);
+       //transpose_A<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM);
+
+    }
+  }
+  for (int i = 0; i < num_coeff; i++){
+    for (int j = 0; j < grids_->Nz; j++){
+       initialize_A_bounce_banded<<<dG, dB>>>(A_bounce[j + i*num_coeff], h_diags[j + i*num_coeff], d_offsets, LM, num_diags);
        transpose_A<<<dG, dB>>>(A_bounce[j + i*num_coeff], LM);
 
     }
   }
   checkCuda(cudaMemcpy(d_A_bounce, A_bounce, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
-/*  checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
-  bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
-  checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
+  // checkCuda(cudaMemcpy(LU, A_bounce[11], LM2, cudaMemcpyDeviceToHost));
+  // checkCuda(cudaMemcpy(test_diags, h_diags[11], sizeof(cuComplex)*LM*num_diags, cudaMemcpyDeviceToHost));
 
-  printf("coeff is %f\n", dcoeff[0]); 
-  printf("bgrad is %f\n", bgrad_h_test[11]);
-  printf("dt_ is %f\n", dt_);
-  printf("vte is %f\n", vte);
+  // float* bgrad_h_test = (float*) malloc(sizeof(float)*grids_->Nz);
+  // checkCuda(cudaMemcpy(bgrad_h_test, geo_->bgrad, sizeof(float)*grids_->Nz, cudaMemcpyDeviceToHost));
 
-  for (int i = 0; i < LM; i++) {
-        for (int j = 0; j < LM; j++) {
-            std::printf("%2.3e ", LU[j * LM + i].x);
-        }
-        std::printf("\n\n");
-  }*/
+  // printf("coeff is %f\n", dcoeff[0]); 
+  // printf("bgrad is %f\n", bgrad_h_test[11]);
+  // printf("dt_ is %f\n", dt_);
+  // printf("vte is %f\n", vte);
+
+  // for(int i = 0; i < num_diags; i++){
+  //   for (int j = 0; j < LM; j++){
+  //     std::printf("%2.3e ", test_diags[i*LM + j].x);
+  //   }
+  //   std::printf("\n\n");
+  // }
+
+  // for (int i = 0; i < LM; i++) {
+  //       for (int j = 0; j < LM; j++) {
+  //           std::printf("%2.3e ", LU[j * LM + i].x);
+  //       }
+  //       std::printf("\n\n");
+  // }
 
 
   checkCudaErrors(cudaGetLastError());

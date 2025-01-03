@@ -4083,7 +4083,62 @@ void initialize_A_bounce_loop(cuComplex* A_bounce, const int LM, const int M, co
   }
 }
 
+__global__ void set_diags(cuComplex* diags, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz, const int num_diags){
+  unsigned int j = get_id1();
+  if(j < LM){
+    for(int i = 0; i < num_diags; i++){
+      int il = int(j / M);
+      int im = j % M;
+      double prefac = bgrad[iz] * dt * vte * coeff;
 
+      cuComplex lp1mp1 = make_cuComplex(-(il+1)*sqrtf(im+1),0.0)*prefac;
+      cuComplex lm = make_cuComplex(il*sqrtf(im),0.0)*prefac;
+      cuComplex lp1m = make_cuComplex((il+1)*sqrtf(im),0.0)*prefac;
+      cuComplex lmp1 = make_cuComplex(-il*sqrtf(im+1),0.0)*prefac;
+      if (i == 0){
+        if (im < M-1 and il > 0){
+          diags[i*L*M + j] = lmp1;
+        }
+      }
+      else if (i == 1){
+        if (im > 0){
+          diags[i*L*M + j] = lm;
+        }
+      }
+      else if (i == 2){
+        diags[i*L*M + j] = make_cuComplex(1.0f,0.0f);
+      }
+      else if (i == 3){
+        if (im < M-1){
+          diags[i*L*M + j] = lp1mp1;
+        }
+      }
+      else if (i == 4){
+        if (im > 0 and il < L-1){
+          diags[i*L*M + j] = lp1m;
+        }
+      }
+    }
+  }
+}
+
+__global__ void initialize_A_bounce_banded(cuComplex* A_bounce, cuComplex* diags, int* offsets, const int LM, const int num_diags){
+  unsigned int i = get_id1();
+
+  if(i < 1){
+    int offset;
+    for (int r = 0; r < LM; r++){
+      for (int c = 0; c < LM; c++){
+        for (int d = 0; d < num_diags; d++){
+          offset = offsets[d];
+          if (c - r == offset){
+            A_bounce[r*LM + c] = diags[d*LM + r];
+          }
+        }
+      }
+    }
+  }
+} 
 
 __global__ void initialize_A_bounce(cuComplex* A_bounce, const int LM, const int M, const int L, const float* bgrad, const double coeff, const double dt, const double vte, const int iz){
   unsigned int i = get_id1();
