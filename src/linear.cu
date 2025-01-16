@@ -87,9 +87,9 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     tmpG = new MomentsG (pars_, grids_);
   }
 
-  int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
-  int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
-  int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  4);   int nb3 = 1 + (nn3-1)/nt3;
+  int nn1 = grids_->Nyc;             int nt1 = min(nn1, WARPSIZE);   int nb1 = 1 + (nn1-1)/nt1;
+  int nn2 = grids_->Nx;              int nt2 = min(nn2,  512/WARPSIZE);   int nb2 = 1 + (nn2-1)/nt2;
+  int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  1);   int nb3 = 1 + (nn3-1)/nt3;
   
   dBs = dim3(nt1, nt2, nt3);
   dGs = dim3(nb1, nb2, nb3);
@@ -105,14 +105,13 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   // NOTE: nt1 = sharedSize = 32 gives best performance, but using 8 is only 5% worse.
   // this allows use of 4x more LH resolution without changing shared memory layouts
   // so i_share = 8 is used by default.
-
   nn1 = grids_->NxNycNz;         nt1 = pars_->i_share     ;   nb1 = 1 + (nn1-1)/nt1;
-  nn2 = 1;                       nt2 = min(grids_->Nl, 4 );   nb2 = 1 + (nn2-1)/nt2;
-  nn3 = 1;                       nt3 = min(grids_->Nm, 4 );   nb3 = 1 + (nn3-1)/nt3;
+  nn2 = 1;                       nt2 = min(grids_->Nl, 8 );   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = 1;                       nt3 = 1;   nb3 = 1 + (nn3-1)/nt3;
 
   dimBlock = dim3(nt1, nt2, nt3);
   dimGrid  = dim3(nb1, nb2, nb3);
-  
+
   if(grids_->m_ghost == 0)
     sharedSize = nt1 * (grids_->Nl+2) * (grids_->Nm+4) * sizeof(cuComplex);
   else 
@@ -122,9 +121,10 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   cudaDeviceProp prop;
   checkCuda( cudaGetDevice(&dev) );
   checkCuda( cudaGetDeviceProperties(&prop, dev) );
-  maxSharedSize = prop.sharedMemPerBlockOptin;
+  maxSharedSize = prop.sharedMemPerBlockOptin > 0 ? prop.sharedMemPerBlockOptin : prop.sharedMemPerBlock ;
 
   DEBUGPRINT("For linear RHS: size of shared memory block = %f KB\n", sharedSize/1024.);
+  DEBUGPRINT("Max size of shared memory block = %f KB\n", maxSharedSize/1024.);
 
   if( sharedSize > maxSharedSize && grids_->m_ghost == 0) {
     printf("Error: currently cannot support this velocity resolution due to shared memory constraints.\n");
@@ -137,14 +137,16 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     exit(1);
   }
 
-  nn1 = grids_->NxNycNz;         nt1 = min(grids_->NxNycNz, 32) ;   nb1 = 1 + (nn1-1)/nt1;
-  nn2 = grids_->Nl;              nt2 = min(grids_->Nl, 4 )      ;   nb2 = 1 + (nn2-1)/nt2;
-  nn3 = grids_->Nm;              nt3 = min(grids_->Nm, 4 )      ;   nb3 = 1 + (nn3-1)/nt3;
+  nn1 = grids_->NxNycNz;         nt1 = min(grids_->NxNycNz, WARPSIZE) ;   nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids_->Nl;              nt2 = min(grids_->Nl, 8 )      ;   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = grids_->Nm;              nt3 = 1      ;   nb3 = 1 + (nn3-1)/nt3;
 
   dimBlockh = dim3(nt1, nt2, nt3);
   dimGridh  = dim3(nb1, nb2, nb3);
   
+#ifdef __CUDACC__
   cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, 12*1024*sizeof(cuComplex));    
+#endif
 }
 
 Linear_GK::~Linear_GK()
@@ -164,8 +166,6 @@ Linear_GK::~Linear_GK()
 }
 
 void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
-  // finish Hermite ghost exchange
-  cudaStreamSynchronize(G->syncStream);
 
   // calculate conservation terms for collision operator
   int nn1 = grids_->NxNycNz;  int nt1 = min(nn1, 256);  int nb1 = 1 + (nn1-1)/nt1;
@@ -179,7 +179,6 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   }
   
   // calculate most of the RHS
-  cudaFuncSetAttribute(rhs_linear, cudaFuncAttributeMaxDynamicSharedMemorySize, maxSharedSize);
   rhs_linear<<<dimGrid, dimBlock, sharedSize>>>
       	(G->G(), f->phi, f->apar, f-> bpar, upar_bar, uperp_bar, t_bar,
         geo_->kperp2, geo_->cv_d, geo_->gb_d, geo_->bmag, geo_->bgrad, 
@@ -270,7 +269,7 @@ void Linear_GK::get_max_frequency(double *omega_max)
   float mime = pars_->vtmax*pars_->vtmax/pars_->vtmin/pars_->vtmin;
   float kperprho2 = grids_->kperp_min*grids_->kperp_min/geo_->bmag_max/geo_->bmag_max;
   omega_max[2] = pars_->vtmax*grids_->kz_max*abs(geo_->gradpar) * 
-                 max(grids_->vpar_max, pars_->nspec_in > 1 ? 1/sqrt(beta*nte/2*mime + kperprho2): 0.);
+                 fmax(grids_->vpar_max, pars_->nspec_in > 1 ? 1/sqrt(beta*nte/2*mime + kperprho2): 0.);
 }
 
 //==========================================
@@ -317,7 +316,7 @@ Linear_KREHM::Linear_KREHM(Parameters* pars, Grids* grids, Geometry* geo) :
   dBs = dim3(nt1, nt2, nt3);
   dGs = dim3(nb1, nb2, nb3);
   
-  nn1 = grids_->NxNycNz;         nt1 = min(grids_->NxNycNz, 32) ;   nb1 = 1 + (nn1-1)/nt1;
+  nn1 = grids_->NxNycNz;         nt1 = min(grids_->NxNycNz, WARPSIZE) ;   nb1 = 1 + (nn1-1)/nt1;
   nn2 = 1;                       nt2 = 1;   nb2 = 1;
   nn3 = grids_->Nm;              nt3 = min(grids_->Nm, 4 );   nb3 = 1 + (nn3-1)/nt3;
 
@@ -338,7 +337,6 @@ Linear_KREHM::~Linear_KREHM()
 void Linear_KREHM::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
 
   if(grids_->Nz>1) {
-    cudaStreamSynchronize(G->syncStream);
     rhs_linear_krehm <<< dGs, dBs >>> (G->G(), f->phi, f->apar, f->apar_ext, nu_ei, rho_s, d_e, geo_->gradpar, GRhs->G());
     grad_par->dz(GRhs, GRhs, false);
   }
@@ -369,7 +367,7 @@ void Linear_KREHM::get_max_frequency(double *omega_max)
   // estimate max linear frequency from kz_max*vpar_max
   omega_max[0] = 0.0;
   omega_max[1] = 0.0;
-  omega_max[2] = max(rho_s/d_e*grids_->vpar_max*grids_->kz_max, pars_->nm_in*nu_ei);
+  omega_max[2] = fmax(rho_s/d_e*grids_->vpar_max*grids_->kz_max, pars_->nm_in*nu_ei);
 }
 
 //===============================================================
@@ -421,8 +419,6 @@ Linear_cetg::~Linear_cetg()
 }
 
 void Linear_cetg::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
-
-  cudaStreamSynchronize(G->syncStream);
 
   GRhs->set_zero();
 

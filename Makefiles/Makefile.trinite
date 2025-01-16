@@ -1,0 +1,40 @@
+# Makefile for trinite at U-Hyogo
+# GPU model: AMD MI210
+# Maintainer: Ryusuke Numata (ryusuke.numata@gmail.com)
+#
+# export GK_SYSTEM=trinite
+# module load rocm
+
+# netcdf
+NETCDF_ROOT = /lib/x86_64-linux-gnu/netcdf/mpi
+NETCDF_INC = -I ${NETCDF_ROOT}//include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf
+
+# mpi
+MPI_ROOT = /usr/local/openmpi-4.1.7
+MPI_INC = -I ${MPI_ROOT}/include
+MPI_LIB = -L ${MPI_ROOT}/lib -lmpi
+
+# gsl
+GSL_ROOT = /usr
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl
+
+CUDA_INC = -I${HIP_PATH}/include
+CUDA_LIB = -L${HIP_PATH}/lib -lamdhip64 -lhiptensor -lhipfft -lhipblas -lhipsolver -lrccl
+
+CXX = clang++
+NVCC = hipcc
+CFLAGS += -D__HIP_PLATFORM_AMD__
+NVCCFLAGS = -fgpu-rdc # mandatory
+NVCCFLAGS += -fPIC --offload-arch=gfx90a:xnack- -ffast-math
+#NVCCFLAGS += --driver-mode=g++
+LDFLAGS = --hip-link -fgpu-rdc # mandatory
+LDFLAGS += --offload-arch=gfx90a:xnack- # segfault without this
+#LDFLAGS += --driver-mode=g++
+
+ifeq ($(debug),on)
+	NVCCFLAGS += -g -G
+else
+	NVCCFLAGS += -O3
+endif

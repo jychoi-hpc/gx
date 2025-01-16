@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "device_test.h"
 
 __device__ float val_d;
 

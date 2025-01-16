@@ -19,10 +19,13 @@
 
 [Physics]
  beta = 0.0		# reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))
+ nonlinear_mode = false		# this is a linear calculation
 
 [Time]
  dt = 1.0		# timestep size (in units of L_ref/vt_ref)
- nstep = 1		# number of timesteps
+ nstep = 2		# number of timesteps
+ scheme = "sspx3"		# use SSPx3 timestepping scheme
+ cfl = 1.0			# fraction of CFL condition
 
 [Geometry]
  geo_option = "slab"    # use slab geometry
@@ -33,10 +36,7 @@
  Boltzmann_type = "electrons"	# the Boltzmann species will be electrons
  tau_fac = 1.0			# temperature ratio, T_i/T_e
 
-[Controls]
- scheme = "sspx3"		# use SSPx3 timestepping scheme
- nonlinear_mode = false		# this is a linear calculation
- cfl = 1.0			# fraction of CFL condition
+[Initialization]
  ikpar_init = 0			# parallel wavenumber of initial perturbation
  init_field = "density"		# initial condition set in density
  init_amp = 1.0			# amplitude of initial condition
@@ -47,7 +47,7 @@
  nsave = 100000				# number of timesteps between saving restart data
 
 [Diagnostics]
- nwrite = 1				# number of timesteps between diagnostic writes
+ nwrite = 2				# number of timesteps between diagnostic writes
  
 [Expert]
  init_single = true			# initialize a single Fourier mode

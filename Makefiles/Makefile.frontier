@@ -1,0 +1,51 @@
+# Makefile for frontier (ORNL)
+# Maintainer: Noah Mandell (noah.mandell@typeoneenergy.com)
+#
+# add and uncomment the following in your .bashrc (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# module load cce/18.0.0
+# module load cpe/24.07
+# module load rocm/6.2.4
+# module load cray-hdf5-parallel
+# module load netcdf-c/4.9.2-mpi
+# module load gsl
+# module load libfabric
+# export LD_LIBRARY_PATH=/lustre/orion/fus173/proj-shared/hipTensor/build/lib:$LD_LIBRARY_PATH
+# export HIP_LIB_PATH=/lustre/orion/fus173/proj-shared/hipTensor/build/lib:$HIP_LIB_PATH
+
+# paths to netcdf and hdf5
+NETCDF_ROOT = ${OLCF_NETCDF_C_ROOT}
+NETCDF_INC = -I ${NETCDF_ROOT}/include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5 -lhdf5_hl -lm -lz
+
+# paths to mpi
+MPI_ROOT = ${MPICH_DIR}
+MPI_INC = -I ${MPI_ROOT}/include
+MPI_LIB = -L ${MPI_ROOT}/lib  -lmpich
+
+# paths to rocm 
+CUDA_INC = -I /lustre/orion/fus173/proj-shared/hipTensor/library/include -I ${ROCM_PATH}/include
+CUDA_LIB = -L /lustre/orion/fus173/proj-shared/hipTensor/build/lib -lhiptensor -L ${ROCM_PATH}/lib -lhipfft -lhipblas -lhipsolver -lrccl 
+
+# paths to gsl 
+# GSL_ROOT is defined by gsl module
+GSL_ROOT = ${OLCF_GSL_ROOT}
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+
+# additional c libraries required for linking. these are already in LD_LIBRARY_PATH
+C_LIB = -lpthread -ldl
+
+CXX = ${ROCM_PATH}/lib/llvm/bin/clang++
+
+NVCC   = hipcc
+CFLAGS = -fPIC
+NVCCFLAGS = -fgpu-rdc --offload-arch=gfx90a:xnack- -ffast-math -fPIC
+LDFLAGS = --driver-mode=g++ --hip-link --offload-arch=gfx90a:xnack- -fgpu-rdc -ffast-math
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -ggdb -O0 
+else
+  NVCCFLAGS += -O3
+endif
+

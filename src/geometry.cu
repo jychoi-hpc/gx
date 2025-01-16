@@ -974,11 +974,11 @@ void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
   cvdrift_max = 0.;
   cvdrift0_max = 0.;
   for(int i=0; i<grids->Nz; i++) {
-    gbdrift_max = max(gbdrift_max, abs(gbdrift_h[i]));
-    gbdrift0_max = max(gbdrift0_max, abs(gbdrift0_h[i]));
-    cvdrift_max = max(cvdrift_max, abs(cvdrift_h[i]));
-    cvdrift0_max = max(cvdrift0_max, abs(cvdrift0_h[i]));
-    bmag_max = max(bmag_max, abs(bmag_h[i]));
+    gbdrift_max = fmax(gbdrift_max, abs(gbdrift_h[i]));
+    gbdrift0_max = fmax(gbdrift0_max, abs(gbdrift0_h[i]));
+    cvdrift_max = fmax(cvdrift_max, abs(cvdrift_h[i]));
+    cvdrift0_max = fmax(cvdrift0_max, abs(cvdrift0_h[i]));
+    bmag_max = fmax(bmag_max, abs(bmag_h[i]));
   }
 
   if (pars->nonTwist) {

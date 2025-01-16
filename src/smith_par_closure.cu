@@ -1,10 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-#include <cuComplex.h>
+#include "gpu_defs.h"
 #include "parameters.h"
 #include "device_funcs.h"
 

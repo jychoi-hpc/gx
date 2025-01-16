@@ -71,6 +71,8 @@ void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fi
 
     // compute and increment linear term
     GRhs[is]->set_zero();
+    // finish Hermite ghost exchange before starting linear rhs
+    cudaStreamSynchronize(G_q1[is]->syncStream);
     linear_->rhs(G_q1[is], f, GRhs[is], dt_);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
 
     G_q1[is]->add_scaled(1., Gtmp, dt_/6., GRhs[is]);
@@ -126,6 +128,8 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
 
     // compute and increment linear term
     G[is]->set_zero();
+    // finish Hermite ghost exchange before starting linear rhs
+    cudaStreamSynchronize(G_q1[is]->syncStream);
     linear_->rhs(G_q1[is], f, G[is], dt_);
     if (pars_->dealias_kz) grad_par->dealias(G[is]);
     G[is]->add_scaled(1., Gtmp, 0.1*dt_, G[is]);

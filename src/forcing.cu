@@ -1,5 +1,4 @@
 #include "forcing.h"
-#include <cuda_runtime.h>
 #define GSINGLE <<< 1, 1 >>>
 
 void generate_random_numbers(float *random_real, float *random_imag, float forcing_amp_, float dt);

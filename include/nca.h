@@ -1,5 +1,5 @@
 #pragma once
-#include <cuComplex.h>
+#include <gpu_defs.h>
 #include <get_error.h>
 
 class nca {

@@ -1,7 +1,7 @@
 #pragma once
+#include "gpu_defs.h"
 #include "parameters.h"
 #include "grids.h"
-#include "cufft.h"
 
 class Fields {
   public:

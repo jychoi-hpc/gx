@@ -407,6 +407,96 @@ void ParticleFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
   }
 }
 
+ParticleFluxESDiagnostic::ParticleFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "ParticleFluxES";
+  description = "Electrostatic component of turbulent particle flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // particle flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void ParticleFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
+    float vts = pars_->species_h[is_glob].vt;
+    float tzs = pars_->species_h[is_glob].tz;
+    particle_flux_ES_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->phi, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, n_s, vts, tzs); 	
+  }
+  write_spectra(tmpf);
+}
+
+ParticleFluxAparDiagnostic::ParticleFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "ParticleFluxApar";
+  description = "Electromagnetic (A_parallel) component of turbulent particle flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // particle flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void ParticleFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
+    float vts = pars_->species_h[is_glob].vt;
+    float tzs = pars_->species_h[is_glob].tz;
+    particle_flux_Apar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->apar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, n_s, vts, tzs); 	
+  }
+  write_spectra(tmpf);
+}
+
+ParticleFluxBparDiagnostic::ParticleFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf)
+{
+  varname = "ParticleFluxBpar";
+  description = "Electromagnetic (dB_parallel) component of turbulent particle flux in gyroBohm units"; 
+  isMoments = false;
+  if(grids_->m_lo>0) skipWrite = true; // procs with higher hermites will have nonsense 
+                                       // particle flux data, so skip the write from these procs
+  set_kernel_dims();
+
+  add_spectra(allSpectra->st_spectra);
+  add_spectra(allSpectra->kxst_spectra);
+  add_spectra(allSpectra->kyst_spectra);
+  add_spectra(allSpectra->kxkyst_spectra);
+  add_spectra(allSpectra->zst_spectra);
+}
+
+void ParticleFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf)
+{
+  for(int is=0; is<grids_->Nspecies; is++) {
+    int is_glob = is + grids_->is_lo;
+    float rho2s = pars_->species_h[is_glob].rho2;
+    float n_s = pars_->nspec>1 ? pars_->species_h[is_glob].dens : 0.;
+    float vts = pars_->species_h[is_glob].vt;
+    float tzs = pars_->species_h[is_glob].tz;
+    particle_flux_Bpar_summand <<<dG, dB>>> (&tmpf[grids_->NxNycNz*is], f->bpar, G[is]->G(), grids_->ky,  geo_->flux_fac, geo_->kperp2, rho2s, n_s, vts, tzs); 	
+  }
+  write_spectra(tmpf);
+}
+
 TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
  : SpectraDiagnostic(pars, grids, geo, ncdf)
 {
@@ -477,7 +567,7 @@ GrowthRateDiagnostic::GrowthRateDiagnostic(Parameters* pars, Grids* grids, NetCD
   Nwrite = grids->Nakx*grids->Naky*2;
 
   int retval;
-  if (pars_->restart && pars_->append_on_restart) {
+  if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR) {
     if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
     if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
   } else {
@@ -613,7 +703,7 @@ FieldsDiagnostic::FieldsDiagnostic(Parameters* pars, Grids* grids, NetCDF* ncdf)
 
   int retval;
   for(int i=0; i<3; i++) {
-    if (pars_->restart && pars_->append_on_restart) {
+    if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])==NC_NOERR) {
       if (retval = nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])) ERR(retval);
       if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
     } else {
@@ -665,49 +755,20 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
- 
-  int it = 0;
-  int itp = it + NK;
-  for (int ik=0; ik<Naky; ik++) {
-    int Qp = itp + ik*Nakx;
-    int Rp = ik  + it*Nyc;
-    for (int k=0; k<Nz; k++) {
-      int ig = Rp + Nx*Nyc*k;
-      int ir = 0 + 2*(k + Nz*Qp);
-      int ii = 1 + 2*(k + Nz*Qp);
-      fk[ir] = f[ig].x;
-      fk[ii] = f[ig].y;
-    }
-  }
 
-  for (int it = 1; it < NK+1; it++) {
-    int itp = NK + it;
-    int itn = NK - it;
-    int itm = Nx - it;
-    for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
-
-      int Qn = itn + ik*Nakx;
-      int Rm = ik  + itm*Nyc;
-      for (int k=0; k<Nz; k++) {
-        int ip = Rp + Nx*Nyc*k;
-        int im = Rm + Nx*Nyc*k;
-
-        int irp = 0 + 2*(k + Nz*Qp);
-        int iip = 1 + 2*(k + Nz*Qp);
-
-        int irn = 0 + 2*(k + Nz*Qn);
-        int iin = 1 + 2*(k + Nz*Qn);
-
-        fk[irp] = f[ip].x;
-        fk[iip] = f[ip].y;
-
-        fk[irn] = f[im].x;
-        fk[iin] = f[im].y;
+  for (int iky=0; iky<Naky; iky++) {
+    for (int ikx=0; ikx<Nakx; ikx++) {
+      for (int iz=0; iz<Nz; iz++) {
+        int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
+        int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
+        int idx = ikx;
+        if (ikx > NK) idx = Nx - ikx;
+        int ig = iky + idx*Nyc + iz*Nx*Nyc;
+        fk[ir] = f[ig].x;
+        fk[ii] = f[ig].y;
       }
     }
-  } 
+  }
 }
 
 // fields transformed to real (x,y,z) space
@@ -736,7 +797,7 @@ FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear
    
   int retval;
   for(int i=0; i<3; i++) {
-    if (pars_->restart && pars_->append_on_restart) {
+    if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])==NC_NOERR ) {
       if (retval = nc_inq_varid(nc_group, varnames[i].c_str(), &varids[i])) ERR(retval);
       if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
     } else {
@@ -832,7 +893,7 @@ MomentsDiagnostic::MomentsDiagnostic(Parameters* pars, Grids* grids, Geometry* g
   Nwrite = grids->Nakx*grids->Naky*grids->Nz*grids->Nspecies*2;
 
   int retval;
-  if (pars_->restart && pars_->append_on_restart) {
+  if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR )  {
     if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
     if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
   } else {
@@ -936,50 +997,21 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
- 
+
   for (int is = 0; is<Nsp; is++) {
-    int it = 0;
-    int itp = it + NK;
-    for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
-      for (int k=0; k<Nz; k++) {
-        int ig = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-        int ir = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-        int ii = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-        fk[ir] = f[ig].x;
-        fk[ii] = f[ig].y;
-      }
-    }
-  
-    for (int it = 1; it < NK+1; it++) {
-      int itp = NK + it;
-      int itn = NK - it;
-      int itm = Nx - it;
-      for (int ik=0; ik<Naky; ik++) {
-        int Qp = itp + ik*Nakx;
-        int Rp = ik  + it*Nyc;
-  
-        int Qn = itn + ik*Nakx;
-        int Rm = ik  + itm*Nyc;
-        for (int k=0; k<Nz; k++) {
-          int ip = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-          int im = Rm + Nx*Nyc*k + Nx*Nyc*Nz*is;
-  
-          int irp = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-          int iip = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-  
-          int irn = 0 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-          int iin = 1 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-  
-          fk[irp] = f[ip].x;
-          fk[iip] = f[ip].y;
-  
-          fk[irn] = f[im].x;
-          fk[iin] = f[im].y;
+    for (int iky=0; iky<Naky; iky++) {
+      for (int ikx=0; ikx<Nakx; ikx++) {
+        for (int iz=0; iz<Nz; iz++) {
+          int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
+          int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
+          int idx = ikx;
+          if (ikx > NK) idx = Nx - ikx;
+          int ig = iky + idx*Nyc + iz*Nx*Nyc + is*Nx*Nyc*Nz;
+          fk[ir] = f[ig].x;
+          fk[ii] = f[ig].y;
         }
       }
-    } 
+    }
   }
 }
 

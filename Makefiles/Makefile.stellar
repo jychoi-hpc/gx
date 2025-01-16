@@ -39,7 +39,7 @@ CXX = g++
 
 NVCC      = nvcc
 CFLAGS = -fPIC
-NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true -std=c++17
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

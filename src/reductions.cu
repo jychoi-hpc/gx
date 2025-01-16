@@ -5,7 +5,7 @@ template<class T> Reduction<T>::Reduction(Grids *grids, std::vector<int32_t> mod
  : grids_(grids), modeFull_(modeFull), modeReduced_(modeReduced), N_(N)
 {
   Addwork = nullptr;     sizeWork = 0;         sizeAdd = 0;
-  Maxwork = nullptr;     sizeMaxWork = 0;      sizeMax = 0;
+  Maxwork = nullptr;     sizeMax = 0;
 
   // initialize all possible extents
   extent['y'] = grids_->Nyc;
@@ -46,13 +46,33 @@ template<class T> Reduction<T>::Reduction(Grids *grids, std::vector<int32_t> mod
     }
   }
 
+#if (CUTENSOR_VERSION >= 20000)
+  HANDLE_ERROR(cutensorCreate(&handle));
+  HANDLE_ERROR(cutensorCreateTensorDescriptor(handle, &descFull, modeFull_.size(), extentFull.data(), NULL, cfloat, 256 ));
+  HANDLE_ERROR(cutensorCreateTensorDescriptor(handle, &descReduced, modeReduced_.size(), extentReduced.data(), NULL, cfloat, 256 ));
+  HANDLE_ERROR(cutensorCreatePlanPreference( handle, &options, CUTENSOR_ALGO_DEFAULT, CUTENSOR_JIT_MODE_DEFAULT ) );
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+  HANDLE_ERROR(cutensorCreate(&handle));
+  HANDLE_ERROR(cutensorInitTensorDescriptor(handle, &descFull, modeFull_.size(), extentFull.data(), NULL, cfloat, CUTENSOR_OP_IDENTITY));
+  HANDLE_ERROR(cutensorInitTensorDescriptor(handle, &descReduced, modeReduced_.size(), extentReduced.data(), NULL, cfloat, CUTENSOR_OP_IDENTITY));
+#else
   HANDLE_ERROR(cutensorInit(&handle));
   HANDLE_ERROR(cutensorInitTensorDescriptor(&handle, &descFull, modeFull_.size(), extentFull.data(), NULL, cfloat, CUTENSOR_OP_IDENTITY));
   HANDLE_ERROR(cutensorInitTensorDescriptor(&handle, &descReduced, modeReduced_.size(), extentReduced.data(), NULL, cfloat, CUTENSOR_OP_IDENTITY));
+#endif
 }
 
 template<class T> Reduction<T>::~Reduction()
 {
+#if (CUTENSOR_VERSION >= 20000)
+  HANDLE_ERROR(cutensorDestroyTensorDescriptor( descFull ));
+  HANDLE_ERROR(cutensorDestroyTensorDescriptor( descReduced ));
+  HANDLE_ERROR(cutensorDestroyPlanPreference( options ));
+  HANDLE_ERROR(cutensorDestroy( handle ));
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+  HANDLE_ERROR(cutensorDestroy( handle ));
+#endif
+
   if (Addwork) cudaFree(Addwork);
   if (Maxwork) cudaFree(Maxwork);
 }
@@ -61,10 +81,24 @@ template<class T> void Reduction<T>::Sum(T* dataFull, T* dataReduced)
 {
   if (!initialized_Sum) {
   
+#if (CUTENSOR_VERSION >= 20000)
+    HANDLE_ERROR(cutensorCreateReduction( handle, &sumDesc,
+                                    descFull, modeFull_.data(), CUTENSOR_OP_IDENTITY,
+                                    descReduced, modeReduced_.data(), CUTENSOR_OP_IDENTITY,
+                                    descReduced, modeReduced_.data(),
+                                    opAdd, typeCompute ));
+    HANDLE_ERROR(cutensorEstimateWorkspaceSize( handle, sumDesc, options, CUTENSOR_WORKSPACE_DEFAULT, &sizeAdd));
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+    HANDLE_ERROR(cutensorReductionGetWorkspaceSize(handle, dataFull, &descFull, modeFull_.data(),
+				  dataReduced, &descReduced, modeReduced_.data(),
+				  dataReduced, &descReduced, modeReduced_.data(),
+				  opAdd, typeCompute, &sizeAdd));
+#else
     HANDLE_ERROR(cutensorReductionGetWorkspace(&handle, dataFull, &descFull, modeFull_.data(),
 				  dataReduced, &descReduced, modeReduced_.data(),
 				  dataReduced, &descReduced, modeReduced_.data(),
 				  opAdd, typeCompute, &sizeAdd));
+#endif
     if (sizeAdd > sizeWork) {
       sizeWork = sizeAdd;
       if (Addwork) cudaFree (Addwork);
@@ -72,14 +106,27 @@ template<class T> void Reduction<T>::Sum(T* dataFull, T* dataReduced)
 	Addwork = nullptr;	sizeWork = 0;
       }
     }
+#if (CUTENSOR_VERSION >= 20000)
+    HANDLE_ERROR( cutensorCreatePlan( handle, &sumPlan, sumDesc, options, sizeWork ) );
+#endif
     initialized_Sum = true;
   }
   
+#if (CUTENSOR_VERSION >= 20000)
+  HANDLE_ERROR( cutensorReduce( handle, sumPlan, &alpha, dataFull, &beta, dataReduced, dataReduced, Addwork, sizeWork, 0 ) );
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+  HANDLE_ERROR(cutensorReduction(handle,
+		    (const void*) &alpha, dataFull, &descFull, modeFull_.data(),
+		    (const void*) &beta,  dataReduced, &descReduced, modeReduced_.data(),
+		    dataReduced,  &descReduced, modeReduced_.data(),
+		    opAdd, typeCompute, Addwork, sizeWork, 0));
+#else
   HANDLE_ERROR(cutensorReduction(&handle,
 		    (const void*) &alpha, dataFull, &descFull, modeFull_.data(),
 		    (const void*) &beta,  dataReduced, &descReduced, modeReduced_.data(),
 		    dataReduced,  &descReduced, modeReduced_.data(),
 		    opAdd, typeCompute, Addwork, sizeWork, 0));
+#endif
 
   if(reduce_m && reduce_s && grids_->nprocs > 1) {
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclSum, grids_->ncclComm, 0);
@@ -101,25 +148,54 @@ template<class T> void Reduction<T>::Max(T* dataFull, T* dataReduced)
 {
   if (!initialized_Max) {
   
+#if (CUTENSOR_VERSION >= 20000)
+    HANDLE_ERROR(cutensorCreateReduction( handle, &maxDesc,
+                                    descFull, modeFull_.data(), CUTENSOR_OP_IDENTITY,
+                                    descReduced, modeReduced_.data(), CUTENSOR_OP_IDENTITY,
+                                    descReduced, modeReduced_.data(),
+                                    opMax, typeCompute ));
+    HANDLE_ERROR(cutensorEstimateWorkspaceSize( handle, maxDesc, options, CUTENSOR_WORKSPACE_DEFAULT, &sizeMax));
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+    HANDLE_ERROR(cutensorReductionGetWorkspaceSize(handle, dataFull, &descFull, modeFull_.data(),
+				  dataReduced, &descReduced, modeReduced_.data(),
+				  dataReduced, &descReduced, modeReduced_.data(),
+				  opMax, typeCompute, &sizeMax));
+#else
     HANDLE_ERROR(cutensorReductionGetWorkspace(&handle, dataFull, &descFull, modeFull_.data(),
 				  dataReduced, &descReduced, modeReduced_.data(),
 				  dataReduced, &descReduced, modeReduced_.data(),
 				  opMax, typeCompute, &sizeMax));
-    if (sizeMax > sizeMaxWork) {
-      sizeMaxWork = sizeMax;
+#endif
+    if (sizeMax > sizeWork) {
+      sizeWork = sizeMax;
       if (Maxwork) cudaFree (Maxwork);
-      if (cudaSuccess != cudaMalloc(&Maxwork, sizeMaxWork)) {
-        Maxwork = nullptr;	sizeMaxWork = 0;
+      if (cudaSuccess != cudaMalloc(&Maxwork, sizeWork)) {
+        Maxwork = nullptr;
+        sizeWork = 0;
       }
     }
+
+#if (CUTENSOR_VERSION >= 20000)
+    HANDLE_ERROR( cutensorCreatePlan( handle, &maxPlan, maxDesc, options, sizeWork ) );
+#endif
     initialized_Max = true;
   }
   
+#if (CUTENSOR_VERSION >= 20000)
+  HANDLE_ERROR( cutensorReduce( handle, maxPlan, &alpha, dataFull, &beta, dataReduced, dataReduced, Maxwork, sizeWork, 0 ) );
+#elif (defined(__HIPCC__) | CUTENSOR_VERSION >= 10700)
+  HANDLE_ERROR(cutensorReduction(handle,
+		    (const void*) &alpha, dataFull, &descFull, modeFull_.data(),
+		    (const void*) &beta,  dataReduced, &descReduced, modeReduced_.data(),
+		    dataReduced,  &descReduced, modeReduced_.data(),
+		    opMax, typeCompute, Maxwork, sizeMax, 0));
+#else
   HANDLE_ERROR(cutensorReduction(&handle,
 		    (const void*) &alpha, dataFull, &descFull, modeFull_.data(),
 		    (const void*) &beta,  dataReduced, &descReduced, modeReduced_.data(),
 		    dataReduced,  &descReduced, modeReduced_.data(),
 		    opMax, typeCompute, Maxwork, sizeMax, 0));
+#endif
 
   cudaDeviceSynchronize();
   checkCuda(cudaGetLastError());
@@ -137,99 +213,6 @@ template<class T> void Reduction<T>::Max(T* dataFull, T* dataReduced)
     // ncclComm_m is the per-m-block communicator
     ncclAllReduce((void*) dataReduced, (void*) dataReduced, nelementsReduced, ncclFloat, ncclMax, grids_->ncclComm_m, 0);
   }
-}
-
-//============ DenseM ==============
-DenseM::DenseM(int N, int M) : N_(N), M_(M)
-{ 
-  Multwork = nullptr;      sizeWork = 0;
-
-  extent['g'] = M_;
-  extent['r'] = N_;
-  extent['s'] = N_;
-  for (auto mode : Mmode) extent_M.push_back(extent[mode]); 
-  for (auto mode : Vmode) extent_V.push_back(extent[mode]); 
-  for (auto mode : Ymode) extent_Y.push_back(extent[mode]); 
-  for (auto mode : Zmode) extent_Z.push_back(extent[mode]); 
-  for (auto mode : Wmode) extent_W.push_back(extent[mode]); 
-  for (auto mode : Xmode) extent_X.push_back(extent[mode]); 
-
-  cutensorInit(&handle);
-  cutensorInitTensorDescriptor(&handle, &dY, nYmode, extent_Y.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-  cutensorInitTensorDescriptor(&handle, &dM, nMmode, extent_M.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-  cutensorInitTensorDescriptor(&handle, &dV, nVmode, extent_V.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-  cutensorInitTensorDescriptor(&handle, &dX, nXmode, extent_X.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-  cutensorInitTensorDescriptor(&handle, &dW, nWmode, extent_W.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-  cutensorInitTensorDescriptor(&handle, &dZ, nZmode, extent_Z.data(), NULL, dfloat, CUTENSOR_OP_IDENTITY);
-
-  cutensorInitContractionFind(&handle, &find, CUTENSOR_ALGO_DEFAULT);
-}
-
-DenseM::~DenseM()
-{
-  if (Multwork) cudaFree(Multwork);  
-}
-
-void DenseM::MatMat(double* Res, double* M1, double* M2)
-{
-  if (first_MM) {
-    
-    uint32_t alignM1, alignM2, alignRes;
-    cutensorGetAlignmentRequirement(&handle, M1,  &dW, &alignM1);
-    cutensorGetAlignmentRequirement(&handle, M2,  &dZ, &alignM2);
-    cutensorGetAlignmentRequirement(&handle, Res, &dX, &alignRes);
-
-    cutensorInitContractionDescriptor (&handle, &dMM, 
-				       &dW, Wmode.data(), alignM1,
-				       &dZ, Zmode.data(), alignM2,
-				       &dX, Xmode.data(), alignRes,
-				       &dX, Xmode.data(), alignRes,
-				       typeCompute64);
-
-    cutensorContractionGetWorkspace(&handle, &dMM, &find, CUTENSOR_WORKSPACE_RECOMMENDED, &sizeMM );
-    if (sizeMM > 0) {
-      if (cudaSuccess != cudaMalloc(&MMwork, sizeMM)) {MMwork = nullptr; sizeMM = 0;}
-    }
-    first_MM = false;
-
-    cutensorInitContractionPlan(&handle, &MMplan, &dMM, &find, sizeMM);
-  }
-  
-  cutensorContraction(&handle,
-		      &MMplan, (void*) &alpha, M1, M2, (void*) &beta, Res, Res, MMwork, sizeMM, 0);
-  
-}
-
-// Res[M] = Mat[M x N] * Vec[N]
-// and in terms of these tensor descriptors Y = M V
-void DenseM::MatVec(double* Res, double* Mat, double* Vec)
-{
-  if (first_MV) {
-    
-    uint32_t alignVec, alignMat, alignRes;
-    cutensorGetAlignmentRequirement(&handle, Mat, &dM, &alignMat);
-    cutensorGetAlignmentRequirement(&handle, Vec, &dV, &alignVec);
-    cutensorGetAlignmentRequirement(&handle, Res, &dY, &alignRes);
-
-    cutensorInitContractionDescriptor (&handle, &dMV, 
-				       &dM, Mmode.data(), alignMat,
-				       &dV, Vmode.data(), alignVec,
-				       &dY, Ymode.data(), alignRes,
-				       &dY, Ymode.data(), alignRes,
-				       typeCompute64);
-
-    cutensorContractionGetWorkspace(&handle, &dMV, &find, CUTENSOR_WORKSPACE_RECOMMENDED, &sizeWork);
-    if (sizeWork > 0) {
-      if (cudaSuccess != cudaMalloc(&Multwork, sizeWork)) {Multwork = nullptr; sizeWork = 0;}
-    }
-    first_MV = false;
-
-    cutensorInitContractionPlan(&handle, &MVplan, &dMV, &find, sizeWork);
-  }
-  
-  cutensorContraction(&handle, &MVplan, (void*) &alpha, Mat, Vec,
-		      (void*) &beta, Res, Res, Multwork, sizeWork, 0);
-  
 }
 
 template class Reduction<float>;

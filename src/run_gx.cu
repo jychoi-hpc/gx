@@ -22,7 +22,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     G[is] = new MomentsG (pars, grids, is_glob);
   }
   fields = new Fields(pars, grids);               
-  checkCudaErrors(cudaGetLastError());
   
   /////////////////////////////////
   //                             //
@@ -38,10 +37,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     linear = new Linear_GK(pars, grids, geo);          
     if (!pars->linear) nonlinear = new Nonlinear_GK(pars, grids, geo); 
     if (pars->ExBshear)   exb       = new ExB_GK(pars, grids, geo);
-    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaGetLastError());
 
     solver = new Solver_GK(pars, grids, geo);    
-    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaGetLastError());
 
     if (pars->forcing_init) {
       std::cout << "Forcing being ran: " << pars->forcing_type << std::endl;
@@ -65,7 +64,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");
     diagnostics = new Diagnostics_GK(pars, grids, geo, linear, nonlinear);
     if(grids->iproc==0) CUDA_DEBUG("Initializing diagnostics: %s \n");    
-    checkCudaErrors(cudaGetLastError());    
+    checkCuda(cudaGetLastError());    
   }
 
   //////////////////////////////
@@ -95,7 +94,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     // set up diagnostics
     diagnostics = new Diagnostics_KREHM(pars, grids, geo, linear, nonlinear);
   }
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
   
   //////////////////////////////
   //                          //
@@ -138,41 +137,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     // and choose slab = true to get his slab equations.
     //
   }
-  checkCudaErrors(cudaGetLastError());
-
-  //////////////////////////////
-  //                          //
-  // Kuramoto-Sivashinsky eq  // 
-  //                          //
-  //////////////////////////////  
-  if (pars->ks) {
-    linear    = new Linear_KS(pars, grids);    
-    if (!pars->linear) nonlinear = new Nonlinear_KS(pars, grids);
-
-    // no field solve for K-S
-
-    // set up initial conditions
-    G[0] -> initialConditions(&time);
-    //    G -> qvar(grids->Naky);
-  }    
-  checkCudaErrors(cudaGetLastError());
-
-  //////////////////////////////
-  //                          //
-  // Vlasov-Poisson           // 
-  //                          //
-  //////////////////////////////  
-  if (pars->vp) {
-    linear    = new Linear_VP(pars, grids);    
-    if (!pars->linear) nonlinear = new Nonlinear_VP(pars, grids);
-
-    solver = new Solver_VP(pars, grids);    
-
-    // set up initial conditions
-    G[0] -> initVP(&time);
-    solver -> fieldSolve(G, fields);
-  }    
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
   Timestepper * timestep = nullptr;
   switch (pars->scheme_opt)
@@ -200,7 +165,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
 
   cudaDeviceSynchronize();
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
   while(counter<pars->nstep && time<pars->t_max) {
 
@@ -211,7 +176,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time);
 
     // this will catch any error in the timestep loop, but it won't be able to identify where the error occurred.
-    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaGetLastError());
     counter++;
     if (counter==pars->nstep || time>=pars->t_max) {
       [[maybe_unused]] auto unused = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
