@@ -2461,7 +2461,7 @@ __device__ void i_kzLinked(void *dataOut, size_t offset, cufftComplex element, v
   // Passed: nLinks; we know nz
   unsigned int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
+  float zpnLinv = (float) 1./(zp*nLinks);
   float kz;
   int j = idz % (nzL/2+1)     
   if (idz < nzL/2+1) {
@@ -2503,7 +2503,7 @@ __device__ void mkz2_Linked(void *dataOut, size_t offset, cufftComplex element, 
   // Passed: nLinks; we know nz
   unsigned int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
+  float zpnLinv = (float) 1./(zp*nLinks);
   float kz;
   int j = idz % (nzL/2+1)     
   if (idz < nzL/2+1) {
@@ -2555,16 +2555,20 @@ __device__ void hyperkzLinked(void *dataOut, size_t offset, cufftComplex element
   int *data = (int*) hyperData;
   int nLinks = data[0];
   int p_hyper_z = data[1];
-  unsigned int nzL = nz*nLinks;
+  int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
-  float hypkz;
+  float zpnLinv = (float) 1./(zp*nLinks);
+
+  float kz;
   if (idz < nzL/2+1) {
-    hypkz = powf((float) idz * zpnLinv / (nzL/2 * zpnLinv), p_hyper_z);
+    kz = (float) idz * zpnLinv;
   } else {
     int idzs = idz-nzL;
-    hypkz = powf((float) idzs * zpnLinv / (nzL/2 * zpnLinv), p_hyper_z);
+    kz = (float) -idzs * zpnLinv;
   }
+  float kzmax = (nzL/2 *zpnLinv);
+  float hypkz = powf( kz/kzmax, p_hyper_z);
+
   float normalization = (float) 1./nzL;
   ((cuComplex*)dataOut)[offset] = -hypkz*element*normalization;
 }
@@ -2616,6 +2620,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
     } else {
       kz[i] = (float) (i-nzL)/(zp*nLinks);
     }
+    //printf("%d %f\n", nLinks, kz[i]);
     if (dealias_kz) {
       if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
     }

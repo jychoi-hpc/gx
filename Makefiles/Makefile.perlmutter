@@ -14,7 +14,7 @@
 # module load cray-netcdf-hdf5parallel
 # module load nccl/2.15.5-ofi
 # module load python
-# module load e4s
+# module load e4s/23.08
 # spack env activate -V gcc
 # spack load gsl
 # spack load sundials
@@ -68,11 +68,7 @@ CFLAGS = -fPIC --std=c++17
 NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
 
 ifeq ($(debug),on)
-<<<<<<< HEAD
   NVCCFLAGS += -g -G -DDEBUG
-=======
-  NVCCFLAGS += -g -G
->>>>>>> origin/next
 else
   NVCCFLAGS += -O3
 endif

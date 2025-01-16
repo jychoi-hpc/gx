@@ -659,49 +659,20 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
- 
-  int it = 0;
-  int itp = it + NK;
-  for (int ik=0; ik<Naky; ik++) {
-    int Qp = itp + ik*Nakx;
-    int Rp = ik  + it*Nyc;
-    for (int k=0; k<Nz; k++) {
-      int ig = Rp + Nx*Nyc*k;
-      int ir = 0 + 2*(k + Nz*Qp);
-      int ii = 1 + 2*(k + Nz*Qp);
-      fk[ir] = f[ig].x;
-      fk[ii] = f[ig].y;
-    }
-  }
 
-  for (int it = 1; it < NK+1; it++) {
-    int itp = NK + it;
-    int itn = NK - it;
-    int itm = Nx - it;
-    for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
-
-      int Qn = itn + ik*Nakx;
-      int Rm = ik  + itm*Nyc;
-      for (int k=0; k<Nz; k++) {
-        int ip = Rp + Nx*Nyc*k;
-        int im = Rm + Nx*Nyc*k;
-
-        int irp = 0 + 2*(k + Nz*Qp);
-        int iip = 1 + 2*(k + Nz*Qp);
-
-        int irn = 0 + 2*(k + Nz*Qn);
-        int iin = 1 + 2*(k + Nz*Qn);
-
-        fk[irp] = f[ip].x;
-        fk[iip] = f[ip].y;
-
-        fk[irn] = f[im].x;
-        fk[iin] = f[im].y;
+  for (int iky=0; iky<Naky; iky++) {
+    for (int ikx=0; ikx<Nakx; ikx++) {
+      for (int iz=0; iz<Nz; iz++) {
+        int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
+        int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
+        int idx = ikx;
+        if (ikx > NK) idx = Nx - ikx;
+        int ig = iky + idx*Nyc + iz*Nx*Nyc;
+        fk[ir] = f[ig].x;
+        fk[ii] = f[ig].y;
       }
     }
-  } 
+  }
 }
 
 // fields transformed to real (x,y,z) space
@@ -930,50 +901,21 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
- 
+
   for (int is = 0; is<Nsp; is++) {
-    int it = 0;
-    int itp = it + NK;
-    for (int ik=0; ik<Naky; ik++) {
-      int Qp = itp + ik*Nakx;
-      int Rp = ik  + it*Nyc;
-      for (int k=0; k<Nz; k++) {
-        int ig = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-        int ir = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-        int ii = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-        fk[ir] = f[ig].x;
-        fk[ii] = f[ig].y;
-      }
-    }
-  
-    for (int it = 1; it < NK+1; it++) {
-      int itp = NK + it;
-      int itn = NK - it;
-      int itm = Nx - it;
-      for (int ik=0; ik<Naky; ik++) {
-        int Qp = itp + ik*Nakx;
-        int Rp = ik  + it*Nyc;
-  
-        int Qn = itn + ik*Nakx;
-        int Rm = ik  + itm*Nyc;
-        for (int k=0; k<Nz; k++) {
-          int ip = Rp + Nx*Nyc*k + Nx*Nyc*Nz*is;
-          int im = Rm + Nx*Nyc*k + Nx*Nyc*Nz*is;
-  
-          int irp = 0 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-          int iip = 1 + 2*(k + Nz*Qp) + 2*Nakx*Naky*Nz*is;
-  
-          int irn = 0 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-          int iin = 1 + 2*(k + Nz*Qn) + 2*Nakx*Naky*Nz*is;
-  
-          fk[irp] = f[ip].x;
-          fk[iip] = f[ip].y;
-  
-          fk[irn] = f[im].x;
-          fk[iin] = f[im].y;
+    for (int iky=0; iky<Naky; iky++) {
+      for (int ikx=0; ikx<Nakx; ikx++) {
+        for (int iz=0; iz<Nz; iz++) {
+          int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
+          int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
+          int idx = ikx;
+          if (ikx > NK) idx = Nx - ikx;
+          int ig = iky + idx*Nyc + iz*Nx*Nyc + is*Nx*Nyc*Nz;
+          fk[ir] = f[ig].x;
+          fk[ii] = f[ig].y;
         }
       }
-    } 
+    }
   }
 }
 
