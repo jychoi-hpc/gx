@@ -1994,6 +1994,117 @@ __global__ void particle_flux_summand(float* pflux,
   }
 }
 
+__global__ void particle_flux_ES_summand(float* pflux,
+                                      const cuComplex* phi,
+                                      const cuComplex* g,
+                                      const float* ky,
+				      const float* flxJac,
+                                      const float *kperp2,
+                                      float rho2_s,
+                                      float n_s,
+                                      float vts,
+                                      float tzs)
+{
+  idXYZ; 
+  
+  if (idy < nyc && idx < nx && idz < nz && m_lo==0) { 
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+    if (unmasked(idx, idy) && idy > 0) {    
+      
+      cuComplex vPhi_r = make_cuComplex(0., ky[idy]) * phi[idxyz];
+    
+      float b_s = kperp2[idxyz]*rho2_s;
+    
+      // sum over l
+      cuComplex n_bar = make_cuComplex(0.,0.);
+
+      for (int il=0; il < nl; il++) {
+	n_bar = n_bar + Jflr(il, b_s)*Gh_(idxyz, il, 0);
+      }
+    
+      cuComplex fg = (cuConjf(vPhi_r) * n_bar) * 2. * flxJac[idz];
+      pflux[idxyz] = fg.x * n_s;
+
+    } else {
+      pflux[idxyz] = 0.;
+    }
+  }
+}
+
+__global__ void particle_flux_Apar_summand(float* pflux,
+                                      const cuComplex* apar,
+                                      const cuComplex* g,
+                                      const float* ky,
+				      const float* flxJac,
+                                      const float *kperp2,
+                                      float rho2_s,
+                                      float n_s,
+                                      float vts,
+                                      float tzs)
+{
+  idXYZ; 
+  
+  if (idy < nyc && idx < nx && idz < nz && m_lo==0) { 
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+    if (unmasked(idx, idy) && idy > 0) {    
+      
+      cuComplex vA_r = make_cuComplex(0., ky[idy]) * apar[idxyz];
+    
+      float b_s = kperp2[idxyz]*rho2_s;
+    
+      // sum over l
+      cuComplex u_bar = make_cuComplex(0.,0.);
+
+      for (int il=0; il < nl; il++) {
+	u_bar = u_bar + Jflr(il, b_s)*Gh_(idxyz, il, 1);
+      }
+    
+      cuComplex fg = (- vts*cuConjf(vA_r)*u_bar) * 2. * flxJac[idz];
+      pflux[idxyz] = fg.x * n_s;
+
+    } else {
+      pflux[idxyz] = 0.;
+    }
+  }
+}
+
+__global__ void particle_flux_Bpar_summand(float* pflux,
+                                      const cuComplex* bpar,
+                                      const cuComplex* g,
+                                      const float* ky,
+				      const float* flxJac,
+                                      const float *kperp2,
+                                      float rho2_s,
+                                      float n_s,
+                                      float vts,
+                                      float tzs)
+{
+  idXYZ; 
+  
+  if (idy < nyc && idx < nx && idz < nz && m_lo==0) { 
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+    if (unmasked(idx, idy) && idy > 0) {    
+      
+      cuComplex vB_r = make_cuComplex(0., ky[idy]) * bpar[idxyz];
+    
+      float b_s = kperp2[idxyz]*rho2_s;
+    
+      // sum over l
+      cuComplex uB_bar = make_cuComplex(0.,0.);
+
+      for (int il=0; il < nl; il++) {
+	uB_bar = uB_bar + JflrB(il, b_s)*Gh_(idxyz, il, 0);
+      }
+    
+      cuComplex fg = (tzs*cuConjf(vB_r)*uB_bar) * 2. * flxJac[idz];
+      pflux[idxyz] = fg.x * n_s;
+
+    } else {
+      pflux[idxyz] = 0.;
+    }
+  }
+}
+
 __global__ void turbulent_heating_summand(float* heat, const cuComplex* phi, const cuComplex* apar, const cuComplex* bpar, 
                                           const cuComplex* phi_old, const cuComplex* apar_old, const cuComplex* bpar_old, 
                                           const cuComplex* g, const cuComplex* g_old, const float* volJac, const float* kperp2, const specie sp, float dt)
@@ -2461,7 +2572,7 @@ __device__ void i_kzLinked(void *dataOut, size_t offset, cufftComplex element, v
   // Passed: nLinks; we know nz
   unsigned int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
+  float zpnLinv = (float) 1./(zp*nLinks);
   float kz;
   int j = idz % (nzL/2+1)     
   if (idz < nzL/2+1) {
@@ -2503,7 +2614,7 @@ __device__ void mkz2_Linked(void *dataOut, size_t offset, cufftComplex element, 
   // Passed: nLinks; we know nz
   unsigned int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
+  float zpnLinv = (float) 1./(zp*nLinks);
   float kz;
   int j = idz % (nzL/2+1)     
   if (idz < nzL/2+1) {
@@ -2555,16 +2666,20 @@ __device__ void hyperkzLinked(void *dataOut, size_t offset, cufftComplex element
   int *data = (int*) hyperData;
   int nLinks = data[0];
   int p_hyper_z = data[1];
-  unsigned int nzL = nz*nLinks;
+  int nzL = nz*nLinks;
   unsigned int idz = offset % (nzL);
-  float zpnLinv = (float) 1./zp*nLinks;
-  float hypkz;
+  float zpnLinv = (float) 1./(zp*nLinks);
+
+  float kz;
   if (idz < nzL/2+1) {
-    hypkz = powf((float) idz * zpnLinv / (nzL/2 * zpnLinv), p_hyper_z);
+    kz = (float) idz * zpnLinv;
   } else {
     int idzs = idz-nzL;
-    hypkz = powf((float) idzs * zpnLinv / (nzL/2 * zpnLinv), p_hyper_z);
+    kz = (float) -idzs * zpnLinv;
   }
+  float kzmax = (nzL/2 *zpnLinv);
+  float hypkz = powf( kz/kzmax, p_hyper_z);
+
   float normalization = (float) 1./nzL;
   ((cuComplex*)dataOut)[offset] = -hypkz*element*normalization;
 }
@@ -2616,6 +2731,7 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
     } else {
       kz[i] = (float) (i-nzL)/(zp*nLinks);
     }
+    //printf("%d %f\n", nLinks, kz[i]);
     if (dealias_kz) {
       if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
     }

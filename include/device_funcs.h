@@ -222,6 +222,14 @@ __global__ void heat_flux_Bpar_summand(float* qflux, const cuComplex* bpar, cons
 				  const float* flxJac, const float *kperp2, float rho2_s, float pres, float tzs);
 
 __global__ void particle_flux_summand(float* pflux, const cuComplex* phi, const cuComplex* apar, const cuComplex* bpar, const cuComplex* g, const float* ky, 
+
+				  const float* flxJac, const float *kperp2, float rho2_s, float n_s, float vts, float tzs);
+
+__global__ void particle_flux_ES_summand(float* pflux, const cuComplex* phi, const cuComplex* g, const float* ky, 
+				  const float* flxJac, const float *kperp2, float rho2_s, float n_s, float vts, float tzs);
+__global__ void particle_flux_Apar_summand(float* pflux, const cuComplex* apar, const cuComplex* g, const float* ky, 
+				  const float* flxJac, const float *kperp2, float rho2_s, float n_s, float vts, float tzs);
+__global__ void particle_flux_Bpar_summand(float* pflux, const cuComplex* bpar, const cuComplex* g, const float* ky, 
 				  const float* flxJac, const float *kperp2, float rho2_s, float n_s, float vts, float tzs);
 
 __global__ void init_ftwist(float* ftwist, const float* gds21, const float* gds22, float shat);

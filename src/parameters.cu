@@ -554,12 +554,19 @@ void Parameters::get_nml_vars(char* filename)
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
-  // electromagnetic doesn't make sense with adiabatic species
-  if (!all_kinetic) {
+  // electromagnetic doesn't make sense with adiabatic electrons
+  if (!all_kinetic && Boltzmann_opt == BOLTZMANN_ELECTRONS && beta > 0.0 ) {
+    std::cerr << "Boltzmann Electrons specified with non-zero beta. This is invalid. Setting beta = 0 instead." << std::endl;
     beta = 0.0; 
     fapar = 0.0;
     fbpar = 0.0;
   }
+
+  if (!all_kinetic && Boltzmann_opt == BOLTZMANN_IONS && fbpar > 0.0 && beta > 0.0 ) {
+    std::cerr << "Boltzmann Ions specified with non-zero fbpar. This is currently unsupported. Setting fbpar = 0 instead." << std::endl;
+    fbpar = 0.0;
+  }
+
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
   coll_conservation = toml::find_or <bool> (tnml, "coll_conservation", true);
 
