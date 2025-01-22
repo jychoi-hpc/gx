@@ -1130,6 +1130,7 @@ gds21 = geo_coeffs.gds21[0][0]
 gds22 = geo_coeffs.gds22[0][0]
 R = geo_coeffs.R_b[0][0]
 Z = geo_coeffs.Z_b[0][0]
+Phi = geo_coeffs.phi_b[0][0]
 grho = geo_coeffs.grho[0][0]
 alpha = geo_coeffs.alpha
 zeta_center = geo_coeffs.zeta_center
@@ -1297,6 +1298,7 @@ gbdrift_GX = np.interp(theta_GX, theta_eqarc, gbdrift)
 gbdrift0_GX = np.interp(theta_GX, theta_eqarc, gbdrift0)
 R_GX = np.interp(theta_GX, theta_eqarc, R)
 Z_GX = np.interp(theta_GX, theta_eqarc, Z)
+Phi_GX = np.interp( theta_GX, theta_eqarc, Phi )
 gradpar_GX = gradpar_eqarc * np.ones((len(bmag_GX),))
 
 grad_x_GX = np.array([np.interp(theta_GX, theta_eqarc, grad_x[0]), np.interp(theta_GX, theta_eqarc, grad_x[1]), np.interp(theta_GX, theta_eqarc, grad_x[2])])
@@ -1335,6 +1337,7 @@ try:
     jacob_nc = ds0.createVariable("jacob", "f8", ("z",))
     Rplot_nc = ds0.createVariable("Rplot", "f8", ("z",))
     Zplot_nc = ds0.createVariable("Zplot", "f8", ("z",))
+    Phiplot_nc = ds0.createVariable("Phiplot", "f8", ("z",))
 
     grad_x_nc = ds0.createVariable("grad_x", "f8", ("3", "z"))
     grad_y_nc = ds0.createVariable("grad_y", "f8", ("3", "z"))
@@ -1392,6 +1395,7 @@ try:
 
     Rplot_nc[:] = R_GX[:]
     Zplot_nc[:] = Z_GX[:]
+    Phiplot_nc[:] = Phi_GX[:]
 
     grad_x_nc[:, :] = grad_x_GX[:, :] 
     grad_y_nc[:, :] = grad_y_GX[:, :] 
