@@ -46,7 +46,7 @@ void RungeKutta4::set_timestep( Fields * f )
 	double wmax = 0.;
 	for(int i=0; i<3; i++) wmax += omega_max[i];
 	double dt_guess = cfl_fac*pars_->cfl/wmax;
-    dt_ = min( max(dt_guess,pars_->dt_min), dt_max);
+    dt_ = fmin( fmax(dt_guess,pars_->dt_min), dt_max);
 }
 
 void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs, MomentsG **Gnew, double adt)
@@ -67,6 +67,8 @@ void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
 
     // compute and increment linear term
     Rhs[is]->set_zero();
+    // finish Hermite ghost exchange before starting linear rhs
+    cudaStreamSynchronize(Gt[is]->syncStream);
     linear_->rhs(Gt[is], f, Rhs[is], dt_);
 	 // Gnew += adt*(dt_)*Rhs
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
@@ -143,6 +145,8 @@ void RungeKutta4::advance(double *t, MomentsG** G, Fields* f)
     G[is]->add_scaled(1., G[is], 1., GRhs[is], dt_/6., GStar[is]);
 
     GStar[is]->set_zero();
+    // finish Hermite ghost exchange before starting linear rhs
+    cudaStreamSynchronize(G_q1[is]->syncStream);
     linear_->rhs(G_q1[is], f, GStar[is], dt_);
     
     G[is]->add_scaled(1., G[is], dt_/6., GStar[is]);

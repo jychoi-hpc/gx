@@ -81,14 +81,15 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
   //    dimBlock = dim3(32, min(4, Nl), min(4, Nm));
   //    dimGrid  = dim3((grids_->NxNycNz-1)/dimBlock.x+1, 1, 1);
   
-  nn1 = grids_->Nyc*grids_->Nx;    nt1 = min(nn1, 32);    nb1 = (nn1-1)/nt1 + 1;
-  nn2 = grids_->Nz;                nt2 = min(nn2, 32);    nb2 = (nn2-1)/nt2 + 1;
+  nn1 = grids_->Nyc*grids_->Nx;    nt1 = min(nn1, WARPSIZE);    nb1 = (nn1-1)/nt1 + 1;
+  nn2 = grids_->Nz;                nt2 = min(nn2, (int) 512/WARPSIZE);    nb2 = (nn2-1)/nt2 + 1;
   nn3 = grids_->Nm*grids_->Nl;     nt3 = min(nn3,  1);    nb3 = (nn3-1)/nt3 + 1;
   
   dB_all = dim3(nt1, nt2, nt3);
   dG_all = dim3(nb1, nb2, nb3);	 
 
   cudaStreamCreateWithFlags(&syncStream, cudaStreamNonBlocking);
+  cudaEventCreateWithFlags(&finished_sync, cudaEventDisableTiming);
   checkCuda(cudaGetLastError());
 }
 
@@ -198,7 +199,7 @@ void MomentsG::initialConditions(double* time) {
 			if (j==1) ikx = grids_->Nx-ikx;
 			DEBUG_PRINT("ikx, iky: %d \t %d \n",ikx, iky);
 			for(int k=0; k<grids_->Nz; k++) {
-				int index = iky + grids_->Nyc*ikx + grids_->NxNyc*ikz;
+				int index = iky + grids_->Nyc*ikx + grids_->NxNyc*k;
 
 				init_h[index].x = pars_->init_amp;
 				init_h[index].y = 0.0;
@@ -397,7 +398,7 @@ void MomentsG::add_scaled(double c1, MomentsG* G1,
   add_scaled_kernel GALL (G(), c1, G1->G(), c2, G2->G(), c3, G3->G(), c4, G4->G(), c5, G5->G(), neqfix);
 }
 
-void MomentsG::reality(int ngz) 
+void MomentsG::reality()
 {
   dim3 dB;
   dim3 dG;
@@ -412,30 +413,33 @@ void MomentsG::reality(int ngz)
   dB.y = 8;
   dG.y = (ngy-1)/dB.y + 1;
   
+  int ngz = grids_->Nmoms;
+
   dB.z = 4;
   dG.z = (ngz-1)/dB.z + 1;
 
   reality_kernel <<< dG, dB >>> (G(), ngz);
 }
 
-void MomentsG::sync(bool blocking)
+void MomentsG::sync(bool blocking, int m_ghost)
 {
-  if(pars_->use_NCCL) syncNCCL(blocking);
-  else syncMPI();
+  if (m_ghost < 0) m_ghost = grids_->m_ghost; // default
+  if(pars_->use_NCCL) syncNCCL(blocking, m_ghost);
+  else syncMPI(m_ghost);
 }
 
-void MomentsG::syncMPI()
+void MomentsG::syncMPI(int m_ghost)
 {
   if(grids_->nprocs_m==1) return;
 
   // handle special case of nprocs_m == Nm_glob && m_ghost == 2
-  if(grids_->Nm_glob == grids_->nprocs_m && grids_->m_ghost == 2) {
+  if(grids_->Nm_glob == grids_->nprocs_m && m_ghost == 2) {
     size_t size = sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl;
     MPI_Status stat;
 
     // send one to right
     if(grids_->iproc_m+1 < grids_->nprocs_m) {
-      MPI_Send(Gm(grids_->Nm-grids_->m_ghost), size, MPI_BYTE, grids_->procRight(), 1, MPI_COMM_WORLD);
+      MPI_Send(Gm(grids_->Nm-m_ghost), size, MPI_BYTE, grids_->procRight(), 1, MPI_COMM_WORLD);
     }
     // receive from one to left
     if(grids_->iproc_m-1 >= 0) {
@@ -469,16 +473,16 @@ void MomentsG::syncMPI()
       MPI_Recv(Gm(2), size, MPI_BYTE, grids_->procRight2(), 2, MPI_COMM_WORLD, &stat);
     }
   } else {
-    size_t size = sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*grids_->m_ghost;
+    size_t size = sizeof(cuComplex)*grids_->NxNycNz*grids_->Nl*m_ghost;
     MPI_Status stat;
 
     // send to right
     if(grids_->iproc_m+1 < grids_->nprocs_m) {
-      MPI_Send(Gm(grids_->Nm-grids_->m_ghost), size, MPI_BYTE, grids_->procRight(), 1, MPI_COMM_WORLD);
+      MPI_Send(Gm(grids_->Nm-m_ghost), size, MPI_BYTE, grids_->procRight(), 1, MPI_COMM_WORLD);
     }
     // receive from left
     if(grids_->iproc_m-1 >= 0) {
-      MPI_Recv(Gm(-grids_->m_ghost),           size, MPI_BYTE, grids_->procLeft(), 1, MPI_COMM_WORLD, &stat);
+      MPI_Recv(Gm(-m_ghost),           size, MPI_BYTE, grids_->procLeft(), 1, MPI_COMM_WORLD, &stat);
     }
 
     // send to left
@@ -493,12 +497,12 @@ void MomentsG::syncMPI()
   cudaDeviceSynchronize();
 }
 
-void MomentsG::syncNCCL(bool blocking)
+void MomentsG::syncNCCL(bool blocking, int m_ghost)
 {
   if(grids_->nprocs_m==1) return;
 
   // handle special case of nprocs_m == Nm_glob && m_ghost == 2
-  if(grids_->Nm_glob == grids_->nprocs_m && grids_->m_ghost == 2) {
+  if(grids_->Nm_glob == grids_->nprocs_m && m_ghost == 2) {
     // since nccl does not support cuComplex directly, we will use float type
     // factor of 2 here is for real and imag part of cuComplex
     size_t count = 2*grids_->NxNycNz*grids_->Nl;
@@ -546,16 +550,16 @@ void MomentsG::syncNCCL(bool blocking)
   } else {
     // since nccl does not support cuComplex directly, we will use float type
     // factor of 2 here is for real and imag part of cuComplex
-    size_t count = 2*grids_->NxNycNz*grids_->Nl*grids_->m_ghost;
+    size_t count = 2*grids_->NxNycNz*grids_->Nl*m_ghost;
 
     ncclGroupStart();
     // send to right
     if(grids_->iproc_m+1 < grids_->nprocs_m) {
-      ncclSend(Gm(grids_->Nm-grids_->m_ghost), count, ncclFloat, grids_->procRight(), grids_->ncclComm, syncStream);
+      ncclSend(Gm(grids_->Nm-m_ghost), count, ncclFloat, grids_->procRight(), grids_->ncclComm, syncStream);
     }
     // receive from left
     if(grids_->iproc_m-1 >= 0) {
-      ncclRecv(Gm(-grids_->m_ghost),           count, ncclFloat, grids_->procLeft(), grids_->ncclComm, syncStream);
+      ncclRecv(Gm(-m_ghost),           count, ncclFloat, grids_->procLeft(), grids_->ncclComm, syncStream);
     }
 
     // send to left
@@ -568,6 +572,7 @@ void MomentsG::syncNCCL(bool blocking)
     }
     ncclGroupEnd();
   }
+  cudaEventRecord(finished_sync, syncStream);
 
   if(blocking) {
     cudaStreamSynchronize(syncStream);

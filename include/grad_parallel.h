@@ -1,10 +1,9 @@
 #pragma once
+#include "gpu_defs.h"
 #include "grids.h"
 #include "moments.h"
 #include "parameters.h"
 #include "fields.h"
-#include "cufftXt.h"
-#include "cufft.h"
 #include "device_funcs.h"
 
 class GradParallel {
@@ -85,7 +84,7 @@ class GradParallelLinked : public GradParallel {
   
   int get_nClasses(int *idxRight, int *idxLeft, int *linksR, int *linksL, int *n_k, int naky, int ntheta0, int jshift0);
   void get_nLinks_nChains(int *nLinks, int *nChains, int *n_k, int nClasses, int naky, int ntheta0);
-  void kFill(int nClasses, int *nChains, int *nLinks, int **ky, int **kx, int *linksL, int *linksR, int *idxRight, int naky, int ntheta0);
+  void kFill(int nClasses, int *nChains, int *nLinks, int **ky, int **kx, int *linksL, int *linksR, int *idxRight, int *nLinks_map, int *nChains_map, int *n_map, int *c_map, int naky, int ntheta0);
   void set_callbacks();
   void clear_callbacks();
   
@@ -95,7 +94,9 @@ class GradParallelLinked : public GradParallel {
   int **ikxLinked_h, **ikyLinked_h;
   int **ikxLinked, **ikyLinked;
   float **kzLinked;
+  int *p_map, *n_map, *c_map, *nLinks_map, *nChains_map;
   cuComplex **G_linked;
+  cuComplex **G_linked_d;
 
   cufftHandle * zft_plan_forward;  cufftHandle * dz_plan_forward;  cufftHandle * dz2_plan_forward; 
   cufftHandle * zft_plan_inverse;  cufftHandle * dz_plan_inverse;
@@ -109,8 +110,15 @@ class GradParallelLinked : public GradParallel {
   cufftHandle * abs_dz_plan_forward;
   cufftHandle * dz2_plan_forward_singlemom;
   cufftHandle * abs_dz_plan_forward_singlemom;
+
+  cudaStream_t* stream;
+
   dim3 * dG;
   dim3 * dB;
+  dim3 * dG_back;
+  dim3 * dB_back;
+  dim3 dG_all;
+  dim3 dB_all;
 };
 
 class GradParallelNTFT : public GradParallel {

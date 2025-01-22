@@ -12,7 +12,6 @@
 #include "timestepper.h"
 #include "linear.h"
 #include "nonlinear.h"
-#include "reservoir.h"
 #include "device_funcs.h"
 #include "get_error.h"
 #include "exb.h"

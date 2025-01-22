@@ -78,11 +78,11 @@ class MomentsG {
   void mask(void);
   void set_zero(void);
 
-  void reality(int ngz);
+  void reality();
 
-  void sync(bool sync = false);
-  void syncNCCL(bool sync);
-  void syncMPI();
+  void sync(bool sync = false, int m_ghost = -1);
+  void syncNCCL(bool sync, int m_ghost);
+  void syncMPI(int m_ghost);
   
   inline void copyFrom(const MomentsG * source) {
     cudaMemcpy(this->Gghost(), source->Gghost(), grids_->size_G, cudaMemcpyDeviceToDevice);
@@ -101,6 +101,7 @@ class MomentsG {
   cuComplex * qprp_ptr;
 
   cudaStream_t syncStream;
+  cudaEvent_t finished_sync;
 
   // In bytes
   size_t getSize() const { return grids_->size_G; };

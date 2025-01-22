@@ -1,7 +1,5 @@
 #pragma once
-#include <helper_cuda.h>
-#include <cufft.h>
-#include <nccl.h>
+#include "gpu_defs.h"
 #include <assert.h>
 
 // Convenience function for checking CUDA runtime API results

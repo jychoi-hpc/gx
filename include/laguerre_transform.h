@@ -6,14 +6,14 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
 
+#include "gpu_defs.h"
 #include "moments.h"
 #include "grids.h"
-#include <cublas_v2.h>
 
 class LaguerreTransform {
  public:
 
-  LaguerreTransform(Grids* grids, int batch_size);
+  LaguerreTransform(Grids* grids, int batch_size, cudaStream_t stream=0);
   ~LaguerreTransform();
   
   void transformToGrid(float* G_in, float* g_res);

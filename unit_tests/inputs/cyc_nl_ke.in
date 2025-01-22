@@ -3,17 +3,16 @@
 [Dimensions]
  ntheta = 64           # number of points along field line (theta) per 2pi segment    
  nperiod = 1            # number of 2pi segments along field line is 2*nperiod-1
- ny = 96                # number of real-space grid-points in y
- nx = 128               # number of real-space grid-points in x
+ ny = 256                # number of real-space grid-points in y
+ nx = 256               # number of real-space grid-points in x
 
  nhermite = 16          # number of hermite moments (v_parallel resolution)
- nlaguerre = 4          # number of laguerre moments (mu B resolution)
- nspecies = 1           # number of evolved kinetic species (adiabatic electrons don't count towards nspecies)
+ nlaguerre = 8          # number of laguerre moments (mu B resolution)
+ nspecies = 2           # number of evolved kinetic species (adiabatic electrons don't count towards nspecies)
 
 [Domain]
  y0 = 15.0              # controls box length in y (in units of rho_ref) and minimum ky, so that ky_min*rho_ref = 1/y0 
  boundary = "linked"    # use twist-shift boundary conditions along field line
- jtwist = 1
 
 [Physics]
  beta = 1e-3                     # reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))
@@ -70,4 +69,3 @@
  fluxes = true                  # compute and write flux spectra (Q, Gamma)
  fields = true                  # write fields on the grid
  moments = true                 # write moments on the grid
-

@@ -19,7 +19,7 @@ void SpectraCalc::allocate()
 int SpectraCalc::define_nc_variable(string varstem, int nc_group, string description, bool append)
 {
   int varid;
-  if(append) {
+  if(append && (nc_inq_varid(nc_group, (varstem + tag).c_str(), &varid)==NC_NOERR) ) {
     NC_ERR( nc_inq_varid(nc_group, (varstem + tag).c_str(), &varid) );
     NC_ERR( nc_var_par_access(nc_group, varid, NC_COLLECTIVE) );
   } else {

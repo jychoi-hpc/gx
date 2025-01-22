@@ -120,8 +120,10 @@ Grids::Grids(Parameters* pars) :
   ky_h      = (float*) malloc(sizeof(float) * Nyc      );
   kz_h      = (float*) malloc(sizeof(float) * Nz       );
   cudaMalloc     ( (void**) &kx,        sizeof(float) * Nx       );
+  checkCuda(cudaMemset(kx, 0., sizeof(float)*Nx));
   cudaMalloc     ( (void**) &th0,       sizeof(float) * Nx       );
   cudaMalloc     ( (void**) &ky,        sizeof(float) * Nyc      );
+  checkCuda(cudaMemset(ky, 0., sizeof(float)*Nyc));
   cudaMalloc     ( (void**) &kz,        sizeof(float) * Nz       );
   x_h      = (float*) malloc(sizeof(float) * Nx       ); 
   y_h      = (float*) malloc(sizeof(float) * Ny       );

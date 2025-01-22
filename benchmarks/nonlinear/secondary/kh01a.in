@@ -19,10 +19,13 @@
 
 [Physics]
  beta = 0.0		# reference normalized pressure, beta = n_ref T_ref / ( B_ref^2 / (8 pi))
+ nonlinear_mode = true		# this is a nonlinear calculation
 
 [Time]
  dt = 0.01		# timestep size (in units of L_ref/vt_ref)
- nstep = 1000		# number of timesteps
+ nstep = 10000		# number of timesteps
+ scheme = "sspx3"	# use SSPx3 timestepping scheme
+ cfl = 1.0		# fraction of CFL condition
 
 [Geometry]
  geo_option = "slab"    # use slab geometry
@@ -33,16 +36,18 @@
  Boltzmann_type = "electrons"	# the Boltzmann species will be electrons
  tau_fac = 1.0			# temperature ratio, T_i/T_e
 
-[Controls]
- scheme = "sspx3"		# use SSPx3 timestepping scheme
- nonlinear_mode = true		# this is a nonlinear calculation
- cfl = 1.0			# fraction of CFL condition
+[Initialization]
+ ikpar_init = 0			# parallel wavenumber of initial perturbation
+ init_field = "density"		# initial condition set in density
+ init_amp = 1.0e-5		# amplitude of initial condition
 
 [Restart]
  restart = true				# initialize simulation from restart data
  restart_from_file = "kh01_restart.nc"	# filename to read restart data from
  save_for_restart = false		# don't write restart data
  scale = 500.0				# scale restart data by this factor on initialization
+ append_on_restart = false
+ restart_with_perturb = true
 
 [Diagnostics]
  nwrite = 100			# number of timesteps between diagnostic writes

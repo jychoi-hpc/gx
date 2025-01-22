@@ -53,7 +53,7 @@ class Nonlinear_GK : public Nonlinear {
   GradPerp          * grad_perp_G_single ;
   GradPerp          * grad_perp_J0f ;
 
-  MomentsG * G_tmp;
+  MomentsG * NL_apar;
   cuComplex * tmp_c   ;
   float * dG          ;
   float * dg_dx       ;
@@ -74,6 +74,13 @@ class Nonlinear_GK : public Nonlinear {
   cuComplex * J0apar ;
   cuComplex * iKxG    ;
   cuComplex * iKxG_single;
+
+  void     *red_d_temp_storage;
+  size_t   red_temp_storage_bytes;
+
+  cudaStream_t G_stream = 0;
+  cudaStream_t f_stream = 0;
+  cudaEvent_t grad_perp_f_finished;
 };
 
 class Nonlinear_KREHM : public Nonlinear {
