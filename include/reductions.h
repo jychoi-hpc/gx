@@ -33,6 +33,21 @@ template <> cutensorDataType_t dataType<double>()
 {
   return CUTENSOR_R_64F;
 }
+
+template <> cutensorDataType_t dataType<std::complex<float>>()
+{
+  return CUTENSOR_C_32F;
+}
+
+template <> cutensorDataType_t dataType<cuComplex>()
+{
+  return CUTENSOR_C_32F;
+}
+
+template <> cutensorDataType_t dataType<std::complex<double>>()
+{
+  return CUTENSOR_C_64F;
+}
 #else
 template <class T> static cutensorComputeType_t computeType();
 template <> cutensorComputeType_t computeType<float>()
@@ -60,7 +75,6 @@ template <> cudaDataType_t dataType<double>()
 {
   return CUDA_R_64F;
 }
-#endif
 
 template <> cudaDataType_t dataType<std::complex<float>>()
 {
@@ -76,6 +90,9 @@ template <> cudaDataType_t dataType<std::complex<double>>()
 {
   return CUDA_C_64F;
 }
+#endif
+
+
 
 template <class T> static T One() {
 	return 1.0;
