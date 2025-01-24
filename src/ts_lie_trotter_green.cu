@@ -194,7 +194,7 @@ void Lie_Trotter_Green::advance(double *t, MomentsG** G, Fields* f)
     G1[is]-> update_tprim(*t);
   }
   if(!flip){
-    checkCudaErrors(cudaGetLastError()); 
+    checkCuda(cudaGetLastError()); 
     ssprk3(A1, A2, A3, G, G1, f, false); 
 
     for(int is=0; is<grids_->Nspecies; is++) {
@@ -218,7 +218,7 @@ void Lie_Trotter_Green::advance(double *t, MomentsG** G, Fields* f)
     solver_->fieldSolve(G,f);
 
 
-    checkCudaErrors(cudaGetLastError()); 
+    checkCuda(cudaGetLastError()); 
 
   }
 
@@ -230,7 +230,7 @@ void Lie_Trotter_Green::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
   *t += dt_;
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 //  flip = !flip;
 }
 

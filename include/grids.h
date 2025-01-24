@@ -1,8 +1,8 @@
 #pragma once
+#include "gpu_defs.h"
 #include "parameters.h"
 #include "device_funcs.h"
 #include "get_error.h"
-#include "nccl.h"
 
 class Grids {
 

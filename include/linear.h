@@ -1,5 +1,5 @@
 #pragma once
-#include "cufft.h"
+#include "gpu_defs.h"
 #include "device_funcs.h"
 #include "fields.h"
 #include "moments.h"

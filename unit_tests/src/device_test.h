@@ -1,4 +1,5 @@
 #pragma once
+#include "gpu_defs.h"
 extern __device__ float val_d;
 
 __global__ void get_val(float* val);

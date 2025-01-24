@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gpu_defs.h"
 #include "parameters.h"
 #include "grids.h"
 #include "geometry.h"
@@ -7,7 +8,6 @@
 #include "moments.h"
 #include "device_funcs.h"
 #include "get_error.h"
-#include "nccl.h"
 
 class Solver {
  public:

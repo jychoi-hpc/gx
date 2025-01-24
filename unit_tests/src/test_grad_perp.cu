@@ -24,6 +24,7 @@ protected:
     pars->y0 = 10.;
 
     grids = new Grids(pars);
+    grids->init_ks_and_coords();
     grad_perp = new GradPerp(grids, grids->Nz*grids->Nl, grids->NxNycNz*grids->Nl);
   }
 
@@ -77,8 +78,6 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
 
   printf("Checking R2C without accumulate...\n");
 
-  //grad_perp->qvar(comp, grids->NxNycNz);
-  
   for(int idz=0; idz<grids->Nz*grids->Nl; idz++) {
     for(int idx=0; idx<grids->Nx; idx++) {
       for(int idy=0; idy<grids->Nyc; idy++) {
@@ -96,6 +95,9 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
 
   cudaMemset(comp, 0., sizeof(cuComplex)*grids->NxNycNz*grids->Nl);
   grad_perp->R2C(init, comp, accumulate=true);
+  grad_perp->qvar(comp, grids->NxNycNz);
+
+  printf("Checking R2C with accumulate...\n");
 
   for(int idz=0; idz<grids->Nz*grids->Nl; idz++) {
     for(int idx=0; idx<grids->Nx; idx++) {
@@ -112,30 +114,30 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
     }
   }    
 
-  // try d/dx and d/dy before kx and ky have been initialized in grids. this should give all zeros.
+//  printf("Checking d/dx and d/dy before k init...\n");
+//
+//  // try d/dx and d/dy before kx and ky have been initialized in grids. this should give all zeros.
+//  grad_perp->dxC2R(comp, dx);
+//  grad_perp->dyC2R(comp, dy);
+//
+//  for(int idz=0; idz<grids->Nz; idz++) {
+//    for(int idl=0; idl<grids->Nl; idl++) {
+//      for(int idx=0; idx<grids->Nx; idx++) {
+//        for(int idy=0; idy<grids->Ny; idy++) {
+//          int globalIdx = idy + grids->Ny*idx + grids->Nx*grids->Ny*idz + grids->NxNyNz*idl;
+//          EXPECT_FLOAT_EQ_D(&dx[globalIdx], 0.0, 2.e-6);
+//          EXPECT_FLOAT_EQ_D(&dy[globalIdx], 0.0, 2.e-6);
+//        }
+//      }
+//    }
+//    
+//  }
+
+
+  printf("Checking d/dx after k init...\n");
+
   grad_perp->dxC2R(comp, dx);
-  grad_perp->dyC2R(comp, dy);
-
-  for(int idz=0; idz<grids->Nz; idz++) {
-    for(int idl=0; idl<grids->Nl; idl++) {
-      for(int idx=0; idx<grids->Nx; idx++) {
-        for(int idy=0; idy<grids->Ny; idy++) {
-          int globalIdx = idy + grids->Ny*idx + grids->Nx*grids->Ny*idz + grids->NxNyNz*idl;
-          EXPECT_FLOAT_EQ_D(&dx[globalIdx], 0.0, 2.e-6);
-          EXPECT_FLOAT_EQ_D(&dy[globalIdx], 0.0, 2.e-6);
-        }
-      }
-    }
-    
-  }
-
-  // now initialize kx and ky
-  grids->init_ks_and_coords();
-
-  grad_perp->dxC2R(comp, dx);
-  grad_perp->dyC2R(comp, dy);
-
-  printf("Checking C2R...\n");
+  grad_perp->qvar(dx, grids->NxNyNz);
 
   for(int idz=0; idz<grids->Nz; idz++) {
     for(int idl=0; idl<grids->Nl; idl++) {
@@ -143,6 +145,20 @@ TEST_F(TestGradPerp, EvaluateDerivative) {
         for(int idy=0; idy<grids->Ny; idy++) {
           int globalIdx = idy + grids->Ny*idx + grids->Nx*grids->Ny*idz + grids->NxNyNz*idl;
           EXPECT_FLOAT_EQ_D(&dx[globalIdx], dxcheck[globalIdx], 2.e-6);
+        }
+      }
+    }
+  }
+
+  printf("Checking d/dy after k init...\n");
+
+  grad_perp->dyC2R(comp, dy);
+
+  for(int idz=0; idz<grids->Nz; idz++) {
+    for(int idl=0; idl<grids->Nl; idl++) {
+      for(int idx=0; idx<grids->Nx; idx++) {
+        for(int idy=0; idy<grids->Ny; idy++) {
+          int globalIdx = idy + grids->Ny*idx + grids->Nx*grids->Ny*idz + grids->NxNyNz*idl;
           EXPECT_FLOAT_EQ_D(&dy[globalIdx], dycheck[globalIdx], 2.e-6);
         }
       }

@@ -45,7 +45,7 @@ Strang::Strang(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     mirror[is] = new Cublas_test(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[is]->species->vt);
 
 
-    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaGetLastError());
 
 
 
@@ -409,7 +409,7 @@ void Strang::advance(double *t, MomentsG** G, Fields* f)
   }
 
   if(true){
-    checkCudaErrors(cudaGetLastError()); 
+    checkCuda(cudaGetLastError()); 
 
     ssprk3(A1, A2, A3, G, G1, f, false, dt_/2.); 
     solver_->fieldSolve(G, f);       
@@ -537,7 +537,7 @@ void Strang::advance(double *t, MomentsG** G, Fields* f)
   }
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
   *t += dt_;
 
   if(pars_->flip_flop){

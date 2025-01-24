@@ -31,7 +31,7 @@ CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcudart -lcufft_static -lculibos -l
 
 NVCC=nvcc
 CUDAARCH=70
-NVCCFLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true
+NVCCFLAGS = -arch=compute_${CUDAARCH} -code=sm_${CUDAARCH} -use_fast_math -prec-sqrt=true -rdc=true
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

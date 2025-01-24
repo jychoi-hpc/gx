@@ -44,7 +44,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 //    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1. + sqrtf(2.)/2., 0.0, true, (double) pars_->dt, A1[is]->species->vt);
     mirror[is] = new Cublas_test(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[is]->species->vt);
 
-    checkCudaErrors(cudaGetLastError());
+    checkCuda(cudaGetLastError());
 
 
 
@@ -444,7 +444,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
   }
 
   if(!flip){
-    checkCudaErrors(cudaGetLastError()); 
+    checkCuda(cudaGetLastError()); 
 
     ssprk3(A1, A2, A3, G, G1, f, false, dt_/fac); 
     solver_->fieldSolve(G, f);       
@@ -576,7 +576,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
     }
 
     solver_->fieldSolve(G, f);       
-    checkCudaErrors(cudaGetLastError()); 
+    checkCuda(cudaGetLastError()); 
     
     ssprk3(A1, A2, A3, G, G1, f, false, dt_/fac);
     for(int is=0; is<grids_->Nspecies; is++) {
@@ -594,7 +594,7 @@ void Lie_Trotter::advance(double *t, MomentsG** G, Fields* f)
   }
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
   *t += dt_;
 
   if(pars_->flip_flop){

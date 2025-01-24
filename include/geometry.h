@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cufft.h"
+#include "gpu_defs.h"
 #include "parameters.h"
 #include "grids.h"
 #include "grad_parallel.h" // MFM

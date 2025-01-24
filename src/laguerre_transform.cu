@@ -1,6 +1,6 @@
 #include "laguerre_transform.h"
 
-LaguerreTransform::LaguerreTransform(Grids* grids, int batch_size) :
+LaguerreTransform::LaguerreTransform(Grids* grids, int batch_size, cudaStream_t stream) :
   grids_(grids), L(grids->Nl), J(grids->Nj), batch_size_(batch_size),
   toGrid(nullptr), toSpectral(nullptr), roots(nullptr)
 {
@@ -20,6 +20,9 @@ LaguerreTransform::LaguerreTransform(Grids* grids, int batch_size) :
   CP_TO_GPU (roots,      roots_h,      sizeof(float)*J);
 
   cublasCreate (&handle);
+  cublasSetStream(handle, stream);
+  cudaStreamSynchronize(stream);
+  cudaDeviceSynchronize();
   if (toGrid_h)     free (toGrid_h);
   if (toSpectral_h) free (toSpectral_h);
   if (roots_h)      free (roots_h);

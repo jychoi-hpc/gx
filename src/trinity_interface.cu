@@ -1,4 +1,3 @@
-#include "helper_cuda.h"
 #include "trinity_interface.h"
 #include "run_gx.h"
 
@@ -31,7 +30,7 @@ void gx_get_fluxes_(trin_parameters_struct* tpars, trin_fluxes_struct* tfluxes, 
   geo = init_geo(pars, grids);
 
   cudaDeviceSynchronize();
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
   // run gx calculation using (updated) parameters
   run_gx(pars, grids, geo);

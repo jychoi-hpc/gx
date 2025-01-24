@@ -137,6 +137,24 @@ class ParticleFluxDiagnostic : public SpectraDiagnostic {
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
+class ParticleFluxESDiagnostic : public SpectraDiagnostic {
+ public:
+  ParticleFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+class ParticleFluxAparDiagnostic : public SpectraDiagnostic {
+ public:
+  ParticleFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
+class ParticleFluxBparDiagnostic : public SpectraDiagnostic {
+ public:
+  ParticleFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
+};
+
 // TurbulentHeating (H)
 class TurbulentHeatingDiagnostic : public SpectraDiagnostic {
  public:

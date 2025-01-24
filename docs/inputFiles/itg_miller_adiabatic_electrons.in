@@ -22,18 +22,16 @@
  nonlinear_mode = false          # this is a linear calculation
 
 [Time]
- dt = 0.005             # timestep size (in units of L_ref/vt_ref)
- nstep = 30000          # number of timesteps
- scheme = "sspx3"       # use SSPx3 timestepping scheme
+ t_max = 150.0          # end time (in units of L_ref/vt_ref)
+ scheme = "rk4"         # use RK4 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
- ikpar_init = 0                  # parallel wavenumber of initial perturbation
+ gaussian_init = true            # initial perturbation is a gaussian in theta
  init_field = "density"          # initial condition set in density
  init_amp = 1.0e-10              # amplitude of initial condition
 
 [Geometry]
- igeo = 1                        # use Miller geometry, and read geometry coefficients from "eik"-style text file
- geofile = "itg_miller.eik.out"  # name of geometry file
+ geo_option = "miller"           # use Miller geometry
  rhoc = 0.5                      # flux surface label, r/a
  Rmaj = 2.77778                  # major radius of center of flux surface, normalized to L_ref
  R_geo = 2.77778                 # major radius of magnetic field reference point, normalized to L_ref (i.e. B_t(R_geo) = B_ref)
@@ -52,7 +50,7 @@
  mass  = [ 1.0,       2.7e-4  ]         # mass (normalized to m_ref)
  dens  = [ 1.0,       1.0     ]         # density (normalized to dens_ref)
  temp  = [ 1.0,       1.0     ]         # temperature (normalized to T_ref)
- tprim = [ 2.49,       0.0     ]        # temperature gradient, L_ref/L_T
+ tprim = [ 2.49,      0.0     ]         # temperature gradient, L_ref/L_T
  fprim = [ 0.8,       0.0     ]         # density gradient, L_ref/L_n
  vnewk = [ 0.0,       0.0     ]         # collision frequency
  type  = [ "ion",  "electron" ]         # species type
@@ -65,29 +63,12 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.5                # coefficient of hermite hypercollisions
- p_hyper_m = 6                   # power of hermite hypercollisions
- nu_hyper_l = 0.5                # coefficient of laguerre hypercollisions
- p_hyper_l = 6                   # power of laguerre hypercollisions
 
 [Diagnostics]
- nwrite = 1000                   # write diagnostics every 1000 timesteps
- omega  = true                   # compute and write growth rates and frequencies
-
-[Wspectra]                       # spectra of W = |G_lm|**2
-species          = false
-hermite          = false
-laguerre         = false
-hermite_laguerre = true          # W(l,m) (summed over kx, ky, z)
-kx               = false
-ky               = true          # W(ky) (summed over kx, z, l, m)
-kxky             = false
-z                = false
-
-[Pspectra]                      # spectra of P = ( 1 - Gamma_0(b_s) ) |Phi|**2
-species          = false
-kx               = false
-ky               = true         # P(ky) (summed over kx, z)
-kxky             = false
-z                = true         # P(z) (summed over kx, ky)
-
+ nwrite = 100                   # write diagnostics every nwrite timesteps
+ omega  = true                  # compute and write growth rates and frequencies
+ free_energy = true             # compute and write free energy spectra (Wg, Wphi, Phi**2)
+ fields = true                  # write fields on the grid
+ moments = true                 # write moments on the grid
+ 
+ 

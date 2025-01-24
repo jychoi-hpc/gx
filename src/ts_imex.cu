@@ -243,9 +243,9 @@ void IMEX_3stage::invert_implicit_terms(MomentsG** G1, MomentsG* G0, MomentsG** 
       for (int count = 0; count < max_iter; count++){
 	if (count ==0){
           Gr[ielectron]->copyFrom(G1[ielectron]);
-          checkCudaErrors(cudaGetLastError());
+          checkCuda(cudaGetLastError());
 	  if(pars_->fapar > 0. || pars_->fbpar > 0.){
-            checkCudaErrors(cudaGetLastError());
+            checkCuda(cudaGetLastError());
 	    grad_par->zft_streaming_invert_apar(G1[ielectron], Gr[ielectron],f->phi,f->apar,solver_->get_max_qneutFacPhi_inv(),solver_->get_max_ampereParFac_inv(), sdtvt, gradpar_, false, pars_->hypercollisions_kz, pars_->p_hyper_m, pars_->nu_hyper_m);
 
 
@@ -329,7 +329,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   //     ----------------
   //     ( w1   w2   w3 )
 
-  checkCudaErrors(cudaGetLastError()); 
+  checkCuda(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
     if(is == ielectron && p_!=0.) {
@@ -478,7 +478,7 @@ void IMEX_3stage::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);
   *t += dt_;
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 }
 // ======= 4-stage addivte RK IMEX methods =======
 IMEX_4stage::IMEX_4stage(Linear *linear, Nonlinear *nonlinear, Solver *solver,

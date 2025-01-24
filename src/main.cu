@@ -8,7 +8,6 @@
 #include <ctime>
 #include "run_gx.h"
 #include "version.h"
-#include "helper_cuda.h"
 // #include "reservoir.h"
 #include "reductions.h"
 #include <fenv.h>
@@ -90,7 +89,7 @@ int main(int argc, char* argv[])
   //
   // Check for a class of Cuda errors
   // 
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
   //
   // Run the calculation

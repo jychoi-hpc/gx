@@ -74,7 +74,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
     assert((pars_->fapar > 0.) && "Harris sheet equilibrium requires setting fapar = 1.0");
     
     int nBatch = grids_->Nz;
-    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    GradPerp * grad_perp = new GradPerp(pars_, grids_, nBatch, grids_->NxNycNz);
     
     //set up harris sheet in real space   
     for(int idz = 0; idz < grids_->Nz; idz++) {
@@ -119,7 +119,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   }
   if (pars_->periodic_equilibrium && !pars_->restart) {
     int nBatch = grids_->Nz;
-    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    GradPerp * grad_perp = new GradPerp(pars_, grids_, nBatch, grids_->NxNycNz);
 
     //set up periodic Apar in real space   
     for(int idz = 0; idz < grids_->Nz; idz++) {
@@ -157,7 +157,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   }
   if (pars_->island_coalesce && !pars_->restart) {
     int nBatch = grids_->Nz;
-    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    GradPerp * grad_perp = new GradPerp(pars_, grids_, nBatch, grids_->NxNycNz);
 
     for(int idz = 0; idz < grids_->Nz; idz++) {
       for(int idx = 0; idx < grids_->Nx; idx++) {
@@ -250,7 +250,7 @@ Fields::Fields(Parameters* pars, Grids* grids) :
   }
   if (pars_->gaussian_tube && !pars_->restart) {
     int nBatch = grids_->Nz;
-    GradPerp * grad_perp = new GradPerp(grids_, nBatch, grids_->NxNycNz);
+    GradPerp * grad_perp = new GradPerp(pars_, grids_, nBatch, grids_->NxNycNz);
     
     //set up Gaussian tube in real space   
     for(int idz = 0; idz < grids_->Nz; idz++) {

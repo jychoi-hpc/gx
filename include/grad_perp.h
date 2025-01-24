@@ -1,12 +1,12 @@
 #pragma once
+#include "gpu_defs.h"
 #include "grids.h"
-#include "cufftXt.h"
-#include "cufft.h"
+#include "parameters.h"
 #include "device_funcs.h"
 
 class GradPerp {
  public:
-  GradPerp(Grids* grids, int batch, int mem);
+  GradPerp(Parameters* pars, Grids* grids, int batch, int mem, cudaStream_t stream=0);
   ~GradPerp();
 
   void phase_mult (float* G, bool nonTwist, bool ExBshear, bool positive_phase=true);
@@ -20,10 +20,12 @@ class GradPerp {
  private:
   const int batch_size_;
   const int mem_size_;
-  dim3 dGk, dBk, dGx_single_ntft, dBx_single_ntft, dGx_ntft, dBx_ntft, dGphi_ntft, dBphi_ntft;
+  dim3 dGk, dBk, dGx_single_ntft, dBx_single_ntft, dGx_ntft, dBx_ntft, dGphi_ntft, dBphi_ntft, dGk_ntft, dBk_ntft;
   dim3 dG, dB;
+  Parameters * pars_ ;
   Grids     * grids_ ;
   cuComplex * tmp    ;
+  cudaStream_t stream_;
   cufftHandle gradperp_plan_R2C;
   cufftHandle gradperp_plan_C2R;
   cufftHandle gradperp_plan_dxC2R;

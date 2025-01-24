@@ -9,7 +9,7 @@
 #include "ncdf.h"
 #include "grad_parallel.h"
 #include "grad_perp.h"
-#include "reservoir.h"
+//#include "reservoir.h"
 #include "diagnostic_classes.h"
 #include "spectra_calc.h"
 #include <memory>
@@ -52,7 +52,7 @@ private:
   MomentsG     ** G_old    ;
   NetCDF       * ncdf_         ;
   NetCDF       * ncdf_big_         ;
-  Reservoir    * rc            ;
+  //Reservoir    * rc            ;
   AllSpectraCalcs * allSpectra_;
   Linear * linear_;
   Nonlinear * nonlinear_;

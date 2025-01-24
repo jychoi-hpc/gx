@@ -1,5 +1,4 @@
 #pragma once
-#include "precision_types.h"
 
 typedef struct {
   float z; 

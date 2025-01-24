@@ -218,7 +218,7 @@ void Cusolve::invert_stream(cuComplex* G, int stage){
 
 
   }
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
 }
 

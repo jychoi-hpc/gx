@@ -172,7 +172,7 @@ void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
   //     ( s    t    u  )
   //     ----------------
   //     ( w1   w2   w3 )
-  checkCudaErrors(cudaGetLastError()); 
+  checkCuda(cudaGetLastError()); 
   // stage 1
   for (int is=0; is<grids_->Nspecies; is++) {
     G1[is]->copyFrom(G[is]);
@@ -269,7 +269,7 @@ void IMEX_3stage_Green::advance(double *t, MomentsG** G, Fields* f)
   solver_->fieldSolve(G, f);         
   if (pars_->dealias_kz) grad_par->dealias(f->phi);*/
   *t += dt_;
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
   flip = !flip;
 }
 

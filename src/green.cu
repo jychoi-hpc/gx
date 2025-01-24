@@ -115,11 +115,10 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
 	
 	for(int il = 0; il < grids_->Nl; il++){
           set_delta_phi<<<dG_p,dB_p>>>(phi_r,iz,1.0f,geo_->kperp2,*(G[is]->species), il);
-          checkCudaErrors(cudaGetLastError());
           grad_par->zft(phi_r,phi_r);
           compute_homogenous_sol_loop<<<dG_s, dB_s>>>(G[is]->G(),phi_r,grids_->kz,*(G[is]->species),dcoeff[i]*dt_,geo_->gradpar, il);
           checkCuda(cudaMemset(phi_r,0., sizeof(cuComplex)*grids_->NxNycNz));
-          checkCudaErrors(cudaGetLastError());
+          checkCuda(cudaGetLastError());
 
 	}
 
@@ -127,7 +126,6 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
 	for (int ik = 0; ik < grids_->NxNyc; ik++){
           compute_response_matrix<<<dG, dB>>>(A_phi[ik + i*num_coeff],G[is]->G(),*(G[is]->species),geo_->kperp2,solver_->getQneutDenom(),ik,iz);
 	}
-        checkCudaErrors(cudaGetLastError());
       }
     }
   }
@@ -144,9 +142,6 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
   
   checkCuda(cudaMemcpy(d_A_phi, A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyHostToDevice));
 
-  checkCudaErrors(cudaGetLastError());
-  
-
   CUBLAS_CHECK(cublasCreate(&cublasH));
 
   CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
@@ -160,7 +155,7 @@ Green::Green(Parameters *pars, Grids *grids, Geometry *geo, Solver *solver, doub
 				   NULL,
                                    infoArray,
                                    grids_->NxNyc*num_coeff));
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
   checkCuda(cudaMemcpy(A_phi, d_A_phi, sizeof(cuComplex*)*grids_->NxNyc, cudaMemcpyDeviceToHost));
 /*  checkCuda(cudaMemcpy(LU, A_phi[2], nz2, cudaMemcpyDeviceToHost));

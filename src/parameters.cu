@@ -5,6 +5,7 @@
 #include "toml.hpp"
 #include <iostream>
 #include "version.h"
+#include <unistd.h>
 using namespace std;
 
 Parameters::Parameters(int iproc_in, int nprocs_in, MPI_Comm mpcom_in) {
@@ -127,7 +128,7 @@ void Parameters::get_nml_vars(char* filename)
   ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     static_cast<int>(kpar_init)  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   gaussian_init = toml::find_or <bool> (tnml, "gaussian_init", false);
-  gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     1.0   );
+  gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     0.5   );
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
   drift_kinetic_electrons = toml::find_or <bool> (tnml, "drift_kinetic_electrons",     false);
   densfac = toml::find_or <float> (tnml, "densfac", 1.0);
@@ -164,14 +165,14 @@ void Parameters::get_nml_vars(char* filename)
   D_HB       = toml::find_or <float>  (tnml, "D_HB",          1.0   ); 
   w_osc      = toml::find_or <float>  (tnml, "w_osc",         0.0   ); 
   D_hyper    = toml::find_or <float>  (tnml, "D_hyper",       0.1   ); 
-  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.0   ); 
+  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.001 ); 
   nu_hyper_l = toml::find_or <float>  (tnml, "nu_hyper_l",    0.0   ); 
   nu_hyper_m = toml::find_or <float>  (tnml, "nu_hyper_m",    1.0   ); 
   nu_hyper_lm = toml::find_or <float> (tnml, "nu_hyper_lm",   0.0   ); 
   p_hyper    = toml::find_or <int>    (tnml, "p_hyper",         2   ); 
   p_hyper_z  = toml::find_or <int>    (tnml, "p_hyper_z",       6   ); 
   p_hyper_l  = toml::find_or <int>    (tnml, "p_hyper_l",       6   ); 
-  p_hyper_m  = toml::find_or <int>    (tnml, "p_hyper_m",       min(20, nm_in/2) ); 
+  p_hyper_m  = toml::find_or <int>    (tnml, "p_hyper_m",       fmin(20, nm_in/2) ); 
   p_hyper_lm = toml::find_or <int>    (tnml, "p_hyper_lm",      6   ); 
   p_HB       = toml::find_or <int>    (tnml, "p_HB",            2   ); 
   hyper      = toml::find_or <bool>   (tnml, "hyper",         false ); 
@@ -244,15 +245,14 @@ void Parameters::get_nml_vars(char* filename)
   cudaDeviceProp prop;
   cudaGetDevice(&dev);
   cudaGetDeviceProperties(&prop, dev);
-  size_t maxSharedSize = prop.sharedMemPerBlockOptin;
+  size_t maxSharedSize;
+  maxSharedSize = prop.sharedMemPerBlockOptin > 0 ? prop.sharedMemPerBlockOptin : prop.sharedMemPerBlock ;
   int i_share_max = maxSharedSize/((nl_in+2)*(nm_in+4)*sizeof(cuComplex));
   if(i_share > i_share_max) {
     if(iproc==0) printf("Using i_share = %d would exceed shared memory limits. Setting i_share = %d instead.\n", i_share, i_share_max);
     i_share = i_share_max;
   }
   
-  fixed_dt    = toml::find_or <bool>   (tnml, "fixed_timestep",  false );
-
   dealias_kz  = toml::find_or <bool>   (tnml, "dealias_kz",  false );
   nreal       = toml::find_or <int>    (tnml, "nreal",           1 );  
   local_limit = toml::find_or <bool>   (tnml, "local_limit", false );
@@ -271,6 +271,7 @@ void Parameters::get_nml_vars(char* filename)
   tprimf      = toml::find_or <float>  (tnml, "tprimf",       -1.0 );
   hegna       = toml::find_or <bool>   (tnml, "hegna",       false );
   use_NCCL    = toml::find_or <bool>   (tnml, "use_NCCL",    true );
+  use_fft_callbacks    = toml::find_or <bool>   (tnml, "use_fft_callbacks",    false );
   damp_ends_widthfrac = toml::find_or <float> (tnml, "damp_ends_widthfrac", 1./8.);
   damp_ends_amp = toml::find_or <float> (tnml, "damp_ends_amp", 0.1);
 
@@ -563,12 +564,19 @@ void Parameters::get_nml_vars(char* filename)
   fphi     = toml::find_or <float> (tnml, "fphi",        1.0);
   fapar    = toml::find_or <float> (tnml, "fapar",       beta > 0.0? 1.0 : 0.0);
   fbpar    = toml::find_or <float> (tnml, "fbpar",       beta > 0.0? 1.0 : 0.0);
-  // electromagnetic doesn't make sense with adiabatic species
-  if (!all_kinetic) {
+  // electromagnetic doesn't make sense with adiabatic electrons
+  if (!all_kinetic && Boltzmann_opt == BOLTZMANN_ELECTRONS && beta > 0.0 ) {
+    std::cerr << "Boltzmann Electrons specified with non-zero beta. This is invalid. Setting beta = 0 instead." << std::endl;
     beta = 0.0; 
     fapar = 0.0;
     fbpar = 0.0;
   }
+
+  if (!all_kinetic && Boltzmann_opt == BOLTZMANN_IONS && fbpar > 0.0 && beta > 0.0 ) {
+    std::cerr << "Boltzmann Ions specified with non-zero fbpar. This is currently unsupported. Setting fbpar = 0 instead." << std::endl;
+    fbpar = 0.0;
+  }
+
   ei_colls = toml::find_or <bool> (tnml, "ei_colls", true);
   coll_conservation = toml::find_or <bool> (tnml, "coll_conservation", true);
 
@@ -703,7 +711,7 @@ void Parameters::get_nml_vars(char* filename)
   
   float numax = -1.;
   collisions = false;
-  for (int i=0; i<nspec_in; i++) {numax = max(numax, species_h[i].nu_ss);}
+  for (int i=0; i<nspec_in; i++) {numax = fmax(numax, species_h[i].nu_ss);}
   if (numax > 0.) collisions = true;
   
   Reservoir = false;
@@ -745,7 +753,6 @@ void Parameters::get_nml_vars(char* filename)
   // before, jtwist_old assumed Zp=1
   // now, redefining jtwist = jtwist_old*Zp
 
-  //  if(strcmp(closure_model, "beer4+2")==0) {
   closure_model_opt = Closure::none   ;
   if( closure_model == "beer4+2") {
     if(iproc==0) printf("\nUsing Beer 4+2 closure model. Overriding nm=4, nl=2\n\n");
@@ -1130,6 +1137,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_diss, "D_HB",                  NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diss, "p_HB",                  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diss, "HB_hyper",              NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diss, "hyperz",       NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diss, "nu_hyper_z",            NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   
   if (retval = nc_def_var (nc_frc, "forcing_init",          NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_frc, "forcing_type_dum",      NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1383,6 +1392,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putint   (nc_diss, "p_HB",            p_HB            );
   putbool  (nc_diss, "HB_hyper",        HB_hyper        );
   put_real (nc_diss, "w_osc",           w_osc           );
+  putbool  (nc_diss, "hyperz", hyperz );
+  put_real   (nc_diss, "nu_hyper_z",        nu_hyper_z    );
   
   put_real (nc_frc, "forcing_amp",      forcing_amp     );
   putint   (nc_frc, "forcing_index",    forcing_index   );
@@ -1450,10 +1461,10 @@ void Parameters::init_species(specie* species)
              species[s].jparfac, species[s].jperpfac);
       printf("nu_ss = %f, tprim = %f, fprim = %f\n\n", species[s].nu_ss, species[s].tprim, species[s].fprim);
     }      
-    vtmax = max(vtmax, species[s].vt);
-    vtmin = min(vtmin, species[s].vt);
-    tzmax = max(tzmax, abs(species[s].tz));
-    etamax = max(etamax, species[s].tprim/species[s].fprim);
+    vtmax = fmax(vtmax, species[s].vt);
+    vtmin = fmin(vtmin, species[s].vt);
+    tzmax = fmax(tzmax, abs(species[s].tz));
+    etamax = fmax(etamax, species[s].tprim/species[s].fprim);
 
     if(species[s].type == 1) {
       ne = species[s].dens;
@@ -1630,7 +1641,8 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
 void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
 {
   float shat = *shat_in;
-  // note: twist_shift_geo_fac reduces to 2*pi*shat in the axisymmetric limit
+  // note: twist_shift_geo_fac reduces to 2*pi*shat*(2*nPeriod - 1) in the axisymmetric limit
+  // as gds21[0] is gds21 evaluated at the most negative value of theta in the flux tube.
   float twist_shift_geo_fac = 2.*shat*gds21[0]/gds22[0];
 
   if(iproc==0) {

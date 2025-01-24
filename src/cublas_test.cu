@@ -157,7 +157,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
   // }
 
 
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
 
   CUBLAS_CHECK(cublasCreate(&cublasH));
@@ -209,7 +209,7 @@ Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p
     checkCuda(cudaMalloc((void**) &res[j], brhs_size));
   }
 //  checkCuda(cudaMemcpy(d_bounce_rhs, bounce_rhs, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaGetLastError());*/
+  checkCuda(cudaGetLastError());*/
 }
 
 Cublas_test::~Cublas_test(){
@@ -261,7 +261,7 @@ void Cublas_test::invert_stream(cuComplex* G, int stage){
 
 
 
-  checkCudaErrors(cudaGetLastError());
+  checkCuda(cudaGetLastError());
 
 }
 

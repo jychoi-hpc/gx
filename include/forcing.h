@@ -1,4 +1,5 @@
 #pragma once
+#include "gpu_defs.h"
 #include "moments.h"
 #include "parameters.h"
 #include "device_funcs.h"

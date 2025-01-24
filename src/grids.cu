@@ -122,8 +122,10 @@ Grids::Grids(Parameters* pars) :
   ky_h      = (float*) malloc(sizeof(float) * Nyc      );
   kz_h      = (float*) malloc(sizeof(float) * Nz       );
   cudaMalloc     ( (void**) &kx,        sizeof(float) * Nx       );
+  checkCuda(cudaMemset(kx, 0., sizeof(float)*Nx));
   cudaMalloc     ( (void**) &th0,       sizeof(float) * Nx       );
   cudaMalloc     ( (void**) &ky,        sizeof(float) * Nyc      );
+  checkCuda(cudaMemset(ky, 0., sizeof(float)*Nyc));
   cudaMalloc     ( (void**) &kz,        sizeof(float) * Nz       );
   x_h      = (float*) malloc(sizeof(float) * Nx       ); 
   y_h      = (float*) malloc(sizeof(float) * Ny       );
@@ -302,7 +304,7 @@ void Grids::init_ks_and_coords()
 
   LaguerreTransform * laguerre = new LaguerreTransform(this, 1);
   // Estimate v_parallel_max conservatively
-  vpar_max = 2.0 * sqrtf( Nm );
+  vpar_max = 2.0 * sqrtf( Nm_glob );
   muB_max = laguerre->get_vmax();
   kx_max = kx_h[(Nx-1)/3];
   ky_max = ky_h[(Ny-1)/3];
