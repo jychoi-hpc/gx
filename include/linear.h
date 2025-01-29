@@ -13,6 +13,7 @@ class Linear {
   virtual void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) = 0;
   virtual void get_max_frequency(double *wmax) {};
   virtual void dealias_kz(MomentsG* G) {};
+  virtual void dealias_kz(Fields* f) {};
   // conservation terms
   cuComplex * upar_bar      ;
   cuComplex * uperp_bar     ;
@@ -27,6 +28,7 @@ public:
   void rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt);
   void get_max_frequency(double* wmax);
   void dealias_kz(MomentsG* G);
+  void dealias_kz(Fields* f);
 
   //  int zderiv(MomentsG *G);
 

@@ -107,11 +107,13 @@ void RungeKutta3::advance(double *t, MomentsG** G, Fields* f)
   // G_q1 = G + dt/3*GRhs1
   partial(G, G, f, GRhs1, G_q1, 1./3., true); 
   solver_->fieldSolve(G_q1, f);
+  if (pars_->dealias_kz) linear_->dealias_kz(f);
 
   // GRhs2 = RHS(G_q1)
   // G_q2 = G + 2*dt/3*GRhs2
   partial(G, G_q1, f, GRhs2, G_q2, 2./3., false);
   solver_->fieldSolve(G_q2, f);
+  if (pars_->dealias_kz) linear_->dealias_kz(f);
 
   // GRhs2 = RHS(G_q2)
   // G_q1 = G + 3*dt/4*GRhs2
@@ -124,6 +126,7 @@ void RungeKutta3::advance(double *t, MomentsG** G, Fields* f)
   }
 
   solver_->fieldSolve(G, f);
+  if (pars_->dealias_kz) linear_->dealias_kz(f);
   *t += dt_;
 }
 

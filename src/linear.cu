@@ -277,6 +277,13 @@ void Linear_GK::dealias_kz(MomentsG* G)
   grad_par->dealias(G);
 }
 
+void Linear_GK::dealias_kz(Fields* f)
+{
+  grad_par->dealias(f->phi);
+  if(pars_->fapar > 0) grad_par->dealias(f->apar);
+  if(pars_->fbpar > 0) grad_par->dealias(f->bpar);
+}
+
 //==========================================
 // Linear_KREHM
 // object for handling linear terms in KREHM

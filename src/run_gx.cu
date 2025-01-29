@@ -56,9 +56,11 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
       G[is] -> set_zero();
       if(!pars->restart && pars->init_electrons_only && pars->species_h[is_glob].type!=1) continue;
       G[is] -> initialConditions(&time);   
+      if(pars->dealias_kz) linear->dealias_kz(G[is]);
       G[is] -> sync(true);
     }
     solver -> fieldSolve(G, fields);                
+    if(pars->dealias_kz) linear->dealias_kz(fields);
 
     // set up diagnostics
     if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");

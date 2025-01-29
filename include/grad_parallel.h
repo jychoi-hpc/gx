@@ -98,13 +98,11 @@ class GradParallelLinked : public GradParallel {
   cuComplex **G_linked;
   cuComplex **G_linked_d;
 
-  cufftHandle * zft_plan_forward;  cufftHandle * dz_plan_forward;  cufftHandle * dz2_plan_forward; 
-  cufftHandle * zft_plan_inverse;  cufftHandle * dz_plan_inverse;
+  cufftHandle * zft_plan;  cufftHandle * dz_plan_forward;  cufftHandle * dz2_plan_forward; 
+  cufftHandle * dz_plan_inverse;
   cufftHandle * hyperz_plan_forward; cufftHandle * hyperz_plan_inverse;
 
-  cufftHandle * zft_plan_forward_singlemom;
-  cufftHandle * zft_plan_inverse_singlemom;
-
+  cufftHandle * zft_plan_singlemom;
   cufftHandle * dz_plan_forward_singlemom;
   cufftHandle * dz_plan_inverse_singlemom;
   cufftHandle * abs_dz_plan_forward;
