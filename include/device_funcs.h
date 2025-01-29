@@ -371,6 +371,9 @@ __global__ void mkz2Linked_kernel(cuComplex* __restrict__ G_linked,
 __global__ void hyperkzLinked_kernel(cuComplex* __restrict__ G_linked, 
 		          const float* __restrict__ kzLinked,
 			  const int nLinks, const int nChains, const int nMoms, const float norm, const int p_hyper_z);
+__global__ void dealias_kzLinked_kernel(cuComplex* __restrict__ G_linked, 
+		          const float* __restrict__ kzLinked,
+			  const int nLinks, const int nChains, const int nMoms, const float norm);
 
 __global__ void linkedCopy(const cuComplex* __restrict__ G, cuComplex* __restrict__ G_linked, int nLinks, int nChains,
 			   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, float scalar=1.0);

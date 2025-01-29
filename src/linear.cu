@@ -237,7 +237,7 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
 
-  if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z/dt, true);
+  if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z, true);
  
   // apply parallel boundary conditions. for linked BCs, this involves applying 
   // a damping operator to the RHS near the boundaries of extended domain.
@@ -270,6 +270,11 @@ void Linear_GK::get_max_frequency(double *omega_max)
   float kperprho2 = grids_->kperp_min*grids_->kperp_min/geo_->bmag_max/geo_->bmag_max;
   omega_max[2] = pars_->vtmax*grids_->kz_max*abs(geo_->gradpar) * 
                  fmax(grids_->vpar_max, pars_->nspec_in > 1 ? 1/sqrt(beta*nte/2*mime + kperprho2): 0.);
+}
+
+void Linear_GK::dealias_kz(MomentsG* G)
+{
+  grad_par->dealias(G);
 }
 
 //==========================================

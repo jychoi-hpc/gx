@@ -2814,10 +2814,6 @@ __global__ void init_kzLinked(float* kz, int nLinks, bool dealias_kz)
     } else {
       kz[i] = (float) (i-nzL)/(zp*nLinks);
     }
-    //printf("%d %f\n", nLinks, kz[i]);
-    if (dealias_kz) {
-      if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
-    }
   }
 }
 
@@ -2829,9 +2825,6 @@ __global__ void init_kzLinkedNTFT(float* kz, int nLinks, bool dealias_kz)
       kz[i] = (float) i*nz/(zp*nLinks);
     } else {
       kz[i] = (float) nz*(i-nzL)/(zp*nLinks);
-    }
-    if (dealias_kz) {
-      if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {kz[i] = 0.0;}
     }
   }
 }
@@ -2845,9 +2838,6 @@ __global__ void init_hyperkzLinked(float* hyperkz, int nLinks, bool dealias_kz, 
     } else {
       hyperkz[i] = pow((float) (i-nzL)/(zp*nLinks), p_hyper_z);
     }
-    if (dealias_kz) {
-      if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {hyperkz[i] = 0.0;}
-    }
   }
 }
 
@@ -2860,9 +2850,6 @@ __global__ void init_hyperkzLinkedNTFT(float* hyperkz, int nLinks, bool dealias_
       hyperkz[i] = pow((float) i*nz/(zp*nLinks), p_hyper_z);
     } else {
       hyperkz[i] = pow((float) nz*(i-nzL)/(zp*nLinks), p_hyper_z);
-    }
-    if (dealias_kz) {
-      if (i > (nzL-1)/3 && i < nzL - (nzL-1)/3) {hyperkz[i] = 0.0;}
     }
   }
 }
@@ -2938,6 +2925,28 @@ __global__ void hyperkzLinked_kernel(cuComplex* __restrict__ G_linked,
     float kzmax = nz/zp/2.;
     float hypkz = powf( fabsf(kz/kzmax), p_hyper_z);
     G_linked[idlink] = -G_linked[idlink]*hypkz*norm;
+  }
+}
+
+__global__ void dealias_kzLinked_kernel(cuComplex* __restrict__ G_linked, 
+		          const float* __restrict__ kzLinked,
+			  const int nLinks, const int nChains, const int nMoms, const float norm)
+{
+  unsigned int idz  = get_id1();
+  unsigned int idk  = get_id2();
+  unsigned int idlm = get_id3();
+  if (idz < nz && idk < nLinks*nChains && idlm < nMoms) {
+    unsigned int idlink = idz + nz*(idk + nLinks*nChains*idlm);
+    unsigned int idp = idk % nLinks;
+    float kz = kzLinked[idz + nz*idp];
+    float kzmax = nz/zp/2.;
+    float filter = 1.;
+    // 2/3 rule
+    if(fabsf(kz) > 2*kzmax/3) filter = 0.;
+
+    // Hou-Li
+    //filter = expf( -36.* powf(fabsf(kz/kzmax), 36));
+    G_linked[idlink] = G_linked[idlink]*filter*norm;
   }
 }
 
@@ -3752,8 +3761,7 @@ __global__ void hyperdiff(const cuComplex* g,
     if (unmasked(idx, idy)) {	
       float kxmax = kx[(nx-1)/3];
       float kymax = ky[(ny-1)/3];
-      float k2s = 1./powf((kxmax*kxmax + kymax*kymax), nu_hyper);      
-      double Dfac = D_hyper*pow((double) (kx[idx]*kx[idx] + ky[idy]*ky[idy])/(kxmax*kxmax + kymax*kymax), nu_hyper);
+      float Dfac = D_hyper*powf((kx[idx]*kx[idx] + ky[idy]*ky[idy])/(kxmax*kxmax + kymax*kymax), nu_hyper);
       
       unsigned int ig = idxyz + nx*nyc*nz*(l + nl*m_local);
       rhs[ig] = rhs[ig] - Dfac * g[ig];

@@ -156,7 +156,7 @@ void Parameters::get_nml_vars(char* filename)
   D_HB       = toml::find_or <float>  (tnml, "D_HB",          1.0   ); 
   w_osc      = toml::find_or <float>  (tnml, "w_osc",         0.0   ); 
   D_hyper    = toml::find_or <float>  (tnml, "D_hyper",       0.1   ); 
-  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.001 ); 
+  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.1 ); 
   nu_hyper_l = toml::find_or <float>  (tnml, "nu_hyper_l",    0.0   ); 
   nu_hyper_m = toml::find_or <float>  (tnml, "nu_hyper_m",    1.0   ); 
   nu_hyper_lm = toml::find_or <float> (tnml, "nu_hyper_lm",   0.0   ); 

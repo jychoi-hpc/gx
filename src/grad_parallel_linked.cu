@@ -333,7 +333,16 @@ GradParallelLinked::~GradParallelLinked()
 
 void GradParallelLinked::dealias(MomentsG* G)
 {
-  // not yet implemented
+  for(int c=0; c<nClasses; c++) {
+    // each "class" has a different number of links in the chains, and a different number of chains.
+    linkedCopy GCHAINS (G->G(), G_linked[c], nLinks[c], nChains[c], ikxLinked[c], ikyLinked[c], grids_->Nmoms);
+
+    cufftExecC2C (zft_plan_forward[c], G_linked[c], G_linked[c], CUFFT_FORWARD);
+    dealias_kzLinked_kernel GCHAINS (G_linked[c], kzLinked[c], nLinks[c], nChains[c], grids_->Nmoms, 1./(grids_->Nz*nLinks[c]));
+    cufftExecC2C (zft_plan_inverse[c], G_linked[c], G_linked[c], CUFFT_INVERSE);
+  }
+
+  linkedCopyBackAll <<< dG_all, dB_all >>> (G_linked_d, G->G(), p_map, n_map, c_map, nLinks_map, nChains_map, grids_->Nmoms);
 }
 
 void GradParallelLinked::dealias(cuComplex* f)

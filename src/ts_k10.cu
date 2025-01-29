@@ -24,14 +24,6 @@ Ketcheson10::Ketcheson10(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     G_q1[is] = new MomentsG (pars_, grids_, is_glob);
     G_q2[is] = new MomentsG (pars_, grids_, is_glob);
   }
-
-  if(pars_->dealias_kz) {
-    if (pars_->local_limit)                     { grad_par = new GradParallelLocal(grids_);
-    } else if (pars_->boundary_option_periodic) { grad_par = new GradParallelPeriodic(grids_);
-    } else if (pars_->nonTwist)                 { grad_par = new GradParallelNTFT(pars_, grids_);
-    } else {                                      grad_par = new GradParallelLinked(pars_, grids_);
-    }
-  }
 }
 
 Ketcheson10::~Ketcheson10()
@@ -43,7 +35,6 @@ Ketcheson10::~Ketcheson10()
   }
   free(G_q1);
   free(G_q2);
-  if (grad_par) delete grad_par;
 }
 
 void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fields* f, bool setdt)
@@ -73,12 +64,13 @@ void Ketcheson10::EulerStep(MomentsG** G_q1, MomentsG** GRhs, MomentsG* Gtmp, Fi
     GRhs[is]->set_zero();
     // finish Hermite ghost exchange before starting linear rhs
     cudaStreamSynchronize(G_q1[is]->syncStream);
-    linear_->rhs(G_q1[is], f, GRhs[is], dt_);  if (pars_->dealias_kz) grad_par->dealias(GRhs[is]);
+    linear_->rhs(G_q1[is], f, GRhs[is], dt_);
 
     G_q1[is]->add_scaled(1., Gtmp, dt_/6., GRhs[is]);
+    if(pars_->dealias_kz) linear_->dealias_kz(G_q1[is]);
   }
 
-  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G_q1, f);
 }
 
 void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
@@ -112,7 +104,7 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
     G_q1[is] -> add_scaled(15, G_q2[is], -5, G_q1[is]);
   }
 
-  solver_->fieldSolve(G_q1, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G_q1, f);
   
   for(int i=6; i<10; i++) EulerStep(G_q1, G, Gtmp, f, setdt);
   
@@ -123,7 +115,6 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
     // compute and increment nonlinear term
     G[is]->set_zero();
     if(nonlinear_ != nullptr) nonlinear_->nlps(G_q1[is], f, G[is]);
-    if (pars_->dealias_kz) grad_par->dealias(G[is]);
     Gtmp->add_scaled(1., G_q2[is], 0.6, G_q1[is], 0.1*dt_, G[is]);
 
     // compute and increment linear term
@@ -131,13 +122,13 @@ void Ketcheson10::advance(double *t, MomentsG** G, Fields* f)
     // finish Hermite ghost exchange before starting linear rhs
     cudaStreamSynchronize(G_q1[is]->syncStream);
     linear_->rhs(G_q1[is], f, G[is], dt_);
-    if (pars_->dealias_kz) grad_par->dealias(G[is]);
     G[is]->add_scaled(1., Gtmp, 0.1*dt_, G[is]);
+    if(pars_->dealias_kz) linear_->dealias_kz(G[is]);
     
     if (forcing_ != nullptr) forcing_->stir(G[is]);
   }
   
-  solver_->fieldSolve(G, f);  if (pars_->dealias_kz) grad_par->dealias(f->phi);
+  solver_->fieldSolve(G, f);
   *t += dt_;
 }
 

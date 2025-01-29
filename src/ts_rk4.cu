@@ -72,6 +72,7 @@ void RungeKutta4::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     linear_->rhs(Gt[is], f, Rhs[is], dt_);
 	 // Gnew += adt*(dt_)*Rhs
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+    if(pars_->dealias_kz) linear_->dealias_kz(Gnew[is]);
   
     // need to recompute and save Rhs for intermediate steps
 	 // Rhs = (Gnew - G)/(adt*(dt_))
@@ -150,6 +151,7 @@ void RungeKutta4::advance(double *t, MomentsG** G, Fields* f)
     linear_->rhs(G_q1[is], f, GStar[is], dt_);
     
     G[is]->add_scaled(1., G[is], dt_/6., GStar[is]);
+    if(pars_->dealias_kz) linear_->dealias_kz(G[is]);
     
     if (forcing_ != nullptr) forcing_->stir(G[is]);
   }

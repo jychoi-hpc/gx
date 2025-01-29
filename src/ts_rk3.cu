@@ -76,6 +76,7 @@ void RungeKutta3::partial(MomentsG** G, MomentsG** Gt, Fields *f, MomentsG** Rhs
     cudaStreamSynchronize(Gt[is]->syncStream);
     linear_->rhs(Gt[is], f, Rhs[is], dt_);
     Gnew[is]->add_scaled(1., Gnew[is], adt*dt_, Rhs[is]);
+    if(pars_->dealias_kz) linear_->dealias_kz(Gnew[is]);
   
     // need to recompute and save Rhs for intermediate steps
     Rhs[is]->add_scaled(1./(adt*dt_), Gnew[is], -1./(adt*dt_), G[is]);
