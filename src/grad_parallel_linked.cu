@@ -225,8 +225,8 @@ GradParallelLinked::GradParallelLinked(Parameters* pars, Grids* grids)
 
     printf("nLinks is %d\n", nLinks[c]);    
 
-    checkCuda(cudaMalloc((void**) &G_linked[c], sLClmz));
-    cudaMemset(G_linked[c], 0., sLClmz);
+    // checkCuda(cudaMalloc((void**) &G_linked[c], sLClmz));
+    // cudaMemset(G_linked[c], 0., sLClmz);
     checkCuda(cudaMalloc((void**) &phi_linked[c], sLClmz));
     cudaMemset(phi_linked[c], 0., sLClmz);
     checkCuda(cudaMalloc((void**) &phi2_linked[c], sLClmz));
