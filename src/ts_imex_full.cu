@@ -100,9 +100,9 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
   if (pars_->local_limit) {
     grad_par = new GradParallelLocal(grids_);
   }
-//  else if (pars_->boundary_option_periodic) {
-//   grad_par = new GradParallelPeriodic(grids_);
-//  }
+  else if (pars_->boundary_option_periodic) {
+   grad_par = new GradParallelPeriodic(grids_);
+  }
   else {
     printf("USING GRADPARALLELLINKED!!!\n");
     grad_par = new GradParallelLinked(pars_, grids_);
