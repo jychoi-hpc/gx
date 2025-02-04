@@ -441,6 +441,8 @@ class IMEX_3stage_Full : public Timestepper {
   void apply_preconditioner(MomentsG** G1, MomentsG** G, Fields* f);
 
   void invert_implicit_terms(MomentsG** G1, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+  void invert_implicit_terms_local(MomentsG** G1, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
+
   void invert_implicit_terms_linked(MomentsG** G1, cuComplex** G_sm_s_phi, cuComplex** G_sm_s_apar, MomentsG** G0, MomentsG** G2, Fields *f, cuComplex** phi_l, cuComplex** apar_l, double sdt,const float gradpar_, const float* bmagInv_, int ielectron);
   void invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG** G0, Fields *f, double sdt,const float gradpar_, int ielectron);
 

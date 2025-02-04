@@ -39,7 +39,14 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3);
+ 
+  nn1 = grids_->Nyc;        nt1 = min(nn1, 32 );   nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids_->Nx;         nt2 = min(nn2, 32 );   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = 1;                  nt3 = min(nn3,  1 );   nb3 = 1 + (nn3-1)/nt3;
   
+  db = dim3(nt1, nt2, nt3);
+  dg = dim3(nb1, nb2, nb3);
+
   if(!pars_->all_kinetic && (pars_->Boltzmann_opt == BOLTZMANN_ELECTRONS)) {cudaMalloc((void**) &tmp,  cgrid); zero(tmp);}
  
   qneutFacPhi_inv_l = (float**) malloc(sizeof(float*)*grids_->Nspecies); 
