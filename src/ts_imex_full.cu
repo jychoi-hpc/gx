@@ -505,6 +505,7 @@ void IMEX_3stage_Full::invert_implicit_terms(MomentsG** G1, cuComplex** G_sm_s_p
 {
   int max_iter = pars_->implicit_max_iter;
   float omega = pars_->implicit_omega;
+
   for(int is = 0; is < grids_->Nspecies; is++){
     grad_par->zft(G1[is]);
   }
@@ -593,6 +594,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
       invert_implicit_terms_local(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, p_*dt_,gradpar_, bmagInv_, ielectron); 
     }
     else if(pars_->boundary_option_periodic){
+//    else if(true){
       invert_implicit_terms(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, p_*dt_,gradpar_, bmagInv_, ielectron);
     }
     else{
@@ -625,6 +627,8 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     invert_implicit_terms_local(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, r_*dt_,gradpar_, bmagInv_, ielectron);
   }
   else if(pars_->boundary_option_periodic){
+//    else if(true){
+
     invert_implicit_terms(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, r_*dt_,gradpar_, bmagInv_, ielectron);
   }
   else{
@@ -654,6 +658,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     invert_implicit_terms_local(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else if(pars_->boundary_option_periodic){
+//    else if(true){
     invert_implicit_terms(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else{
@@ -690,6 +695,7 @@ void IMEX_3stage_Full::advance(double *t, MomentsG** G, Fields* f)
     invert_implicit_terms_local(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else if(pars_->boundary_option_periodic){
+//    else if(true){
     invert_implicit_terms(G1, G_sm_s_phi, G_sm_s_apar, G0, G2, f, phi_flr, apar_flr, u_*dt_,gradpar_,bmagInv_, ielectron);
   }
   else{

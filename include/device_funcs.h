@@ -375,10 +375,10 @@ __global__ void linkedCopy(const cuComplex* __restrict__ G, cuComplex* __restric
 			   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, float scalar=1.0);
 
 __global__ void linkedCopy_lw(const cuComplex* __restrict__ G, cuComplex* __restrict__ G_linked, int nLinks,
-			   const int* __restrict__ ikx, int nMoms);
+			   const int* __restrict__ ikx, int nMoms, float scalar=1.0);
 
 __global__ void linkedCopy_f(const float* __restrict__ G, float* __restrict__ G_linked, int nLinks, int nChains,
-                           const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, int Nz);
+                           const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms, int Nz, float scalar=1.0);
 
 __global__ void linkedCopyBack(const cuComplex* __restrict__ G_linked, cuComplex* __restrict__ G, int nLinks, int nChains,
 						   const int* __restrict__ ikx, const int* __restrict__ iky, int nMoms);

@@ -3089,7 +3089,7 @@ __global__ void linkedCopy_f(const float* __restrict__ G,
                            const int* __restrict__ ikx,
                            const int* __restrict__ iky,
                            int nMoms,
-			   int Nz)
+			   int Nz, float scalar)
 {
   unsigned int idz  = get_id1();
   unsigned int idk  = get_id2();
@@ -3100,7 +3100,7 @@ __global__ void linkedCopy_f(const float* __restrict__ G,
 //    unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + nz*idlm));
     unsigned int globalIdx = iky[idk] + nyc*(ikx[idk] + nx*(idz + Nz*idlm));
     // NRM: seems hopeless to make these accesses coalesced. how bad is it?
-    G_linked[idlink] = G[globalIdx];
+    G_linked[idlink] = G[globalIdx]*scalar;
   }
 }
 
@@ -3127,7 +3127,7 @@ __global__ void linkedCopy_lw(const cuComplex* __restrict__ G,
 			   cuComplex* __restrict__ G_linked,
 			   int nLinks,
 			   const int* __restrict__ ikx,
-			   int nMoms)
+			   int nMoms, float scalar)
 {
   unsigned int idz  = get_id1();
   unsigned int idx  = get_id2();
@@ -3137,7 +3137,7 @@ __global__ void linkedCopy_lw(const cuComplex* __restrict__ G,
     unsigned int idlink = idz + nz*(idx + nLinks*idlm);
     unsigned int globalIdx = ikx[idx] + nx*(idz + nz*idlm);
     // NRM: seems hopeless to make these accesses coalesced. how bad is it?
-    G_linked[idlink] = G[globalIdx];
+    G_linked[idlink] = G[globalIdx]*scalar;
   }
 }
 
