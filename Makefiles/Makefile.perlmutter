@@ -55,9 +55,11 @@ CUDAARCH=80
 # Cray names their C++ compiler CC (C compiler is cc)
 CXX = CC
 
+ADIOSLIBS=`adios2-config --cxx-libs`
+ADIOSCXX=`adios2-config --cxx-flags`
 NVCC   = nvcc
-CFLAGS = -fPIC --std=c++17
-NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+CFLAGS = -fPIC --std=c++17 ${ADIOSCXX}
+NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true ${ADIOSCXX}
 LDFLAGS = -dlink
 
 ifeq ($(debug),on)

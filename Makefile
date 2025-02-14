@@ -82,7 +82,7 @@ src/version.c:
 #######################################
 # Rules for building gx
 ####################################
-OBJS = device_funcs.o parameters.o grids.o reductions.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk3.o ts_rk4.o ts_k10.o diagnostics.o run_gx.o version.o trinity_interface.o diagnostic_classes.o spectra_calc.o grad_parallel_NTFT.o exb.o
+OBJS = adios.o device_funcs.o parameters.o grids.o reductions.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk3.o ts_rk4.o ts_k10.o diagnostics.o run_gx.o version.o trinity_interface.o diagnostic_classes.o spectra_calc.o grad_parallel_NTFT.o exb.o
 
 VMEC_GEO_OBJS = solver.o vmec_variables.o geometric_coefficients.o
 VMEC_GEO_HEADERS = $(wildcard geometry_modules/vmec/include*.h)
@@ -93,12 +93,12 @@ obj/geo/%.o: %.cpp $(VMEC_GEO_HEADERS)
 # main program
 ifeq ($(NVCC), hipcc)
 gx: libgx.a obj/main.o 
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 	@rm src/version.c
 else
 gx: obj/main.o libgx.a 
-	$(NVCC) -dlink $(NVCCFLAGS) -o obj/gx.o $< -L. -lgx $(LIBS) 
-	$(CXX) -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) 
+	$(NVCC) -dlink $(NVCCFLAGS) -o obj/gx.o $< -L. -lgx $(LIBS)
+	$(CXX) -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) $(ADIOSLIBS)
 	@rm src/version.c
 endif
 
