@@ -1,6 +1,7 @@
 #pragma once
 #include "grids.h"
 #include "ncdf.h"
+#include "adios.h"
 #include "reductions.h"
 #include "netcdf_par.h"
 #include "netcdf.h"
@@ -17,6 +18,8 @@ class SpectraCalc {
   virtual ~SpectraCalc();
   virtual void allocate();
   virtual int define_nc_variable(string varstem, int nc_group, string description = "", bool append=false);
+  virtual int define_adios_variable(Adios *adios, string varname, string description = "");
+  virtual void write(float *fullData, Adios *adios, int varIdx,  bool isMoments, bool skip);
   virtual void write(float *fullData, int varid, size_t time_index, int nc_group, bool isMoments, bool skip=false);
   virtual float* get_data() {return cpu;};
   virtual void dealias_and_reorder(float *fold, float *fnew) {
@@ -29,6 +32,7 @@ class SpectraCalc {
   string tag;
   int ndim, N, Nwrite;
   int dims[6];
+  size_t shape[6] = {0};
   size_t count[6] = {0};
   size_t start[6] = {0};
   size_t dummy_count[6] = {0};

@@ -31,6 +31,24 @@ int SpectraCalc::define_nc_variable(string varstem, int nc_group, string descrip
   return varid;
 }
 
+int SpectraCalc::define_adios_variable(Adios *adios, string varstem, string description)
+{
+	  int varid = adios->AddSpectraGKVar(varstem+tag, ndim, shape, count, start);
+	  adios->io.DefineAttribute<string>("description", description, varstem+tag);
+	  return varid;
+}
+
+void SpectraCalc::write(float *fullData, Adios *adios, int varIdx,  bool isMoments, bool skip)
+{
+	if (skip) return;
+  if(isMoments) moments_reduce->Sum(fullData, data);
+  else field_reduce->Sum(fullData, data);
+  CP_TO_CPU(tmp, data, sizeof(float)*N);
+  dealias_and_reorder(tmp, cpu);
+
+  adios->writer.Put<float>(adios->spectraVars[varIdx], cpu, adios2::Mode::Sync);
+}
+
 void SpectraCalc::write(float *fullData, int varid, size_t time_index, int nc_group, bool isMoments, bool skip)
 {
   if(isMoments) moments_reduce->Sum(fullData, data); 
@@ -63,6 +81,8 @@ SpectraCalc_st::SpectraCalc_st(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
 
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
 
@@ -88,6 +108,8 @@ SpectraCalc_kxst::SpectraCalc_kxst(Grids* grids, NcDims *nc_dims)
   count[2] = grids->Nakx;
 
   start[1] = grids->is_lo;
+
+  shape[1] = grids->Nspecies * grids->nprocs_s;
 
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
@@ -134,6 +156,8 @@ SpectraCalc_kyst::SpectraCalc_kyst(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
 
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
 
@@ -170,6 +194,8 @@ SpectraCalc_kxkyst::SpectraCalc_kxkyst(Grids* grids, NcDims *nc_dims)
   count[3] = grids->Nakx;
 
   start[1] = grids->is_lo;
+
+  shape[1] = grids->Nspecies * grids->nprocs_s;
 
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
@@ -233,6 +259,8 @@ SpectraCalc_kxkyzst::SpectraCalc_kxkyzst(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
 
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
 
@@ -293,6 +321,8 @@ SpectraCalc_zst::SpectraCalc_zst(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
 
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+
   field_reduce = new Reduction<float>(grids, field_species_modes, reduced_modes);
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
 
@@ -318,6 +348,8 @@ SpectraCalc_lst::SpectraCalc_lst(Grids* grids, NcDims *nc_dims)
   count[2] = grids->Nl;
 
   start[1] = grids->is_lo;
+
+  shape[1] = grids->Nspecies * grids->nprocs_s;
 
   field_reduce = nullptr;
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
@@ -345,6 +377,9 @@ SpectraCalc_mst::SpectraCalc_mst(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
   start[2] = grids->m_lo;
+
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+  shape[2] = grids->Nm * grids->nprocs_m;
 
   field_reduce = nullptr;
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);
@@ -374,6 +409,9 @@ SpectraCalc_lmst::SpectraCalc_lmst(Grids* grids, NcDims *nc_dims)
 
   start[1] = grids->is_lo;
   start[2] = grids->m_lo;
+
+  shape[1] = grids->Nspecies * grids->nprocs_s;
+  shape[2] = grids->Nm * grids->nprocs_m;
 
   field_reduce = nullptr;
   moments_reduce = new Reduction<float>(grids, moment_species_modes, reduced_modes);

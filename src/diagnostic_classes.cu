@@ -1,21 +1,29 @@
 #include "diagnostic_classes.h"
 
 // base class methods
-SpectraDiagnostic::SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
+SpectraDiagnostic::SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, Adios* adios): adios_(adios)
 {
   nc_type = NC_FLOAT;
   pars_ = pars;
   grids_ = grids;
   geo_ = geo;
   ncdf_ = ncdf;
-  nc_group = ncdf_->nc_diagnostics->diagnostics_id;
+  if(ncdf_) nc_group = ncdf_->nc_diagnostics->diagnostics_id;
 }
 
 // add a particular type of spectra to the calculation list
 void SpectraDiagnostic::add_spectra(SpectraCalc *spectra)
 {
   spectraList.push_back(spectra);
-  int varid = spectra->define_nc_variable(varname, nc_group, description, pars_->restart && pars_->append_on_restart);
+  int varid = -1;
+  if(ncdf_)
+  {
+	  varid = spectra->define_nc_variable(varname, nc_group, description, pars_->restart && pars_->append_on_restart);
+  }
+  if(adios_)
+  {
+	  varid = spectra->define_adios_variable(adios_, varname, description);
+  }
   spectraIds.push_back(varid);
 }
 
@@ -23,7 +31,8 @@ void SpectraDiagnostic::add_spectra(SpectraCalc *spectra)
 void SpectraDiagnostic::write_spectra(float* data)
 {
   for(size_t i = 0; i < spectraList.size(); i++) {
-    spectraList[i]->write(data, spectraIds[i], ncdf_->nc_grids->time_index, nc_group, isMoments, skipWrite);
+    if (ncdf_) spectraList[i]->write(data, spectraIds[i], ncdf_->nc_grids->time_index, nc_group, isMoments, skipWrite);
+    if (adios_) spectraList[i]->write(data, adios_, spectraIds[i], isMoments, skipWrite);
   }
 }
 
@@ -50,7 +59,7 @@ void SpectraDiagnostic::set_kernel_dims()
 
 // |Phi|**2 diagnostic class
 Phi2Diagnostic::Phi2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Phi2";
   isMoments = false;
@@ -81,7 +90,7 @@ void Phi2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, f
 
 // |Phi(ky=0)|**2 diagnostic class
 Phi2ZonalDiagnostic::Phi2ZonalDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Phi2_zonal";
   isMoments = false;
@@ -101,7 +110,7 @@ void Phi2ZonalDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tm
 }
 
 Apar2Diagnostic::Apar2Diagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Apar2";
   isMoments = false;
@@ -123,7 +132,7 @@ void Apar2Diagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, 
 }
 
 WphiDiagnostic::WphiDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Wphi";
   isMoments = false;
@@ -147,7 +156,7 @@ void WphiDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, f
 }
 
 WaparDiagnostic::WaparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Wapar";
   isMoments = false;
@@ -169,7 +178,7 @@ void WaparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, 
 }
 
 WgDiagnostic::WgDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Wg";
   isMoments = true;
@@ -195,7 +204,7 @@ void WgDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmpG, flo
 
 // KREHM electrostatic energy
 WphiKrehmDiagnostic::WphiKrehmDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Wphi";
   isMoments = false;
@@ -215,7 +224,7 @@ void WphiKrehmDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tm
 }
 
 WaparKrehmDiagnostic::WaparKrehmDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "Wapar";
   isMoments = false;
@@ -234,8 +243,8 @@ void WaparKrehmDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* t
   write_spectra(tmpf);
 }
 
-HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxDiagnostic::HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, adios)
 {
   varname = "HeatFlux";
   description = "Turbulent heat flux in gyroBohm units"; 
@@ -279,8 +288,8 @@ void HeatFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* tmp
   }
 }
 
-HeatFluxESDiagnostic::HeatFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxESDiagnostic::HeatFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, nullptr, adios)
 {
   varname = "HeatFluxES";
   description = "Electrostatic component of turbulent heat flux in gyroBohm units"; 
@@ -308,8 +317,8 @@ void HeatFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float* t
   write_spectra(tmpf);
 }
 
-HeatFluxAparDiagnostic::HeatFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxAparDiagnostic::HeatFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, nullptr, adios)
 {
   varname = "HeatFluxApar";
   description = "Electromagnetic (A_parallel) component of turbulent heat flux in gyroBohm units"; 
@@ -337,8 +346,8 @@ void HeatFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
   write_spectra(tmpf);
 }
 
-HeatFluxBparDiagnostic::HeatFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+HeatFluxBparDiagnostic::HeatFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, nullptr, adios)
 {
   varname = "HeatFluxBpar";
   description = "Electromagnetic (dB_parallel) component of turbulent heat flux in gyroBohm units"; 
@@ -366,8 +375,8 @@ void HeatFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
   write_spectra(tmpf);
 }
 
-ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ParticleFluxDiagnostic::ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, nullptr, adios)
 {
   varname = "ParticleFlux";
   description = "Turbulent particle flux in gyroBohm units"; 
@@ -408,7 +417,7 @@ void ParticleFluxDiagnostic::calculate_and_write(MomentsG** G, Fields* f, float*
 }
 
 ParticleFluxESDiagnostic::ParticleFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "ParticleFluxES";
   description = "Electrostatic component of turbulent particle flux in gyroBohm units"; 
@@ -438,7 +447,7 @@ void ParticleFluxESDiagnostic::calculate_and_write(MomentsG** G, Fields* f, floa
 }
 
 ParticleFluxAparDiagnostic::ParticleFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "ParticleFluxApar";
   description = "Electromagnetic (A_parallel) component of turbulent particle flux in gyroBohm units"; 
@@ -468,7 +477,7 @@ void ParticleFluxAparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, fl
 }
 
 ParticleFluxBparDiagnostic::ParticleFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, nullptr)
 {
   varname = "ParticleFluxBpar";
   description = "Electromagnetic (dB_parallel) component of turbulent particle flux in gyroBohm units"; 
@@ -497,8 +506,8 @@ void ParticleFluxBparDiagnostic::calculate_and_write(MomentsG** G, Fields* f, fl
   write_spectra(tmpf);
 }
 
-TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF* ncdf, AllSpectraCalcs* allSpectra)
- : SpectraDiagnostic(pars, grids, geo, ncdf)
+TurbulentHeatingDiagnostic::TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF* ncdf, Adios* adios, AllSpectraCalcs* allSpectra)
+ : SpectraDiagnostic(pars, grids, geo, ncdf, adios)
 {
   varname = "TurbulentHeating";
   description = "Turbulent heating from collisions in gyroBohm units"; 
@@ -770,23 +779,20 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
 }
 
 // fields transformed to real (x,y,z) space
-FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear* nonlinear, NetCDF* ncdf)
+FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear* nonlinear, NetCDF* ncdf, Adios *adios): adios_(adios)
 {
   nc_type = NC_FLOAT;
   pars_ = pars;
   grids_ = grids;
   nonlinear_ = nonlinear;
   ncdf_ = ncdf;
+
+  if (ncdf_){
   varnames[0] = "PhiXY";
   varnames[1] = "AparXY";
   varnames[2] = "BparXY";
-  nc_group = ncdf_->nc_diagnostics->diagnostics_id;
-  ndim = 4;
-
-  dims[0] = ncdf_->nc_dims->time;
-  dims[1] = ncdf_->nc_dims->y;
-  dims[2] = ncdf_->nc_dims->x;
-  dims[3] = ncdf_->nc_dims->z;
+	  nc_group = ncdf_->nc_diagnostics->diagnostics_id;
+	  ndim = 4;
 
   count[0] = 1; // each write is a single time slice
   count[1] = grids->Ny;
@@ -803,7 +809,14 @@ FieldsXYDiagnostic::FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear
       if (retval = nc_var_par_access(nc_group, varids[i], NC_COLLECTIVE)) ERR(retval);
     }
   }
+  }
 
+  if(adios_) {
+	  adios_->SetShapeFieldsKREHM();
+	  adios_->phiVar = adios_->io.DefineVariable<float>("PhiXY", adios_->shape, adios_->start, adios_->count);
+	  adios_->aparVar = adios_->io.DefineVariable<float>("AparXY", adios_->shape, adios_->start, adios_->count);
+	  adios_->bparVar = adios_->io.DefineVariable<float>("BparXY", adios_->shape, adios_->start, adios_->count);
+  }
   N = grids->NxNyNz;
   f_h = (float*) malloc  (sizeof(float) * N);
   cpu = (float*) malloc  (sizeof(float) * N);
@@ -821,25 +834,31 @@ FieldsXYDiagnostic::~FieldsXYDiagnostic()
 void FieldsXYDiagnostic::calculate_and_write(Fields* f)
 {
   int retval;
-  start[0] = ncdf_->nc_grids->time_index;
+  if (ncdf_) start[0] = ncdf_->nc_grids->time_index;
 
-  // write phi to ncdf
+  if (adios_) adios_->writer.BeginStep();
+  // write phi
   grad_perp_->C2R(f->phi, fXY);
   CP_TO_CPU(f_h, fXY, sizeof(float)*N);
   dealias_and_reorder(f_h, cpu);
-  if (retval=nc_put_vara(nc_group, varids[0], start, count, cpu)) ERR(retval);
+  if (ncdf_) if (retval=nc_put_vara(nc_group, varids[0], start, count, cpu)) ERR(retval);
+  if (adios_) adios_->writer.Put<float>(adios_->phiVar, cpu, adios2::Mode::Sync);
 
-  // write apar to ncdf
+  // write apar
   grad_perp_->C2R(f->apar, fXY);
   CP_TO_CPU(f_h, fXY, sizeof(float)*N);
   dealias_and_reorder(f_h, cpu);
-  if (retval=nc_put_vara(nc_group, varids[1], start, count, cpu)) ERR(retval);
+  if (ncdf_) if (retval=nc_put_vara(nc_group, varids[1], start, count, cpu)) ERR(retval);
+  if (adios_) adios_->writer.Put<float>(adios_->aparVar, cpu, adios2::Mode::Sync);
   
-  // write bpar to ncdf
+  // write bpar
   grad_perp_->C2R(f->bpar, fXY);
   CP_TO_CPU(f_h, fXY, sizeof(float)*N);
   dealias_and_reorder(f_h, cpu);
-  if (retval=nc_put_vara(nc_group, varids[2], start, count, cpu)) ERR(retval);
+  if (ncdf_) if (retval=nc_put_vara(nc_group, varids[2], start, count, cpu)) ERR(retval);
+  if (adios_) adios_->writer.Put<float>(adios_->bparVar, cpu, adios2::Mode::Sync);
+
+  if (adios_) adios_->writer.EndStep();
 }
 
 // transpose so that z is fastest index

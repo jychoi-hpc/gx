@@ -7,6 +7,7 @@
 #include "nonlinear.h"
 #include "fields.h"
 #include "ncdf.h"
+#include "adios.h"
 #include "grad_parallel.h"
 #include "grad_perp.h"
 //#include "reservoir.h"
@@ -52,6 +53,7 @@ private:
   MomentsG     ** G_old    ;
   NetCDF       * ncdf_         ;
   NetCDF       * ncdf_big_         ;
+  Adios	* adios_	;
   //Reservoir    * rc            ;
   AllSpectraCalcs * allSpectra_;
   Linear * linear_;
@@ -82,6 +84,7 @@ private:
   Fields       * fields_old    ;
   NetCDF       * ncdf_         ;
   NetCDF       * ncdf_big_         ;
+  Adios        * adios_;
   AllSpectraCalcs * allSpectra_;
   Linear * linear_;
   Nonlinear * nonlinear_;

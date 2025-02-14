@@ -7,6 +7,7 @@
 #include "moments.h"
 #include "fields.h"
 #include "ncdf.h"
+#include "adios.h"
 #include "reductions.h"
 #include "spectra_calc.h"
 #include "device_funcs.h"
@@ -26,7 +27,7 @@ using namespace std;
 // the output is real-valued
 class SpectraDiagnostic {
  public:
-  SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
+  SpectraDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, Adios* adios);
   ~SpectraDiagnostic() {};
   virtual void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf) = 0;
   virtual void set_dt_data(MomentsG** G_old, Fields* f_old, float dt) {};
@@ -46,6 +47,7 @@ class SpectraDiagnostic {
   Grids* grids_;
   Geometry* geo_;
   NetCDF* ncdf_;
+  Adios* adios_;
   string description = "";
 };
 
@@ -108,32 +110,32 @@ class WaparKrehmDiagnostic : public SpectraDiagnostic {
 // HeatFlux (Q)
 class HeatFluxDiagnostic : public SpectraDiagnostic {
  public:
-  HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  HeatFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
 class HeatFluxESDiagnostic : public SpectraDiagnostic {
  public:
-  HeatFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  HeatFluxESDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
 class HeatFluxAparDiagnostic : public SpectraDiagnostic {
  public:
-  HeatFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  HeatFluxAparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
 class HeatFluxBparDiagnostic : public SpectraDiagnostic {
  public:
-  HeatFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  HeatFluxBparDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
 // ParticleFlux (Gamma)
 class ParticleFluxDiagnostic : public SpectraDiagnostic {
  public:
-  ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  ParticleFluxDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
 };
 
@@ -158,7 +160,7 @@ class ParticleFluxBparDiagnostic : public SpectraDiagnostic {
 // TurbulentHeating (H)
 class TurbulentHeatingDiagnostic : public SpectraDiagnostic {
  public:
-  TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF* nc, AllSpectraCalcs* allSpectra);
+  TurbulentHeatingDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, NetCDF *ncdf, Adios* adios, AllSpectraCalcs* allSpectra);
   void calculate_and_write(MomentsG** G, Fields* f, float* tmpG, float* tmpf);
   void set_dt_data(MomentsG** G_old, Fields* f_old, float dt);
 
@@ -221,7 +223,7 @@ class FieldsDiagnostic {
 
 class FieldsXYDiagnostic {
  public:
-  FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear* nonlinear, NetCDF* ncdf);
+  FieldsXYDiagnostic(Parameters* pars, Grids* grids, Nonlinear* nonlinear, NetCDF* ncdf, Adios* adios);
   ~FieldsXYDiagnostic();
   void calculate_and_write(Fields* f);
  private:
@@ -239,6 +241,7 @@ class FieldsXYDiagnostic {
   Parameters* pars_;
   Grids* grids_;
   NetCDF* ncdf_;
+  Adios* adios_;
   Nonlinear* nonlinear_;
   GradPerp* grad_perp_;
 

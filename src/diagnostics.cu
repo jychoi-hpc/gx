@@ -9,7 +9,7 @@
 #define loop_y <<< dgp, dbp >>> 
 
 Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, Nonlinear* nonlinear) :
-  geo_(geo), fields_old(nullptr), ncdf_(nullptr), ncdf_big_(nullptr), linear_(linear), nonlinear_(nonlinear)
+  geo_(geo), fields_old(nullptr), ncdf_(nullptr), ncdf_big_(nullptr), adios_(nullptr), linear_(linear), nonlinear_(nonlinear)
 {
   pars_ = pars;
   grids_ = grids;
@@ -25,6 +25,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   // set up spectra calculators
   // Always need allSpectra for Phi2 / A_||^2 below
   // Always need tmpG / tmpf for Phi2
+  adios_ = new Adios(pars_, grids_, ".GK.fluxes.bp", 1, geo_);
   allSpectra_ = new AllSpectraCalcs(grids_, ncdf_->nc_dims);
   cudaMalloc (&tmpG, sizeof(float) * grids_->NxNycNz * grids_->Nmoms * grids_->Nspecies);
   cudaMalloc (&tmpf, sizeof(float) * grids_->NxNycNz * grids_->Nspecies);
@@ -60,16 +61,15 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
 
   // initialize flux spectra diagnostics
   if(pars_->write_fluxes) {
-    spectraDiagnosticList.push_back(std::make_unique<HeatFluxDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
-    spectraDiagnosticList.push_back(std::make_unique<HeatFluxESDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
-    spectraDiagnosticList.push_back(std::make_unique<HeatFluxAparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
-    spectraDiagnosticList.push_back(std::make_unique<HeatFluxBparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
-    spectraDiagnosticList.push_back(std::make_unique<ParticleFluxDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<HeatFluxDiagnostic>(pars_, grids_, geo_, ncdf_, adios_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<HeatFluxESDiagnostic>(pars_, grids_, geo_, ncdf_, adios_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<HeatFluxAparDiagnostic>(pars_, grids_, geo_, ncdf_, adios_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<HeatFluxBparDiagnostic>(pars_, grids_, geo_, ncdf_, adios_, allSpectra_));
+    spectraDiagnosticList.push_back(std::make_unique<ParticleFluxDiagnostic>(pars_, grids_, geo_, ncdf_, adios_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<ParticleFluxESDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<ParticleFluxAparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
     spectraDiagnosticList.push_back(std::make_unique<ParticleFluxBparDiagnostic>(pars_, grids_, geo_, ncdf_, allSpectra_));
-    spectraDiagnosticList.push_back(std::make_unique<TurbulentHeatingDiagnostic>(pars_, grids_, geo_, linear_, ncdf_, allSpectra_));
-
+    spectraDiagnosticList.push_back(std::make_unique<TurbulentHeatingDiagnostic>(pars_, grids_, geo_, linear_, ncdf_, adios_, allSpectra_));
   }
   
   // initialize growth rate diagnostic
@@ -81,7 +81,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   if(pars_->write_fields) {
     fieldsDiagnostic = new FieldsDiagnostic(pars_, grids_, ncdf_big_);
     if(pars_->nonlinear_mode) {
-      fieldsXYDiagnostic = new FieldsXYDiagnostic(pars_, grids_, nonlinear_, ncdf_big_);
+      fieldsXYDiagnostic = new FieldsXYDiagnostic(pars_, grids_, nonlinear_, ncdf_big_, adios_);
     }
   }
 
@@ -120,6 +120,7 @@ Diagnostics_GK::~Diagnostics_GK()
   if(fields_old) delete fields_old;
   if(ncdf_) delete ncdf_;
   if(ncdf_big_) delete ncdf_big_;
+  if(adios_) delete adios_;
 }
 
 bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
@@ -127,6 +128,11 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   bool stop = false;
   if(counter % pars_->nwrite == 1 || time > pars_->t_max) {
     if(grids_->iproc == 0) printf("%s: Step %7d: Time = %10.5f  dt = %.3e   ", pars_->run_name, counter, time, dt);          // To screen
+    if(adios_)
+    {
+	    adios_->writer.BeginStep();
+	    adios_->write_time(time);
+    }
     for( auto & diagnostic : spectraDiagnosticList ) {
       diagnostic->set_dt_data(G_old, fields_old, dt);
       diagnostic->calculate_and_write(G, fields, tmpG, tmpf);
@@ -135,9 +141,13 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     if(pars_->write_omega) {
       growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
     }
+    if(adios_) adios_->writer.EndStep();
 
-    ncdf_->nc_grids->write_time(time);
-    ncdf_->sync();
+    if(ncdf_)
+    {
+	    ncdf_->nc_grids->write_time(time);
+	    ncdf_->sync();
+    }
 
     if(grids_->iproc_m == 0) {
       printf("\n");
@@ -464,7 +474,7 @@ void Diagnostics_GK::finish(MomentsG** G, Fields* fields, double time)
 //}
 
 Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, Nonlinear* nonlinear) :
-  geo_(geo), fields_old(nullptr), ncdf_(nullptr), ncdf_big_(nullptr), linear_(linear), nonlinear_(nonlinear)
+  geo_(geo), fields_old(nullptr), ncdf_(nullptr), ncdf_big_(nullptr), linear_(linear), nonlinear_(nonlinear), adios_(nullptr)
 {
   pars_ = pars;
   grids_ = grids;
@@ -475,6 +485,7 @@ Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids, Geometry* g
 
   if (pars_->write_fields || pars_->write_moms) {
     ncdf_big_ = new NetCDF(pars_, grids_, geo_, ".big.nc"); 
+    adios_ = new Adios(pars_, grids_, ".KREHM.fields.bp", 3, geo_, "BPFile");
   }
 
   // set up spectra calculators
@@ -509,7 +520,7 @@ Diagnostics_KREHM::Diagnostics_KREHM(Parameters* pars, Grids* grids, Geometry* g
   if(pars_->write_fields) {
     fieldsDiagnostic = new FieldsDiagnostic(pars_, grids_, ncdf_big_);
     if(pars_->nonlinear_mode) {
-      fieldsXYDiagnostic = new FieldsXYDiagnostic(pars_, grids_, nonlinear_, ncdf_big_);
+      fieldsXYDiagnostic = new FieldsXYDiagnostic(pars_, grids_, nonlinear_, ncdf_big_, adios_);
     }
   }
 
@@ -542,6 +553,7 @@ Diagnostics_KREHM::~Diagnostics_KREHM()
   if(fields_old) delete fields_old;
   if(ncdf_) delete ncdf_;
   if(ncdf_big_) delete ncdf_big_;
+  if(adios_) delete adios_;
 }
 
 bool Diagnostics_KREHM::loop(MomentsG** G, Fields* fields, double dt, int counter, double time) 
