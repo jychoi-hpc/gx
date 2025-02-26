@@ -174,8 +174,8 @@ void IMEX_3stage_Full::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, boo
   for (int is=0; is<grids_->Nspecies; is++) {
     A[is]->set_zero();
     if(is == ielectron){
-//      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
-      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+      linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
+ //     linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
 
     }
     else{
@@ -193,8 +193,8 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
   for (int is=0; is<grids_->Nspecies; is++) {
     B[is]->set_zero();
     if(is == ielectron){
-//      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
-      linear_->rhs_streaming(G[is], f, B[is], dt_);
+      linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
+ //     linear_->rhs_streaming(G[is], f, B[is], dt_);
 
     }
     else{
@@ -340,14 +340,15 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG**
       solver_->fieldSolve(G1, f);
       implicit_terms(G2, G1, f);
       for(int is = 0; is < grids_->Nspecies; is++){
-	G3[is]->copyFrom(G1[is]);
-	G2[is]->add_scaled(1., G1[is], -sdt, G2[is]);
+	      G3[is]->copyFrom(G1[is]);
+	      G2[is]->add_scaled(1., G1[is], -sdt, G2[is]);
         G1[is]->add_scaled(1., G2[is], -1., G0[is]);
-	G4[is]->copyFrom(G1[is]);
+	      G4[is]->copyFrom(G1[is]);
       }
 
     
     }
+
 
   for(int count_streaming = 0; count_streaming < max_iter_streaming; count_streaming++){
     if(count_streaming == 0){

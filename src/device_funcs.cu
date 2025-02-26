@@ -4757,7 +4757,7 @@ __global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g, bool one){
       brhs[idz][b_ind] = g[globalIdx]; 
     }
     else{
-      brhs[idz][b_ind] = make_cuComplex(1.0f,1.0f);
+      brhs[idz][b_ind] = make_cuComplex(1.0f,0.0f);
     }
   }
 } 
