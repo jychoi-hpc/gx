@@ -3180,17 +3180,18 @@ __global__ void __launch_bounds__(512) dampEnds_linked(cuComplex* G,
     // width = width of damping region in number of grid points 
     // set damping region width to 1/8 of extended domain (on either side)
     // widthfac = 1./8.;
-    unsigned int idzp = idz + nz*p_map[idy + naky*idakx];
+    unsigned int p = p_map[idy + naky*idakx];
     unsigned int nLinks = nLinks_map[idy + naky*idakx];
+    unsigned int idzp = idz + nz*p;
 
-    int width = (int) nz*nLinks*widthfrac;  
+    int width = (int) nz*widthfrac;  
     // float L = (float) 2*M_PI*zp*nLinks*widthfrac;
     float vmax = sqrtf(2*nm_glob); // estimate of max vpar on grid
-    if (idzp <= width ) {
-      float x = ((float) idzp)/width;
+    if (idz <= width && p==0 ) {
+      float x = ((float) idz)/width;
       nu = 1 - 2*x*x/(1+x*x*x*x);
-    } else if (idzp >= nz*nLinks-width) {
-      float x = ((float) nz*nLinks-idzp)/width;
+    } else if (idz >= nz-width && p==nLinks-1) {
+      float x = ((float) nz-idz)/width;
       nu = 1 - 2*x*x/(1+x*x*x*x);
     }
 
