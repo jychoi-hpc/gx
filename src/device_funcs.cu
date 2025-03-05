@@ -3779,8 +3779,6 @@ __global__ void hypercollisions(const cuComplex* g,
   unsigned int idy = idxyz % nyc;
   unsigned int idx = (idxyz / nyc) % nx;
 
-  // I thought there was now a factor of |kz| in the Hermite hypercollisions?
-  
   if ( unmasked(idx, idy) && idxyz < nx*nyc*nz) {
     float scaled_nu_hyp_l = (float) nl * nu_hyper_l;
     float scaled_nu_hyp_m = (float) nm_glob * nu_hyper_m; // scaling appropriate for curvature. Too big for slab

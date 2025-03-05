@@ -14,7 +14,7 @@ def turbulent_heating(data, ispec=0, navgfac=0.5, label=None, plot=True, fig=Non
         q = data.groups['Diagnostics'].variables['TurbulentHeating_st'][:-1,ispec]
     except:
         print('Error: turbulent heating data was not written. Make sure to use \'fluxes = true\' in the input file.')
-    species_type = data.groups['Inputs'].groups['Species'].variables['species_type'][ispec]
+    species_type = data.groups['Species'].variables['species_type'][ispec]
     if species_type == 0:
         species_tag = "i"
     elif species_type == 1:

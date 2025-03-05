@@ -21,7 +21,7 @@ def hermite_laguerre_spectra(data, ispec=0, navgfac=0.5, label=None, plot=True, 
         wm = wm / wm[0]
         wl = wl / wl[0]
 
-    species_type = data.groups['Inputs'].groups['Species'].variables['species_type'][ispec]
+    species_type = data.groups['Species'].variables['species_type'][ispec]
     if species_type == 0:
         species_tag = "i"
     elif species_type == 1:

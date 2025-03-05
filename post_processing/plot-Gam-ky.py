@@ -15,7 +15,7 @@ for fname in sys.argv[1:]:
     nspec = 1 # ambipolar, so only plot one species
   label = data.filepath()
   for ispec in np.arange(nspec):
-    species_type = data.groups['Inputs'].groups['Species'].variables['species_type'][ispec]
+    species_type = data.groups['Species'].variables['species_type'][ispec]
     if species_type == 0:
         species_tag = "i"
     elif species_type == 1:

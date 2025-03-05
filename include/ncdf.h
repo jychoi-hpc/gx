@@ -5,7 +5,6 @@
 #include "reductions.h"
 #include "device_funcs.h"
 #include "grad_perp.h"
-#include "nca.h"
 #include "netcdf.h"
 #include "netcdf_par.h"
 #include <string>

@@ -2,11 +2,6 @@
 #include "get_error.h"
 #include "netcdf.h"
 #include <sys/stat.h>
-#define loop_R <<< dG_spectra, dB_spectra >>>
-#define GALL <<< dG_all, dB_all >>>
-#define GFLA <<< 1 + (grids_->Nx*grids_->Nyc - 1)/grids_->Nakx, grids_->Nakx >>> 
-#define KXKY <<< dGk, dBk >>>
-#define loop_y <<< dgp, dbp >>> 
 
 Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Linear* linear, Nonlinear* nonlinear, NetCDF* ncdf) :
   geo_(geo), linear_(linear), nonlinear_(nonlinear), ncdf_(ncdf), fields_old(nullptr), ncdf_big_(nullptr)

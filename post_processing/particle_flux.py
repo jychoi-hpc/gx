@@ -14,7 +14,7 @@ def particle_flux(data, ispec=0, navgfac=0.5, label=None, plot=True, fig=None, L
         p = data.groups['Diagnostics'].variables['ParticleFlux_st'][:,ispec]
     except:
         print('Error: particle flux data was not written. Make sure to use \'fluxes = true\' in the input file.')
-    species_type = data.groups['Inputs'].groups['Species'].variables['species_type'][ispec]
+    species_type = data.groups['Species'].variables['species_type'][ispec]
     if species_type == 0:
         species_tag = "i"
     elif species_type == 1:
