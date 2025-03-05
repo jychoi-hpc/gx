@@ -12,9 +12,9 @@ __device__ unsigned int get_id2(void);
 __device__ unsigned int get_id3(void);
 __device__ unsigned int get_idxyz(unsigned int idx, unsigned int idy, unsigned int idz);
 
-__host__ __device__ float factorial(int m);
-__device__ float Jflr(int l, float b, bool enforce_JL_0=true);
-__device__ float JflrB(int l, float b, bool enforce_JL_0=true);
+__host__ __device__ double inv_factorial(int m);
+__device__ float Jflr(int l, float b, bool enforce_JL_0=false);
+__device__ float JflrB(int l, float b, bool enforce_JL_0=false);
 __device__ float Jfac(int l, float b);
 
 __host__ __device__ float g0(float b);

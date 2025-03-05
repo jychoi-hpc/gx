@@ -88,24 +88,57 @@ __device__ unsigned int get_id3(void) {return __umul24(blockIdx.z,blockDim.z)+th
 // For compatibility with cuFFT layouts, the y-data is first, followed by x-data and then z-data
 __device__ unsigned int get_idxyz(unsigned int i, unsigned int j, unsigned int k) {return j + nyc*(i + nx*k);}
 
-
-// use Stirling's approximation
-__host__ __device__ float factorial(int m) {
-  if (m <2) return 1.;
-  if (m==2) return 2.;
-  if (m==3) return 6.;
-  if (m==4) return 24.;
-  if (m==5) return 120.;
-  if (m==6) return 720.;
-  else return sqrtf(2.*M_PI*m)*powf(m,m)*expf(-m)*(1.+1./(12.*m)+1./(288.*m*m));
+__host__ __device__ double inv_factorial(int m) {
+  static const double inv_factorials[] = {
+      1.0,                    // 1/0!
+      1.0,                    // 1/1!
+      0.5,                    // 1/2!
+      0.166666666666666667,   // 1/3!
+      0.041666666666666667,   // 1/4!
+      0.008333333333333333,   // 1/5!
+      0.001388888888888889,   // 1/6!
+      1.984126984126984e-4,   // 1/7!
+      2.480158730158730e-5,   // 1/8!
+      2.755731922398589e-6,   // 1/9!
+      2.755731922398589e-7,   // 1/10!
+      2.505210838544172e-8,   // 1/11!
+      2.087675698786810e-9,   // 1/12!
+      1.605904383682931e-10,  // 1/13!
+      1.147074559773522e-11,  // 1/14!
+      7.647163731823481e-13,  // 1/15!
+      4.779477332389676e-14,  // 1/16!
+      2.811457254347456e-15,  // 1/17!
+      1.561920696859698e-16,  // 1/18!
+      8.220635246629989e-18,  // 1/19!
+      4.110317623314995e-19,  // 1/20!
+      1.957294106340474e-20,  // 1/21!
+      8.896791392456700e-22,  // 1/22!
+      3.868170170633348e-23,  // 1/23!
+      1.611737571097228e-24,  // 1/24!
+      6.446950284388913e-26,  // 1/25!
+      2.479596263226505e-27,  // 1/26!
+      9.183689863801870e-29,  // 1/27!
+      3.279889237072096e-30,  // 1/28!
+      1.130996288645550e-31,  // 1/29!
+      3.769987628818500e-33   // 1/30!
+  };
+  if(m<=30) return inv_factorials[m];
+  else return 0.0;
 }
 
-// enforce_JL_0 is an optional argument, true by default.
+// enforce_JL_0 is an optional argument, false by default.
 __device__ float Jflr(const int l, const float b, bool enforce_JL_0) {
   if (l>30) return 0.; // protect against underflow for single precision evaluation
   else if (l<0) return 0.;
   else if (l>=nl && enforce_JL_0) return 0;
-  else return 1./factorial(l)*pow(-0.5*b, l)*expf(-b/2.); // Assumes <J_0> = exp(-b/2)
+  else {
+    // Assumes <J_0> = exp(-b/2)
+    // compute in double precision
+    double tmp = pow(-0.5*b, 1.0*l)*inv_factorial(l);
+    double res = tmp*exp(-0.5*b);
+    
+    return (float) res;
+  }
 }
 
 __device__ float JflrA(const int l, const float b)
@@ -335,43 +368,6 @@ __global__ void equilibrium_current_krehm (cuComplex *G1, float* kx, float* ky, 
   }
 }
 
-__global__ void rhs_lin_vp(const cuComplex *G, const cuComplex* phi, cuComplex* GRhs, float* ky,
-			   bool closure, float nu, float nuh, int alpha, int alpha_h)
-{
-  unsigned int idy = get_id1();
-  if (idy < 1 + (ny-1)/3) {
-    unsigned int m = get_id2();
-    if (m < nm) {
-      unsigned int ig  = idy + nyc*m;
-      unsigned int mm1 = idy + nyc*(m-1);
-      unsigned int mp1 = idy + nyc*(m+1);
-      cuComplex Iky = make_cuComplex(0., ky[idy]);
-      float k2 =    ky[idy]     *ky[idy];
-      float k2max = ky[(ny-1)/3]*ky[(ny-1)/3];
-      float k2norm = k2/k2max; 
-      
-      if (m < nm-1) {GRhs[ig] =            G[mp1] * sqrtf(m+1);
-	if (m >  0)  GRhs[ig] = GRhs[ig] + G[mm1] * sqrtf(m);
-	if (m == 1)  GRhs[ig] = GRhs[ig] + phi[idy];
-	
-          	     GRhs[ig] = - Iky * GRhs[ig];
-	
-      } else {
-	             GRhs[ig] =            G[mm1] * sqrtf(m); 
-        if (closure) GRhs[ig] = GRhs[ig] + G[mm1] * sqrtf(m+1);
-
-	             GRhs[ig] = - Iky * GRhs[ig];
-		     
-        if (closure) GRhs[ig] = GRhs[ig] - ky[idy] * 2. * sqrtf(nm) * G[ig];
-      }
-      
-      if ((nu > 0) && (m > 2)) {
-	             GRhs[ig] = GRhs[ig] - nu  * pow(m, alpha) * G[ig];
-      }
-      if (nuh > 0)   GRhs[ig] = GRhs[ig] - nuh * pow(k2norm, alpha_h) * G[ig];
-    }
-  }
-}
 
 __global__ void rhs_ks(const cuComplex *G, cuComplex *GRhs, float *ky, float eps)
 {
@@ -2938,7 +2934,7 @@ __global__ void hyperkzLinked_kernel(cuComplex* __restrict__ G_linked,
     unsigned int idp = idk % nLinks;
     float kz = kzLinked[idz + nz*idp];
     float kzmax = nz/zp/2.;
-    float hypkz = powf( fabsf(kz/kzmax), p_hyper_z);
+    float hypkz = pow( fabsf(kz/kzmax), p_hyper_z);
     G_linked[idlink] = -G_linked[idlink]*hypkz*norm;
   }
 }
@@ -3675,70 +3671,6 @@ __global__ void krehm_collisions(const cuComplex* g,
   }
 }
 
-//
-// Calculate terms proportional to kz**2
-//
-__global__ void rhs_diff_cetg(const cuComplex* density,
-			      const cuComplex* temperature,
-			      const cuComplex* phi,
-			      const float gpar,
-			      const float c1,
-			      const float C12,
-			      const float C23,
-			      cuComplex* rhs_diff)
-{
-  idXYZ; 
-
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-
-    float gpar2 = gpar * gpar;
-    
-    rhs_diff[            idxyz] = gpar2/2. * c1 * (      density[idxyz] + C12 * temperature[idxyz] -       phi[idxyz]);
-    rhs_diff[nx*nyc*nz + idxyz] = gpar2/3. * c1 * (C12 * density[idxyz] + C23 * temperature[idxyz] - C12 * phi[idxyz]); 
-      
-  }
-}
-
-//
-// omega_star term appears in the temperature equation
-//
-__global__ void rhs_lin_cetg(const cuComplex* phi, const float* ky, cuComplex* rhs)
-{
-  idXYZ;
-    
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    unsigned int idxyzt = idxyz + nx*nyc*nz; 
-    
-    const cuComplex Iky = make_cuComplex(0., ky[idy]);
-    
-    rhs[idxyzt] = rhs[idxyzt] - 0.5 * Iky * phi[idxyz]; 
-
-  }
-}
-
-__global__ void hyper_cetg(const cuComplex* g,
-			   const float* kx,
-			   const float* ky,
-			   const float nu_hyper,
-			   const float D_hyper,
-			   cuComplex* rhs)
-{
-  idXYZ;
-  
-  if (unmasked(idx, idy) && (idz < nz)) {
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
-    
-    float Dfac = D_hyper*pow((kx[idx]*kx[idx] + ky[idy]*ky[idy]), nu_hyper);
-    
-    for (int l = 0; l < 2; l++) {
-      unsigned int ig = idxyz + nx*nyc*nz*l;
-      rhs[ig] = rhs[ig] - Dfac * g[ig];
-    }
-  }
-}
-
 __global__ void hyperdiff(const cuComplex* g,
 			  const float* kx,
 			  const float* ky,
@@ -3791,9 +3723,9 @@ __global__ void hypercollisions(const cuComplex* g,
         int globalIdx = idxyz + nx*nyc*nz*(l + nl*m_local);                                    
         if (m>2 || l>1) { 
           rhs[globalIdx] = rhs[globalIdx] -
-	    nu_hyper_lm*powf((float) (2*l + m)/(2*nl + nm_glob), p_hyper_lm)*g[globalIdx]
-             - vt*(scaled_nu_hyp_l*powf((float) l/nl, (float) p_hyper_l)                              
-             + scaled_nu_hyp_m*powf((float) m/nm_glob, (float) p_hyper_m))*g[globalIdx];                 
+	    nu_hyper_lm*pow((float) (2*l + m)/(2*nl + nm_glob), p_hyper_lm)*g[globalIdx]
+             - vt*(scaled_nu_hyp_l*pow((float) l/nl, (float) p_hyper_l)                              
+             + scaled_nu_hyp_m*pow((float) m/nm_glob, (float) p_hyper_m))*g[globalIdx];                 
         }   
       }      
     }   
