@@ -12,8 +12,6 @@ Solver_GK::Solver_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   qneutFacBpar(nullptr), amperePerpFacPhi(nullptr), amperePerpFacBpar(nullptr)
 {
 
-  if (pars_->ks) return;
-  
   count = grids_->NxNycNz;
   if(pars_->fapar > 0.) count = 2*grids_->NxNycNz;
   if(pars_->fbpar > 0.) count = 3*grids_->NxNycNz;
@@ -105,13 +103,6 @@ Solver_GK::~Solver_GK()
 void Solver_GK::fieldSolve(MomentsG** G, Fields* fields)
 // Calculates all the fields, i.e., phi, apar, bpar
 {
-
-  if (pars_->ks) return;
-  if (pars_->vp) {
-    getPhi GQN (fields->phi, G[0]->G(), grids_->ky);
-    return;
-  }
-  
   if (pars_->no_fields) { zero(fields->phi); return; }
   
   zero(nbar);

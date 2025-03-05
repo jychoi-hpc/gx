@@ -14,20 +14,14 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
 {
   Geometry* geo;
 
-  int igeo = pars->igeo;
   std::string geo_option = pars->geo_option;
   if(grids->iproc==0) DEBUGPRINT("Initializing geometry...\n");
-  if(geo_option=="s-alpha" || geo_option=="slab" || geo_option=="const-curv" || igeo==0) {
+  if(geo_option=="s-alpha" || geo_option=="slab" || geo_option=="const-curv") {
     if(geo_option=="slab") pars->slab = true;
     if(geo_option=="const-curv") pars->const_curv = true;
 
     geo = new S_alpha_geo(pars, grids);
     if(grids->iproc==0) DEBUGPRINT("Initializing geometry s_alpha.\n");
-    if(igeo==0) {
-      if(grids->iproc==0) printf(ANSI_COLOR_RED);
-      if(grids->iproc==0) printf("Warning: igeo is being deprecated. Use geo_option=\"s-alpha\" instead of igeo=0.\n"); 
-      if(grids->iproc==0) printf(ANSI_COLOR_RESET);
-    }
   }
   else if(geo_option=="miller") {
     // call python geometry module to write an eik.out geo file
@@ -136,24 +130,14 @@ Geometry* init_geo(Parameters* pars, Grids* grids)
     exit(1);
   }
 #endif
-  else if(geo_option=="eik" || igeo==1) {
+  else if(geo_option=="eik") {
     // read already existing eik.out geo file (don't run any geometry module) 
     geo = new Eik_geo(pars, grids);
     if(grids->iproc==0) DEBUGPRINT("Initializing geometry from eik.out file: %s \n", pars->geofilename.c_str());
-    if(igeo==1) {
-      if(grids->iproc==0) printf(ANSI_COLOR_RED);
-      if(grids->iproc==0) printf("Warning: igeo is being deprecated. Use geo_option=\"eik\" instead of igeo=1.\n"); 
-      if(grids->iproc==0) printf(ANSI_COLOR_RESET);
-    }
   }
-  else if(geo_option=="nc" || igeo==2) {
+  else if(geo_option=="nc") {
     geo = new geo_nc(pars, grids);
     if(grids->iproc==0) DEBUGPRINT("Initializing geometry from NetCDF file: %s \n", pars->geofilename.c_str());
-    if(igeo==2) {
-      if(grids->iproc==0) printf(ANSI_COLOR_RED);
-      if(grids->iproc==0) printf("Warning: igeo is being deprecated. Use geo_option=\"nc\" instead of igeo=2.\n"); 
-      if(grids->iproc==0) printf(ANSI_COLOR_RESET);
-    }
   } 
   else {
     if(grids->iproc==0) printf("Error: geo_option = \"%s\" is invalid.\n", geo_option.c_str());
@@ -737,7 +721,7 @@ Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
   if (geoFile == NULL) {
     if(grids->iproc==0) printf("Cannot open file %s \n", pars->geofilename.c_str());
     exit(0);
-  } else if(grids->iproc==0) DEBUGPRINT("Using igeo = 1. Opened geo file %s \n", pars->geofilename.c_str());
+  } else if(grids->iproc==0) DEBUGPRINT("Using eik geo. Opened geo file %s \n", pars->geofilename.c_str());
 
   int ntgrid;
   int oldNz, oldnperiod;

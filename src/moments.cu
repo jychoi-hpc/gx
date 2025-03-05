@@ -48,39 +48,6 @@ MomentsG::MomentsG(Parameters* pars, Grids* grids, int is_glob) :
 
   int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
   
-  if (pars_->ks) {
-
-    printf("initializing Kuramoto-Sivashinsky\n");
-    nn1 = grids_->Nyc;                 nt1 = min(nn1, 128);    nb1 = 1 + (nn1-1)/nt1;
-    nn2 = 1;                           nt2 = min(nn2,   1);    nb2 = 1 + (nn2-1)/nt2;
-    nn3 = 1;                           nt3 = min(nn3,   1);    nb3 = 1 + (nn3-1)/nt3;
-    
-    dB_all   = dim3(nt1, nt2, nt3);    dG_all   = dim3(nb1, nb2, nb3);
-    dimBlock = dim3(nt1, nt2, nt3);    dimGrid  = dim3(nb1, nb2, nb3);
-    return;
-  } 
-
-  if (pars_->vp) {
-    printf("initializing Vlasov-Poisson\n");
-    nn1 = grids_->Nyc;                 nt1 = min(nn1, 128);    nb1 = 1 + (nn1-1)/nt1;
-    nn2 = 1;                           nt2 = min(nn2,   1);    nb2 = 1 + (nn2-1)/nt2;
-    nn3 = 1;                           nt3 = min(nn3,   1);    nb3 = 1 + (nn3-1)/nt3;
-    
-    dB_all   = dim3(nt1, nt2, nt3);
-    dG_all   = dim3(nb1, nb2, nb3);
-    return;
-  }
-  
-  //    nn1 = grids_->NxNycNz;      nt1 = min(32, nn1);  nb1 = 1 + (nn1-1)/nt1;
-  //    nn2 = 1;                    nt2 = min( 4, Nl);   nb2 = 1 + (nn2-1)/nt2;
-  //    nn3 = 1;                    nt3 = min( 4, Nm);   nb3 = 1 + (nn3-1)/nt3;
-  
-  //    dimBlock = dim3(nt1, nt2, nt3);
-  //    dimGrid  = dim3(nb1, nb2, nb3);
-  
-  //    dimBlock = dim3(32, min(4, Nl), min(4, Nm));
-  //    dimGrid  = dim3((grids_->NxNycNz-1)/dimBlock.x+1, 1, 1);
-  
   nn1 = grids_->Nyc*grids_->Nx;    nt1 = min(nn1, WARPSIZE);    nb1 = (nn1-1)/nt1 + 1;
   nn2 = grids_->Nz;                nt2 = min(nn2, (int) 512/WARPSIZE);    nb2 = (nn2-1)/nt2 + 1;
   nn3 = grids_->Nm*grids_->Nl;     nt3 = min(nn3,  1);    nb3 = (nn3-1)/nt3 + 1;
@@ -183,132 +150,127 @@ void MomentsG::initialConditions(double* time) {
     init_h[idx].y = 0.;
   }
   
-  if (pars_->ks) {
-    init_h[1].x =  0.5;
-    init_h[2].y = -0.25;
+  if(pars_->init_single) {
+    //initialize single mode
+    int iky = pars_->iky_single;
+    int ikx = pars_->ikx_single;
+      	int ikz = pars_->ikpar_init;
+    int NKX = 1;
+    if (iky == 0 && ikx<1+(grids_->Nx-1)/3) NKX = 2; // reality condition for tertiary tests
+      	for (int j = 0; j<NKX; j++) {
+      		if (j==1) ikx = grids_->Nx-ikx;
+      		DEBUG_PRINT("ikx, iky: %d \t %d \n",ikx, iky);
+      		for(int k=0; k<grids_->Nz; k++) {
+      			int index = iky + grids_->Nyc*ikx + grids_->NxNyc*k;
+
+      			init_h[index].x = pars_->init_amp;
+      			init_h[index].y = 0.0;
+
+      			// Negative ikpar init means k_|| & k_|| + 1, where k_|| = |kpar_init|
+      			if (ikz < 0) {		
+      				int ikpar = -ikz;
+      				init_h[index].x *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
+      				init_h[index].y *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
+      			} else {
+      				init_h[index].x *= cos(ikz*z_h[k]/pars_->Zp);
+      				init_h[index].y *= cos(ikz*z_h[k]/pars_->Zp);
+      			}	
+      		}
+      	}
+  } else if(pars_->gaussian_init) {
+    for(int ikx=0; ikx < 1 + (grids_->Nx - 1)/3; ikx++) {
+      // No perturbation inserted for ky=0 mode because loop starts with j=1
+      for(int jky=1; jky < 1 + (grids_->Ny - 1)/3; jky++) {
+        for (int js=0; js < 2; js++) {
+          int idx;
+          if (ikx==0) {
+            idx = ikx;
+          } else {
+            idx = (js==0) ? ikx : grids_->Nx-ikx;
+          }
+
+          float theta0 = grids_->kx_h[ikx]/(pars_->shat*grids_->ky_h[jky]);
+          for (int k=0; k<grids_->Nz; k++) {
+            float envelope = pars_->gauss_env_const_coeff + pars_->gauss_env_sin_coeff * sin( z_h[k] - theta0 );
+
+            int index = jky + grids_->Nyc*(idx + grids_->Nx*k);
+
+            init_h[index].x = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
+            init_h[index].y = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
+          }
+        }
+      }
+    }
   } else {
-  
-    if(pars_->init_single) {
-      //initialize single mode
-      int iky = pars_->iky_single;
-      int ikx = pars_->ikx_single;
-		int ikz = pars_->ikpar_init;
-      int NKX = 1;
-      if (iky == 0 && ikx<1+(grids_->Nx-1)/3) NKX = 2; // reality condition for tertiary tests
-		for (int j = 0; j<NKX; j++) {
-			if (j==1) ikx = grids_->Nx-ikx;
-			DEBUG_PRINT("ikx, iky: %d \t %d \n",ikx, iky);
-			for(int k=0; k<grids_->Nz; k++) {
-				int index = iky + grids_->Nyc*ikx + grids_->NxNyc*k;
-
-				init_h[index].x = pars_->init_amp;
-				init_h[index].y = 0.0;
-
-				// Negative ikpar init means k_|| & k_|| + 1, where k_|| = |kpar_init|
-				if (ikz < 0) {		
-					int ikpar = -ikz;
-					init_h[index].x *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
-					init_h[index].y *= ( cos(ikpar*z_h[k]/pars_->Zp) + cos((ikpar + 1)*z_h[k]/pars_->Zp) );
-				} else {
-					init_h[index].x *= cos(ikz*z_h[k]/pars_->Zp);
-					init_h[index].y *= cos(ikz*z_h[k]/pars_->Zp);
-				}	
-			}
-		}
-    } else if(pars_->gaussian_init) {
-      for(int ikx=0; ikx < 1 + (grids_->Nx - 1)/3; ikx++) {
-        // No perturbation inserted for ky=0 mode because loop starts with j=1
-        for(int jky=1; jky < 1 + (grids_->Ny - 1)/3; jky++) {
-          for (int js=0; js < 2; js++) {
-            int idx;
-            if (ikx==0) {
-              idx = ikx;
+    srand( pars_->random_seed );
+    float samp;
+    int idx;
+    //
+    //      printf("Hacking the initial condition! \n");
+    //
+    // Loop over the kx>=0 modes. Below, the kx<=0 modes are handled explicitly, to help with
+    // specific phase relationships
+    for(int i=0; i < 1 + (grids_->Nx - 1)/3; i++) {
+      // No perturbation inserted for ky=0 mode because loop starts with j=1
+      for(int j=1; j < 1 + (grids_->Ny - 1)/3; j++) {
+        samp = pars_->init_amp;
+        float ra = (float) (samp * (rand()-RAND_MAX/2) / RAND_MAX);
+        float rb = (float) (samp * (rand()-RAND_MAX/2) / RAND_MAX);
+        // js used to find positive and negative kx indices, primarily
+        for (int js=0; js < 2; js++) {
+          if (i==0) {
+            idx = i;
+          } else {
+            idx = (js==0) ? i : grids_->Nx-i;
+          }
+          for(int k=0; k<grids_->Nz; k++) {
+            int index = j + grids_->Nyc*(idx + grids_->Nx*k);
+            if (js == 0) {
+      	init_h[index].x = ra;		init_h[index].y = rb;
             } else {
-              idx = (js==0) ? ikx : grids_->Nx-ikx;
+      	init_h[index].x = rb;		init_h[index].y = ra;
             }
-
-            float theta0 = grids_->kx_h[ikx]/(pars_->shat*grids_->ky_h[jky]);
+            // Choosing ikpar_init < 0 triggers a superposition of two kz modes
+            // which is useful for some particular tests
+            if (pars_->ikpar_init < 0) {		
+      	init_h[index].x *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
+      			  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
+      	init_h[index].y *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
+      			  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
+            }
+            // This is a common option for debugging. We choose perturbations which are
+            // monochromatic in z. 
+            else {
+      	init_h[index].x *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
+      	init_h[index].y *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
+            }
+            //	      printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
+          }
+          if (pars_->random_init) {
             for (int k=0; k<grids_->Nz; k++) {
-              float envelope = pars_->gauss_env_const_coeff + pars_->gauss_env_sin_coeff * sin( z_h[k] - theta0 );
-
-              int index = jky + grids_->Nyc*(idx + grids_->Nx*k);
-
-              init_h[index].x = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
-              init_h[index].y = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
+      	int index = j + grids_->Nyc*(idx + grids_->Nx*k);
+      	init_h[index].x = 0.;
+      	init_h[index].y = 0.;
+            }
+            // Starting with jj=1 avoids choosing an initial perturbation with kz=0
+            for (int jj=1; jj<1+(grids_->Nz-1)/3; jj++) {
+      	float ka = (float) (samp * (float) rand() / RAND_MAX);
+      	float pa = (float) (M_PI * ((float) rand()-RAND_MAX/2) / RAND_MAX);
+      	float kb = (float) (samp * (float) rand() / RAND_MAX);
+      	float pb = (float) (M_PI * ((float) rand()-RAND_MAX/2) / RAND_MAX);
+      	for (int k=0; k<grids_->Nz; k++) {
+      	  int index = j + grids_->Nyc*(idx + grids_->Nx*k);
+      	  
+      	  init_h[index].x += ka*sin(static_cast<float>(jj)*z_h[k] + pa);
+      	  init_h[index].y += kb*sin(static_cast<float>(jj)*z_h[k] + pb);
+      	}
             }
           }
         }
       }
-    } else {
-      srand( pars_->random_seed );
-      float samp;
-      int idx;
-      //
-      //      printf("Hacking the initial condition! \n");
-      //
-      // Loop over the kx>=0 modes. Below, the kx<=0 modes are handled explicitly, to help with
-      // specific phase relationships
-      for(int i=0; i < 1 + (grids_->Nx - 1)/3; i++) {
-	// No perturbation inserted for ky=0 mode because loop starts with j=1
-	for(int j=1; j < 1 + (grids_->Ny - 1)/3; j++) {
-	  samp = pars_->init_amp;
-	  float ra = (float) (samp * (rand()-RAND_MAX/2) / RAND_MAX);
-	  float rb = (float) (samp * (rand()-RAND_MAX/2) / RAND_MAX);
-	  // js used to find positive and negative kx indices, primarily
-	  for (int js=0; js < 2; js++) {
-	    if (i==0) {
-	      idx = i;
-	    } else {
-	      idx = (js==0) ? i : grids_->Nx-i;
-	    }
-	    for(int k=0; k<grids_->Nz; k++) {
-	      int index = j + grids_->Nyc*(idx + grids_->Nx*k);
-	      if (js == 0) {
-		init_h[index].x = ra;		init_h[index].y = rb;
-	      } else {
-		init_h[index].x = rb;		init_h[index].y = ra;
-	      }
-	      // Choosing ikpar_init < 0 triggers a superposition of two kz modes
-	      // which is useful for some particular tests
-	      if (pars_->ikpar_init < 0) {		
-		init_h[index].x *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
-				  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
-		init_h[index].y *= (cos( -pars_->ikpar_init    *z_h[k]/pars_->Zp)
-				  + cos((-pars_->ikpar_init+1.)*z_h[k]/pars_->Zp));
-	      }
-	      // This is a common option for debugging. We choose perturbations which are
-	      // monochromatic in z. 
-	      else {
-		init_h[index].x *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
-		init_h[index].y *= cos(pars_->ikpar_init*z_h[k]/pars_->Zp);
-	      }
-	      //	      printf("init_h[%d] = (%e, %e) \n",index,init_h[index].x,init_h[index].y);
-	    }
-	    if (pars_->random_init) {
-	      for (int k=0; k<grids_->Nz; k++) {
-		int index = j + grids_->Nyc*(idx + grids_->Nx*k);
-		init_h[index].x = 0.;
-		init_h[index].y = 0.;
-	      }
-	      // Starting with jj=1 avoids choosing an initial perturbation with kz=0
-	      for (int jj=1; jj<1+(grids_->Nz-1)/3; jj++) {
-		float ka = (float) (samp * (float) rand() / RAND_MAX);
-		float pa = (float) (M_PI * ((float) rand()-RAND_MAX/2) / RAND_MAX);
-		float kb = (float) (samp * (float) rand() / RAND_MAX);
-		float pb = (float) (M_PI * ((float) rand()-RAND_MAX/2) / RAND_MAX);
-		for (int k=0; k<grids_->Nz; k++) {
-		  int index = j + grids_->Nyc*(idx + grids_->Nx*k);
-		  
-		  init_h[index].x += ka*sin(static_cast<float>(jj)*z_h[k] + pa);
-		  init_h[index].y += kb*sin(static_cast<float>(jj)*z_h[k] + pb);
-		}
-	      }
-	    }
-	  }
-	}
-      }
     }
   }
+  
   
   // copy initial condition into device memory
   switch (pars_->initf)

@@ -20,7 +20,6 @@ class Diagnostics {
  public:
   virtual ~Diagnostics() {};
   virtual bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) = 0 ;
-  virtual void finish(MomentsG** G, Fields* fields, double time) = 0;  
   void restart_write(MomentsG** G, double *time);
   bool checkstop();
   void print_growth_rates_to_screen (cuComplex *w);
@@ -34,11 +33,10 @@ class Diagnostics {
 
 class Diagnostics_GK : public Diagnostics {
  public:
-  Diagnostics_GK(Parameters *pars, Grids *grids, Geometry *geo, Linear *linear, Nonlinear *nonlinear);
+  Diagnostics_GK(Parameters *pars, Grids *grids, Geometry *geo, Linear *linear, Nonlinear *nonlinear, NetCDF* ncdf);
   ~Diagnostics_GK();
 
   bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) ;
-  void finish(MomentsG** G, Fields* fields, double time);  
 
 private:
  
@@ -68,11 +66,10 @@ private:
 
 class Diagnostics_KREHM : public Diagnostics {
  public:
-  Diagnostics_KREHM(Parameters *pars, Grids *grids, Geometry *geo, Linear *linear, Nonlinear *nonlinear);
+  Diagnostics_KREHM(Parameters *pars, Grids *grids, Geometry *geo, Linear *linear, Nonlinear *nonlinear, NetCDF* ncdf);
   ~Diagnostics_KREHM();
 
   bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) ;
-  void finish(MomentsG** G, Fields* fields, double time);  
 
 private:
   float * tmpf;
@@ -93,38 +90,4 @@ private:
   vector<unique_ptr<MomentsDiagnostic>> momentsDiagnosticList;
   FieldsDiagnostic *fieldsDiagnostic;
   FieldsXYDiagnostic *fieldsXYDiagnostic;
-};
-
-class Diagnostics_cetg : public Diagnostics {
- public:
-  Diagnostics_cetg(Parameters *pars, Grids *grids, Geometry *geo);
-  ~Diagnostics_cetg();
-
-  bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) ;
-  void finish(MomentsG** G, Fields* fields, double time);  
-
-private:
-  float* P2(int s=0) {return &P2s[grids_->NxNycNz*s];}
-  float* G2(int s=0) {return &G2s[grids_->NxNycNz*s];}
-
-  int ndiag; 
-  int ikx_local, iky_local, iz_local;
-  dim3 dG_spectra, dB_spectra, dG_all, dB_all, dbp, dgp; 
-  dim3 dGk, dBk;
- 
-  float fluxDenom; float * flux_fac; 
-  float  volDenom; float * vol_fac ;
-  
-  Geometry     * geo_          ;  
-  Fields       * fields_old    ;
-  NetCDF_ids   * id            ;
-  
-  float        * G2s           ;
-  float        * P2s           ;
-  cuComplex    * omg_d         ;
-  cuComplex    * tmp_omg_h     ;
-  cuComplex    * vEk           ;
-
-  void print_omg (cuComplex *W);
-
 };

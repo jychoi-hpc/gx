@@ -10,180 +10,20 @@
 #include "netcdf_par.h"
 #include <string>
 #include "unistd.h"
+#include "version.h"
 
 using namespace std;
 
-class NetCDF_ids {
-
- public: 
-  NetCDF_ids(Grids* grids, Parameters* pars, Geometry* geo = nullptr);
-  ~NetCDF_ids();
-
-  int fileid;
-
-  void close_nc_file();
-
-  void reduce2k    (float * fk, cuComplex * f);
-  void reduce2zk   (float * fk, cuComplex * f);
-  
-  void write_Wm    (float * G2, bool endrun = false);
-  void write_Wl    (float * G2, bool endrun = false);
-  void write_Wlm   (float * G2, bool endrun = false);
-
-  void write_Ws    (float * G2, bool endrun = false);
-  void write_Wz    (float * G2, bool endrun = false);
-  void write_Wkz   (float * G2, bool endrun = false);
-  void write_Wky   (float * G2, bool endrun = false);
-  void write_Wkx   (float * G2, bool endrun = false);
-  void write_Wkxky (float * G2, bool endrun = false);
-  
-  void write_Ps    (float * P2, bool endrun = false);
-  void write_Pz    (float * P2, bool endrun = false);
-  void write_Pkz   (float * P2, bool endrun = false);
-  void write_Pky   (float * P2, bool endrun = false);
-  void write_Pkx   (float * P2, bool endrun = false);  
-  void write_Pkxky (float * P2, bool endrun = false);
- 
-  void write_Ms (float * P2, bool endrun = false);
-  void write_Mky (float * P2, bool endrun = false);
-  void write_Mkx (float * P2, bool endrun = false);
-  void write_Mkxky (float * P2, bool endrun = false);
-  void write_Mkperp (float * P2, bool endrun = false);
-
-  void write_As    (float * P2, bool endrun = false);
-  void write_Az    (float * P2, bool endrun = false);
-  void write_Akz   (float * G2, bool endrun = false);
-  void write_Aky   (float * P2, bool endrun = false);
-  void write_Akx   (float * P2, bool endrun = false);
-  void write_Akxky (float * P2, bool endrun = false);
-
-  void write_Phi2t    (float * P2, bool endrun = false);
-  void write_Phi2z    (float * P2, bool endrun = false);
-  void write_Phi2kz   (float * P2, bool endrun = false);
-  void write_Phi2ky   (float * P2, bool endrun = false);
-  void write_Phi2kx   (float * P2, bool endrun = false);
-  void write_Phi2kxky (float * P2, bool endrun = false);
-
-  void write_Gam     (float * Gam,   bool endrun = false);
-  void write_Gamz   (float * Gam,   bool endrun = false);
-  void write_Gamky   (float * Gam,   bool endrun = false);
-  void write_Gamkx   (float * Gam,   bool endrun = false);
-  void write_Gamkxky (float * Gam,   bool endrun = false);
-  void write_Q     (float * Q,   bool endrun = false);
-  void write_Qz   (float * Q,   bool endrun = false);
-  void write_Qky   (float * Q,   bool endrun = false);
-  void write_Qkx   (float * Q,   bool endrun = false);
-  void write_Qkxky (float * Q,   bool endrun = false);
-  void write_omg   (cuComplex *W, bool endrun = false);
-  void write_moment(nca *D, cuComplex *f, float* vol_fac);
-  void write_fields(nca *D, cuComplex *a, bool endrun = true);
-  void write_fields_realspace(nca *D, cuComplex *a, bool endrun=true);
-  void write_gy    (float * gy_d,     bool endrun = false);
-  
-  void write_zonal(nca *D, cuComplex* f, bool shear, float adj);
-  void write_zonal_nc(nca *D, bool endrun = false);
-  void write_nc(nca *D, bool endrun = false);
-  void write_nc(nca *D, double data, bool endrun = false);
-  void write_nc(nca *D, float data, bool endrun = false);
-  void write_ks_data(nca *D, cuComplex *G);
-  void write_ks_data(nca *D, float *G);
-  void write_Wtot();
-  
-  nca *rh, *omg, *den, *wphi, *denk, *wphik, *den0, *wphi0, *qs, *ps; 
-  nca *Wm, *Wl, *Wlm, *Pzt, *pZt, *pzT, *Wtot;
-  nca *Ps, *Pky, *Pkx, *Pkxky, *Pz, *Pkz;
-  nca *Ms, *Mky, *Mkx, *Mkxky, *Mkperp;
-  nca *Ws, *Wky, *Wkx, *Wkxky, *Wz, *Wkz;
-  nca *As, *Aky, *Akx, *Akxky, *Az, *Akz;
-  nca *Qs, *Qky, *Qkx, *Qkxky, *Qz, *Qkz;
-  nca *Gams, *Gamky, *Gamkx, *Gamkxky, *Gamz, *Gamkz;
-  nca *Phi2t, *Phi2ky, *Phi2kx, *Phi2kxky, *Phi2z, *Phi2kz;
-  nca *fields_phi, *fields_apar, *fields_apar_realspace, *fields_bpar;
-  nca *g_y;
-  nca *r_y; 
-
-  nca *vEy,    *xyvEx,    *xyvEy,    *avg_zvE;
-  nca *kxvEy,  *xykxvEy,  *avg_zkxvEy;
-  //  nca *kyvE,   *xykyvE,   *avg_zkyvE;
-  nca *xyPhi; 
-  nca *xyApar; 
-  nca *kden,   *xyden,    *avg_zkden;
-  nca *kUpar,  *xyUpar,   *avg_zkUpar;
-  nca *kTpar,  *xyTpar,   *avg_zkTpar;
-  nca *kTperp, *xyTperp,  *avg_zkTperp;
-  nca *kqpar,  *xyqpar,   *avg_zkqpar;
-
-  nca *time, *z_time, *nz_time;
-  nca *r_time; 
-
-  int nx, ny, nz, nkz, kx_dim, ky_dim, kx, ky, kz;
-  int kperp_dim;
-  int m_dim, l_dim, s_dim, y, y_dim, x, x_dim;
-  int zy, zx, nzy, nzx;
-  int state; 
-  int theta, theta_x, bmag, bgrad, gbdrift, gbdrift0, periodic;
-  int cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacobian;
-  int nstep, dt, restart, time_dim, nspec, char16_dim;
-  int cfl, init, init_amp, init_single, iky_single, ikx_single, kpar_init;
-  int nu_hyper_l, nu_hyper_m, p_hyper_l, p_hyper_m, scheme_opt;
-  int closure_model_opt, file, gpu, forcing_index; 
-  int Boltzmann_opt, local_limit, linear, forcing, forcing_type, forcing_amp;
-  int hypercollisions, snyder_electrons;
-  int phi_ext, nwrite, navg, nsave, debug, nreal;
-  int density, upar, phi, apar, density0, phi0, qflux;
-  int write_apar, collisions;
-  int source_opt;
-  int density_kpar, phi_kpar;
-  int eqfix, ikx_fixed, iky_fixed, prim, sec, tert;
-  int z_file, zx_dim, zy_dim, ztime_dim;
-  int r_file, res_dim, rtime_dim; 
-  int nz_file, nzx_dim, nzy_dim, nztime_dim;
-  int hegna;  // bb6126 - hegna test
-  
-  int v_z[1];            // dims for a scalar as a function of z
-  int v_kz[1];           // dims for a scalar as a function of kz 
-  int v_kx[1];           // dims for a scalar as a function of kx 
-  int v_ky[1];           // dims for a scalar as a function of ky 
-  int geo_v_theta[1];    // dims for a scalar as a function of theta
-  int zkxky[3];          // dims for a real quantity vs kx, ky, z
-  size_t zkxky_start[3], zkxky_count[3];
-
-  size_t geo_start[1], geo_count[1];
-  size_t ky_start[1], ky_count[1];
-  size_t kx_start[1], kx_count[1];
-  size_t kz_start[1], kz_count[1];
-  size_t z_start[1], z_count[1];
-  size_t y_start[1], y_count[1];
-  size_t x_start[1], x_count[1];
-  
-  float * theta_extended ;
-  
- private:   
-
-  Parameters * pars_   ;
-  Grids      * grids_  ;
-  Geometry   * geo_    ;
-  GradPerp   * grad_phi;
-  GradPerp   * grad_perp; 
-  
-  float primary[1], secondary[1], tertiary[1];
-  cuComplex * t_bar     ;
-  cuComplex * amom      ;
-  cuComplex * df        ;
-  cuComplex * favg      ; 
-  float totW;
-
-  dim3 dgx, dbx, dgxy, dbxy, dGr, dBr, dbp, dgp, dbfla, dgfla, dball, dgall; 
-};
-
+class NcInputs;
 class NcDims;
 class NcGrids;
 class NcGeo;
+class NcSpecies;
 class NcDiagnostics;
 
 class NetCDF {
  public:
-  NetCDF(Parameters* pars, Grids* grids, Geometry* geo = nullptr, string suffix = ".out.nc");
+  NetCDF(Parameters* pars, string suffix = ".out.nc");
   ~NetCDF();
 
   int fileid;
@@ -191,12 +31,88 @@ class NetCDF {
   NcGrids *nc_grids;
   NcGeo *nc_geo;
   NcDiagnostics *nc_diagnostics;
+  NcInputs *nc_inputs;
+  NcSpecies *nc_species;
+  void setup(Parameters* pars, Grids* grids, Geometry* geo);
   void sync();
  private:
   void close_nc_file();
-  Parameters *pars_;
-  Grids *grids_;
-  Geometry *geo_;
+  bool append_;
+};
+
+class NcInputs {
+ public:
+  NcInputs(int fileid, bool append) :
+    append_(append)
+  {
+    int retval;
+    if (!append_) {
+      if (retval = nc_def_grp(fileid, "Inputs", &inputs_id)) ERR(retval);
+
+      int ivar;
+      if (retval = nc_def_var (inputs_id, "code_info",             NC_INT,   0, NULL, &ivar)) ERR(retval);
+      std::string hash(build_git_sha);                       
+      if (retval = nc_put_att_text (inputs_id, ivar, "Hash",      hash.size(), hash.c_str() ) ) ERR(retval);
+      std::string compiled(build_git_time);                  
+      if (retval = nc_put_att_text (inputs_id, ivar, "BuildDate", compiled.size(), compiled.c_str() ) ) ERR(retval);
+      std::string builder(build_user);                       
+      if (retval = nc_put_att_text (inputs_id, ivar, "BuildUser", builder.size(), builder.c_str() ) ) ERR(retval);
+      std::string build_host(build_hostname);                
+      if (retval = nc_put_att_text (inputs_id, ivar, "BuildHost", build_host.size(), build_host.c_str() ) ) ERR(retval);
+    }
+  };
+
+  ~NcInputs() {};
+
+  int put_group(const char groupname[]) {
+    if (append_) return -1; // don't modify inputs when appending
+
+    int retval, group_id;
+    if (retval = nc_def_grp(inputs_id, groupname, &group_id)) ERR(retval);
+    return group_id;
+  };
+
+  template<typename T>
+  void put_var(int ncid, const char varname[], T val, bool debug=false) {
+    if (append_) return; // don't modify inputs when appending
+
+    int idum, retval;
+    if constexpr(std::is_same_v<T, bool>) {
+      int b = val ? 1 : 0;
+      if (debug) printf("%s = %d \n", varname, b);
+      if (retval = nc_def_var(ncid, varname, NC_INT, 0, NULL, &idum)) ERR(retval);
+      if (retval = nc_put_var(ncid, idum, &b)) ERR(retval);
+    } else if constexpr(std::is_same_v<T, int>) {
+      if (debug) printf("%s = %d \n", varname, val);
+      if (retval = nc_def_var(ncid, varname, NC_INT, 0, NULL, &idum)) ERR(retval);
+      if (retval = nc_put_var(ncid, idum, &val)) ERR(retval);
+    } else if constexpr(std::is_same_v<T, unsigned int>) {
+      if (debug) printf("%s = %u \n", varname, val);
+      if (retval = nc_def_var(ncid, varname, NC_INT, 0, NULL, &idum)) ERR(retval);
+      int signed_val = static_cast<int>(val);
+      if (retval = nc_put_var(ncid, idum, &signed_val)) ERR(retval);
+    } else if constexpr(std::is_same_v<T, float>) {
+      if (debug) printf("%s = %f \n", varname, val);
+      if (retval = nc_def_var(ncid, varname, NC_FLOAT, 0, NULL, &idum)) ERR(retval);
+      if (retval = nc_put_var(ncid, idum, &val)) ERR(retval);
+    } else {
+      //static_assert(false, "put_var only supports bool, int, unsigned int, and float types");
+    }
+  };
+
+  template<typename T>
+  void mod_var(int ncid, const char varname[], T val, bool debug=false) {
+    if (append_) return; // don't modify inputs when appending
+    int idum, retval;
+    if (debug) printf("modifying %s = %d \n", varname, val);
+    if (retval = nc_inq_varid(ncid, varname, &idum))   ERR(retval);
+    if (retval = nc_put_var(ncid, idum, &val)) ERR(retval);
+  };
+
+  private:
+   const bool append_;
+   int inputs_id;
+  
 };
 
 class NcDims {
@@ -216,7 +132,7 @@ class NcDims {
       if (retval = nc_inq_dimid (fileid, "s",       &species)) ERR(retval);
       if (retval = nc_inq_dimid (fileid, "time",    &time)) ERR(retval);
     } else {
-      if (retval = nc_def_dim (fileid, "ri",      2,                &ri)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "ri",      2,               &ri)) ERR(retval);
       if (retval = nc_def_dim (fileid, "x",       pars->nx_in,     &x)) ERR(retval);
       if (retval = nc_def_dim (fileid, "y",       pars->ny_in,     &y)) ERR(retval);
       if (retval = nc_def_dim (fileid, "theta",   grids->Nz,       &z)) ERR(retval);  
@@ -288,6 +204,68 @@ class NcGrids {
   int time, kx, ky, kz, x, y, z;
 
   size_t time_index = 0;
+};
+
+class NcSpecies {
+ public:
+  NcSpecies(Parameters *pars, NcDims* nc_dims, int fileid) {
+    int retval;
+    // define Geometry group in ncdf
+    if (retval = nc_def_grp(fileid, "Species", &spec_id)) ERR(retval);
+
+    if (retval = nc_def_var (spec_id, "species_type", NC_INT,   1, &nc_dims->species, &species_type_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "z",            NC_FLOAT, 1, &nc_dims->species, &z_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "m",            NC_FLOAT, 1, &nc_dims->species, &m_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "n0",           NC_FLOAT, 1, &nc_dims->species, &n0_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "n0_prime",     NC_FLOAT, 1, &nc_dims->species, &n0_prime_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "u0_prime",     NC_FLOAT, 1, &nc_dims->species, &u0_prime_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "T0",           NC_FLOAT, 1, &nc_dims->species, &T0_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "T0_prime",     NC_FLOAT, 1, &nc_dims->species, &T0_prime_id)) ERR(retval);
+    if (retval = nc_def_var (spec_id, "nu",           NC_FLOAT, 1, &nc_dims->species, &nu_id)) ERR(retval);
+
+    is_start[0] = 0;
+    int nspec = pars->nspec_in;
+    is_count[0] = nspec;
+  
+    // this stuff should all be in species itself!
+    // reason for all this is basically legacy + cuda does not support <vector>
+    
+    std::vector <float> zs, ms, ns, Ts, Tps, nps, nus;
+    std::vector <int> types;
+    
+    for (int is=0; is<nspec; is++) {
+      zs.push_back(pars->species_h[is].z);
+      ms.push_back(pars->species_h[is].mass);
+      ns.push_back(pars->species_h[is].dens);
+      Ts.push_back(pars->species_h[is].temp);
+      Tps.push_back(pars->species_h[is].tprim);
+      nps.push_back(pars->species_h[is].fprim);
+      nus.push_back(pars->species_h[is].nu_ss);
+      types.push_back(pars->species_h[is].type);
+    }
+    float *z = &zs[0];
+    float *m = &ms[0];
+    float *n0 = &ns[0];
+    float *T0 = &Ts[0];
+    float *Tp = &Tps[0];
+    float *np = &nps[0];
+    float *nu = &nus[0];
+    int *st = &types[0];
+    
+    if (retval = nc_put_vara (spec_id, z_id, is_start, is_count, z))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, m_id, is_start, is_count, m))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, n0_id, is_start, is_count, n0))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, n0_prime_id, is_start, is_count, np))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, T0_id, is_start, is_count, T0))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, T0_prime_id, is_start, is_count, Tp))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, nu_id, is_start, is_count, nu))  ERR(retval);
+    if (retval = nc_put_vara (spec_id, species_type_id, is_start, is_count, st))  ERR(retval);
+  };
+
+  ~NcSpecies() {};
+  int spec_id;
+  int species_type_id, z_id, m_id, n0_id, n0_prime_id, u0_prime_id, T0_id, T0_prime_id, nu_id;
+  size_t is_start[1], is_count[1]; 
 };
 
 class NcGeo {

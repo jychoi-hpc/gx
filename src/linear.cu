@@ -8,8 +8,6 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
   pars_(pars), grids_(grids), geo_(geo), 
   closures(nullptr), grad_par(nullptr)
 {
-  ks = false;
-  vp = false;
   upar_bar  = nullptr;           uperp_bar = nullptr;            t_bar     = nullptr;
   favg = nullptr;
   df   = nullptr;

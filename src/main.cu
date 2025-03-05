@@ -58,9 +58,10 @@ int main(int argc, char* argv[])
   // 
   // Read the input file by instantiating and using a Parameters object
   // 
-  Parameters * pars = nullptr;
-  pars = new Parameters(iproc, nprocs, mpcom);
-  pars->get_nml_vars(run_name);
+  Parameters * pars = new Parameters(run_name, iproc, nprocs, mpcom);
+  NetCDF * ncdf = new NetCDF(pars, ".out.nc");
+
+  pars->get_nml_vars(ncdf);
 
   //
   // Initialize the computational grid by instantiating and using a Grids object
@@ -94,7 +95,7 @@ int main(int argc, char* argv[])
   //
   // Run the calculation
   // 
-  run_gx(pars, grids, geo); 
+  run_gx(pars, grids, geo, ncdf); 
 
   //
   // This way of measuring runtime is only appropriate for large time intervals.

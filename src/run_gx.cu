@@ -1,6 +1,6 @@
 #include "run_gx.h"
 
-void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
+void run_gx(Parameters *pars, Grids *grids, Geometry *geo, NetCDF *ncdf)
 {
   double time = 0;
 
@@ -30,8 +30,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   /////////////////////////////////
   // GX is set up to solve a handful of different equation sets.
   // Some have a geometry associated with them, some do not.
-  // Presently the options are "gx", "krehm", "vp", "ks", and "cetg"
-  // Most equation sets are undocumented, as they are exploratory or pedagogical in nature
+  // Presently the options are "gx" and "krehm"
   // 
   if (pars->gx) {
     linear = new Linear_GK(pars, grids, geo);          
@@ -62,7 +61,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
     // set up diagnostics
     if(grids->iproc==0) DEBUGPRINT("Initializing diagnostics...\n");
-    diagnostics = new Diagnostics_GK(pars, grids, geo, linear, nonlinear);
+    diagnostics = new Diagnostics_GK(pars, grids, geo, linear, nonlinear, ncdf);
     if(grids->iproc==0) CUDA_DEBUG("Initializing diagnostics: %s \n");    
     checkCuda(cudaGetLastError());    
   }
@@ -92,7 +91,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     solver -> fieldSolve(G, fields);                
 
     // set up diagnostics
-    diagnostics = new Diagnostics_KREHM(pars, grids, geo, linear, nonlinear);
+    diagnostics = new Diagnostics_KREHM(pars, grids, geo, linear, nonlinear, ncdf);
   }
   checkCuda(cudaGetLastError());
   
@@ -164,8 +163,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   
   cudaEventRecord(stop,0);    cudaEventSynchronize(stop);    cudaEventElapsedTime(&timer,start,stop);
   printf("Total runtime = %f min (%f s / timestep)\n", timer/1000./60., timer/1000./counter);
-
-  diagnostics->finish(G, fields, time);
 
   for(int is=0; is<grids->Nspecies; is++) {
     if (G[is])         delete G[is];

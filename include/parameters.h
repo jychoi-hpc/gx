@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 #include <mpi.h>
+#include "toml.hpp"
+//#include "ncdf.h"
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -41,56 +43,6 @@ enum class inits {density, upar, tpar, tperp, qpar, qperp, all};
 enum class stirs {density, upar, tpar, tperp, qpar, qperp, ppar, pperp};
 enum class Tmethod {sspx2, sspx3, rk3, rk4, k10};
 enum class Closure {none, beer42, smithperp, smithpar};
-enum WSpectra {WSPECTRA_species,
-	       WSPECTRA_kx,
-	       WSPECTRA_ky,
-	       WSPECTRA_z,
-	       WSPECTRA_l,
-	       WSPECTRA_m,
-	       WSPECTRA_lm,
-	       WSPECTRA_kperp,
-	       WSPECTRA_kxky,
-	       WSPECTRA_kz};
-
-enum PSpectra {PSPECTRA_species,
-	       PSPECTRA_kx,
-	       PSPECTRA_ky,
-	       PSPECTRA_kperp,
-	       PSPECTRA_kxky,
-	       PSPECTRA_z,	       
-	       PSPECTRA_kz};
-	       
-enum ASpectra {ASPECTRA_species,
-	       ASPECTRA_kx,
-	       ASPECTRA_ky,
-	       ASPECTRA_kperp,
-	       ASPECTRA_kxky,
-	       ASPECTRA_z,	       
-	       ASPECTRA_kz};
-
-enum QSpectra {QSPECTRA_species,
-	       QSPECTRA_kx,
-	       QSPECTRA_ky,
-	       QSPECTRA_kperp,
-	       QSPECTRA_kxky,
-	       QSPECTRA_z,	       
-	       QSPECTRA_kz};
-
-enum GamSpectra {GamSPECTRA_species,
-	       GamSPECTRA_kx,
-	       GamSPECTRA_ky,
-	       GamSPECTRA_kperp,
-	       GamSPECTRA_kxky,
-	       GamSPECTRA_z,	       
-	       GamSPECTRA_kz};
-
-enum Phi2Spectra {PHI2SPECTRA_t,
-	       PHI2SPECTRA_kx,
-	       PHI2SPECTRA_ky,
-	       PHI2SPECTRA_kperp,
-	       PHI2SPECTRA_kxky,
-	       PHI2SPECTRA_z,	       
-	       PHI2SPECTRA_kz};
 	       
 #define RH_equilibrium 3
 #define PHIEXT 1
@@ -98,31 +50,40 @@ enum Phi2Spectra {PHI2SPECTRA_t,
 #define BOLTZMANN_IONS 1
 #define BOLTZMANN_ELECTRONS 2
 
+class NetCDF;
 class NcDims;
+class NcInputs;
 
 class Parameters {
 
  public:
-  Parameters(int iproc=0, int nprocs=1, MPI_Comm mpcom=MPI_COMM_WORLD);
+  Parameters(char* filename, int iproc=0, int nprocs=1, MPI_Comm mpcom=MPI_COMM_WORLD);
   ~Parameters(void);
   
   int iproc, nprocs;
   MPI_Comm mpcom;
-  const int nw_spectra = 10; // should match # of elements in WSpectra
-  const int np_spectra = 7;  // should match # of elements in PSpectra
-  const int na_spectra = 7;  // should match # of elements in ASpectra
-  const int nq_spectra = 7;  // should match # of elements in PSpectra
-  const int ngam_spectra = 7;  // should match # of elements in PSpectra
-  const int nphi2_spectra = 7;  // should match # of elements in PSpectra
-  void get_nml_vars(char* file);
-  void store_ncdf(int ncid, NcDims *nc_dims);
+  void get_nml_vars(NetCDF* ncdf);
+  void get_Dimensions(const toml::value nml);
+  void get_Domain(const toml::value nml);
+  void get_Time(const toml::value nml);
+  void get_Initialization(const toml::value nml);
+  void get_Restart(const toml::value nml);
+  void get_Dissipation(const toml::value nml);
+  void get_KREHM(const toml::value nml);
+  void get_Expert(const toml::value nml);
+  void get_Diagnostics(const toml::value nml);
+  void get_Resize(const toml::value nml);
+  void get_Forcing(const toml::value nml);
+  void get_Boltzmann(const toml::value nml);
+  void get_Geometry(const toml::value nml);
+  void get_Physics(const toml::value nml);
+  void get_species(const toml::value nml);
 
-  void init_species(specie* species);
+  template <typename T>
+  T find_or(const toml::value nml, int ncid, const char varname[], T val);
+
   void set_jtwist_x0(float* shat, float *gds21, float *gds22);
 
-  int nczid, nzid, ncresid, ncbid;
-  int nc_geo, nc_time, nc_ks, nc_vp, nc_rst, nc_dom, nc_diag, nc_krehm, nc_cetg;
-  int nc_expert, nc_resize, nc_con, nc_frc, nc_bz, nc_ml, nc_sp, nc_spec;
   int p_HB, p_hyper_l, p_hyper_m, p_hyper_lm, irho, nwrite, nwrite_big, navg, nsave, igeo, nreal;
   int p_hyper_z;
   int nz_in, nperiod, Zp, bishop, scan_number, icovering;
@@ -161,7 +122,6 @@ class Parameters {
   float low_cutoff, high_cutoff, nlpm_max, tau_nlpm;
   float ion_z, ion_mass, ion_dens, ion_fprim, ion_temp, ion_tprim, ion_vnewk;
   float avail_cpu_time, margin_cpu_time;
-  //  float NLdensfac, NLuparfac, NLtparfac, NLtprpfac, NLqparfac, NLqprpfac;
   float tp_t0, tp_tf, tprim0, tprimf;
   float ks_t0, ks_tf, ks_eps0, ks_epsf;
   float ResSpectralRadius, ResReg, ResSigma, ResSigmaNoise; 
@@ -196,8 +156,6 @@ class Parameters {
   bool gaussian_init;
   float gauss_env_const_coeff, gauss_env_sin_coeff;
   float gaussian_width;
-  bool vp, vp_closure;
-  bool cetg;  
   bool write_all_kmom, write_kmom, write_xymom, write_all_xymom, write_avgz, write_all_avgz;
   bool zero_shat;
   bool nonTwist;
@@ -249,69 +207,26 @@ class Parameters {
   char *scan_type;
   char *equilibrium_option, *nlpm_option;
   char run_name[1255];
+  char nml_file[1255];
 
-  int specs[1]; // dims for netcdf species variable arrays
-  size_t is_start[1], is_count[1]; 
-
-  bool energy_spectra, flux_spectra;
-
-  int aspecdim[1]; // dimension of control structure for spectral plots (adiabatic species)
-  int pspecdim[1]; // dimension of control structure for spectral plots (1-Gamma_0) Phi**2
-  int wspecdim[1]; // dimension of control structure for spectral plots G**2
-  int qspecdim[1]; // dimension of control structure for spectral plots Q
-  int gamspecdim[1]; // dimension of control structure for spectral plots Gamma
-  int phi2specdim[1]; // dimension of control structure for spectral plots phi**2
-  size_t aspectra_start[1], aspectra_count[1]; 
-  size_t pspectra_start[1], pspectra_count[1]; 
-  size_t wspectra_start[1], wspectra_count[1]; 
-  size_t qspectra_start[1], qspectra_count[1]; 
-  size_t gamspectra_start[1], gamspectra_count[1]; 
-  size_t phi2spectra_start[1], phi2spectra_count[1]; 
-  
   std::string Btype;
   std::string code_info;
   
   std::string restart_from_file, restart_to_file;
-  //  char restart_from_file[512];
-  //  char restart_to_file[512];
+  char default_restart_filename[1000];
   
   std::string scheme, forcing_type, init_field, stir_field;
   std::string closure_model, boundary, source;
   
-  // char scheme[32], forcing_type[32], init_field[32], stir_field[32];
-  // char boundary[32], closure_model[32], source[32];
-
   std::string geo_option;
   std::string geofilename;
   std::string eqfile;
-  //  char geofilename[512];
-
-  //  int *spectra = (int*) malloc (sizeof(int)*13);
-  std::vector<int> wspectra;
-  std::vector<int> pspectra;
-  std::vector<int> aspectra;
-  std::vector<int> qspectra;
-  std::vector<int> gamspectra;
-  std::vector<int> phi2spectra;
   
   cudaDeviceProp prop;
   int maxThreadsPerBlock;
 
  private:
-
-  float get_real (int ncid, const char varname[]); 
-  int   getint   (int ncid, const char varname[]); 
-  bool  getbool  (int ncid, const char varname[]); 
-  void  putint   (int ncid, const char varname[], int val);
-  void  put_real (int ncid, const char varname[], float val); 
-  void  putbool  (int ncid, const char varname[], bool val);
-  void  putspec (int ncid, int m, specie* val);
-  void  put_wspectra (int ncid, std::vector<int> s);
-  void  put_pspectra (int ncid, std::vector<int> s);
-  void  put_aspectra (int ncid, std::vector<int> s);
-  void  put_qspectra (int ncid, std::vector<int> s);
-  void  put_gamspectra (int ncid, std::vector<int> s);
-  void  put_phi2spectra (int ncid, std::vector<int> s);
+  NcInputs* nc_inputs_;
   bool initialized;
 };
 
