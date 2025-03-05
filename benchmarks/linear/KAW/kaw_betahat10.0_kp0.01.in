@@ -22,7 +22,7 @@
 
 [Time]
  t_max = 1.25           # end time (in units of L_ref/vt_ref)
- scheme = "sspx3"       # use SSPx3 timestepping scheme (with adaptive timestepping)
+ scheme = "rk3"         # use RK3 timestepping scheme (with adaptive timestepping)
 
 [Initialization]
  ikpar_init = 1                  # parallel wavenumber of initial perturbation

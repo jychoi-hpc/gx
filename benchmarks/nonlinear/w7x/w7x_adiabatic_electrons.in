@@ -25,7 +25,7 @@
  t_max = 200.0        # run to t = t_max (units of L_ref/vt_ref)
  dt = 0.1             # maximum timestep (units of L_ref/vt_ref), will be adapted dynamically
  cfl = 1.0            # safety cushion factor on timestep size
- scheme = "rk3"       # use SSPx3 timestepping scheme
+ scheme = "rk3"       # use RK3 timestepping scheme
 
 [Initialization]
  ikpar_init = 0                  # parallel wavenumber of initial perturbation

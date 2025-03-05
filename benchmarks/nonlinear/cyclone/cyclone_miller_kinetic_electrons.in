@@ -23,10 +23,9 @@
  ei_colls = false                # turn off electron-ion collisions
 
 [Time]
- dt = 0.1              # timestep size (in units of L_ref/vt_ref)
- t_max = 200.0
- cfl = 1.0
- scheme = "rk4"       # use SSPx3 timestepping scheme
+ t_max = 200.0        # end time (in units of L_ref/vt_ref)
+ cfl = 1.0            # safety cushion factor on timestep
+ scheme = "rk3"       # use RK3 timestepping scheme
 
 [Initialization]
  ikpar_init = 0                  # parallel wavenumber of initial perturbation
@@ -61,10 +60,6 @@
 [Dissipation]
  closure_model = "none"          # no closure assumptions (just truncation)
  hypercollisions = true          # use hypercollision model
- nu_hyper_m = 0.1                # coefficient of hermite hypercollisions
- p_hyper_m = 6                   # exponent of hermite hypercollisions
- nu_hyper_l = 0.1                # coefficient of laguerre hypercollisions
- p_hyper_l = 6                   # exponent of laguerre hypercollisions
 
  hyper = true                    # use hyperdiffusion
  D_hyper = 0.05                  # coefficient of hyperdiffusion

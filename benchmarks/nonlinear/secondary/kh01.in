@@ -24,8 +24,8 @@
 [Time]
  dt = 1.0		# timestep size (in units of L_ref/vt_ref)
  nstep = 2		# number of timesteps
- scheme = "sspx3"		# use SSPx3 timestepping scheme
- cfl = 1.0			# fraction of CFL condition
+ scheme = "rk3"		# use RK3 timestepping scheme
+ cfl = 1.0		# fraction of CFL condition
 
 [Geometry]
  geo_option = "slab"    # use slab geometry

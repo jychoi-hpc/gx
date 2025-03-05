@@ -24,7 +24,7 @@
 [Time]
  dt = 0.01		# timestep size (in units of L_ref/vt_ref)
  nstep = 10000		# number of timesteps
- scheme = "sspx3"	# use SSPx3 timestepping scheme
+ scheme = "rk3"  	# use RK3 timestepping scheme
  cfl = 1.0		# fraction of CFL condition
 
 [Geometry]
