@@ -217,20 +217,24 @@ void MomentsG::initialConditions(double* time) {
 		}
     } else if(pars_->gaussian_init) {
       for(int ikx=0; ikx < 1 + (grids_->Nx - 1)/3; ikx++) {
-	// No perturbation inserted for ky=0 mode because loop starts with j=1
-	for(int jky=1; jky < 1 + (grids_->Ny - 1)/3; jky++) {
-	  for (int js=0; js < 2; js++) {
+        // No perturbation inserted for ky=0 mode because loop starts with j=1
+        for(int jky=1; jky < 1 + (grids_->Ny - 1)/3; jky++) {
+          for (int js=0; js < 2; js++) {
             int idx;
-	    if (ikx==0) {
-	      idx = ikx;
-	    } else {
-	      idx = (js==0) ? ikx : grids_->Nx-ikx;
-	    }
+            if (ikx==0) {
+              idx = ikx;
+            } else {
+              idx = (js==0) ? ikx : grids_->Nx-ikx;
+            }
+
             float theta0 = grids_->kx_h[ikx]/(pars_->shat*grids_->ky_h[jky]);
             for (int k=0; k<grids_->Nz; k++) {
+              float envelope = pars_->gauss_env_const_coeff + pars_->gauss_env_sin_coeff * sin( z_h[k] - theta0 );
+
               int index = jky + grids_->Nyc*(idx + grids_->Nx*k);
-              init_h[index].x = pars_->init_amp*exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
-              init_h[index].y = pars_->init_amp*exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
+
+              init_h[index].x = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
+              init_h[index].y = envelope * pars_->init_amp * exp(-pow((z_h[k] - theta0)/pars_->gaussian_width,2));
             }
           }
         }

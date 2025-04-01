@@ -1,5 +1,5 @@
 # Makefile for polaris.alcf.anl.gov (Argonne)
-# Maintainer: Noah Mandell (nmandell@pppl.gov)
+# Maintainer: Noah Mandell (noah.mandell@typeoneenergy.com)
 #
 # add and uncomment the following in your ~/.bashrc (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
@@ -10,7 +10,7 @@
 # module load cray-python
 # module use /soft/modulefiles
 # module load math_libs/gsl
-# export CUDA_VERSION=11.0
+# export CUDA_VERSION=12.2
 # export NVHPC_CUDA_HOME=/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/cuda/${CUDA_VERSION}
 # export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/math_libs/${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH
 #
@@ -41,8 +41,9 @@ CUDAARCH=80
 CXX = CC
 
 NVCC   = nvcc
-CFLAGS = -fPIC
-NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+CFLAGS = -fPIC --std=c++17
+NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+LDFLAGS = -dlink
 
 ifeq ($(debug),on)
   NVCCFLAGS += -g -G 

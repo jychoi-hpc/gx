@@ -132,7 +132,26 @@ void Parameters::get_nml_vars(char* filename)
   ikpar_init  = toml::find_or <int>  (tnml, "ikpar_init",     static_cast<int>(kpar_init)  );
   random_init     = toml::find_or <bool> (tnml, "random_init",     false);
   gaussian_init = toml::find_or <bool> (tnml, "gaussian_init", false);
+  
+
+  if( tnml.contains("gaussian_envelope_constant_coefficient") && !gaussian_init )
+  {
+      std::cerr << "WARNING: gaussian_envelope_constant_coefficient was specified, but gaussian_init was not, so this will be ignored." << std::endl;
+  }
+  gauss_env_const_coeff = toml::find_or <float> (tnml, "gaussian_envelope_constant_coefficient", 1.0);
+
+  if( tnml.contains("gaussian_envelope_sine_coefficient") && !gaussian_init )
+  {
+      std::cerr << "WARNING: gaussian_envelope_sine_coefficient was specified, but gaussian_init was not, so this will be ignored." << std::endl;
+  }
+  gauss_env_sin_coeff = toml::find_or <float> (tnml, "gaussian_envelope_sine_coefficient", 0.0);
+
+  if( tnml.contains("gaussian_width") && !gaussian_init )
+  {
+      std::cerr << "WARNING: gaussian_width was specified, but gaussian_init was not, so this will be ignored." << std::endl;
+  }
   gaussian_width  = toml::find_or <float>  (tnml, "gaussian_width",     0.5   );
+  
   init_electrons_only     = toml::find_or <bool> (tnml, "init_electrons_only",     false);
   densfac = toml::find_or <float> (tnml, "densfac", 1.0);
   uparfac = toml::find_or <float> (tnml, "uparfac", 1.0);
@@ -168,7 +187,7 @@ void Parameters::get_nml_vars(char* filename)
   D_HB       = toml::find_or <float>  (tnml, "D_HB",          1.0   ); 
   w_osc      = toml::find_or <float>  (tnml, "w_osc",         0.0   ); 
   D_hyper    = toml::find_or <float>  (tnml, "D_hyper",       0.1   ); 
-  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.0   ); 
+  nu_hyper_z = toml::find_or <float>  (tnml, "nu_hyper_z",    0.1 ); 
   nu_hyper_l = toml::find_or <float>  (tnml, "nu_hyper_l",    0.0   ); 
   nu_hyper_m = toml::find_or <float>  (tnml, "nu_hyper_m",    1.0   ); 
   nu_hyper_lm = toml::find_or <float> (tnml, "nu_hyper_lm",   0.0   ); 
@@ -872,11 +891,12 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (ncid, "debug",       NC_INT,   0, NULL, &ivar)) ERR(retval);
   //if (retval = nc_def_var (ncid, "repeat",      NC_INT,   0, NULL, &ivar)) ERR(retval);
 
-  if (retval = nc_def_var (nc_time, "dt",       NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_time, "nstep",    NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_time, "nwrite",   NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_time, "navg",     NC_INT,   0, NULL, &ivar)) ERR(retval);
-  if (retval = nc_def_var (nc_time, "nsave",    NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "dt",           NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "nstep",        NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "nwrite",       NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "nwrite_big",   NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "navg",         NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_time, "nsave",        NC_INT,   0, NULL, &ivar)) ERR(retval);
 
   if (retval = nc_def_var (nc_ks, "ks",         NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_ks, "write_ks",   NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1028,6 +1048,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   if (retval = nc_def_var (nc_diss, "D_HB",                  NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diss, "p_HB",                  NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_diss, "HB_hyper",              NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diss, "hyperz",       NC_INT,   0, NULL, &ivar)) ERR(retval);
+  if (retval = nc_def_var (nc_diss, "nu_hyper_z",            NC_FLOAT, 0, NULL, &ivar)) ERR(retval);
   
   if (retval = nc_def_var (nc_frc, "forcing_init",          NC_INT,   0, NULL, &ivar)) ERR(retval);
   if (retval = nc_def_var (nc_frc, "forcing_type_dum",      NC_INT,   0, NULL, &ivar)) ERR(retval);
@@ -1163,11 +1185,12 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putbool  (nc_dom, "ExBshear_phase", "ExBshear_phase");
   putbool  (nc_dom, "long_wavelength_GK", long_wavelength_GK);
 
-  put_real (nc_time, "dt",      dt      );
-  putint   (nc_time, "nstep",   nstep   );
-  putint   (nc_time, "navg",    navg    );
-  putint   (nc_time, "nsave",   nsave   );
-  putint   (nc_time, "nwrite",  nwrite  );
+  put_real (nc_time, "dt",          dt          );
+  putint   (nc_time, "nstep",       nstep       );
+  putint   (nc_time, "navg",        navg        );
+  putint   (nc_time, "nsave",       nsave       );
+  putint   (nc_time, "nwrite",      nwrite      );
+  putint   (nc_time, "nwrite_big",  nwrite_big  );
   
   putbool  (nc_ks, "ks",       ks       );
   putbool  (nc_ks, "write_ks", write_ks );
@@ -1281,6 +1304,8 @@ void Parameters::store_ncdf(int ncid, NcDims *nc_dims) {
   putint   (nc_diss, "p_HB",            p_HB            );
   putbool  (nc_diss, "HB_hyper",        HB_hyper        );
   put_real (nc_diss, "w_osc",           w_osc           );
+  putbool  (nc_diss, "hyperz", hyperz );
+  put_real   (nc_diss, "nu_hyper_z",        nu_hyper_z    );
   
   put_real (nc_frc, "forcing_amp",      forcing_amp     );
   putint   (nc_frc, "forcing_index",    forcing_index   );
@@ -1527,7 +1552,8 @@ void Parameters::putspec (int  ncid, int nspec, specie* spec) {
 void Parameters::set_jtwist_x0(float *shat_in, float *gds21, float *gds22)
 {
   float shat = *shat_in;
-  // note: twist_shift_geo_fac reduces to 2*pi*shat in the axisymmetric limit
+  // note: twist_shift_geo_fac reduces to 2*pi*shat*(2*nPeriod - 1) in the axisymmetric limit
+  // as gds21[0] is gds21 evaluated at the most negative value of theta in the flux tube.
   float twist_shift_geo_fac = 2.*shat*gds21[0]/gds22[0];
 
   if(iproc==0) {

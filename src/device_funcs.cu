@@ -1017,7 +1017,9 @@ __global__ void growthRates(const cuComplex *phi, const cuComplex *phiOld, doubl
   unsigned int J = nx*nyc;
 
   if (idxy < J) {
-    int IG = (int) nz/2 ;
+    int IG;
+    if (nz > 1) IG = ((int) nz/2) + 1;
+    else IG = 0;
     int id = idxy + J*IG;
     
     int idy = idxy % nyc;
@@ -2993,24 +2995,25 @@ __global__ void __launch_bounds__(512) linkedCopyBackAll(cuComplex* G_linked[],
 
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
-  unsigned int idzlm = get_id3();
-  if (unmasked(idx, idy) && idzlm < nz*nMoms) {
-    unsigned int idz = idzlm % nz;
-    unsigned int idlm = idzlm / nz;
-    unsigned int naky = (1 + ((ny-1)/3));
-    unsigned int nakx = (1 + 2*((nx-1)/3));
-    unsigned int nshift = nx - nakx;
-    unsigned int globalIdx = idy + nyc*(idx + nx*idzlm);
+  if (unmasked(idx, idy)) {
+    for (int idzlm = __umul24(blockIdx.z, blockDim.z) + threadIdx.z; idzlm < nz*nMoms; idzlm += __umul24(blockDim.z, gridDim.z)) {
+      unsigned int idz = idzlm % nz;
+      unsigned int idlm = idzlm / nz;
+      unsigned int naky = (1 + ((ny-1)/3));
+      unsigned int nakx = (1 + 2*((nx-1)/3));
+      unsigned int nshift = nx - nakx;
+      unsigned int globalIdx = idy + nyc*(idx + nx*idzlm);
 
-    unsigned int idakx = idx;
-    if (idx >= (nakx+1)/2) {
-      idakx = idx - nshift;
+      unsigned int idakx = idx;
+      if (idx >= (nakx+1)/2) {
+        idakx = idx - nshift;
+      }
+      unsigned int idxy = idy + naky*idakx;
+
+      int idlink = idz + nz*(p_map[idxy] + nLinks_map[idxy]*(n_map[idxy] + nChains_map[idxy]*idlm));
+      unsigned int c = c_map[idxy];
+      G[globalIdx] = G_linked[c][idlink];
     }
-    unsigned int idxy = idy + naky*idakx;
-
-    int idlink = idz + nz*(p_map[idxy] + nLinks_map[idxy]*(n_map[idxy] + nChains_map[idxy]*idlm));
-    unsigned int c = c_map[idxy];
-    G[globalIdx] = G_linked[c][idlink];
   }
 }
 
@@ -3047,24 +3050,25 @@ __global__ void __launch_bounds__(512) linkedAccumulateBackAll(cuComplex* G_link
 
   unsigned int idy = get_id1();
   unsigned int idx = get_id2();
-  unsigned int idzlm = get_id3();
-  if (unmasked(idx, idy) && idzlm < nz*nMoms) {
-    unsigned int idz = idzlm % nz;
-    unsigned int idlm = idzlm / nz;
-    unsigned int naky = (1 + ((ny-1)/3));
-    unsigned int nakx = (1 + 2*((nx-1)/3));
-    unsigned int nshift = nx - nakx;
-    unsigned int globalIdx = idy + nyc*(idx + nx*idzlm);
+  if (unmasked(idx, idy)) {
+    for (int idzlm = __umul24(blockIdx.z, blockDim.z) + threadIdx.z; idzlm < nz*nMoms; idzlm += __umul24(blockDim.z, gridDim.z)) {
+      unsigned int idz = idzlm % nz;
+      unsigned int idlm = idzlm / nz;
+      unsigned int naky = (1 + ((ny-1)/3));
+      unsigned int nakx = (1 + 2*((nx-1)/3));
+      unsigned int nshift = nx - nakx;
+      unsigned int globalIdx = idy + nyc*(idx + nx*idzlm);
 
-    unsigned int idakx = idx;
-    if (idx >= (nakx+1)/2) {
-      idakx = idx - nshift;
+      unsigned int idakx = idx;
+      if (idx >= (nakx+1)/2) {
+        idakx = idx - nshift;
+      }
+      unsigned int idxy = idy + naky*idakx;
+
+      unsigned int idlink = idz + nz*(p_map[idxy] + nLinks_map[idxy]*(n_map[idxy] + nChains_map[idxy]*idlm));
+      unsigned int c = c_map[idxy];
+      G[globalIdx] = G[globalIdx] + scale*G_linked[c][idlink];
     }
-    unsigned int idxy = idy + naky*idakx;
-
-    unsigned int idlink = idz + nz*(p_map[idxy] + nLinks_map[idxy]*(n_map[idxy] + nChains_map[idxy]*idlm));
-    unsigned int c = c_map[idxy];
-    G[globalIdx] = G[globalIdx] + scale*G_linked[c][idlink];
   }
 }
 
@@ -3382,39 +3386,40 @@ __global__ void __launch_bounds__(512) streaming_rhs(const cuComplex* __restrict
 {
   unsigned int idy  = get_id1();
   unsigned int idx  = get_id2();
-  unsigned int idzl = get_id3();
-  if (unmasked(idx, idy) && (idzl < nz*nl)) {
-    unsigned int idz = idzl % nz;     
-    unsigned int l   = idzl / nz;
-    unsigned int idxyz = get_idxyz(idx, idy, idz);
+  if (unmasked(idx, idy)) {
+    for (int idzl = __umul24(blockIdx.z, blockDim.z) + threadIdx.z; idzl < nz*nl; idzl += __umul24(blockDim.z, gridDim.z)) {
+      unsigned int idz = idzl % nz;     
+      unsigned int l   = idzl / nz;
+      unsigned int idxyz = get_idxyz(idx, idy, idz);
 
-    const cuComplex phi_  = phi[idxyz];
-    const cuComplex apar_ = apar[idxyz];
-    const cuComplex bpar_ = bpar[idxyz];
+      const cuComplex phi_  = phi[idxyz];
+      const cuComplex apar_ = apar[idxyz];
+      const cuComplex bpar_ = bpar[idxyz];
 
-    const float b_s = sp.rho2 * kperp2[idxyz];
-    const float zt_ = sp.zt;
-    const float vt_ = sp.vt;
-    int globalIdx;
+      const float b_s = sp.rho2 * kperp2[idxyz];
+      const float zt_ = sp.zt;
+      const float vt_ = sp.vt;
+      int globalIdx;
 
-    for (int m = m_lo; m < m_up; m++) {
-      int m_local = m - m_lo;
-      globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local)));	
-      int mp1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local+1)));
-      int mm1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local-1)));
-      cuComplex gmp1 = make_cuComplex(0.,0.);
-      cuComplex gmm1 = make_cuComplex(0.,0.);
-      if(m>0) gmm1 = g[mm1];
-      if(m<nm_glob-1) gmp1 = g[mp1];
-      
-      rhs_par[globalIdx] = rhs_par[globalIdx] -vt_ * (sqrtf(m+1)*gmp1 + sqrtf(m)*gmm1) * gradpar;
-      
-      // field terms
-      if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] - Jflr(l, b_s) * phi_ * zt_ * vt_ * gradpar
-		   - JflrB(l, b_s) * bpar_ * vt_ * gradpar; // m = 1 has Phi & Bpar terms
-      // the following Apar terms are only needed in the formulation without dA/dt
-      if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] + Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 0 has Apar term
-      if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] + sqrtf(2.) * Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 2 has Apar term
+      for (int m = m_lo; m < m_up; m++) {
+        int m_local = m - m_lo;
+        globalIdx = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local)));	
+        int mp1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local+1)));
+        int mm1 = idy + nyc*( idx + nx*(idzl + nz*nl*(m_local-1)));
+        cuComplex gmp1 = make_cuComplex(0.,0.);
+        cuComplex gmm1 = make_cuComplex(0.,0.);
+        if(m>0) gmm1 = g[mm1];
+        if(m<nm_glob-1) gmp1 = g[mp1];
+        
+        rhs_par[globalIdx] = rhs_par[globalIdx] -vt_ * (sqrtf(m+1)*gmp1 + sqrtf(m)*gmm1) * gradpar;
+        
+        // field terms
+        if(m == 1) rhs_par[globalIdx] = rhs_par[globalIdx] - Jflr(l, b_s) * phi_ * zt_ * vt_ * gradpar
+          	   - JflrB(l, b_s) * bpar_ * vt_ * gradpar; // m = 1 has Phi & Bpar terms
+        // the following Apar terms are only needed in the formulation without dA/dt
+        if(m == 0) rhs_par[globalIdx] = rhs_par[globalIdx] + Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 0 has Apar term
+        if(m == 2) rhs_par[globalIdx] = rhs_par[globalIdx] + sqrtf(2.) * Jflr(l, b_s) * apar_ * zt_ * vt_ * vt_ * gradpar; // m = 2 has Apar term
+      }
     }
   }
 }
@@ -3750,8 +3755,7 @@ __global__ void hyperdiff(const cuComplex* g,
     if (unmasked(idx, idy)) {	
       float kxmax = kx[(nx-1)/3];
       float kymax = ky[(ny-1)/3];
-      float k2s = 1./powf((kxmax*kxmax + kymax*kymax), nu_hyper);      
-      double Dfac = D_hyper*pow((double) (kx[idx]*kx[idx] + ky[idy]*ky[idy])/(kxmax*kxmax + kymax*kymax), nu_hyper);
+      float Dfac = D_hyper*powf((kx[idx]*kx[idx] + ky[idy]*ky[idy])/(kxmax*kxmax + kymax*kymax), nu_hyper);
       
       unsigned int ig = idxyz + nx*nyc*nz*(l + nl*m_local);
       rhs[ig] = rhs[ig] - Dfac * g[ig];

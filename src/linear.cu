@@ -87,12 +87,14 @@ Linear_GK::Linear_GK(Parameters* pars, Grids* grids, Geometry* geo) :
     tmpG = new MomentsG (pars_, grids_);
   }
 
+  // kernel launch dims for streaming_rhs kernel
+  // max thread block is 512 threads (WARPSIZE x 512/WARPSIZE x 1)
+  // z block dim = min(Nz*Nl, MAX_BLOCK_DIM_YZ). kernel has grid-stride loop in z to handle case when z dim = MAX_BLOCK_DIM_YZ.
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, WARPSIZE);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  512/WARPSIZE);   int nb2 = 1 + (nn2-1)/nt2;
   int nn3 = grids_->Nz*grids_->Nl;   int nt3 = min(nn3,  1);   int nb3 = 1 + (nn3-1)/nt3;
-  
   dBs = dim3(nt1, nt2, nt3);
-  dGs = dim3(nb1, nb2, nb3);
+  dGs = dim3(nb1, nb2, min(MAX_BLOCK_DIM_YZ, nb3));
 
   nn1 = grids_->Nyc;             nt1 = min(nn1, 16);    nb1 = (nn1-1)/nt1 + 1;
   nn2 = grids_->Nx*grids_->Nz;   nt2 = min(nn2, 16);    nb2 = (nn2-1)/nt2 + 1;
@@ -237,7 +239,7 @@ void Linear_GK::rhs(MomentsG* G, Fields* f, MomentsG* GRhs, double dt) {
   if(pars_->hyper) hyperdiff <<<dimGridh,dimBlockh>>>(G->G(), grids_->kx, grids_->ky,
 						      pars_->p_hyper, pars_->D_hyper, GRhs->G());
 
-  if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z/dt, true);
+  if(pars_->hyperz) grad_par->hyperz(G, GRhs, pars_->nu_hyper_z, true);
  
   // apply parallel boundary conditions. for linked BCs, this involves applying 
   // a damping operator to the RHS near the boundaries of extended domain.

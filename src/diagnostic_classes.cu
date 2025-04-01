@@ -740,6 +740,7 @@ void FieldsDiagnostic::calculate_and_write(Fields* f)
 // condense a (ky,kx,z) object for netcdf output, taking into account the mask
 // and changing the type from cuComplex to float
 // and transposing to put z as fastest index
+// and flipping kx index so that kx ranges from [-kx_max, -kx_max+1, ..., 0, ..., kx_max -1, kx_max]
 void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
 {
   int Nx   = grids_->Nx;
@@ -749,6 +750,7 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
+  int nshift = Nx-Nakx;
 
   for (int iky=0; iky<Naky; iky++) {
     for (int ikx=0; ikx<Nakx; ikx++) {
@@ -756,7 +758,9 @@ void FieldsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
         int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
         int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky;
         int idx = ikx;
-        if (ikx > NK) idx = Nx - ikx;
+	// this flips kx index so that -kx's are first, e.g. ikx = 0 corresponds to kx[idx] = -kx_max
+        if (ikx < NK) idx = ikx + nshift + NK + 1;
+        else idx = ikx - NK;
         int ig = iky + idx*Nyc + iz*Nx*Nyc;
         fk[ir] = f[ig].x;
         fk[ii] = f[ig].y;
@@ -981,6 +985,7 @@ void MomentsDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, cuComp
 // condense a (ky,kx,z) object for netcdf output, taking into account the mask
 // and changing the type from cuComplex to float
 // and transposing to put z as fastest index
+// and flipping kx index so that kx ranges from [-kx_max, -kx_max+1, ..., 0, ..., kx_max -1, kx_max]
 void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
 {
   int Nsp  = grids_->Nspecies;
@@ -991,6 +996,7 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
   int Nz   = grids_->Nz;
  
   int NK = grids_->Nakx/2;
+  int nshift = Nx-Nakx;
 
   for (int is = 0; is<Nsp; is++) {
     for (int iky=0; iky<Naky; iky++) {
@@ -999,7 +1005,9 @@ void MomentsDiagnostic::dealias_and_reorder(cuComplex *f, float *fk)
           int ir = 0 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
           int ii = 1 + 2*iz + 2*Nz*ikx + 2*Nz*Nakx*iky + 2*Nz*Nakx*Naky*is;
           int idx = ikx;
-          if (ikx > NK) idx = Nx - ikx;
+	  // this flips kx index so that -kx's are first, e.g. ikx = 0 corresponds to kx[idx] = -kx_max
+          if (ikx < NK) idx = ikx + nshift + NK + 1;
+          else idx = ikx - NK;
           int ig = iky + idx*Nyc + iz*Nx*Nyc + is*Nx*Nyc*Nz;
           fk[ir] = f[ig].x;
           fk[ii] = f[ig].y;

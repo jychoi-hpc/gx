@@ -178,7 +178,13 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+
+    checkCuda(cudaGetLastError());
+
     timestep -> advance(&time, G, fields);
+
+    checkCuda(cudaGetLastError());
+
     if (checkstop) break;
 
     if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time);

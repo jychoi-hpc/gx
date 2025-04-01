@@ -1,0 +1,41 @@
+# Makefile for the Hydra cluster at Oxford
+# Make sure the following modules are loaded and are in module init:
+#
+# cuda/12.6
+# nvhpc-25.1
+# gsl/2.8
+# netcdf/4.9.2
+# openmpi/5.0.1
+#
+# Compiles and runs successfully on 31/01/2025
+
+NETCDF_INC = -I $(INCLUDE)
+NETCDF_LIB = -L $(LIBRARY_PATH) -lnetcdf 
+
+CUDA_INC = -I $(INCLUDE)
+
+CUDA_LIB = -L $(LIBRARY_PATH) -L/usr/local/shared/cuda/hpc_sdk_25.1/Linux_x86_64/25.1/comm_libs/nccl/lib -L/usr/local/shared/cuda/hpc_sdk_25.1/Linux_x86_64/25.1/math_libs/lib64 -lcudart -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -lnccl 
+
+GSL_INC = -I $(INCLUDE)
+GSL_LIB = -L $(LIBRARY_PATH) -lgsl -lgslcblas 
+
+C_LIB = -ldl -lm -lpthread
+
+
+#CUDAARCH=89  # this is the appropriate value for the A6000s on Heracles
+CUDAARCH=80  # this is appropriate for the A100s on Heracles. The A6000s are also fine with it.
+CXX = mpic++
+CC  = mpicc
+
+NVCC   = nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+  CFLAGS += -O3
+endif
+
+

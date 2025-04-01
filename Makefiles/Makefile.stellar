@@ -1,15 +1,14 @@
 # Makefile for stellar.princeton.edu
-# Maintainer: Noah Mandell (nrm@mit.edu)
+# Maintainer: Noah Mandell (nrm@mit.edu) and Ian Abel (iabel@umd.edu)
 #
 # add the following to your .bash_profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
 #
 # export GK_SYSTEM=stellar
-# module load nvhpc-nocompiler/22.5
-# module load cudatoolkit/11.7
-# module load gcc/8
-# module load openmpi/cuda-11.1/gcc/4.1.1 
-# module load netcdf/gcc/hdf5-1.10.6/openmpi-4.1.0/4.7.4
-# module load hdf5/gcc/openmpi-4.1.0/1.10.6
+# module load nvhpc-nocompiler/24.5
+# module load cudatoolkit/12.4
+# module load openmpi/gcc/4.1.6
+# module load netcdf/gcc/hdf5-1.14.4/openmpi-4.1.6/4.9.2
+# module load hdf5/gcc/openmpi-4.1.6/1.14.4
 # module load gsl/2.6
 # module load anaconda3/2020.11
 #
