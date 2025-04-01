@@ -225,3 +225,45 @@ class SunRK4Stepper : public SundialsStepper {
   ARKodeButcherTable rk4table;
   static sunrealtype c[4],b[4],a[16];
 };
+
+class SundialsLSRKStepper : public Timestepper {
+ public:
+   SundialsLSRKStepper(Linear *linear, Nonlinear *nonlinear, Solver *solver,
+                   Parameters *pars, Grids *grids, Forcing *forcing, ExB *exb, double dt_in, MomentsG** G0, double t0 );
+  virtual ~SundialsStepper();
+  virtual void advance(double* t, MomentsG** G, Fields* fields);
+  double get_dt();
+
+  // Wrapper around the rhs of dy/dt = F(y,t)
+  static int SundialsF( sunrealtype t, N_Vector y, N_Vector ydot, void* data );
+  int SundialsRHS( double t, GXVector * g, GXVector* gDot );
+
+  static int SundialsErrorWeights( N_Vector, N_Vector, void* );
+  int ErrorWeights( GXVector *, GXVector * );
+
+  long int getRHSEvals();
+  long int getNSteps();
+
+ protected:
+
+  std::vector<float> Wg_data;
+
+  sundials::Context ctx;
+  void *ARKodeMem;
+  GXVector *gInternal, *gTmp;
+  N_Vector gInternalNV;
+
+  const double dt_;
+  double reltol = 1e-3;
+  double abstol = 1e-3;
+  double wg_tol = 1e-3;
+
+  Linear     * linear_    ;
+  Nonlinear  * nonlinear_ ;
+  Solver     * solver_    ;
+  Parameters * pars_      ;
+  Grids      * grids_     ;
+  ExB        * exb_       ;
+  Forcing    * forcing_   ;
+  Fields     * fields_    ;
+};
