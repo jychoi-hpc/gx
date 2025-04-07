@@ -16,6 +16,7 @@
 #include "get_error.h"
 #include "cublas_test.h"
 #include "exb.h"
+#include "mirror_magma.h"
 
 void run_gx(Parameters * parameters, Grids * grids, Geometry * geo);
 void printDeviceMemoryUsage(int iproc);

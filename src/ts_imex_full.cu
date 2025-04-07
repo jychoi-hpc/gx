@@ -175,7 +175,7 @@ void IMEX_3stage_Full::explicit_terms(MomentsG** A, MomentsG** G, Fields* f, boo
     A[is]->set_zero();
     if(is == ielectron){
       linear_->rhs_nonstreaming_nonbounce(G[is], f, A[is], dt_);
- //     linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
+//      linear_->rhs_nonstreaming(G[is], f, A[is], dt_);
 
     }
     else{
@@ -194,7 +194,7 @@ void IMEX_3stage_Full::implicit_terms(MomentsG** B, MomentsG** G, Fields* f)
     B[is]->set_zero();
     if(is == ielectron){
       linear_->rhs_streaming_bounce(G[is], f, B[is], dt_);
- //     linear_->rhs_streaming(G[is], f, B[is], dt_);
+//      linear_->rhs_streaming(G[is], f, B[is], dt_);
 
     }
     else{

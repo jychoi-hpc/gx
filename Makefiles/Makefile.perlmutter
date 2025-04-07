@@ -25,6 +25,18 @@ HDF5_ROOT = ${HDF5_DIR}
 NETCDF_INC = -I ${NETCDF_ROOT}/include
 NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5
 
+# path to magma
+MAGMADIR     ?= $($PSCRATCH)/magma_3_4/magma-2.9.0/
+CUDADIR      ?= $(CUDA_HOME)
+MAGMA_CFLAGS     := -I$(MAGMADIR)/include -I$(MAGMADIR)/sparse/include -I$(NVIDIA_PATH)/math_libs/include -I$(CUDADIR)/include -I/include
+
+MKLROOT = /opt/intel/oneapi/mkl/latest
+#MAGMA_LIBS       := -L$(MAGMADIR)/lib -lmagma_sparse -lmagma -Wl,-rpath $(MAGMADIR)/lib 
+MAGMA_LIBS       := -L$(MAGMADIR)/lib -lmagma -Wl,-rpath $(MAGMADIR)/lib \
+                    -L$(CUDADIR)/lib64 -L$(NVIDIA_PATH)/math_libs/lib64 -lcublas -lcudart -lcusparse -Wl,-rpath $(CUDADIR)/lib64 -Wl,-rpath $(NVIDIA_PATH)/math_libs/lib64 \
+                    -L$(MKLROOT)/lib/intel64 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lstdc++ -lm -Wl,-rpath $(MKLROOT)/lib/intel64
+
+
 # paths to mpich
 # MPICH_DIR is defined by cray-mpich module
 MPI_ROOT = ${MPICH_DIR}

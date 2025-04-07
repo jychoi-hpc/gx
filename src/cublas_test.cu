@@ -1,9 +1,11 @@
 #include "cublas_test.h"
+#include "magma_v2.h"      // also includes cublas_v2.h
 #include "stdio.h"
 Cublas_test::Cublas_test(Parameters *pars, Grids *grids, Geometry *geo, double p, double r, double u, bool sdirk, double dt_in, double vte):
 	p_(p), r_(r), u_(u), sdirk_(sdirk), grids_(grids), pars_(pars), geo_(geo), A_bounce(nullptr), dt_(dt_in), vte_(vte)
 {
-  
+ 
+  magma_init();	
   A_bounce = nullptr;	
   d_A_bounce = nullptr;
   d_bounce_rhs = nullptr;

@@ -23,8 +23,13 @@ include Makefiles/Makefile.$(GK_SYSTEM)
 ## Setup Compiler Flags
 ###########################
 
-INCS= ${CUDA_INC} ${MPI_INC} ${NETCDF_INC} ${GSL_INC}
+#INCS= ${CUDA_INC} ${MPI_INC} ${NETCDF_INC} ${GSL_INC} ${MAGMA_CFLAGS} 
+#LIBS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} ${C_LIB} ${MAGMA_LIBS}
+
+#Change to MAGMA_INCS
+INCS= ${CUDA_INC} ${MPI_INC} ${NETCDF_INC} ${GSL_INC} ${MAGMA_CFLAGS}
 LIBS= $(CUDA_LIB) ${MPI_LIB} ${NETCDF_LIB} ${GSL_LIB} ${C_LIB}
+
 
 #####################################
 # Rule for building the system_config
@@ -82,7 +87,7 @@ src/version.c:
 #######################################
 # Rules for building gx
 ####################################
-OBJS = device_funcs.o parameters.o grids.o reductions.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk3.o ts_rk4.o ts_k10.o ts_imex.o ts_imex_full.o ts_lie_trotter.o ts_lie_trotter_elec.o ts_strang.o ts_ssprk3.o ts_lie_trotter_green.o ts_imex_green.o diagnostics.o run_gx.o version.o trinity_interface.o diagnostic_classes.o spectra_calc.o cublas_test.o cusolve.o green.o grad_parallel_NTFT.o exb.o
+OBJS = device_funcs.o parameters.o grids.o reductions.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk3.o ts_rk4.o ts_k10.o ts_imex.o ts_imex_full.o ts_lie_trotter.o ts_lie_trotter_elec.o ts_strang.o ts_ssprk3.o ts_lie_trotter_green.o ts_imex_green.o diagnostics.o run_gx.o version.o trinity_interface.o diagnostic_classes.o spectra_calc.o cublas_test.o cusolve.o green.o grad_parallel_NTFT.o exb.o mirror_magma.o
 
 #OBJS = device_funcs.o parameters.o grids.o reductions.o grad_perp.o fields.o moments.o forcing.o grad_parallel.o grad_parallel_linked.o geometry.o laguerre_transform.o nca.o ncdf.o solver.o smith_par_closure.o closures.o linear.o nonlinear.o ts_sspx2.o ts_sspx3.o ts_rk3.o ts_rk4.o ts_k10.o ts_imex.o ts_imex_full.o ts_lie_trotter.o ts_lie_trotter_elec.o ts_strang.o ts_ssprk3.o diagnostics.o run_gx.o version.o trinity_interface.o diagnostic_classes.o spectra_calc.o cublas_test.o cusolve.o grad_parallel_NTFT.o exb.o
 
@@ -96,12 +101,12 @@ obj/geo/%.o: %.cpp $(VMEC_GEO_HEADERS)
 # main program
 ifeq ($(NVCC), hipcc)
 gx: libgx.a obj/main.o 
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 	@rm src/version.c
 else
 gx: obj/main.o libgx.a 
-	$(NVCC) -dlink $(NVCCFLAGS) -o obj/gx.o $< -L. -lgx $(LIBS) 
-	$(CXX) -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) 
+	$(NVCC) -dlink $(NVCCFLAGS) -o obj/gx.o $< -L. -lgx $(LIBS)
+	$(CXX)  -o $@ obj/gx.o obj/main.o -L. -lgx $(LIBS) ${MAGMA_LIBS} 
 	@rm src/version.c
 endif
 

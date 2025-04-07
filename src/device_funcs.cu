@@ -2573,7 +2573,6 @@ __global__ void find_max_fac_inv(float* qneutFacPhi,
       }
        
     }
-    printf("max_f is %f\n", max_f);
 //    max_f = max_f / nz;
     max_qneutFacPhi_inv[idxy] = max_q;
     if(fapar > 0.){

@@ -28,6 +28,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   apar_l = (cuComplex**) malloc(sizeof(void*)*grids_->Nspecies);
 
   mirror = (Cublas_test**) malloc(sizeof(void*)*grids_->Nspecies);
+  // mirror_magma = (Mirror_magma**) malloc(sizeof(void*)*grids_->Nspecies);
 //  mirror = (Cusolve**) malloc(sizeof(void*)*grids_->Nspecies);
 
   for(int is=0; is<grids_->Nspecies; is++) {
@@ -43,7 +44,7 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
 //    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1.0, 0.0, true, (double) pars_->dt, A1[is]->species->vt);
 //    mirror[is] = new Cublas_test(pars_, grids_, geo_, 0.0, 1. + sqrtf(2.)/2., 0.0, true, (double) pars_->dt, A1[is]->species->vt);
     mirror[is] = new Cublas_test(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[is]->species->vt);
-
+    
     checkCuda(cudaGetLastError());
 
 
@@ -98,6 +99,8 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
     printf("USING GRADPARALLELLINKED!!!\n");
     grad_par = new GradParallelLinked(pars_, grids_);
   }
+
+  mirror_magma = new Mirror_magma(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[ielectron]->species->vt);
 
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;

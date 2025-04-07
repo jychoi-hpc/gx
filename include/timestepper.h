@@ -12,6 +12,7 @@
 #include "cusolve.h"
 #include "green.h"
 #include "exb.h"
+#include "mirror_magma.h"
 
 class Timestepper {
  public:
@@ -331,6 +332,7 @@ class Lie_Trotter : public Timestepper {
   MomentsG     ** B2         ;
   MomentsG     ** B3         ;
   Cublas_test  ** mirror     ;
+  Mirror_magma * mirror_magma;
 //  Cusolve      ** mirror    ;
   Fields	* f1	     ;
   cuComplex    ** phi_l      ;
