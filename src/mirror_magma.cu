@@ -20,8 +20,8 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     int Nband = 5;
     int KL = pars_->nm_in - 1;
     int KU = pars_->nm_in - 1;
-    //int nrhs = grids_->Nyc*grids_->Nx;
-    int nrhs = 1;
+    int nrhs = grids_->Nyc*grids_->Nx;
+    //int nrhs = 1;
     int batchCount = grids_->Nz;
     int ldda = 2*KL+KU+1;
     int lddb = N;
@@ -34,7 +34,7 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     int sizeB = ldb*nrhs*batchCount;
     int sizeBand = Nband*N*batchCount;
 
-    cuComplex *h_B, *h_X, *d_A, *d_B, *h_diags;
+    cuComplex *h_B, *h_X, *d_A, *h_diags;
     cuComplex *h_X_test;
     float error, Rnorm, Anorm, Xnorm, *work;
     int* ipiv, *cpu_info;
@@ -43,6 +43,7 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     cuComplex c_one     = MAGMA_C_ONE;
     cuComplex c_neg_one = MAGMA_C_NEG_ONE;
 
+    cuComplex** d_B = NULL;
     cuComplex **dA_array = NULL;
     cuComplex **dB_array = NULL;
     int     **dipiv_array = NULL;
@@ -90,13 +91,50 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     TESTING_CHECK( magma_imalloc_cpu( &cpu_info, batchCount ));
 
     TESTING_CHECK( magma_cmalloc( &d_A, ldda*N*batchCount    ));
-    TESTING_CHECK( magma_cmalloc( &d_B, lddb*nrhs*batchCount ));
+    //TESTING_CHECK( magma_cmalloc( &d_B, lddb*nrhs*batchCount ));
     TESTING_CHECK( magma_imalloc( &dipiv, N * batchCount ));
     TESTING_CHECK( magma_imalloc( &dinfo_array, batchCount ));
 
     TESTING_CHECK( magma_malloc( (void**) &dA_array,    batchCount * sizeof(cuComplex*) ));
-    TESTING_CHECK( magma_malloc( (void**) &dB_array,    batchCount * sizeof(cuComplex*) ));
+    //TESTING_CHECK( magma_malloc( (void**) &dB_array,    batchCount * sizeof(cuComplex*) ));
     TESTING_CHECK( magma_malloc( (void**) &dipiv_array, batchCount * sizeof(int*) ));
+
+
+    int nn1, nt1, nb1, nn2, nt2, nb2, nn3, nt3, nb3;
+
+    nn1 = N;		    nt1 = min(nn1, 512 );   nb1 = 1 + (nn1-1)/nt1;
+    nn2 = 1;         	    nt2 = min(nn2,  1 );   nb2 = 1 + (nn2-1)/nt2;
+    nn3 = 1;         	    nt3 = min(nn3,  1 );   nb3 = 1 + (nn3-1)/nt3;
+    
+    int nn4 = grids_->Nyc;             int nt4 = min(nn4, 16);   int nb4 = 1 + (nn4-1)/nt4;
+    int nn5 = grids_->Nx;              int nt5 = min(nn5,  4);   int nb5 = 1 + (nn5-1)/nt5;
+    int nn8 = grids_->Nz;   	     int nt8 = min(nn8,  8);   int nb8 = 1 + (nn8-1)/nt8;
+    int nn6 = pars_->nm_in * pars_->nl_in; int nt6 = min(nn6, 4); int nb6 = 1 + (nn6-1)/nt6;
+    int nn7 = grids_->Nx*grids_->Nz;   int nt7 = min(nn7,  8);   int nb7 = 1 + (nn7-1)/nt7;
+    
+    int nn9 = pars_->nm_in; 	     int nt9 = min(nn9, 16); int nb9 = 1 + (nn9-1)/nt9;
+    int nn10 = pars_->nl_in;   	     int nt10 = min(nn10,  4);   int nb10 = 1 + (nn10-1)/nt10;
+
+
+    dB = dim3(nt1, nt2, nt3);
+    dG = dim3(nb1, nb2, nb3); 
+
+    dB_bd = dim3(nt4, nt7, nt6);
+    dG_bd = dim3(nb4, nb7, nb6);
+
+    dB_lu_sm = dim3(nt9, nt10, nt8);
+    dG_lu_sm = dim3(nb9, nb10, nb8);
+
+    h_B = (cuComplex*) malloc(sizeof(cuComplex)*ldb*nrhs*batchCount);
+    d_B = (cuComplex**) malloc(sizeof(cuComplex*)*batchCount);
+    cuComplex* d_B_i = (cuComplex*) malloc(sizeof(cuComplex)*ldb*nrhs);
+    checkCuda(cudaMalloc((void**) &dB_array, sizeof(cuComplex*)*batchCount));
+    
+    for(int i = 0; i < batchCount; i++){
+        checkCuda(cudaMalloc((void**) &d_B[i], sizeof(cuComplex)*ldb*nrhs));
+    }
+
+    checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
     /* Initialize the matrices */
     int ione     = 1;
@@ -104,7 +142,17 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     //cudaMemset(h_diags, 0.0f, sizeof(cuComplex)*sizeBand);
     fill_diags(h_diags, N, pars_->nm_in, pars_->nl_in, batchCount, Nband, dcoeff[0]);
     fill_A(h_A, h_diags, h_offsets, N, lda, batchCount, KL, KU, grids_->Nm, Nband);
-    fill_B(h_B, N, nrhs, ldb, batchCount);
+
+    /*Initialize RHS and copy over to host*/
+    fill_dB_array(dB_array, N, nrhs, ldb, batchCount);
+    checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+    for(int i = 0; i < batchCount; i++){
+        checkCuda(cudaMemcpy(d_B[i], d_B_i, sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
+        for(int j = 0; j < ldb*nrhs; j++){
+            h_B[i*ldb*nrhs + j] = d_B_i[j];
+        }
+    }
+    //fill_B(h_B, N, nrhs, ldb, batchCount);
 
     save_rhs(h_B, h_X_test, ldb, 11, 0, nrhs);
 
@@ -144,13 +192,13 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     }
 
     cudaMemcpy(d_A, h_A, sizeof(cuComplex)*N*lda*batchCount, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, h_B, sizeof(cuComplex)*ldb*nrhs*batchCount, cudaMemcpyHostToDevice);
+    //cudaMemcpy(d_B, h_B, sizeof(cuComplex)*ldb*nrhs*batchCount, cudaMemcpyHostToDevice);
 
     /* ====================================================================
         Performs operation using MAGMA
         =================================================================== */
     magma_cset_pointer( dA_array, d_A, ldda, 0, 0, ldda*N,    batchCount, my_queue );
-    magma_cset_pointer( dB_array, d_B, lddb, 0, 0, lddb*nrhs, batchCount, my_queue );
+    //magma_cset_pointer( dB_array, d_B, lddb, 0, 0, lddb*nrhs, batchCount, my_queue );
     magma_iset_pointer( dipiv_array, dipiv, 1, 0, 0, N, batchCount, my_queue );
 
     // synchronous api with ptr array
@@ -164,7 +212,15 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     //gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
 
 
-    magma_cgetmatrix( N, nrhs*batchCount, d_B, lddb, h_X, ldb, my_queue );
+    //magma_cgetmatrix( N, nrhs*batchCount, d_B, lddb, h_X, ldb, my_queue );
+
+    checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+    for(int i = 0; i < batchCount; i++){
+        checkCuda(cudaMemcpy(d_B[i], d_B_i, sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
+        for(int j = 0; j < ldb*nrhs; j++){
+            h_X[i*ldb*nrhs + j] = d_B_i[j];
+        }
+    }
 
     save_rhs(h_X, h_X_test, ldb, 11, 1, nrhs);
 //
@@ -216,6 +272,10 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
 Mirror_magma::~Mirror_magma()
 {
 
+}
+
+void Mirror_magma::fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, int batchCount){
+    copy_brhs_from_g_d_id<<<dG_bd, dB_bd>>>(dB_array);
 }
 
 void Mirror_magma::save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs){

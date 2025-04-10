@@ -25,7 +25,8 @@ class Mirror_magma{
   void fill_diags(cuComplex* diags, int N, int M, int L, int batchCount, int Nband, double coeff);
   void save_matrix(cuComplex* A, cuComplex* A_full, int* h_offsets, int KL, int KU, int num_diags, int N, int lda, int batchCount, int ind);
   void save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs);
-  
+  void fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, int batchCount);
+
   cuComplex* h_A;
   cuComplex* A_bounce;
   cuComplex** A_inv_bounce;

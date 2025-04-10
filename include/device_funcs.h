@@ -566,6 +566,7 @@ __global__ void copy_brhs_apar_from_g_d(cuComplex** brhs, cuComplex* g);
 __global__ void copy_g_from_brhs_apar_d(cuComplex* g, cuComplex** brhs);
 __global__ void transpose_A(cuComplex* A_bounce, int LM);
 __global__ void copy_brhs_from_g_d(cuComplex** brhs, cuComplex* g, bool one);
+__global__ void copy_brhs_from_g_d_id(cuComplex** brhs);
 __global__ void copy_g_from_brhs_d(cuComplex* g, cuComplex** brhs);
 __global__ void copy_brhs_from_g(cuComplex* brhs, cuComplex* g, int iz);
 __global__ void copy_g_from_brhs(cuComplex* g, cuComplex* brhs, int iz);
