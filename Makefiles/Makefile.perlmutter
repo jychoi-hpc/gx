@@ -26,7 +26,7 @@ NETCDF_INC = -I ${NETCDF_ROOT}/include
 NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5
 
 # path to magma
-MAGMADIR     ?= $($PSCRATCH)/magma_3_4/magma-2.9.0/
+MAGMADIR     ?= /pscratch/sd/p/pkim18/magma_3_4/magma-2.9.0/
 CUDADIR      ?= $(CUDA_HOME)
 MAGMA_CFLAGS     := -I$(MAGMADIR)/include -I$(MAGMADIR)/sparse/include -I$(NVIDIA_PATH)/math_libs/include -I$(CUDADIR)/include -I/include
 
