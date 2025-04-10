@@ -178,9 +178,6 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     case Tmethod::imex_full : timestep = new IMEX_3stage_Full (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::lie_trotter : timestep = new Lie_Trotter (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
     case Tmethod::strang: timestep = new Strang (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
-
-    case Tmethod::lie_trotter_elec: timestep = new Lie_Trotter_Elec (linear, nonlinear, solver, pars, grids, geo, forcing, pars->dt,geo->gradpar,geo->bmagInv,geo->kperp2); break;
-
     case Tmethod::lie_trotter_green : timestep = new Lie_Trotter_Green (linear, nonlinear, solver, pars, grids, green, geo, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
     case Tmethod::imex_green : timestep = new IMEX_3stage_Green (linear, nonlinear, solver, pars, grids, green, cublas, forcing, pars->dt,geo->gradpar,geo->kperp2); break;
 

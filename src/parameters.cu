@@ -794,7 +794,6 @@ void Parameters::get_nml_vars(char* filename)
   if (scheme == "imex_full") scheme_opt = Tmethod::imex_full;
   if (scheme == "strang") scheme_opt = Tmethod::strang;
   if (scheme == "lie_trotter") scheme_opt = Tmethod::lie_trotter;
-  if (scheme == "lie_trotter_elec") scheme_opt = Tmethod::lie_trotter_elec;
   if (scheme == "lie_trotter_green") scheme_opt = Tmethod::lie_trotter_green;
   if (scheme == "imex_green") scheme_opt = Tmethod::imex_green;
 
