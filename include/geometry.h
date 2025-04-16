@@ -73,7 +73,9 @@ class Geometry {
   bool zero_shat_; 
   int nfp = 1;
 
-  float RBzeta; // = I(psi) ; needed for flow shear
+  // normalised coefficient of the pvg term in the GK equation up to a factor of g_exb
+  // so pvg term is proportional to pvg_coeff * g_exb * ky * <Phi> / vt * B(z)
+  float pvg_coeff;
   
   cuComplex * bmag_complex ;
   float * bgrad_temp ;

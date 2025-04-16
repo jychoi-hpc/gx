@@ -3445,8 +3445,7 @@ __global__ void __launch_bounds__(256) rhs_linear(const cuComplex* __restrict__ 
                            bool ei_colls,
                            float rhoc,
                            float g_exb,
-                           float RBzeta,
-                           float qsf)
+                           float pvg_coeff)
 {
   extern __shared__ cuComplex s_h[]; // aliased below by macro S_H, defined above
   
@@ -3582,8 +3581,9 @@ __global__ void __launch_bounds__(256) rhs_linear(const cuComplex* __restrict__ 
 	    + Jflr(l,  b_s)*(fprim_ + (2*l+1)*tprim_)
 	    + Jflr(l+1,b_s)*(l+1)*tprim_ 
 	   )
-      	   + Jflr(l,b_s) * (nu_*upar_bar_ + nuei_*vt_i/vt_*upar_bar_i);
-	   - 2.0 * iky_ * phi_ * Jflr(l, b_s)*( RBzeta*qsf*g_exb/(vt_*rhoc*bmag_)  ); // JFP: m=1 electrostatic flow shear term.
+      	   + Jflr(l,b_s) * (nu_*upar_bar_ + nuei_*vt_i/vt_*upar_bar_i)
+	   - iky_ * ( phi_ * Jflr(l, b_s) + bpar_ * ( Jflr(l, b_s) + Jflr(l-1,b_s) ) )
+                   *( pvg_coeff * g_exb /(vt_*bmag_)  ); // IGA -- normalised form of low-mach-number PVG term (used when including flow shear)
 
 	}
 	if (m==2) {

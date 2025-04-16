@@ -343,7 +343,8 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   rmaj = pars->rmaj;
   specie* species = pars->species_h;
 
-  RBzeta = rmaj; // I = R_0 B_axis = R_0 B_ref => I_N = R_0/a = rmaj
+  // PVG coefficient is R_geo (the radius at which the normalising B field is chosen) * drhodpsi
+  pvg_coeff = rmaj * drhodpsi;
   
   gradpar = (float) abs(1./(qsf*rmaj));
   zero_shat_ = pars->zero_shat;
