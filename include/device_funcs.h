@@ -467,8 +467,7 @@ __global__ void rhs_linear(const cuComplex* __restrict__ g,
 			   bool ei_colls,
                            float rhoc,
                            float g_exb,
-                           float RBzeta,
-                           float qsf); 
+                           float pvg_coeff );
 
 __global__ void get_s1 (float* s10, float* s11, const float* kx, const float* ky, const cuComplex* df, float w_osc);
 __global__ void get_s01 (float* s01, const cuComplex* favg, const float* kx, const float w_osc);
