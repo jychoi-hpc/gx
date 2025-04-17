@@ -1,0 +1,66 @@
+# Makefile for Cambridge CSD3
+# Maintainer: Bhavin Patel (bhavin.s.patel@ukaea.uk)
+#
+# add the following to your .bash_profile (or equivalent, depending on preferred shell; for csh, need to use setenv instead of export, etc):
+#
+# export GK_SYSTEM=dirac
+# export MAKEFLAGS=-IMakefiles
+# export LD_LIBRARY_PATH=/home/ir-pate3/nccl/lib:/usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/nvhpc-21.9-bdlhdhsi2uv2de3uwzsjwanohjsyemhc/Linux_x86_64/21.9/math_libs/lib64:$LD_LIBRARY_PATH
+# module load rhel8/default-amp
+# module load openmpi/4.1.1/nvhpc-22.3-kfhwcbg
+# module load python/3.11.0-icl
+# module load gsl/2.7/gcc-9.4.0-h7u5gx3
+# module load nvhpc/21.9/gcc-9.4.0-bdlhdhs
+# module load netcdf-fortran/4.5.4/openmpi-4.1.1/gcc-9.4.0-3vch6m4
+# module load gcc/9.4.0/gcc-11.2.0-tfj3hud
+#
+
+# paths to netcdf added as part of module load
+NETCDF_ROOT = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/netcdf-fortran-4.5.4-3vch6m4h7dhqssufkwghghc4kyze3d35
+HDF5_ROOT = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/hdf5-1.10.7-krjrm53dyfdtyaqwab47n22s6xdrne2d/
+NETCDF_INC = -I ${NETCDF_ROOT}/include -I ${HDF5_ROOT}/include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -lnetcdff -L ${HDF5_ROOT}/lib -lhdf5 
+
+# paths to openmpi
+OMPI_DIR = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/openmpi-4.1.1-epagguvqfrwuokz2ftiyzbxibae5afnn
+MPI_INC = -I ${OMPI_DIR}/include
+MPI_LIB = -L ${OMPI_DIR}/lib64 -lmpi 
+
+# paths to cutensor (already in path)
+CUTENSOR_ROOT = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/nvhpc-21.9-bdlhdhsi2uv2de3uwzsjwanohjsyemhc/Linux_x86_64/21.9/math_libs/
+
+
+CUTENSOR_INC = -I ${CUTENSOR_ROOT}/include
+CUTENSOR_LIB = -L ${CUTENSOR_ROOT}/lib64 -lcutensor -lcudart
+
+# Needs >2.7
+NCCL_ROOT = /home/ir-pate3/nccl
+
+# paths to cuda added as part of module load
+CUDA_INC = -I ${CUTENSOR_ROOT}/include -I ${NCCL_ROOT}/include
+CUDA_LIB = -L ${CUTENSOR_ROOT}/lib64 -lcufft_static -lculibos -lnvToolsExt -lcublas -lcusolver -lgomp -lcutensor -lcudart -L ${NCCL_ROOT}/lib -lnccl
+
+
+GSL_ROOT = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-9.4.0/gsl-2.7-h7u5gx3nmerdu3wo24nvpju5lxwat2zi
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas -lm
+
+CUDAARCH=80
+CC=/usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-11.2.0/gcc-9.4.0-tfj3hudbboichujpcuovc3kgm4imv3x5/bin/gcc
+C_LIB = -lm -lpthread -ldl
+
+GXX = /usr/local/software/spack/spack-rhel8-20210927/opt/spack/linux-centos8-zen2/gcc-11.2.0/gcc-9.4.0-tfj3hudbboichujpcuovc3kgm4imv3x5/bin/g++
+
+NVCC      = nvcc
+NVCCFLAGS = -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math 
+
+NVCCFLAGS = --std=c++17 --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+CXXFLAGS="-std=c++17"
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G 
+else
+  NVCCFLAGS += -O3
+endif
+
+
