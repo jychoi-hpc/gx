@@ -343,8 +343,8 @@ S_alpha_geo::S_alpha_geo(Parameters *pars, Grids *grids)
   rmaj = pars->rmaj;
   specie* species = pars->species_h;
 
-  // PVG coefficient is R_geo (the radius at which the normalising B field is chosen) * drhodpsi
-  pvg_coeff = rmaj * drhodpsi;
+  // PVG coefficient is q * R_geo (the radius at which the normalising B field is chosen) * drhodpsi
+  pvg_coeff = qsf * rmaj * drhodpsi;
   
   gradpar = (float) abs(1./(qsf*rmaj));
   zero_shat_ = pars->zero_shat;
@@ -681,7 +681,8 @@ geo_nc::geo_nc(Parameters *pars, Grids *grids)
   calculate_bgrad(grids);
   if(grids->iproc==0) DEBUGPRINT("bgrad calculated\n");
 
-  RBzeta = 0.0; // TODO: FIX
+  pvg_coeff = qsf * rmaj * drhodpsi;
+
 }
 
 // MFM - 07/09/17
@@ -887,7 +888,8 @@ Eik_geo::Eik_geo(Parameters *pars, Grids *grids)
   calculate_bgrad(grids);
   if(grids->iproc==0) CUDA_DEBUG("calc bgrad: %s \n");
 
-  RBzeta = 0.0; // TODO: FIX
+  pvg_coeff = qsf * rmaj * drhodpsi;
+
 }
 
 void Geometry::initializeOperatorArrays(Parameters* pars, Grids* grids) {
