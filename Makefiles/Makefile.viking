@@ -1,0 +1,69 @@
+# Makefile for Viking (University of York)
+# Maintainers: Bailey Cook (bailey.cook@york.ac.uk)
+#
+# Add the below to your `.bashrc` (or equivalent) or add them to a seperate file. 
+# For example, I have a `.gx.sh` file in my home directory that I manually source.
+# 
+# export GK_SYSTEM=viking
+# module purge
+# module load foss
+# module load NVHPC/25.1-CUDA-12.6.0
+# module load NCCL/2.20.5-GCCcore-13.2.0-CUDA-12.4.0
+# module load netCDF/4.9.2-gompi-2023b
+# module load HDF5/1.14.3-gompi-2023b
+# module load GSL/2.7-GCC-13.2.0
+# export NVHPC_ROOT=${EBROOTNVHPC}/Linux_x86_64/${EBVERSIONNVHPC}
+# export LD_LIBRARY_PATH=${NVHPC_ROOT}/math_libs/lib64:${NVHPC_ROOT}/cuda/lib64:$LD_LIBRARY_PATH
+
+# You must also set the `CUDAARCH` variable by uncommenting one of the lines below. 
+# Viking has 48× A40 GPUs with available on the various `gpu` partitions,
+# and 12× H100 GPUs available for up to three days on the `gpuplus` partition.
+# See: https://vikingdocs.york.ac.uk/using_viking/jobscript_examples.html#gpu-jobs
+# For A40 GPUs, use
+CUDAARCH = 86
+# For H100 GPUs, use
+# CUDAARCH = 90
+
+# Set path to NetCDF
+# `EBROOTNETCDF` and `HDF5-DIR` are defined by the parallel NetCDF and HDF5 libraries
+NETCDF_ROOT = ${EBROOTNETCDF}
+HDF5_ROOT = ${HDF5_DIR}
+NETCDF_INC = -I ${NETCDF_ROOT}/include
+NETCDF_LIB = -L ${NETCDF_ROOT}/lib -lnetcdf -L${HDF5_ROOT}/lib -lhdf5
+
+# Set path to MPI
+# `EBROOTOPENMPI` is defined by OpenMPI, which is included in the `foss` module
+MPI_ROOT = ${EBROOTOPENMPI}
+MPI_INC = -I ${MPI_ROOT}/include
+MPI_LIB = -L ${MPI_ROOT}/lib -lmpi
+
+# Set path to CUDA
+# `EBROOTNVHPC` and `EBVERSIONNVHPC` are defined by the NVIDIA HPC module
+NVHPC_ROOT = ${EBROOTNVHPC}/Linux_x86_64/${EBVERSIONNVHPC}
+NCCL_ROOT = ${NVHPC_ROOT}/comm_libs/nccl
+CUDA_INC = -I ${NVHPC_ROOT}/math_libs/include -I ${NCCL_ROOT}/include
+CUDA_LIB = -L ${NVHPC_ROOT}/math_libs/lib64 -lcufft_static -lcublas \
+           -lcusolver -lgomp -lcutensor -L ${NCCL_ROOT}/lib -lnccl \
+           -L ${NVHPC_ROOT}/cuda/lib64 -lcudart -lculibos -lnvToolsExt
+
+# Set path to the GNU Scientific Library (GSL)
+# `EBROOTGSL` is defined by the GSL module
+GSL_ROOT = ${EBROOTGSL}
+GSL_INC = -I ${GSL_ROOT}/include
+GSL_LIB = -L ${GSL_ROOT}/lib -lgsl -lgslcblas
+
+# Additional C libraries required for linking (already in `LD_LIBRARY_PATH`)
+C_LIB = -lpthread -ldl
+
+# Compilers and flags
+CXX = g++
+NVCC = ${NVHPC_ROOT}/compilers/bin/nvcc
+CFLAGS = -fPIC
+NVCCFLAGS = --forward-unknown-to-host-compiler -arch=compute_$(CUDAARCH) \
+            -code=sm_$(CUDAARCH) -use_fast_math -fPIC -rdc=true
+
+ifeq ($(debug),on)
+  NVCCFLAGS += -g -G
+else
+  NVCCFLAGS += -O3
+endif
