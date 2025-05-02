@@ -1190,3 +1190,81 @@ void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* 
     }
   }
 }
+
+ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
+{
+  nc_type = NC_FLOAT;
+  pars_ = pars;
+  grids_ = grids;
+  geo_ = geo;
+  ncdf_ = ncdf;
+  varname = "ZonalEnergyTransfer";
+  nc_group = ncdf_->nc_diagnostics->diagnostics_id;
+  ndim = 5;
+
+  dims[0] = ncdf_->nc_dims->time;
+  dims[1] = ncdf_->nc_dims->z;
+  dims[2] = ncdf_->nc_dims->source_ky;
+  dims[3] = ncdf_->nc_dims->source_kx;
+  dims[4] = ncdf_->nc_dims->target_kx;
+  
+  count[0] = 1; // each write is a single time slice
+  count[1] = grids->Nz;
+  count[2] = 2*(grids->Naky)-1; // extended ky array including negative values
+  count[3] = grids->Nakx;
+  count[4] = grids->Nakx;
+
+  N = grids->Nakx * grids->Nakx * (2*grids->Naky-1) * grids->Nz;
+  Nwrite = N;
+
+  int retval;
+  if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR) {
+    if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  } else {
+    if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
+    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+    
+    std::string description = "Nonlinear energy transfer to zonal flows";
+    if (retval = nc_put_att_text(nc_group, varid, "description", 
+                               strlen(description.c_str()), description.c_str())) ERR(retval);
+  }
+
+  cudaMalloc(&transfer_d, sizeof(float) * N);
+  transfer_h = (float*) malloc(sizeof(float) * Nwrite);
+
+  // TODO Get host indices of valid mediators, pass to `calculate_and_write`
+
+  dB = dim3(min(8, grids_->Nyc), min(8, grids_->Nx), min(8, grids_->Nz));
+  dG = dim3(1 + (grids_->Nyc-1)/dB.x, 1 + (grids_->Nx-1)/dB.y, 1 + (grids_->Nz-1)/dB.z);
+}
+
+ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
+{
+  cudaFree(transfer_d);
+  free(transfer_h);
+}
+
+void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, float dt)
+{
+
+  // TODO add function to extend `phi` to negative ky
+  // (see `get_full` in GS2 version)
+  zonal_energy_transfer_summand <<<dG, dB>>> (
+    transfer_d, 
+    fields->phi, 
+    grids_->kx_outh, 
+    grids_->source_ky
+  );
+
+  CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
+  
+  int retval;
+  start[0] = ncdf_->nc_grids->time_index;
+  if (retval = nc_put_vara(nc_group, varid, start, count, transfer_h)) ERR(retval);
+}
+
+void ZonalFlowEnergyTransferDiagnostic::dealias_and_reorder(float* transfer_d, float* transfer_h)
+{
+  // not needed but keeping it for now
+}

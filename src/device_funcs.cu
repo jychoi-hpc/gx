@@ -4262,3 +4262,24 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 // J''' == l J(l-1) * 2l J(l) + (l+1) J(l+1)
 // We should keep H around for both uperp and tperp
 // finally, we take t_bar to be a weighted sum of tpar_bar and tperp_bar.
+
+// Calculates the nonlinear energy transfer T_u to zonal flows via three-wave
+// coupling. T_u = T_u(kxt, kxs, kys, z, t), where kxt is the 'target' radial
+// wavenumber (kxt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
+// 'mediator' wave vector is determined through the coupling condition
+// k_t = k_s + k_m
+//
+// BC: Currently in the process of translating an existing GS2 diagnostic.
+// https://bitbucket.org/gyrokinetics/gs2/src/master/src/diagnostics/diagnostics_kinetic_energy_transfer.fpp
+// TODO implement me!
+__global__ void zonal_energy_transfer_summand(float* transfer, const cuComplex* phi, 
+            const float* kx, const float* ky_source)
+{
+  idXYZ;
+
+  // populate `transfer` array with zeros
+  if (idx < nx && idy < ny && idz < nz) {
+    int index = idx + nx*idy + nx*ny*idz;
+    transfer[index] = 0.0;
+  }
+}

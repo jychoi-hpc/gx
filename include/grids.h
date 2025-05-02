@@ -37,6 +37,8 @@ class Grids {
   float * kx_outh;  float * kz_outh;
   float * kpar_outh;
   float *y_h, *x_h, *z_h;
+  float *source_ky;
+  float *source_ky_h;
   int * m0_h;
   cuComplex * phasefac_ntft;
   cuComplex * phasefacminus_ntft;

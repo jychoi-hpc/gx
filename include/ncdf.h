@@ -117,6 +117,7 @@ class NetCDF_ids {
   nca *r_time; 
 
   int nx, ny, nz, nkz, kx_dim, ky_dim, kx, ky, kz;
+  int source_kx, source_ky, target_kx;
   int kperp_dim;
   int m_dim, l_dim, s_dim, y, y_dim, x, x_dim;
   int zy, zx, nzy, nzx;
@@ -215,8 +216,13 @@ class NcDims {
       if (retval = nc_inq_dimid (fileid, "l",       &l)) ERR(retval);
       if (retval = nc_inq_dimid (fileid, "s",       &species)) ERR(retval);
       if (retval = nc_inq_dimid (fileid, "time",    &time)) ERR(retval);
+      if (pars->write_zonal_energy_transfer) {
+        if (retval = nc_inq_dimid (fileid, "source_kx",  &source_kx)) ERR(retval);
+        if (retval = nc_inq_dimid (fileid, "source_ky",  &source_ky)) ERR(retval);
+        if (retval = nc_inq_dimid (fileid, "target_kx",  &target_kx)) ERR(retval);
+      }
     } else {
-      if (retval = nc_def_dim (fileid, "ri",      2,                &ri)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "ri",      2,               &ri)) ERR(retval);
       if (retval = nc_def_dim (fileid, "x",       pars->nx_in,     &x)) ERR(retval);
       if (retval = nc_def_dim (fileid, "y",       pars->ny_in,     &y)) ERR(retval);
       if (retval = nc_def_dim (fileid, "theta",   grids->Nz,       &z)) ERR(retval);  
@@ -226,17 +232,23 @@ class NcDims {
       if (retval = nc_def_dim (fileid, "m",       pars->nm_in,     &m)) ERR(retval);
       if (retval = nc_def_dim (fileid, "l",       pars->nl_in,     &l)) ERR(retval);
       if (retval = nc_def_dim (fileid, "s",       pars->nspec_in,  &species)) ERR(retval);
-      if (retval = nc_def_dim (fileid, "time",    NC_UNLIMITED,     &time)) ERR(retval);
+      if (retval = nc_def_dim (fileid, "time",    NC_UNLIMITED,    &time)) ERR(retval);
+      if (pars->write_zonal_energy_transfer) {
+        if (retval = nc_def_dim (fileid, "source_kx", grids->Nakx, &source_kx)) ERR(retval);
+        if (retval = nc_def_dim (fileid, "source_ky", 2*(grids->Naky)-1, &source_ky)) ERR(retval);
+        if (retval = nc_def_dim (fileid, "target_kx", grids->Nakx, &target_kx)) ERR(retval);
+      }
     }
   };
   ~NcDims() {};
 
   int time, species, kx, ky, kz, x, y, z, l, m, ri;
+  int source_kx, source_ky, target_kx;
 };
 
 class NcGrids {
  public:
-  NcGrids(Grids* grids, NcDims* nc_dims, int fileid, bool append) {
+  NcGrids(Parameters* pars, Grids* grids, NcDims* nc_dims, int fileid, bool append) : pars_(pars) {
     int retval;
     if (append) {
       if (retval = nc_inq_grp_ncid(fileid, "Grids", &grid_id)) ERR(retval);
@@ -247,7 +259,12 @@ class NcGrids {
       if (retval = nc_inq_varid(grid_id, "kz", &kz)) ERR(retval);
       if (retval = nc_inq_varid(grid_id, "x", &x))  ERR(retval);  
       if (retval = nc_inq_varid(grid_id, "y", &y))  ERR(retval);  
-      if (retval = nc_inq_varid(grid_id, "theta", &z))  ERR(retval);  
+      if (retval = nc_inq_varid(grid_id, "theta", &z))  ERR(retval);
+      if (pars->write_zonal_energy_transfer) {
+        if (retval = nc_inq_varid(grid_id, "source_kx", &source_kx)) ERR(retval);
+        if (retval = nc_inq_varid(grid_id, "source_ky", &source_ky)) ERR(retval);
+        if (retval = nc_inq_varid(grid_id, "target_kx", &target_kx)) ERR(retval);
+      }
 
       if (retval = nc_var_par_access(grid_id, time, NC_COLLECTIVE)) ERR(retval);
 
@@ -263,7 +280,12 @@ class NcGrids {
       if (retval = nc_def_var(grid_id, "kz", NC_FLOAT, 1, &nc_dims->kz, &kz)) ERR(retval);
       if (retval = nc_def_var(grid_id, "x",  NC_FLOAT, 1, &nc_dims->x, &x))  ERR(retval);  
       if (retval = nc_def_var(grid_id, "y",  NC_FLOAT, 1, &nc_dims->y, &y))  ERR(retval);  
-      if (retval = nc_def_var(grid_id, "theta",  NC_FLOAT, 1, &nc_dims->z, &z))  ERR(retval);  
+      if (retval = nc_def_var(grid_id, "theta",  NC_FLOAT, 1, &nc_dims->z, &z))  ERR(retval);
+      if (pars->write_zonal_energy_transfer) {
+        if (retval = nc_def_var(grid_id, "source_kx", NC_FLOAT, 1, &nc_dims->source_kx, &source_kx)) ERR(retval);
+        if (retval = nc_def_var(grid_id, "source_ky", NC_FLOAT, 1, &nc_dims->source_ky, &source_ky)) ERR(retval);
+        if (retval = nc_def_var(grid_id, "target_kx", NC_FLOAT, 1, &nc_dims->target_kx, &target_kx)) ERR(retval);
+      }
  
       if (retval = nc_put_var(grid_id, kx, grids->kx_outh)) ERR(retval);
       if (retval = nc_put_var(grid_id, ky, grids->ky_h)) ERR(retval);
@@ -271,6 +293,11 @@ class NcGrids {
       if (retval = nc_put_var(grid_id, x, grids->x_h)) ERR(retval);
       if (retval = nc_put_var(grid_id, y, grids->y_h)) ERR(retval);
       if (retval = nc_put_var(grid_id, z, grids->z_h)) ERR(retval);
+      if (pars->write_zonal_energy_transfer) {
+        if (retval = nc_put_var(grid_id, source_kx, grids->kx_outh)) ERR(retval);
+        if (retval = nc_put_var(grid_id, source_ky, grids->source_ky_h)) ERR(retval);
+        if (retval = nc_put_var(grid_id, target_kx, grids->kx_outh)) ERR(retval);
+      }
 
       if (retval = nc_var_par_access(grid_id, time, NC_COLLECTIVE)) ERR(retval);
     }
@@ -286,8 +313,12 @@ class NcGrids {
   int grid_id; // ncdf id for geo group
   // ncdf ids for grid variables
   int time, kx, ky, kz, x, y, z;
+  int source_kx, source_ky, target_kx;
 
   size_t time_index = 0;
+  
+ private:
+  Parameters* pars_;
 };
 
 class NcGeo {

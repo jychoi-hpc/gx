@@ -19,7 +19,7 @@ NetCDF::NetCDF(Parameters* pars, Grids* grids, Geometry* geo, string suffix) :
   nc_dims = new NcDims(pars_, grids_, fileid, pars_->restart && pars_->append_on_restart);
 
   // set-up and write grid variables (e.g. ky, kx, etc) to netcdf
-  nc_grids = new NcGrids(grids_, nc_dims, fileid, pars_->restart && pars_->append_on_restart);
+  nc_grids = new NcGrids(pars_, grids_, nc_dims, fileid, pars_->restart && pars_->append_on_restart);
 
   // set-up and write geometry variables to netcdf
   if (pars_->restart && pars_->append_on_restart) {

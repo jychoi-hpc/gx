@@ -346,3 +346,34 @@ class ParticleTempDiagnostic : public MomentsDiagnostic {
   ParticleTempDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, Nonlinear* nonlinear, NetCDF* ncdf);
   void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
+
+// Calculates the nonlinear energy transfer T_u to zonal flows via three-wave
+// coupling. T_u = T_u(kxt, kxs, kys, z, t), where kxt is the 'target' radial
+// wavenumber (kxt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
+// 'mediator' wave vector is determined through the coupling condition
+// k_t = k_s + k_m
+class ZonalFlowEnergyTransferDiagnostic {
+ public:
+  ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
+  ~ZonalFlowEnergyTransferDiagnostic();
+  void calculate_and_write(MomentsG** G, Fields* fields, float dt);
+ private:
+  void dealias_and_reorder(float* transfer_d, float* transfer_h);
+
+  int ndim, N, Nwrite;
+  int dims[6];
+  size_t count[6] = {0};
+  size_t start[6] = {0};
+  int varid;
+
+  string varname;
+  int nc_group, nc_type;
+  dim3 dG, dB;
+  Parameters* pars_;
+  Grids* grids_;
+  Geometry* geo_;
+  NetCDF* ncdf_;
+
+  float *transfer_d;
+  float *transfer_h;
+};

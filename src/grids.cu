@@ -32,7 +32,8 @@ Grids::Grids(Parameters* pars) :
   m0_h            = nullptr;  phasefac_ntft   = nullptr;  phasefacminus_ntft = nullptr;
   iKx             = nullptr;  x               = nullptr;
   kxstar          = nullptr;  kxbar_ikx_new   = nullptr;  kxbar_ikx_old   = nullptr;
-  phasefac_exb    = nullptr;  phasefacminus_exb = nullptr; 
+  phasefac_exb    = nullptr;  phasefacminus_exb = nullptr;
+  source_ky       = nullptr;  source_ky_h     = nullptr; 
 
 
   Nspecies = pars->nspec_in;
@@ -212,7 +213,7 @@ Grids::~Grids() {
   if (kxstar)          cudaFree(kxstar);
   if (kxbar_ikx_new)   cudaFree(kxbar_ikx_new);
   if (kxbar_ikx_old)   cudaFree(kxbar_ikx_old);
-  
+  if (source_ky)       cudaFree(source_ky);
   if (kpar_outh)       free(kpar_outh);
   if (kz_outh)         free(kz_outh);
   if (kx_outh)         free(kx_outh);
@@ -223,8 +224,9 @@ Grids::~Grids() {
   if (y_h)             free(y_h);
   if (z_h)             free(z_h);
   if (m0_h)            free(m0_h);
-  if (theta0_h)        free(theta0_h); 
- 
+  if (theta0_h)        free(theta0_h);
+  if (source_ky_h)     free(source_ky_h);
+
   ncclCommDestroy(ncclComm);
   ncclCommDestroy(ncclComm_s);
   ncclCommDestroy(ncclComm_m);
@@ -309,4 +311,19 @@ void Grids::init_ks_and_coords()
   kz_max = kz_h[Nz/2];
   kperp_min = min(kx_h[1], ky_h[1]);
   delete laguerre;
+
+  // Initialize source_ky array for zonal energy transfer diagnostic if enabled
+  if (pars_->write_zonal_energy_transfer) {
+    // source_ky contains the de-aliased ky array, but is extended
+    // to include ky < 0, so looks like [-kymax, ..., 0, ..., kymax]
+    source_ky_h = (float*) malloc(sizeof(float) * (2*Naky-1));
+    source_ky_h[Naky - 1] = ky_h[0];
+    for (int i = 1; i < Naky; i++) {
+      source_ky_h[i + Naky - 1] = ky_h[i];     // ky > 0
+      source_ky_h[Naky - 1 - i] = -ky_h[i];    // ky < 0
+    }
+    
+    cudaMalloc(&source_ky, sizeof(float) * (2*Naky-1));
+    cudaMemcpy(source_ky, source_ky_h, sizeof(float) * (2*Naky-1), cudaMemcpyHostToDevice);
+  }
 }

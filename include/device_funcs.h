@@ -255,6 +255,9 @@ __global__ void turbulent_heating_summand(float* heat, const cuComplex* phi, con
                                           const cuComplex* phi_old, const cuComplex* apar_old, const cuComplex* bpar_old, 
                                           const cuComplex* g, const cuComplex* g_old, const float* volJac, const float* kperp2, const specie sp, float dt);
 
+__global__ void zonal_energy_transfer_summand(float* transfer,
+          const cuComplex* phi, const float* kx, const float* ky_source);
+
 __global__ void init_kperp2(float* kperp2, const float* kx, const float* ky,
 			    const float* gds2, const float* gds21, const float* gds22,
 			    const float* bmagInv, const float shat);

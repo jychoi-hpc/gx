@@ -64,6 +64,7 @@ private:
   vector<unique_ptr<MomentsDiagnostic>> momentsDiagnosticList;
   FieldsDiagnostic *fieldsDiagnostic;
   FieldsXYDiagnostic *fieldsXYDiagnostic;
+  ZonalFlowEnergyTransferDiagnostic *zonalFlowEnergyTransferDiagnostic;
 };
 
 class Diagnostics_KREHM : public Diagnostics {

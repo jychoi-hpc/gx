@@ -304,6 +304,7 @@ void Parameters::get_nml_vars(char* filename)
   write_fluxes      = toml::find_or <bool> (tnml, "fluxes",         false );
   write_moms        = toml::find_or <bool> (tnml, "moments",           false );
   write_fields      = toml::find_or <bool> (tnml, "fields",         false );
+  write_zonal_energy_transfer = toml::find_or <bool> (tnml, "zonal_energy_transfer", false);
   
   tnml = nml;
   if (nml.contains("Resize")) tnml = toml::find (nml, "Resize");

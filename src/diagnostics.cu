@@ -97,6 +97,11 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
     momentsDiagnosticList.push_back(std::make_unique<ParticleTempDiagnostic>(pars_, grids_, geo_, nonlinear_, ncdf_big_));
   }
 
+  // set up zonal flow energy transfer diagnostic
+  if(pars_->write_zonal_energy_transfer) {
+    zonalFlowEnergyTransferDiagnostic = new ZonalFlowEnergyTransferDiagnostic(pars_, grids_, geo_, ncdf_);
+  }
+
   // set up stop file
   sprintf(stopfilename_, "%s.stop", pars_->run_name);
 }
@@ -111,6 +116,9 @@ Diagnostics_GK::~Diagnostics_GK()
   }
   if(pars_->write_moms) {
     momentsDiagnosticList.clear();
+  }
+  if(pars_->write_zonal_energy_transfer) {
+    delete zonalFlowEnergyTransferDiagnostic;
   }
 
   delete allSpectra_;
@@ -134,6 +142,10 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 
     if(pars_->write_omega) {
       growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
+    }
+    
+    if(pars_->write_zonal_energy_transfer) {
+      zonalFlowEnergyTransferDiagnostic->calculate_and_write(G, fields, dt);
     }
 
     ncdf_->nc_grids->write_time(time);
