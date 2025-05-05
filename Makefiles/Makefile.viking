@@ -5,6 +5,7 @@
 # For example, I have a `.gx.sh` file in my home directory that I manually source.
 # 
 # export GK_SYSTEM=viking
+# export PSM2_CUDA=1
 # module purge
 # module load foss
 # module load NVHPC/25.1-CUDA-12.6.0
