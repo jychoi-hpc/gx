@@ -1191,15 +1191,21 @@ void ParticleTempDiagnostic::calculate(MomentsG** G, Fields* fields, cuComplex* 
   }
 }
 
-ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf)
+ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, NetCDF* ncdf_big)
 {
   nc_type = NC_FLOAT;
   pars_ = pars;
   grids_ = grids;
   geo_ = geo;
   ncdf_ = ncdf;
+  ncdf_big_ = ncdf_big;
   varname = "ZonalEnergyTransfer";
+  
   nc_group = ncdf_->nc_diagnostics->diagnostics_id;
+  if (pars_->write_zonal_energy_transfer_full) {
+    nc_group_big = ncdf_big_->nc_diagnostics->diagnostics_id;
+  }
+  
   ndim = 5;
 
   dims[0] = ncdf_->nc_dims->time;
@@ -1218,16 +1224,33 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   Nwrite = N;
 
   int retval;
-  if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR) {
-    if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
-    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
-  } else {
-    if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
-    if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  
+  std::string description = "Nonlinear energy transfer to zonal flows";
+
+  // FIXME add reduced nonlinear energy transfer variables to `.out.nc` file.
+  // 
+  // if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR) {
+  //   if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
+  //   if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  // } else {
+  //   if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
+  //   if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
     
-    std::string description = "Nonlinear energy transfer to zonal flows";
-    if (retval = nc_put_att_text(nc_group, varid, "description", 
-                               strlen(description.c_str()), description.c_str())) ERR(retval);
+  //   if (retval = nc_put_att_text(nc_group, varid, "description", 
+  //                              strlen(description.c_str()), description.c_str())) ERR(retval);
+  // }
+
+  // Create variable for full nonlinear energy transfer in `.big.nc` file
+  if (pars_->write_zonal_energy_transfer_full) {
+    if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)==NC_NOERR) {
+      if (retval = nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group_big, varid_big, NC_COLLECTIVE)) ERR(retval);
+    } else {
+      if (retval = nc_def_var(nc_group_big, varname.c_str(), nc_type, ndim, dims, &varid_big)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group_big, varid_big, NC_COLLECTIVE)) ERR(retval);
+      if (retval = nc_put_att_text(nc_group_big, varid_big, "description", 
+                                 strlen(description.c_str()), description.c_str())) ERR(retval);
+    }
   }
 
   cudaMalloc(&transfer_d, sizeof(float) * N);
@@ -1245,9 +1268,8 @@ ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
   free(transfer_h);
 }
 
-void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, float dt)
+void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, float dt, int counter)
 {
-
   // TODO add function to extend `phi` to negative ky
   // (see `get_full` in GS2 version)
   zonal_energy_transfer_summand <<<dG, dB>>> (
@@ -1257,11 +1279,17 @@ void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(MomentsG** G, Fields
     grids_->source_ky
   );
 
-  CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
-  
   int retval;
   start[0] = ncdf_->nc_grids->time_index;
-  if (retval = nc_put_vara(nc_group, varid, start, count, transfer_h)) ERR(retval);
+  
+  // FIXME add ability to write reductions (z,t), (target_kx, t), etc. to `.out.nc` file
+  // CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
+  // if (retval = nc_put_vara(nc_group, varid, start, count, transfer_h)) ERR(retval);
+  
+  if (pars_->write_zonal_energy_transfer_full && (counter % pars_->nwrite_big == 0 || counter == 1)) {
+    CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
+    if (retval = nc_put_vara(nc_group_big, varid_big, start, count, transfer_h)) ERR(retval);
+  }
 }
 
 void ZonalFlowEnergyTransferDiagnostic::dealias_and_reorder(float* transfer_d, float* transfer_h)

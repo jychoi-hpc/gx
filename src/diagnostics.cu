@@ -18,7 +18,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   // write input parameters to netcdf
   if(! (pars_->restart && pars_->append_on_restart)) pars->store_ncdf(ncdf_->fileid, ncdf_->nc_dims);
 
-  if (pars_->write_fields || pars_->write_moms) {
+  if (pars_->write_fields || pars_->write_moms || pars_->write_zonal_energy_transfer_full) {
     ncdf_big_ = new NetCDF(pars_, grids_, geo_, ".big.nc");
   }
 
@@ -99,7 +99,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
 
   // set up zonal flow energy transfer diagnostic
   if(pars_->write_zonal_energy_transfer) {
-    zonalFlowEnergyTransferDiagnostic = new ZonalFlowEnergyTransferDiagnostic(pars_, grids_, geo_, ncdf_);
+    zonalFlowEnergyTransferDiagnostic = new ZonalFlowEnergyTransferDiagnostic(pars_, grids_, geo_, ncdf_, ncdf_big_);
   }
 
   // set up stop file
@@ -145,7 +145,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     }
     
     if(pars_->write_zonal_energy_transfer) {
-      zonalFlowEnergyTransferDiagnostic->calculate_and_write(G, fields, dt);
+      zonalFlowEnergyTransferDiagnostic->calculate_and_write(G, fields, dt, counter);
     }
 
     ncdf_->nc_grids->write_time(time);

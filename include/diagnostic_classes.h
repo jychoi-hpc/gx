@@ -354,9 +354,9 @@ class ParticleTempDiagnostic : public MomentsDiagnostic {
 // k_t = k_s + k_m
 class ZonalFlowEnergyTransferDiagnostic {
  public:
-  ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf);
+  ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, NetCDF* ncdf_big);
   ~ZonalFlowEnergyTransferDiagnostic();
-  void calculate_and_write(MomentsG** G, Fields* fields, float dt);
+  void calculate_and_write(MomentsG** G, Fields* fields, float dt, int counter);
  private:
   void dealias_and_reorder(float* transfer_d, float* transfer_h);
 
@@ -364,15 +364,16 @@ class ZonalFlowEnergyTransferDiagnostic {
   int dims[6];
   size_t count[6] = {0};
   size_t start[6] = {0};
-  int varid;
+  int varid, varid_big;
 
   string varname;
-  int nc_group, nc_type;
+  int nc_group, nc_group_big, nc_type;
   dim3 dG, dB;
   Parameters* pars_;
   Grids* grids_;
   Geometry* geo_;
   NetCDF* ncdf_;
+  NetCDF* ncdf_big_;
 
   float *transfer_d;
   float *transfer_h;

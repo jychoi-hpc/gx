@@ -237,7 +237,7 @@ class Parameters {
   bool dealias_kz;
   bool hegna;  // bb6126 - hegna test
   bool ei_colls, coll_conservation;
-  bool write_zonal_energy_transfer;
+  bool write_zonal_energy_transfer, write_zonal_energy_transfer_full;
   bool efit_eq, dfit_eq, gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, transp_eq, gs2d_eq;
   //  bool tpar_omegad_corrections, tperp_omegad_corrections, qpar_gradpar_corrections ;
   //  bool qpar_bgrad_corrections, qperp_gradpar_corrections, qperp_bgrad_corrections ;
