@@ -10,6 +10,7 @@
 #include "reductions.h"
 #include "spectra_calc.h"
 #include "device_funcs.h"
+#include "gpu_defs.h"
 #include "netcdf_par.h"
 #include "netcdf.h"
 #include "get_error.h"
@@ -356,25 +357,35 @@ class ZonalFlowEnergyTransferDiagnostic {
  public:
   ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, NetCDF* ncdf_big);
   ~ZonalFlowEnergyTransferDiagnostic();
-  void calculate_and_write(MomentsG** G, Fields* fields, float dt, int counter);
+  void calculate_and_write(Fields* fields, int counter);
  private:
-  void dealias_and_reorder(float* transfer_d, float* transfer_h);
+  void compute_reduced_spectra();
+  void write_reduced_spectra();
 
-  int ndim, N, Nwrite;
+  // Used for full transfer (written to `.big.nc` file)
+  int ndim, N, N_ext, Nwrite;
   int dims[6];
   size_t count[6] = {0};
   size_t start[6] = {0};
-  int varid, varid_big;
+  int varid_big;
+  float *transfer_d; // device array
+  float *transfer_h; // host array
+  cuComplex *phi_ext_d;
+  
+  // Used for reduced transfer (written to `.out.nc` file)
+  int z_dims[2], target_kx_dims[2], source_kx_dims[2], source_ky_dims[2];
+  size_t z_count[2] = {0}, target_kx_count[2] = {0}, source_kx_count[2] = {0}, source_ky_count[2] = {0};
+  size_t z_start[2] = {0}, target_kx_start[2] = {0}, source_kx_start[2] = {0}, source_ky_start[2] = {0};
+  int z_varid, target_kx_varid, source_kx_varid, source_ky_varid;
+  float *transfer_z_d, *transfer_target_kx_d, *transfer_source_kx_d, *transfer_source_ky_d;
+  float *transfer_z_h, *transfer_target_kx_h, *transfer_source_kx_h, *transfer_source_ky_h;
 
   string varname;
   int nc_group, nc_group_big, nc_type;
-  dim3 dG, dB;
+  dim3 dG, dB, dG_gf, dB_gf;
   Parameters* pars_;
   Grids* grids_;
   Geometry* geo_;
   NetCDF* ncdf_;
   NetCDF* ncdf_big_;
-
-  float *transfer_d;
-  float *transfer_h;
 };

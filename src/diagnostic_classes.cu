@@ -1210,37 +1210,90 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
 
   dims[0] = ncdf_->nc_dims->time;
   dims[1] = ncdf_->nc_dims->z;
-  dims[2] = ncdf_->nc_dims->source_ky;
+  dims[2] = ncdf_->nc_dims->target_kx;
   dims[3] = ncdf_->nc_dims->source_kx;
-  dims[4] = ncdf_->nc_dims->target_kx;
-  
+  dims[4] = ncdf_->nc_dims->source_ky;
+
   count[0] = 1; // each write is a single time slice
   count[1] = grids->Nz;
-  count[2] = 2*(grids->Naky)-1; // extended ky array including negative values
+  count[2] = grids->Nakx;
   count[3] = grids->Nakx;
-  count[4] = grids->Nakx;
+  count[4] = 2*(grids->Naky)-1; // extended ky array including negative values
 
   N = grids->Nakx * grids->Nakx * (2*grids->Naky-1) * grids->Nz;
+  N_ext = grids_->Nakx * (2*grids_->Naky-1) * grids_->Nz; // for extended phi
   Nwrite = N;
 
   int retval;
   
   std::string description = "Nonlinear energy transfer to zonal flows";
 
-  // FIXME add reduced nonlinear energy transfer variables to `.out.nc` file.
-  // 
-  // if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group, varname.c_str(), &varid)==NC_NOERR) {
-  //   if (retval = nc_inq_varid(nc_group, varname.c_str(), &varid)) ERR(retval);
-  //   if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
-  // } else {
-  //   if (retval = nc_def_var(nc_group, varname.c_str(), nc_type, ndim, dims, &varid)) ERR(retval);
-  //   if (retval = nc_var_par_access(nc_group, varid, NC_COLLECTIVE)) ERR(retval);
+  // Create NetCDF variables for reduced spectra in `.out.nc` file. The reduced
+  // spectra are (z, t), (target_kx, t), (source_kx, t) and (source_ky, t)
+  if (pars_->write_zonal_energy_transfer) {
+    struct ReducedSpectrum {
+      const char* name;
+      int nc_dim;
+      int count_val;
+      int* dims;
+      size_t* counts;
+      int* varid;
+    };
     
-  //   if (retval = nc_put_att_text(nc_group, varid, "description", 
-  //                              strlen(description.c_str()), description.c_str())) ERR(retval);
-  // }
+    ReducedSpectrum spectra[] = {
+      {"z", ncdf_->nc_dims->z, grids->Nz, z_dims, z_count, &z_varid},
+      {"target_kx", ncdf_->nc_dims->target_kx, grids->Nakx, target_kx_dims, target_kx_count, &target_kx_varid},
+      {"source_kx", ncdf_->nc_dims->source_kx, grids->Nakx, source_kx_dims, source_kx_count, &source_kx_varid},
+      {"source_ky", ncdf_->nc_dims->source_ky, 2*(grids->Naky)-1, source_ky_dims, source_ky_count, &source_ky_varid}
+    };
+    
+    // Process all spectra using the same pattern
+    for (int i = 0; i < 4; i++) {
+      spectra[i].dims[0] = ncdf_->nc_dims->time;
+      spectra[i].dims[1] = spectra[i].nc_dim;
+      spectra[i].counts[0] = 1;
+      spectra[i].counts[1] = spectra[i].count_val;
+      
+      std::string spec_varname = varname + "_" + spectra[i].name;
+      
+      // Get variable from restart variable or create new variable
+      if (pars_->restart && pars_->append_on_restart) {
+        bool exists = (nc_inq_varid(nc_group, spec_varname.c_str(), spectra[i].varid) == NC_NOERR);
+        
+        if (exists) {
+          if (retval = nc_var_par_access(nc_group, *(spectra[i].varid), NC_COLLECTIVE)) ERR(retval);
+        } else {
+          if (retval = nc_def_var(nc_group, spec_varname.c_str(), nc_type, 2, spectra[i].dims, spectra[i].varid)) ERR(retval);
+          if (retval = nc_var_par_access(nc_group, *(spectra[i].varid), NC_COLLECTIVE)) ERR(retval);
+          if (retval = nc_put_att_text(nc_group, *(spectra[i].varid), "description", 
+                                   strlen(description.c_str()), description.c_str())) ERR(retval);
+        }
+      } else {
+        if (retval = nc_def_var(nc_group, spec_varname.c_str(), nc_type, 2, spectra[i].dims, spectra[i].varid)) ERR(retval);
+        if (retval = nc_var_par_access(nc_group, *(spectra[i].varid), NC_COLLECTIVE)) ERR(retval);
+        if (retval = nc_put_att_text(nc_group, *(spectra[i].varid), "description", 
+                                 strlen(description.c_str()), description.c_str())) ERR(retval);
+      }
+    }
+    
+    // Allocate memory for all reduced spectra and initialise to zero
+    cudaMalloc(&transfer_z_d, sizeof(float) * grids->Nz);
+    checkCuda(cudaMemset(transfer_z_d, 0.0, sizeof(float) * grids->Nz));
+    cudaMalloc(&transfer_target_kx_d, sizeof(float) * grids->Nakx);
+    checkCuda(cudaMemset(transfer_target_kx_d, 0.0, sizeof(float) * grids->Nakx));
+    cudaMalloc(&transfer_source_kx_d, sizeof(float) * grids->Nakx);
+    checkCuda(cudaMemset(transfer_source_kx_d, 0.0, sizeof(float) * grids->Nakx));
+    cudaMalloc(&transfer_source_ky_d, sizeof(float) * (2*(grids->Naky)-1));
+    checkCuda(cudaMemset(transfer_source_ky_d, 0.0, sizeof(float) * (2*(grids->Naky)-1)));
+    
+    transfer_z_h = (float*) malloc(sizeof(float) * grids->Nz);
+    transfer_target_kx_h = (float*) malloc(sizeof(float) * grids->Nakx);
+    transfer_source_kx_h = (float*) malloc(sizeof(float) * grids->Nakx);
+    transfer_source_ky_h = (float*) malloc(sizeof(float) * (2*(grids->Naky)-1));
+  }
 
-  // Create variable for full nonlinear energy transfer in `.big.nc` file
+  // Create NetCDF variable for full transfer in `.big.nc` file. The full
+  // transfer is resolved over `(t, z, target_kx, source_kx, source_ky)`.
   if (pars_->write_zonal_energy_transfer_full) {
     if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)==NC_NOERR) {
       if (retval = nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)) ERR(retval);
@@ -1254,45 +1307,159 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   }
 
   cudaMalloc(&transfer_d, sizeof(float) * N);
+  checkCuda(cudaMemset(transfer_d, 0.0, sizeof(float) * N));
+  cudaMalloc(&phi_ext_d, sizeof(cuComplex) * N_ext);
+  checkCuda(cudaMemset(phi_ext_d, 0.0, sizeof(float) * N_ext));
   transfer_h = (float*) malloc(sizeof(float) * Nwrite);
 
-  // TODO Get host indices of valid mediators, pass to `calculate_and_write`
+  // Set kernel dimension for transfer calculation based on the loop structure:
+  // `z`, `target_kx`, `source_kx`, `source_ky`, where `z` is the outer-most
+  // loop and `source_ky` is the inner-most loop. Assign threads to the three
+  // inner loops and handle `z` with a loop inside the kernel
+  int nn1, nn2, nn3, nt1, nt2, nt3, nb1, nb2, nb3;
+  
+  nn1 = 2*(grids->Naky)-1;  nt1 = min(nn1, 16);  nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids->Nakx;        nt2 = min(nn2, 8);   nb2 = 1 + (nn2-1)/nt2;
+  nn3 = grids->Nakx;        nt3 = min(nn3, 8);   nb3 = 1 + (nn3-1)/nt3;
+  
+  dB = dim3(nt1, nt2, nt3);
+  dG = dim3(nb1, nb2, nb3);
 
-  dB = dim3(min(8, grids_->Nyc), min(8, grids_->Nx), min(8, grids_->Nz));
-  dG = dim3(1 + (grids_->Nyc-1)/dB.x, 1 + (grids_->Nx-1)/dB.y, 1 + (grids_->Nz-1)/dB.z);
+  // Set kernel dimensions for `get_full` calculation (extends phi to include
+  // ky < 0)
+  nn1 = grids->Naky;        nt1 = min(nn1, 16);  nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids->Nakx;        nt2 = min(nn2, 16);  nb2 = 1 + (nn2-1)/nt2;
+  nn3 = grids->Nz;          nt3 = min(nn3, 4);   nb3 = 1 + (nn3-1)/nt3;
+  
+  dB_gf = dim3(nt1, nt2, nt3);
+  dG_gf = dim3(nb1, nb2, nb3);
 }
 
 ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
 {
   cudaFree(transfer_d);
+  cudaFree(phi_ext_d);
   free(transfer_h);
+  
+  if (pars_->write_zonal_energy_transfer) {
+    cudaFree(transfer_z_d);
+    cudaFree(transfer_target_kx_d);
+    cudaFree(transfer_source_kx_d);
+    cudaFree(transfer_source_ky_d);
+    
+    free(transfer_z_h);
+    free(transfer_target_kx_h);
+    free(transfer_source_kx_h);
+    free(transfer_source_ky_h);
+  }
 }
 
-void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(MomentsG** G, Fields* fields, float dt, int counter)
+void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(Fields* f, int counter)
 {
-  // TODO add function to extend `phi` to negative ky
-  // (see `get_full` in GS2 version)
+  // Extend phi to include negative ky values using get_full
+  get_full<<<dG_gf, dB_gf>>>(phi_ext_d, f->phi);
+  
+  // Calculate zonal energy transfer using the extended phi array
   zonal_energy_transfer_summand <<<dG, dB>>> (
-    transfer_d, 
-    fields->phi, 
-    grids_->kx_outh, 
-    grids_->source_ky
+    transfer_d,
+    phi_ext_d,
+    grids_->kx,
+    grids_->source_ky,
+    geo_->bmag
   );
 
   int retval;
   start[0] = ncdf_->nc_grids->time_index;
   
-  // FIXME add ability to write reductions (z,t), (target_kx, t), etc. to `.out.nc` file
-  // CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
-  // if (retval = nc_put_vara(nc_group, varid, start, count, transfer_h)) ERR(retval);
+  // Calculate and write reduced spectra to .out.nc file if needed
+  if (pars_->write_zonal_energy_transfer) {
+    compute_reduced_spectra();
+    write_reduced_spectra();
+  }
   
+  // Write full 5D array to .big.nc file if needed
   if (pars_->write_zonal_energy_transfer_full && (counter % pars_->nwrite_big == 0 || counter == 1)) {
     CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
     if (retval = nc_put_vara(nc_group_big, varid_big, start, count, transfer_h)) ERR(retval);
   }
 }
 
-void ZonalFlowEnergyTransferDiagnostic::dealias_and_reorder(float* transfer_d, float* transfer_h)
+void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
 {
-  // not needed but keeping it for now
+  int nz = grids_->Nz;
+  int nkys = 2*(grids_->Naky)-1;
+  int nkxs = grids_->Nakx;
+  int ntkx = grids_->Nakx;
+  
+  int dims[4] = {nz, ntkx, nkxs, nkys};
+  
+  // Define reduction kernels and their output sizes
+  struct ReductionSpec {
+    const char* name;
+    float* data_d;
+    float* data_h;
+    int count;
+    void (*reduce_kernel)(float*, const float*);
+    int dim_idx[3];  // index of `dims` kernel is threading over
+    int var_idx;     // index of the dimension to loop over within the kernel
+  };
+  
+  // Define the dimension indices being used for thread blocks
+  // And the dimension that will be looped over inside the kernel
+  // Indices reference the dims array: 0=nz, 1=ntkx, 2=nkxs, 3=nkys
+  ReductionSpec reductions[] = {
+    {"z", transfer_z_d, transfer_z_h, nz, reduce_to_z, {3, 2, 1}},
+    {"target_kx", transfer_target_kx_d, transfer_target_kx_h, ntkx, reduce_to_target_kx, {3, 2, 0}},
+    {"source_kx", transfer_source_kx_d, transfer_source_kx_h, nkxs, reduce_to_source_kx, {3, 1, 0}},
+    {"source_ky", transfer_source_ky_d, transfer_source_ky_h, nkys, reduce_to_source_ky, {2, 1, 0}}
+  };
+  
+  // Launch the reduction kernels
+  for (int i = 0; i < 4; i++) {
+    dim3 dB(
+      min(8, dims[reductions[i].dim_idx[0]]),
+      min(8, dims[reductions[i].dim_idx[1]]),
+      min(8, dims[reductions[i].dim_idx[2]])
+    );
+    
+    dim3 dG(
+      1 + (dims[reductions[i].dim_idx[0]]-1)/dB.x,
+      1 + (dims[reductions[i].dim_idx[1]]-1)/dB.y,
+      1 + (dims[reductions[i].dim_idx[2]]-1)/dB.z
+    );
+    
+    reductions[i].reduce_kernel<<<dG, dB>>>(
+      reductions[i].data_d, 
+      transfer_d
+    );
+  }
+
+  for (int i = 0; i < 4; i++) {
+    CP_TO_CPU(reductions[i].data_h, reductions[i].data_d, sizeof(float) * reductions[i].count);
+  }
+}
+
+void ZonalFlowEnergyTransferDiagnostic::write_reduced_spectra()
+{
+  int retval;
+  
+  struct NetCDFVarSpec {
+    const char* name;
+    int varid;
+    size_t* start;
+    size_t* count;
+    float* data;
+  };
+  
+  NetCDFVarSpec ncvars[] = {
+    {"z", z_varid, z_start, z_count, transfer_z_h},
+    {"target_kx", target_kx_varid, target_kx_start, target_kx_count, transfer_target_kx_h},
+    {"source_kx", source_kx_varid, source_kx_start, source_kx_count, transfer_source_kx_h},
+    {"source_ky", source_ky_varid, source_ky_start, source_ky_count, transfer_source_ky_h}
+  };
+  
+  for (int i = 0; i < 4; i++) {
+    ncvars[i].start[0] = ncdf_->nc_grids->time_index;
+    if (retval = nc_put_vara(nc_group, ncvars[i].varid, ncvars[i].start, ncvars[i].count, ncvars[i].data)) ERR(retval);
+  }
 }

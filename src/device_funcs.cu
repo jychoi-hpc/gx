@@ -4263,23 +4263,208 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 // We should keep H around for both uperp and tperp
 // finally, we take t_bar to be a weighted sum of tpar_bar and tperp_bar.
 
-// Calculates the nonlinear energy transfer T_u to zonal flows via three-wave
-// coupling. T_u = T_u(kxt, kxs, kys, z, t), where kxt is the 'target' radial
-// wavenumber (kxt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
-// 'mediator' wave vector is determined through the coupling condition
-// k_t = k_s + k_m
-//
-// BC: Currently in the process of translating an existing GS2 diagnostic.
-// https://bitbucket.org/gyrokinetics/gs2/src/master/src/diagnostics/diagnostics_kinetic_energy_transfer.fpp
-// TODO implement me!
-__global__ void zonal_energy_transfer_summand(float* transfer, const cuComplex* phi, 
-            const float* kx, const float* ky_source)
+// Function to extend `phi` to include negative ky
+__global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
 {
   idXYZ;
+  
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int nkys = 2*naky - 1;
 
-  // populate `transfer` array with zeros
-  if (idx < nx && idy < ny && idz < nz) {
-    int index = idx + nx*idy + nx*ny*idz;
-    transfer[index] = 0.0;
+  if ((unmasked(idx, idy) || (idx == 0 && idy == 0)) && idz < nz) {
+    // `idx` indexes the full kx array, including aliased values. However,
+    // `phi_ext` only includes the de-aliased kx values, so the indices
+    // don't line up. To convert to indices in the de-aliased array, we:
+    //   1) Convert `idx` (FFT layout) to `ikx` (ordered negative to positive):
+    //      `idx` array layout: `[0, 1, ..., nx/2, -nx/2 +1, ..., -1]`
+    //      `ikx` array layout: `[-nx/2+1, ..., -1, 0, 1, ..., nx/2]`
+    //   2) Note that de-aliased `ikx` array spans `-(nx-1)/3 - 1` to
+    //      `(nx-1)/3`, which we can map to [0, nakx-1] by adding
+    //      `(nx-1)/3 + 1`
+    // Similarly, `idy` indexes the full ky array, which also includes
+    // aliased values: `[0, 1, ..., ny/2]`. The extended iky array looks
+    // like `[-ny/2+1, ..., -1, 0, 1, ..., ny/2]` and the de-aliased values
+    // span `-(ny-1)/3 - 1` to `(ny-1)/3`, which we can map to [0, 2*naky-2]
+    // by adding `(ny-1)/3 + 1` (note there are `2*naky-1` values, so the
+    // final index is `2*naky-2`).
+    int ikx = get_ikx(idx);
+    int dealiased_ikx = ikx + ((nx-1)/3) + 1;
+    
+    int iky_pos = idy;
+    int dealiased_iky_pos = iky_pos + ((ny-1)/3) + 1;
+
+    // Get indices for `phi` and `phi_ext`
+    unsigned int idxyz = get_idxyz(idx, idy, idz);
+    unsigned int idxyz_ext = dealiased_iky_pos + nkys * (dealiased_ikx + nakx * idz);
+
+    // Directly copy `phi` (this includes all ky >= 0)
+    phi_ext[idxyz_ext] = phi[idxyz];
+    
+    // Handle ky < 0 using reality condition, skipping ky = 0 (handled above)
+    if (idy != 0) {
+      int iky_neg = -idy;
+      int dealiased_iky_neg = iky_neg + ((ny-1)/3) + 1;
+      
+      // We need the conjugate of the corresponding positive ky with flipped
+      // kx due to the reality condition
+      int idx_flipped = (nx - idx) % nx;
+      
+      if (unmasked(idx_flipped, idy)) {
+        // Get the corresponding positive-ky value (from the flipped kx position)
+        unsigned int idxyz_flipped = get_idxyz(idx_flipped, idy, idz);
+        
+        // Calculate the index in the extended array for the negative ky
+        unsigned int idxyz_neg = dealiased_iky_neg + nkys * (dealiased_ikx + nakx * idz);
+        
+        // Copy the conjugate of the flipped value
+        phi_ext[idxyz_neg] = cuConjf(phi[idxyz_flipped]);
+      }
+    }
+  }
+}
+
+// Calculates the nonlinear energy transfer T_u to zonal flows via three-wave
+// coupling. T_u = T_u(kxt, kxs, kys, z, t), where kxt is the 'target' radial
+// wavenumber (kyt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
+// 'mediator' wave vector is determined through the coupling condition
+// k_t = k_s + k_m
+__global__ void zonal_energy_transfer_summand(float* transfer,
+          const cuComplex* phi_ext, const float* kx, const float* source_ky,
+          const float* bmag)
+{
+  unsigned int ikys = get_id1();  // source_ky index
+  unsigned int ikxs = get_id2();  // source_kx index
+  unsigned int ikxt = get_id3();  // target_kx index
+
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int nkys = 2*naky - 1;
+
+  if (ikys < nkys && ikxs < nakx && ikxt < nakx) {
+    // FIXME we could define a look-up array `valid_mediator` indexed by
+    // `source_idxyz` and `target_idxyz` that we populate once during the
+    // initialisation of the diagnostic, rather than at every time step.
+    int ikx0 = nakx / 2; // Index for kx=0
+    int iky0 = nkys / 2; // Index for ky=0 in the extended array
+    int ikyt = iky0;     // Target is zonal mode (ky=0)
+
+    // Calculate mediator indices using selection rule k_m = k_t - k_s
+    int ikxm = ikxt - ikxs + ikx0;
+    int ikym = ikyt - ikys + iky0;
+    
+    // Check if the mediator mode is valid (inside array bounds)
+    bool valid_mediator = (ikxm >= 0 && ikxm < nakx && ikym >= 0 && ikym < nkys);
+    if (valid_mediator) {
+      for (int iz = 0; iz < nz; iz++) {
+        // Calculate 4D array index: `(z, target_kx, source_kx, source_ky)`,
+        // where `z` is the outer-most loop and `source_ky` is the inner-most
+        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+        
+        // Calculate prefactor (coupling coefficient)
+        // FIXME we could calculate the k-dependent part of `prefactor`
+        // outside of this function, then pass it as an argument instead of
+        // calculating it every `nwrite` steps. 
+        float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] / pow(bmag[iz], 3);
+        
+        // Get indices for `phi_ext`
+        unsigned int target_idxyz = ikyt + nkys * (ikxt + nakx * iz);
+        unsigned int source_idxyz = ikys + nkys * (ikxs + nakx * iz);
+        unsigned int mediator_idxyz = ikym + nkys * (ikxm + nakx * iz);
+        
+        // For mediator and source with negative ky, adjust with conjugate
+        cuComplex phi_target = phi_ext[target_idxyz];
+        cuComplex phi_source = phi_ext[source_idxyz];
+        cuComplex phi_mediator = phi_ext[mediator_idxyz];
+        
+        // Calculate nonlinear energy transfer
+        cuComplex triple_product = phi_target * phi_mediator * phi_source;
+        transfer[index] = 2.0f * prefactor * triple_product.x; // use real part
+      }
+    } else {
+      // Zero out transfer for invalid mode combinations
+      for (int iz = 0; iz < nz; iz++) {
+        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+        transfer[index] = 0.0f; // FIXME better to initialise `transfer` to 0?
+      }
+    }
+  }
+}
+
+// Reduction kernels for zonal flow energy transfer diagnostic
+
+// Reduce to z,t (sum over source_ky, source_kx, target_kx)
+__global__ void reduce_to_z(float* result, const float* data) 
+{
+  unsigned int ikys = get_id1();
+  unsigned int ikxs = get_id2();
+  unsigned int ikxt = get_id3();
+
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nkys = 2*naky - 1;
+
+  if (ikys < 2*naky-1 && ikxs < nakx && ikxt < nakx) {
+    for (int iz = 0; iz < nz; iz++) {
+      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      atomicAdd(&result[iz], data[index]);
+    }
+  }
+}
+
+// Reduce to target_kx,t (sum over source_ky, source_kx, z)
+__global__ void reduce_to_target_kx(float* result, const float* data) 
+{
+  unsigned int ikys = get_id1();
+  unsigned int ikxs = get_id2();
+  unsigned int iz = get_id3();
+
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nkys = 2*naky - 1;
+  
+  if (ikys < 2*naky-1 && ikxs < nakx && iz < nz) {
+    for (int ikxt = 0; ikxt < nakx; ikxt++) {
+      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      atomicAdd(&result[ikxt], data[index]);
+    }
+  }
+}
+
+// Reduce to source_kx,t (sum over source_ky, target_kx, z)
+__global__ void reduce_to_source_kx(float* result, const float* data) 
+{
+  unsigned int ikys = get_id1();
+  unsigned int ikxt = get_id2();
+  unsigned int iz = get_id3();
+
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nkys = 2*naky - 1;
+  
+  if (ikys < 2*naky-1 && ikxt < nakx && iz < nz) {
+    for (int ikxs = 0; ikxs < nakx; ikxs++) {
+      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      atomicAdd(&result[ikxs], data[index]);
+    }
+  }
+}
+
+// Reduce to source_ky,t (sum over source_kx, target_kx, z)
+__global__ void reduce_to_source_ky(float* result, const float* data) 
+{
+  unsigned int ikxs = get_id1();
+  unsigned int ikxt = get_id2();
+  unsigned int iz = get_id3();
+
+  unsigned int nakx = (1 + 2*((nx-1)/3));
+  unsigned int naky = (1 + ((ny-1)/3));
+  unsigned int nkys = 2*naky - 1;
+  
+  if (ikxs < nakx && ikxt < nakx && iz < nz) {
+    for (int ikys = 0; ikys < 2*naky-1; ikys++) {
+      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      atomicAdd(&result[ikys], data[index]);
+    }
   }
 }

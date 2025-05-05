@@ -145,7 +145,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
     }
     
     if(pars_->write_zonal_energy_transfer) {
-      zonalFlowEnergyTransferDiagnostic->calculate_and_write(G, fields, dt, counter);
+      zonalFlowEnergyTransferDiagnostic->calculate_and_write(fields, counter);
     }
 
     ncdf_->nc_grids->write_time(time);
