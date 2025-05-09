@@ -1241,10 +1241,10 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
     };
     
     ReducedSpectrum spectra[] = {
-      {"z", ncdf_->nc_dims->z, grids->Nz, z_dims, z_count, &z_varid},
-      {"target_kx", ncdf_->nc_dims->target_kx, grids->Nakx, target_kx_dims, target_kx_count, &target_kx_varid},
-      {"source_kx", ncdf_->nc_dims->source_kx, grids->Nakx, source_kx_dims, source_kx_count, &source_kx_varid},
-      {"source_ky", ncdf_->nc_dims->source_ky, 2*(grids->Naky)-1, source_ky_dims, source_ky_count, &source_ky_varid}
+      {"zt", ncdf_->nc_dims->z, grids->Nz, z_dims, z_count, &z_varid},
+      {"target_kxt", ncdf_->nc_dims->target_kx, grids->Nakx, target_kx_dims, target_kx_count, &target_kx_varid},
+      {"source_kxt", ncdf_->nc_dims->source_kx, grids->Nakx, source_kx_dims, source_kx_count, &source_kx_varid},
+      {"source_kyt", ncdf_->nc_dims->source_ky, 2*(grids->Naky)-1, source_ky_dims, source_ky_count, &source_ky_varid}
     };
     
     // Process all spectra using the same pattern
@@ -1408,10 +1408,10 @@ void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
   // And the dimension that will be looped over inside the kernel
   // Indices reference the dims array: 0=nz, 1=ntkx, 2=nkxs, 3=nkys
   ReductionSpec reductions[] = {
-    {"z", transfer_z_d, transfer_z_h, nz, reduce_to_z, {3, 2, 1}},
-    {"target_kx", transfer_target_kx_d, transfer_target_kx_h, ntkx, reduce_to_target_kx, {3, 2, 0}},
-    {"source_kx", transfer_source_kx_d, transfer_source_kx_h, nkxs, reduce_to_source_kx, {3, 1, 0}},
-    {"source_ky", transfer_source_ky_d, transfer_source_ky_h, nkys, reduce_to_source_ky, {2, 1, 0}}
+    {"zt", transfer_z_d, transfer_z_h, nz, reduce_to_z, {3, 2, 1}},
+    {"target_kxt", transfer_target_kx_d, transfer_target_kx_h, ntkx, reduce_to_target_kx, {3, 2, 0}},
+    {"source_kxt", transfer_source_kx_d, transfer_source_kx_h, nkxs, reduce_to_source_kx, {3, 1, 0}},
+    {"source_kyt", transfer_source_ky_d, transfer_source_ky_h, nkys, reduce_to_source_ky, {2, 1, 0}}
   };
   
   // Launch the reduction kernels
@@ -1452,10 +1452,10 @@ void ZonalFlowEnergyTransferDiagnostic::write_reduced_spectra()
   };
   
   NetCDFVarSpec ncvars[] = {
-    {"z", z_varid, z_start, z_count, transfer_z_h},
-    {"target_kx", target_kx_varid, target_kx_start, target_kx_count, transfer_target_kx_h},
-    {"source_kx", source_kx_varid, source_kx_start, source_kx_count, transfer_source_kx_h},
-    {"source_ky", source_ky_varid, source_ky_start, source_ky_count, transfer_source_ky_h}
+    {"zt", z_varid, z_start, z_count, transfer_z_h},
+    {"target_kxt", target_kx_varid, target_kx_start, target_kx_count, transfer_target_kx_h},
+    {"source_kxt", source_kx_varid, source_kx_start, source_kx_count, transfer_source_kx_h},
+    {"source_kyt", source_ky_varid, source_ky_start, source_ky_count, transfer_source_ky_h}
   };
   
   for (int i = 0; i < 4; i++) {
