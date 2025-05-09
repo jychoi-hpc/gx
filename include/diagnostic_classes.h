@@ -348,6 +348,23 @@ class ParticleTempDiagnostic : public MomentsDiagnostic {
   void calculate(MomentsG** G, Fields* f, cuComplex* f_h, float* fXY_h, cuComplex* tmp_d);
 };
 
+// A struct to handle the various 1D spectra in ZF energy transfer diagnostic
+struct ReductionSpectra {
+  int dims[2];      // e.g. (z, t) or (source_kx, t)
+  size_t count[2] = {0};
+  size_t start[2] = {0};
+  int varid;
+
+  float* data_d;
+  float* data_h;
+
+  const char* name;
+  int dim_size;
+  int dim_idx[3];
+
+  void (*reduce_kernel)(float*, const float*); // pointer to reduction kernel
+};
+
 // Calculates the nonlinear energy transfer T_u to zonal flows via three-wave
 // coupling. T_u = T_u(kxt, kxs, kys, z, t), where kxt is the 'target' radial
 // wavenumber (kxt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
@@ -364,21 +381,17 @@ class ZonalFlowEnergyTransferDiagnostic {
 
   // Used for full transfer (written to `.big.nc` file)
   int ndim, N, N_ext, Nwrite;
-  int dims[6];
-  size_t count[6] = {0};
-  size_t start[6] = {0};
+  int dims[5];
+  size_t count[5] = {0};
+  size_t start[5] = {0};
   int varid_big;
   float *transfer_d; // device array
   float *transfer_h; // host array
   cuComplex *phi_ext_d;
-  
+
   // Used for reduced transfer (written to `.out.nc` file)
-  int z_dims[2], target_kx_dims[2], source_kx_dims[2], source_ky_dims[2];
-  size_t z_count[2] = {0}, target_kx_count[2] = {0}, source_kx_count[2] = {0}, source_ky_count[2] = {0};
-  size_t z_start[2] = {0}, target_kx_start[2] = {0}, source_kx_start[2] = {0}, source_ky_start[2] = {0};
-  int z_varid, target_kx_varid, source_kx_varid, source_ky_varid;
-  float *transfer_z_d, *transfer_target_kx_d, *transfer_source_kx_d, *transfer_source_ky_d;
-  float *transfer_z_h, *transfer_target_kx_h, *transfer_source_kx_h, *transfer_source_ky_h;
+  static const int NUM_SPECTRA = 4;
+  ReductionSpectra reduction[NUM_SPECTRA]; // z, target_kx, source_kx, source_ky
 
   string varname;
   int nc_group, nc_group_big, nc_type;
