@@ -4308,7 +4308,7 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
       
       // We need the conjugate of the corresponding positive ky with flipped
       // kx due to the reality condition
-      int idx_flipped = (nx - idx) % nx;
+      int idx_flipped = (nx - 1 - idx) % nx;
       
       if (unmasked(idx_flipped, idy)) {
         // Get the corresponding positive-ky value (from the flipped kx position)
