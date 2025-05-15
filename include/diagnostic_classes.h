@@ -387,6 +387,7 @@ class ZonalFlowEnergyTransferDiagnostic {
   int varid_big;
   float *transfer_d; // device array
   float *transfer_h; // host array
+  float *kx_outd;    // un-FFT-shifted kx array: [-kx_max, ..., 0, ..., kx_max]
   cuComplex *phi_ext_d;
 
   // Used for reduced transfer (written to `.out.nc` file)

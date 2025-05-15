@@ -4334,6 +4334,10 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
 // wavenumber (kyt = 0 for ZFs), kxs and kys are the 'source' wavenumbers. The
 // 'mediator' wave vector is determined through the coupling condition
 // k_t = k_s + k_m
+//
+// Note: This uses `kx_out` (with [-kx_max, ..., 0, ..., kx_max] layout),
+// instead of the usual `kx` (with FFT-shifted [0, ..., kx_max, ..., -kx_max]
+// layout)
 __global__ void zonal_energy_transfer_summand(float* transfer,
           const cuComplex* phi_ext, const float* kx, const float* source_ky,
           const float* bmag)

@@ -1300,6 +1300,8 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
     }
   }
 
+  checkCuda(cudaMalloc(&kx_outd, sizeof(float) * grids->Nakx));
+  checkCuda(cudaMemcpy(kx_outd, grids->kx_outh, sizeof(float) * grids->Nakx, cudaMemcpyHostToDevice));
   checkCuda(cudaMalloc(&transfer_d, sizeof(float) * N));
   checkCuda(cudaMemset(transfer_d, 0.0, sizeof(float) * N));
   checkCuda(cudaMalloc(&phi_ext_d, sizeof(cuComplex) * N_ext));
@@ -1333,6 +1335,7 @@ ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
 {
   cudaFree(transfer_d);
   cudaFree(phi_ext_d);
+  cudaFree(kx_outd);
   free(transfer_h);
 
   if (pars_->write_zonal_energy_transfer) {
@@ -1352,7 +1355,7 @@ void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(Fields* f, int count
   zonal_energy_transfer_summand <<<dG, dB>>> (
     transfer_d,
     phi_ext_d,
-    grids_->kx,
+    kx_outd,
     grids_->source_ky,
     geo_->bmag
   );
