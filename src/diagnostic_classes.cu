@@ -1286,8 +1286,6 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
     }
   }
 
-  // Create NetCDF variable for full transfer in `.big.nc` file. The full
-  // transfer is resolved over `(t, z, target_kx, source_kx, source_ky)`.
   if (pars_->write_zonal_energy_transfer_full) {
     if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)==NC_NOERR) {
       if (retval = nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)) ERR(retval);
@@ -1295,8 +1293,30 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
     } else {
       if (retval = nc_def_var(nc_group_big, varname.c_str(), nc_type, ndim, dims, &varid_big)) ERR(retval);
       if (retval = nc_var_par_access(nc_group_big, varid_big, NC_COLLECTIVE)) ERR(retval);
-      if (retval = nc_put_att_text(nc_group_big, varid_big, "description", 
+      if (retval = nc_put_att_text(nc_group_big, varid_big, "description",
                                  strlen(description.c_str()), description.c_str())) ERR(retval);
+    }
+
+    // Define phi_ext variable for debugging
+    std::string phi_ext_varname = "phi_ext";
+    std::string phi_ext_description = "Extended phi array including negative ky (for debugging)";
+
+    // Use the same dimension order as FieldsDiagnostic for consistency
+    int dims_phi_ext[5];
+    dims_phi_ext[0] = ncdf_->nc_dims->time;
+    dims_phi_ext[1] = ncdf_->nc_dims->source_ky;  // Use source_ky since it's defined for extended ky range
+    dims_phi_ext[2] = ncdf_->nc_dims->kx;
+    dims_phi_ext[3] = ncdf_->nc_dims->z;
+    dims_phi_ext[4] = ncdf_->nc_dims->ri;
+
+    if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, phi_ext_varname.c_str(), &phi_ext_varid)==NC_NOERR) {
+      if (retval = nc_inq_varid(nc_group_big, phi_ext_varname.c_str(), &phi_ext_varid)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group_big, phi_ext_varid, NC_COLLECTIVE)) ERR(retval);
+    } else {
+      if (retval = nc_def_var(nc_group_big, phi_ext_varname.c_str(), nc_type, 5, dims_phi_ext, &phi_ext_varid)) ERR(retval);
+      if (retval = nc_var_par_access(nc_group_big, phi_ext_varid, NC_COLLECTIVE)) ERR(retval);
+      if (retval = nc_put_att_text(nc_group_big, phi_ext_varid, "description",
+                                 strlen(phi_ext_description.c_str()), phi_ext_description.c_str())) ERR(retval);
     }
   }
 
@@ -1307,6 +1327,7 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   checkCuda(cudaMalloc(&phi_ext_d, sizeof(cuComplex) * N_ext));
   checkCuda(cudaMemset(phi_ext_d, 0.0, sizeof(float) * N_ext));
   transfer_h = (float*) malloc(sizeof(float) * Nwrite);
+  phi_ext_h = (cuComplex*) malloc(sizeof(cuComplex) * N_ext);
 
   // Set kernel dimension for transfer calculation based on the loop structure:
   // `z`, `target_kx`, `source_kx`, `source_ky`, where `z` is the outer-most
@@ -1337,6 +1358,7 @@ ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
   cudaFree(phi_ext_d);
   cudaFree(kx_outd);
   free(transfer_h);
+  free(phi_ext_h);
 
   if (pars_->write_zonal_energy_transfer) {
     for (int i = 0; i < NUM_SPECTRA; i++) {
@@ -1373,6 +1395,55 @@ void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(Fields* f, int count
   if (pars_->write_zonal_energy_transfer_full && (counter % pars_->nwrite_big == 0 || counter == 1)) {
     CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
     if (retval = nc_put_vara(nc_group_big, varid_big, start, count, transfer_h)) ERR(retval);
+
+    // Copy phi_ext to host and write to netCDF for debugging
+    CP_TO_CPU(phi_ext_h, phi_ext_d, sizeof(cuComplex) * N_ext);
+
+    // Need to convert cuComplex array to float array for netCDF storage
+    float* phi_ext_float = (float*) malloc(sizeof(float) * N_ext * 2); // 2 for real and imag parts
+
+    // Calculate count for phi_ext (matching dimension order with FieldsDiagnostic)
+    size_t count_phi_ext[5] = {0};
+    count_phi_ext[0] = 1; // each write is a single time slice
+    count_phi_ext[1] = 2*(grids_->Naky)-1; // extended ky array including negative values
+    count_phi_ext[2] = grids_->Nakx;
+    count_phi_ext[3] = grids_->Nz;
+    count_phi_ext[4] = 2; // real and imaginary parts
+
+    // The phi_ext array has already been reordered for NetCDF output during its creation in get_full
+    // It has a different layout than regular phi: (ky, kx, z) instead of (y, x, z)
+    // We need to write it to NetCDF using the appropriate format
+
+    int Nakx = grids_->Nakx;    // Number of kx values in dealiased array
+    int Naky = grids_->Naky;    // Number of ky values in original array (ky >= 0)
+    int Nz   = grids_->Nz;
+    int nkys = 2*Naky-1;        // Number of ky values in extended array (including negative ky)
+
+    // Convert phi_ext to float array for NetCDF, with interleaved real and imag parts
+    for (int ikys = 0; ikys < nkys; ikys++) {
+        for (int ikx = 0; ikx < Nakx; ikx++) {
+            for (int iz = 0; iz < Nz; iz++) {
+                // Calculate indices for output array (using the same ordering as FieldsDiagnostic)
+                // Order: (ky, kx, z, ri) with ri as the fastest index
+                int ir = 0 + 2*(iz + Nz*ikx + Nz*Nakx*ikys);
+                int ii = 1 + 2*(iz + Nz*ikx + Nz*Nakx*ikys);
+
+                // Calculate index in the phi_ext array
+                // The phi_ext array layout is (ky, kx, z) as created by get_full
+                int ig = ikys + nkys*ikx + nkys*Nakx*iz;
+
+                // Copy real and imaginary parts
+                phi_ext_float[ir] = phi_ext_h[ig].x;
+                phi_ext_float[ii] = phi_ext_h[ig].y;
+            }
+        }
+    }
+
+    // Write to netCDF
+    if (retval = nc_put_vara(nc_group_big, phi_ext_varid, start, count_phi_ext, phi_ext_float)) ERR(retval);
+
+    // Free temporary array
+    free(phi_ext_float);
   }
 }
 

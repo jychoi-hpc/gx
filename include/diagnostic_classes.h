@@ -385,10 +385,12 @@ class ZonalFlowEnergyTransferDiagnostic {
   size_t count[5] = {0};
   size_t start[5] = {0};
   int varid_big;
+  int phi_ext_varid; // Variable ID for the phi_ext debug field
   float *transfer_d; // device array
   float *transfer_h; // host array
   float *kx_outd;    // un-FFT-shifted kx array: [-kx_max, ..., 0, ..., kx_max]
   cuComplex *phi_ext_d;
+  cuComplex *phi_ext_h; // host array for debugging extended phi
 
   // Used for reduced transfer (written to `.out.nc` file)
   static const int NUM_SPECTRA = 4;
