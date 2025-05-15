@@ -26,3 +26,5 @@ src/version.c
 *.tmp
 unit_tests/test_*
 *.png
+
+**/.claude/settings.local.json

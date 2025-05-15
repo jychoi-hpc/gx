@@ -4313,10 +4313,15 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
       if (unmasked(idx_flipped, idy)) {
         // Get the corresponding positive-ky value (from the flipped kx position)
         unsigned int idxyz_flipped = get_idxyz(idx_flipped, idy, idz);
-        
+
+        // Get corresponding `ikx` index for `idx_flipped` then map to
+        // de-aliased range.
+        int ikx_flipped = get_ikx(idx_flipped);
+        int dealiased_ikx_flipped = ikx_flipped + ((nx-1)/3) + 1;
+
         // Calculate the index in the extended array for the negative ky
-        unsigned int idxyz_neg = dealiased_iky_neg + nkys * (dealiased_ikx + nakx * idz);
-        
+        unsigned int idxyz_neg = dealiased_iky_neg + nkys * (dealiased_ikx_flipped + nakx * idz);
+
         // Copy the conjugate of the flipped value
         phi_ext[idxyz_neg] = cuConjf(phi[idxyz_flipped]);
       }
