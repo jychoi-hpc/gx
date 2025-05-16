@@ -1281,7 +1281,7 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
       }
 
       checkCuda(cudaMalloc(&reduction[i].data_d, sizeof(float) * reduction[i].dim_size));
-      checkCuda(cudaMemset(reduction[i].data_d, 0.0, sizeof(float) * reduction[i].dim_size));
+      checkCuda(cudaMemset(reduction[i].data_d, 0., sizeof(float) * reduction[i].dim_size));
       reduction[i].data_h = (float*) malloc(sizeof(float) * reduction[i].dim_size);
     }
   }
@@ -1323,9 +1323,9 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   checkCuda(cudaMalloc(&kx_outd, sizeof(float) * grids->Nakx));
   checkCuda(cudaMemcpy(kx_outd, grids->kx_outh, sizeof(float) * grids->Nakx, cudaMemcpyHostToDevice));
   checkCuda(cudaMalloc(&transfer_d, sizeof(float) * N));
-  checkCuda(cudaMemset(transfer_d, 0.0, sizeof(float) * N));
+  checkCuda(cudaMemset(transfer_d, 0., sizeof(float) * N));
   checkCuda(cudaMalloc(&phi_ext_d, sizeof(cuComplex) * N_ext));
-  checkCuda(cudaMemset(phi_ext_d, 0.0, sizeof(float) * N_ext));
+  checkCuda(cudaMemset(phi_ext_d, 0., sizeof(cuComplex) * N_ext));
   transfer_h = (float*) malloc(sizeof(float) * Nwrite);
   phi_ext_h = (cuComplex*) malloc(sizeof(cuComplex) * N_ext);
 
@@ -1344,8 +1344,8 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
 
   // Set kernel dimensions for `get_full` calculation (extends phi to include
   // ky < 0)
-  nn1 = grids->Naky;        nt1 = min(nn1, 16);  nb1 = 1 + (nn1-1)/nt1;
-  nn2 = grids->Nakx;        nt2 = min(nn2, 16);  nb2 = 1 + (nn2-1)/nt2;
+  nn1 = grids->Nyc;         nt1 = min(nn1, 16);  nb1 = 1 + (nn1-1)/nt1;
+  nn2 = grids->Nx;          nt2 = min(nn2, 16);  nb2 = 1 + (nn2-1)/nt2;
   nn3 = grids->Nz;          nt3 = min(nn3, 4);   nb3 = 1 + (nn3-1)/nt3;
   
   dB_gf = dim3(nt1, nt2, nt3);
@@ -1455,6 +1455,11 @@ void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
   int ntkx = grids_->Nakx;
 
   int dims[4] = {nz, ntkx, nkxs, nkys};
+
+  // Zero out reduction arrays before accumulating new values
+  for (int i = 0; i < NUM_SPECTRA; i++) {
+    checkCuda(cudaMemset(reduction[i].data_d, 0, sizeof(float) * reduction[i].dim_size));
+  }
 
   // Launch kernels for each reduction
   for (int i = 0; i < NUM_SPECTRA; i++) {
