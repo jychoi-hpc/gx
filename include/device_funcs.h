@@ -255,7 +255,7 @@ __global__ void turbulent_heating_summand(float* heat, const cuComplex* phi, con
                                           const cuComplex* phi_old, const cuComplex* apar_old, const cuComplex* bpar_old, 
                                           const cuComplex* g, const cuComplex* g_old, const float* volJac, const float* kperp2, const specie sp, float dt);
 
-__global__ void get_full(cuComplex* phi_ext, const cuComplex* phi);
+__global__ void get_full(cuComplex* f_ext, const cuComplex* f);
 __global__ void zonal_energy_transfer_summand(float* transfer, const cuComplex* phi_ext,
           const float* kx, const float* source_ky, const float* bmag);
 __global__ void reduce_to_z(float* result, const float* data);

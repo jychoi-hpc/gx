@@ -4264,8 +4264,9 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 // finally, we take t_bar to be a weighted sum of tpar_bar and tperp_bar.
 
 // ---------------------------------------------------------------------------
-// Function to extend `phi` to include negative ky
-__global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
+// Extend field variable to include negative ky using the reality
+// condition: f(-kx, -ky, z) = conj(f(kx, ky, z))
+__global__ void get_full(cuComplex* f_ext, const cuComplex* f)
 {
   idXYZ;
   
@@ -4276,30 +4277,29 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
   if ((unmasked(idx, idy) || (idx == 0 && idy == 0)) && idz < nz) {
     // Map indices `idx` and `idy` to indices in the de-aliased arrays
     // `akx` and `source_ky` arrays
-    int ikx_da = get_ikx(idx) + nakx/2;
+    int ikx = get_ikx(idx);
+    int ikx_da = ikx + nakx/2;
     int iky_da_pos = idy + nkys/2;   // for ky >= 0
 
-    // Get indices for `phi` and `phi_ext`
+    // Get indices for field array `f` and extended field array `f_ext`
     unsigned int idxyz = get_idxyz(idx, idy, idz);
     unsigned int idxyz_ext_pos = iky_da_pos + nkys * (ikx_da + nakx * idz);
 
-    // Directly copy `phi` (this includes all ky >= 0)
-    phi_ext[idxyz_ext_pos] = phi[idxyz];
+    // Directly copy field for ky >= 0
+    f_ext[idxyz_ext_pos] = f[idxyz];
     
-    // Handle ky < 0 using reality condition, skipping ky = 0 (handled above)
+    // Handle ky < 0 using reality condition, skipping ky = 0 (handled above).
     if (idy != 0) {
+      int idx_neg = get_idx(-ikx);
+      int ikx_da_neg = -ikx + nakx/2;
       int iky_da_neg = -idy + nkys/2;
-      
-      // Flip kx
-      int idx_flipped = (nx - 1 - idx) % nx;
-      int ikx_da_flipped = get_ikx(idx_flipped) + nakx/2;
 
       // Calculate the index in the extended array for the negative ky
-      unsigned int idxyz_flipped = get_idxyz(idx_flipped, idy, idz);
-      unsigned int idxyz_ext_neg = iky_da_neg + nkys * (ikx_da_flipped + nakx * idz);
+      unsigned int idxyz_neg = get_idxyz(idx_neg, idy, idz);
+      unsigned int idxyz_ext_neg = iky_da_neg + nkys * (ikx_da_neg + nakx * idz);
 
       // Copy the conjugate of the flipped value
-      phi_ext[idxyz_ext_neg] = cuConjf(phi[idxyz_flipped]);
+      f_ext[idxyz_ext_neg] = cuConjf(f[idxyz_neg]);
     }
   }
 }

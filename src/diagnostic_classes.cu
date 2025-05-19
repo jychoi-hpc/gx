@@ -1342,8 +1342,8 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   dB = dim3(nt1, nt2, nt3);
   dG = dim3(nb1, nb2, nb3);
 
-  // Set kernel dimensions for `get_full` calculation (extends phi to include
-  // ky < 0)
+  // Set kernel dimensions for `get_full` calculation (extends fields to
+  // include ky < 0 using the reality condition)
   nn1 = grids->Nyc;         nt1 = min(nn1, 16);  nb1 = 1 + (nn1-1)/nt1;
   nn2 = grids->Nx;          nt2 = min(nn2, 16);  nb2 = 1 + (nn2-1)/nt2;
   nn3 = grids->Nz;          nt3 = min(nn3, 4);   nb3 = 1 + (nn3-1)/nt3;
