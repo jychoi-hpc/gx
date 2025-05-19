@@ -98,7 +98,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   }
 
   // set up zonal flow energy transfer diagnostic
-  if(pars_->write_zonal_energy_transfer) {
+  if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
     zonalFlowEnergyTransferDiagnostic = new ZonalFlowEnergyTransferDiagnostic(pars_, grids_, geo_, ncdf_, ncdf_big_);
   }
 
@@ -117,7 +117,7 @@ Diagnostics_GK::~Diagnostics_GK()
   if(pars_->write_moms) {
     momentsDiagnosticList.clear();
   }
-  if(pars_->write_zonal_energy_transfer) {
+  if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
     delete zonalFlowEnergyTransferDiagnostic;
   }
 
@@ -144,7 +144,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
       growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
     }
     
-    if(pars_->write_zonal_energy_transfer) {
+    if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
       zonalFlowEnergyTransferDiagnostic->calculate_and_write(fields, counter);
     }
 
