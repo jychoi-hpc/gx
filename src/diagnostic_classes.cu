@@ -1209,20 +1209,19 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
   ndim = 5;
 
   dims[0] = ncdf_->nc_dims->time;
-  dims[1] = ncdf_->nc_dims->z;
-  dims[2] = ncdf_->nc_dims->target_kx;
-  dims[3] = ncdf_->nc_dims->source_kx;
-  dims[4] = ncdf_->nc_dims->source_ky;
+  dims[1] = ncdf_->nc_dims->source_ky;
+  dims[2] = ncdf_->nc_dims->source_kx;
+  dims[3] = ncdf_->nc_dims->target_kx;
+  dims[4] = ncdf_->nc_dims->z;
 
   count[0] = 1; // each write is a single time slice
-  count[1] = grids->Nz;
+  count[1] = 2*(grids->Naky)-1; // extended ky array including negative values
   count[2] = grids->Nakx;
   count[3] = grids->Nakx;
-  count[4] = 2*(grids->Naky)-1; // extended ky array including negative values
+  count[4] = grids->Nz;
 
-  N = grids->Nakx * grids->Nakx * (2*grids->Naky-1) * grids->Nz;
-  N_ext = grids_->Nakx * (2*grids_->Naky-1) * grids_->Nz; // for extended phi
-  Nwrite = N;
+  N = grids->Nakx * grids->Nakx * (2*grids->Naky-1) * grids->Nz; // transfer
+  N_ext = grids_->Nakx * (2*grids_->Naky-1) * grids_->Nz;        // phi_ext
 
   int retval;
   
@@ -1241,10 +1240,10 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
 
     // Define each reduction
     ReductionConfig configs[] = {
-      {"zt", ncdf_->nc_dims->z, grids->Nz, reduce_to_z, {3, 2, 1}},
-      {"target_kxt", ncdf_->nc_dims->target_kx, grids->Nakx, reduce_to_target_kx, {3, 2, 0}},
-      {"source_kxt", ncdf_->nc_dims->source_kx, grids->Nakx, reduce_to_source_kx, {3, 1, 0}},
-      {"source_kyt", ncdf_->nc_dims->source_ky, 2*(grids->Naky)-1, reduce_to_source_ky, {2, 1, 0}}
+      {"zt", ncdf_->nc_dims->z, grids->Nz, reduce_to_z, {1, 2, 3}},
+      {"target_kxt", ncdf_->nc_dims->target_kx, grids->Nakx, reduce_to_target_kx, {1, 2, 4}},
+      {"source_kxt", ncdf_->nc_dims->source_kx, grids->Nakx, reduce_to_source_kx, {1, 3, 4}},
+      {"source_kyt", ncdf_->nc_dims->source_ky, 2*(grids->Naky)-1, reduce_to_source_ky, {2, 3, 4}}
     };
 
     // Initialise each reduction
@@ -1281,11 +1280,11 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
       }
 
       checkCuda(cudaMalloc(&reduction[i].data_d, sizeof(float) * reduction[i].dim_size));
-      checkCuda(cudaMemset(reduction[i].data_d, 0., sizeof(float) * reduction[i].dim_size));
       reduction[i].data_h = (float*) malloc(sizeof(float) * reduction[i].dim_size);
     }
   }
 
+  // Create NetCDF variables for full transfer in `.big.nc` file.
   if (pars_->write_zonal_energy_transfer_full) {
     if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)==NC_NOERR) {
       if (retval = nc_inq_varid(nc_group_big, varname.c_str(), &varid_big)) ERR(retval);
@@ -1296,38 +1295,13 @@ ZonalFlowEnergyTransferDiagnostic::ZonalFlowEnergyTransferDiagnostic(Parameters*
       if (retval = nc_put_att_text(nc_group_big, varid_big, "description",
                                  strlen(description.c_str()), description.c_str())) ERR(retval);
     }
-
-    // Define phi_ext variable for debugging
-    std::string phi_ext_varname = "phi_ext";
-    std::string phi_ext_description = "Extended phi array including negative ky (for debugging)";
-
-    // Use the same dimension order as FieldsDiagnostic for consistency
-    int dims_phi_ext[5];
-    dims_phi_ext[0] = ncdf_->nc_dims->time;
-    dims_phi_ext[1] = ncdf_->nc_dims->source_ky;  // Use source_ky since it's defined for extended ky range
-    dims_phi_ext[2] = ncdf_->nc_dims->kx;
-    dims_phi_ext[3] = ncdf_->nc_dims->z;
-    dims_phi_ext[4] = ncdf_->nc_dims->ri;
-
-    if (pars_->restart && pars_->append_on_restart && nc_inq_varid(nc_group_big, phi_ext_varname.c_str(), &phi_ext_varid)==NC_NOERR) {
-      if (retval = nc_inq_varid(nc_group_big, phi_ext_varname.c_str(), &phi_ext_varid)) ERR(retval);
-      if (retval = nc_var_par_access(nc_group_big, phi_ext_varid, NC_COLLECTIVE)) ERR(retval);
-    } else {
-      if (retval = nc_def_var(nc_group_big, phi_ext_varname.c_str(), nc_type, 5, dims_phi_ext, &phi_ext_varid)) ERR(retval);
-      if (retval = nc_var_par_access(nc_group_big, phi_ext_varid, NC_COLLECTIVE)) ERR(retval);
-      if (retval = nc_put_att_text(nc_group_big, phi_ext_varid, "description",
-                                 strlen(phi_ext_description.c_str()), phi_ext_description.c_str())) ERR(retval);
-    }
   }
 
   checkCuda(cudaMalloc(&kx_outd, sizeof(float) * grids->Nakx));
   checkCuda(cudaMemcpy(kx_outd, grids->kx_outh, sizeof(float) * grids->Nakx, cudaMemcpyHostToDevice));
   checkCuda(cudaMalloc(&transfer_d, sizeof(float) * N));
-  checkCuda(cudaMemset(transfer_d, 0., sizeof(float) * N));
   checkCuda(cudaMalloc(&phi_ext_d, sizeof(cuComplex) * N_ext));
-  checkCuda(cudaMemset(phi_ext_d, 0., sizeof(cuComplex) * N_ext));
-  transfer_h = (float*) malloc(sizeof(float) * Nwrite);
-  phi_ext_h = (cuComplex*) malloc(sizeof(cuComplex) * N_ext);
+  transfer_h = (float*) malloc(sizeof(float) * N);
 
   // Set kernel dimension for transfer calculation based on the loop structure:
   // `z`, `target_kx`, `source_kx`, `source_ky`, where `z` is the outer-most
@@ -1358,7 +1332,11 @@ ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
   cudaFree(phi_ext_d);
   cudaFree(kx_outd);
   free(transfer_h);
-  free(phi_ext_h);
+
+  if (pars_->write_zonal_energy_transfer_full) {
+    free(phi_ext_h);
+    free(phi_ext_float);
+  }
 
   if (pars_->write_zonal_energy_transfer) {
     for (int i = 0; i < NUM_SPECTRA; i++) {
@@ -1368,9 +1346,10 @@ ZonalFlowEnergyTransferDiagnostic::~ZonalFlowEnergyTransferDiagnostic()
   }
 }
 
+// Split into two methods: one for reduced diagnostics and one for full diagnostics
 void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(Fields* f, int counter)
-{
-  // Extend phi to include negative ky values using get_full
+{ 
+  // Extend `phi` to include negative ky values using `get_full`
   get_full<<<dG_gf, dB_gf>>>(phi_ext_d, f->phi);
   
   // Calculate zonal energy transfer using the extended phi array
@@ -1379,72 +1358,23 @@ void ZonalFlowEnergyTransferDiagnostic::calculate_and_write(Fields* f, int count
     phi_ext_d,
     kx_outd,
     grids_->source_ky,
-    geo_->bmag
+    geo_->bmagInv
   );
-
-  int retval;
-  start[0] = ncdf_->nc_grids->time_index;
   
-  // Calculate and write reduced spectra to .out.nc file if needed
+  // Calculate and write reduced spectra
   if (pars_->write_zonal_energy_transfer) {
     compute_reduced_spectra();
     write_reduced_spectra();
   }
-  
-  // Write full 5D array to .big.nc file if needed
-  if (pars_->write_zonal_energy_transfer_full && (counter % pars_->nwrite_big == 0 || counter == 1)) {
-    CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
-    if (retval = nc_put_vara(nc_group_big, varid_big, start, count, transfer_h)) ERR(retval);
+}
 
-    // Copy phi_ext to host and write to netCDF for debugging
-    CP_TO_CPU(phi_ext_h, phi_ext_d, sizeof(cuComplex) * N_ext);
-
-    // Need to convert cuComplex array to float array for netCDF storage
-    float* phi_ext_float = (float*) malloc(sizeof(float) * N_ext * 2); // 2 for real and imag parts
-
-    // Calculate count for phi_ext (matching dimension order with FieldsDiagnostic)
-    size_t count_phi_ext[5] = {0};
-    count_phi_ext[0] = 1; // each write is a single time slice
-    count_phi_ext[1] = 2*(grids_->Naky)-1; // extended ky array including negative values
-    count_phi_ext[2] = grids_->Nakx;
-    count_phi_ext[3] = grids_->Nz;
-    count_phi_ext[4] = 2; // real and imaginary parts
-
-    // The phi_ext array has already been reordered for NetCDF output during its creation in get_full
-    // It has a different layout than regular phi: (ky, kx, z) instead of (y, x, z)
-    // We need to write it to NetCDF using the appropriate format
-
-    int Nakx = grids_->Nakx;    // Number of kx values in dealiased array
-    int Naky = grids_->Naky;    // Number of ky values in original array (ky >= 0)
-    int Nz   = grids_->Nz;
-    int nkys = 2*Naky-1;        // Number of ky values in extended array (including negative ky)
-
-    // Convert phi_ext to float array for NetCDF, with interleaved real and imag parts
-    for (int ikys = 0; ikys < nkys; ikys++) {
-        for (int ikx = 0; ikx < Nakx; ikx++) {
-            for (int iz = 0; iz < Nz; iz++) {
-                // Calculate indices for output array (using the same ordering as FieldsDiagnostic)
-                // Order: (ky, kx, z, ri) with ri as the fastest index
-                int ir = 0 + 2*(iz + Nz*ikx + Nz*Nakx*ikys);
-                int ii = 1 + 2*(iz + Nz*ikx + Nz*Nakx*ikys);
-
-                // Calculate index in the phi_ext array
-                // The phi_ext array layout is (ky, kx, z) as created by get_full
-                int ig = ikys + nkys*ikx + nkys*Nakx*iz;
-
-                // Copy real and imaginary parts
-                phi_ext_float[ir] = phi_ext_h[ig].x;
-                phi_ext_float[ii] = phi_ext_h[ig].y;
-            }
-        }
-    }
-
-    // Write to netCDF
-    if (retval = nc_put_vara(nc_group_big, phi_ext_varid, start, count_phi_ext, phi_ext_float)) ERR(retval);
-
-    // Free temporary array
-    free(phi_ext_float);
-  }
+void ZonalFlowEnergyTransferDiagnostic::write_full_transfer()
+{
+  // Get current time index, then write to `.big.nc` file
+  int retval;
+  start[0] = ncdf_big_->nc_grids->time_index;
+  CP_TO_CPU(transfer_h, transfer_d, sizeof(float) * N);
+  if (retval = nc_put_vara(nc_group_big, varid_big, start, count, transfer_h)) ERR(retval);
 }
 
 void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
@@ -1454,12 +1384,7 @@ void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
   int nkxs = grids_->Nakx;
   int ntkx = grids_->Nakx;
 
-  int dims[4] = {nz, ntkx, nkxs, nkys};
-
-  // Zero out reduction arrays before accumulating new values
-  for (int i = 0; i < NUM_SPECTRA; i++) {
-    checkCuda(cudaMemset(reduction[i].data_d, 0, sizeof(float) * reduction[i].dim_size));
-  }
+  int dims[4] = {nkys, nkxs, ntkx, nz};
 
   // Launch kernels for each reduction
   for (int i = 0; i < NUM_SPECTRA; i++) {
@@ -1491,11 +1416,8 @@ void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
 void ZonalFlowEnergyTransferDiagnostic::write_reduced_spectra()
 {
   int retval;
-
-  // Write each reduced spectrum to NetCDF file
   for (int i = 0; i < NUM_SPECTRA; i++) {
     reduction[i].start[0] = ncdf_->nc_grids->time_index;
-
     if (retval = nc_put_vara(nc_group, reduction[i].varid, reduction[i].start,
                   reduction[i].count, reduction[i].data_h)) ERR(retval);
   }

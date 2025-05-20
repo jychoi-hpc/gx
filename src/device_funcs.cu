@@ -4328,9 +4328,6 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
   unsigned int nkys = 2*naky - 1;
 
   if (ikys < nkys && ikxs < nakx && ikxt < nakx) {
-    // FIXME we could define a look-up array `valid_mediator` indexed by
-    // `source_idxyz` and `target_idxyz` that we populate once during the
-    // initialisation of the diagnostic, rather than every `nwrite` time steps.
     int ikx0 = nakx / 2; // Index for kx=0
     int iky0 = nkys / 2; // Index for ky=0 in the extended array
     int ikyt = iky0;     // Target is zonal mode (ky=0)
@@ -4341,36 +4338,26 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
     
     // Check if the mediator mode is valid (inside array bounds)
     bool valid_mediator = (ikxm >= 0 && ikxm < nakx && ikym >= 0 && ikym < nkys);
-    if (valid_mediator) {
-      for (int iz = 0; iz < nz; iz++) {
-        // Calculate 4D array index: `(z, target_kx, source_kx, source_ky)`
-        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-        
-        // Calculate prefactor (coupling coefficient)
-        // FIXME we could calculate the k-dependent part of `prefactor`
-        // outside of this function, then pass it as an argument instead of
-        // calculating it every `nwrite` time steps.
-        float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] * pow(bmagInv[iz], 3);
-        
-        // Get target, source and mediator `phi_ext` and take complex
-        // conjugate of target phi
-        unsigned int target_idxyz = ikyt + nkys * (ikxt + nakx * iz);
-        unsigned int source_idxyz = ikys + nkys * (ikxs + nakx * iz);
-        unsigned int mediator_idxyz = ikym + nkys * (ikxm + nakx * iz);
-        cuComplex phi_target = cuConjf(phi_ext[target_idxyz]);
-        cuComplex phi_source = phi_ext[source_idxyz];
-        cuComplex phi_mediator = phi_ext[mediator_idxyz];
-        
-        // Calculate nonlinear energy transfer
-        cuComplex triple_product = phi_target * phi_mediator * phi_source;
-        transfer[index] = 2.0f * prefactor * triple_product.x; // use real part
-      }
-    } else {
-      // Zero out transfer for invalid mode combinations
-      for (int iz = 0; iz < nz; iz++) {
-        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-        transfer[index] = 0.0f; // FIXME better to initialise `transfer` to 0?
-      }
+    
+    for (int iz = 0; iz < nz; iz++) {
+      unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      
+      // Calculate prefactor (coupling coefficient)
+      float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] * pow(bmagInv[iz], 3);
+      
+      // Get source and target phi
+      unsigned int source_idxyz = ikys + nkys * (ikxs + nakx * iz);
+      unsigned int target_idxyz = ikyt + nkys * (ikxt + nakx * iz);
+      cuComplex phi_source = phi_ext[source_idxyz];
+      cuComplex phi_target = cuConjf(phi_ext[target_idxyz]);
+      
+      // Set `phi_mediator` to zero if invalid mediator to zero-out transfer
+      unsigned int mediator_idxyz = ikym + nkys * (ikxm + nakx * iz);
+      cuComplex phi_mediator = valid_mediator ? phi_ext[mediator_idxyz] : make_cuComplex(0.0f, 0.0f);
+      
+      // Calculate nonlinear energy transfer
+      cuComplex triple_product = phi_target * phi_mediator * phi_source;
+      transfer[index] = 2.0f * prefactor * triple_product.x; // use real part
     }
   }
 }

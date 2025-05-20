@@ -319,7 +319,7 @@ void Grids::init_ks_and_coords()
     source_ky_h = (float*) malloc(sizeof(float) * (2*Naky-1));
     source_ky_h[Naky - 1] = ky_h[0];
     for (int i = 1; i < Naky; i++) {
-      source_ky_h[i + Naky - 1] = ky_h[i];     // ky > 0
+      source_ky_h[Naky - 1 + i] = ky_h[i];     // ky > 0
       source_ky_h[Naky - 1 - i] = -ky_h[i];    // ky < 0
     }
     
