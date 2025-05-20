@@ -4317,7 +4317,7 @@ __global__ void get_full(cuComplex* f_ext, const cuComplex* f)
 //            [-akx_max, ..., 0, ..., akx_max]
 __global__ void zonal_energy_transfer_summand(float* transfer,
           const cuComplex* phi_ext, const float* kx, const float* source_ky,
-          const float* bmag)
+          const float* bmagInv)
 {
   unsigned int ikys = get_id1();  // source_ky index
   unsigned int ikxs = get_id2();  // source_kx index
@@ -4330,7 +4330,7 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
   if (ikys < nkys && ikxs < nakx && ikxt < nakx) {
     // FIXME we could define a look-up array `valid_mediator` indexed by
     // `source_idxyz` and `target_idxyz` that we populate once during the
-    // initialisation of the diagnostic, rather than at every time step.
+    // initialisation of the diagnostic, rather than every `nwrite` time steps.
     int ikx0 = nakx / 2; // Index for kx=0
     int iky0 = nkys / 2; // Index for ky=0 in the extended array
     int ikyt = iky0;     // Target is zonal mode (ky=0)
@@ -4343,16 +4343,14 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
     bool valid_mediator = (ikxm >= 0 && ikxm < nakx && ikym >= 0 && ikym < nkys);
     if (valid_mediator) {
       for (int iz = 0; iz < nz; iz++) {
-        // Calculate 4D array index: `(z, target_kx, source_kx, source_ky)`,
-        // where `z` is the outer-most loop and `source_ky` is the inner-most
+        // Calculate 4D array index: `(z, target_kx, source_kx, source_ky)`
         unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
         
         // Calculate prefactor (coupling coefficient)
         // FIXME we could calculate the k-dependent part of `prefactor`
         // outside of this function, then pass it as an argument instead of
-        // calculating it every `nwrite` steps.
-        // FIXME use `bmagInv` instead of `bmag` here
-        float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] / pow(bmag[iz], 3);
+        // calculating it every `nwrite` time steps.
+        float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] * pow(bmagInv[iz], 3);
         
         // Get target, source and mediator `phi_ext` and take complex
         // conjugate of target phi
