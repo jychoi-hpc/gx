@@ -98,7 +98,7 @@ Diagnostics_GK::Diagnostics_GK(Parameters* pars, Grids* grids, Geometry* geo, Li
   }
 
   // set up zonal flow energy transfer diagnostic
-  if(pars_->write_zonal_energy_transfer) {
+  if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
     zonalFlowEnergyTransferDiagnostic = new ZonalFlowEnergyTransferDiagnostic(pars_, grids_, geo_, ncdf_, ncdf_big_);
   }
 
@@ -117,7 +117,7 @@ Diagnostics_GK::~Diagnostics_GK()
   if(pars_->write_moms) {
     momentsDiagnosticList.clear();
   }
-  if(pars_->write_zonal_energy_transfer) {
+  if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
     delete zonalFlowEnergyTransferDiagnostic;
   }
 
@@ -144,7 +144,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
       growthRateDiagnostic->calculate_and_write(fields, fields_old, dt);
     }
     
-    if(pars_->write_zonal_energy_transfer) {
+    if(pars_->write_zonal_energy_transfer || pars_->write_zonal_energy_transfer_full) {
       zonalFlowEnergyTransferDiagnostic->calculate_and_write(fields, counter);
     }
 
@@ -158,7 +158,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   }
 
   // write out full grid (big) diagnostics less frequently
-  if((counter % pars_->nwrite_big == 1 || time > pars_->t_max) && ( pars_->write_moms || pars_->write_fields) ) {
+  if((counter % pars_->nwrite_big == 1 || time > pars_->t_max) && ( pars_->write_moms || pars_->write_fields || pars_->write_zonal_energy_transfer_full) ) {
     if(pars_->write_fields) {
       fieldsDiagnostic->calculate_and_write(fields);
       if(pars_->nonlinear_mode) {
@@ -168,6 +168,10 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 
     for( auto & diagnostic : momentsDiagnosticList ) {
       diagnostic->calculate_and_write(G, fields, tmpC);
+    }
+    
+    if(pars_->write_zonal_energy_transfer_full) {
+      zonalFlowEnergyTransferDiagnostic->write_full_transfer();
     }
 
     ncdf_big_->nc_grids->write_time(time);

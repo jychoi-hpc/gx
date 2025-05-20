@@ -4263,8 +4263,10 @@ __global__ void g_shift(cuComplex* g_new, const cuComplex* g_old, const int* kxb
 // We should keep H around for both uperp and tperp
 // finally, we take t_bar to be a weighted sum of tpar_bar and tperp_bar.
 
-// Function to extend `phi` to include negative ky
-__global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
+// ---------------------------------------------------------------------------
+// Extend field variable to include negative ky using the reality
+// condition: f(-kx, -ky, z) = conj(f(kx, ky, z))
+__global__ void get_full(cuComplex* f_ext, const cuComplex* f)
 {
   idXYZ;
   
@@ -4273,58 +4275,31 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
   unsigned int nkys = 2*naky - 1;
 
   if ((unmasked(idx, idy) || (idx == 0 && idy == 0)) && idz < nz) {
-    // `idx` indexes the full kx array, including aliased values. However,
-    // `phi_ext` only includes the de-aliased kx values, so the indices
-    // don't line up. To convert to indices in the de-aliased array, we:
-    //   1) Convert `idx` (FFT layout) to `ikx` (ordered negative to positive):
-    //      `idx` array layout: `[0, 1, ..., nx/2, -nx/2 +1, ..., -1]`
-    //      `ikx` array layout: `[-nx/2+1, ..., -1, 0, 1, ..., nx/2]`
-    //   2) Note that de-aliased `ikx` array spans `-(nx-1)/3 - 1` to
-    //      `(nx-1)/3`, which we can map to [0, nakx-1] by adding
-    //      `(nx-1)/3 + 1`
-    // Similarly, `idy` indexes the full ky array, which also includes
-    // aliased values: `[0, 1, ..., ny/2]`. The extended iky array looks
-    // like `[-ny/2+1, ..., -1, 0, 1, ..., ny/2]` and the de-aliased values
-    // span `-(ny-1)/3 - 1` to `(ny-1)/3`, which we can map to [0, 2*naky-2]
-    // by adding `(ny-1)/3 + 1` (note there are `2*naky-1` values, so the
-    // final index is `2*naky-2`).
+    // Map indices `idx` and `idy` to indices in the de-aliased arrays
+    // `akx` and `source_ky` arrays
     int ikx = get_ikx(idx);
-    int dealiased_ikx = ikx + ((nx-1)/3) + 1;
-    
-    int iky_pos = idy;
-    int dealiased_iky_pos = iky_pos + ((ny-1)/3) + 1;
+    int ikx_da = ikx + nakx/2;
+    int iky_da_pos = idy + nkys/2;   // for ky >= 0
 
-    // Get indices for `phi` and `phi_ext`
+    // Get indices for field array `f` and extended field array `f_ext`
     unsigned int idxyz = get_idxyz(idx, idy, idz);
-    unsigned int idxyz_ext = dealiased_iky_pos + nkys * (dealiased_ikx + nakx * idz);
+    unsigned int idxyz_ext_pos = iky_da_pos + nkys * (ikx_da + nakx * idz);
 
-    // Directly copy `phi` (this includes all ky >= 0)
-    phi_ext[idxyz_ext] = phi[idxyz];
+    // Directly copy field for ky >= 0
+    f_ext[idxyz_ext_pos] = f[idxyz];
     
-    // Handle ky < 0 using reality condition, skipping ky = 0 (handled above)
+    // Handle ky < 0 using reality condition, skipping ky = 0 (handled above).
     if (idy != 0) {
-      int iky_neg = -idy;
-      int dealiased_iky_neg = iky_neg + ((ny-1)/3) + 1;
-      
-      // We need the conjugate of the corresponding positive ky with flipped
-      // kx due to the reality condition
-      int idx_flipped = (nx - 1 - idx) % nx;
-      
-      if (unmasked(idx_flipped, idy)) {
-        // Get the corresponding positive-ky value (from the flipped kx position)
-        unsigned int idxyz_flipped = get_idxyz(idx_flipped, idy, idz);
+      int idx_neg = get_idx(-ikx);
+      int ikx_da_neg = -ikx + nakx/2;
+      int iky_da_neg = -idy + nkys/2;
 
-        // Get corresponding `ikx` index for `idx_flipped` then map to
-        // de-aliased range.
-        int ikx_flipped = get_ikx(idx_flipped);
-        int dealiased_ikx_flipped = ikx_flipped + ((nx-1)/3) + 1;
+      // Calculate the index in the extended array for the negative ky
+      unsigned int idxyz_neg = get_idxyz(idx_neg, idy, idz);
+      unsigned int idxyz_ext_neg = iky_da_neg + nkys * (ikx_da_neg + nakx * idz);
 
-        // Calculate the index in the extended array for the negative ky
-        unsigned int idxyz_neg = dealiased_iky_neg + nkys * (dealiased_ikx_flipped + nakx * idz);
-
-        // Copy the conjugate of the flipped value
-        phi_ext[idxyz_neg] = cuConjf(phi[idxyz_flipped]);
-      }
+      // Copy the conjugate of the flipped value
+      f_ext[idxyz_ext_neg] = cuConjf(f[idxyz_neg]);
     }
   }
 }
@@ -4335,12 +4310,14 @@ __global__ void get_full(cuComplex* phi_ext, const cuComplex* phi)
 // 'mediator' wave vector is determined through the coupling condition
 // k_t = k_s + k_m
 //
-// Note: This uses `kx_out` (with [-kx_max, ..., 0, ..., kx_max] layout),
-// instead of the usual `kx` (with FFT-shifted [0, ..., kx_max, ..., -kx_max]
-// layout)
+// Note: This uses `kx_out` which has both a different layout and number of
+// elements to the usual `kx`:
+//   `kx` has `nx` elements and has layout [0, 1, ..., nx/2, -nx/2+1, ..., -1]
+//   `kx_out` has `nakx = 1 + 2*((nx-1)/3)` elements and has layout
+//            [-akx_max, ..., 0, ..., akx_max]
 __global__ void zonal_energy_transfer_summand(float* transfer,
           const cuComplex* phi_ext, const float* kx, const float* source_ky,
-          const float* bmag)
+          const float* bmagInv)
 {
   unsigned int ikys = get_id1();  // source_ky index
   unsigned int ikxs = get_id2();  // source_kx index
@@ -4351,9 +4328,6 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
   unsigned int nkys = 2*naky - 1;
 
   if (ikys < nkys && ikxs < nakx && ikxt < nakx) {
-    // FIXME we could define a look-up array `valid_mediator` indexed by
-    // `source_idxyz` and `target_idxyz` that we populate once during the
-    // initialisation of the diagnostic, rather than at every time step.
     int ikx0 = nakx / 2; // Index for kx=0
     int iky0 = nkys / 2; // Index for ky=0 in the extended array
     int ikyt = iky0;     // Target is zonal mode (ky=0)
@@ -4364,38 +4338,26 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
     
     // Check if the mediator mode is valid (inside array bounds)
     bool valid_mediator = (ikxm >= 0 && ikxm < nakx && ikym >= 0 && ikym < nkys);
-    if (valid_mediator) {
-      for (int iz = 0; iz < nz; iz++) {
-        // Calculate 4D array index: `(z, target_kx, source_kx, source_ky)`,
-        // where `z` is the outer-most loop and `source_ky` is the inner-most
-        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-        
-        // Calculate prefactor (coupling coefficient)
-        // FIXME we could calculate the k-dependent part of `prefactor`
-        // outside of this function, then pass it as an argument instead of
-        // calculating it every `nwrite` steps. 
-        float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] / pow(bmag[iz], 3);
-        
-        // Get indices for `phi_ext`
-        unsigned int target_idxyz = ikyt + nkys * (ikxt + nakx * iz);
-        unsigned int source_idxyz = ikys + nkys * (ikxs + nakx * iz);
-        unsigned int mediator_idxyz = ikym + nkys * (ikxm + nakx * iz);
-        
-        // For mediator and source with negative ky, adjust with conjugate
-        cuComplex phi_target = phi_ext[target_idxyz];
-        cuComplex phi_source = phi_ext[source_idxyz];
-        cuComplex phi_mediator = phi_ext[mediator_idxyz];
-        
-        // Calculate nonlinear energy transfer
-        cuComplex triple_product = phi_target * phi_mediator * phi_source;
-        transfer[index] = 2.0f * prefactor * triple_product.x; // use real part
-      }
-    } else {
-      // Zero out transfer for invalid mode combinations
-      for (int iz = 0; iz < nz; iz++) {
-        unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-        transfer[index] = 0.0f; // FIXME better to initialise `transfer` to 0?
-      }
+    
+    for (int iz = 0; iz < nz; iz++) {
+      unsigned int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+      
+      // Calculate prefactor (coupling coefficient)
+      float prefactor = kx[ikxt] * kx[ikxt] * kx[ikxs] * source_ky[ikys] * pow(bmagInv[iz], 3);
+      
+      // Get source and target phi
+      unsigned int source_idxyz = ikys + nkys * (ikxs + nakx * iz);
+      unsigned int target_idxyz = ikyt + nkys * (ikxt + nakx * iz);
+      cuComplex phi_source = phi_ext[source_idxyz];
+      cuComplex phi_target = cuConjf(phi_ext[target_idxyz]);
+      
+      // Set `phi_mediator` to zero if invalid mediator to zero-out transfer
+      unsigned int mediator_idxyz = ikym + nkys * (ikxm + nakx * iz);
+      cuComplex phi_mediator = valid_mediator ? phi_ext[mediator_idxyz] : make_cuComplex(0.0f, 0.0f);
+      
+      // Calculate nonlinear energy transfer
+      cuComplex triple_product = phi_target * phi_mediator * phi_source;
+      transfer[index] = 2.0f * prefactor * triple_product.x; // use real part
     }
   }
 }
@@ -4477,3 +4439,5 @@ __global__ void reduce_to_source_ky(float* result, const float* data)
     }
   }
 }
+
+// ---------------------------------------------------------------------------

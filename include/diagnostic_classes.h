@@ -375,25 +375,17 @@ class ZonalFlowEnergyTransferDiagnostic {
   ZonalFlowEnergyTransferDiagnostic(Parameters* pars, Grids* grids, Geometry* geo, NetCDF* ncdf, NetCDF* ncdf_big);
   ~ZonalFlowEnergyTransferDiagnostic();
   void calculate_and_write(Fields* fields, int counter);
+  void write_full_transfer();
  private:
   void compute_reduced_spectra();
   void write_reduced_spectra();
 
-  // Used for full transfer (written to `.big.nc` file)
-  int ndim, N, N_ext, Nwrite;
+  int ndim, N, N_ext;
   int dims[5];
   size_t count[5] = {0};
   size_t start[5] = {0};
   int varid_big;
-  float *transfer_d; // device array
-  float *transfer_h; // host array
-  float *kx_outd;    // un-FFT-shifted kx array: [-kx_max, ..., 0, ..., kx_max]
-  cuComplex *phi_ext_d;
-
-  // Used for reduced transfer (written to `.out.nc` file)
-  static const int NUM_SPECTRA = 4;
-  ReductionSpectra reduction[NUM_SPECTRA]; // z, target_kx, source_kx, source_ky
-
+  
   string varname;
   int nc_group, nc_group_big, nc_type;
   dim3 dG, dB, dG_gf, dB_gf;
@@ -402,4 +394,14 @@ class ZonalFlowEnergyTransferDiagnostic {
   Geometry* geo_;
   NetCDF* ncdf_;
   NetCDF* ncdf_big_;
+
+  float *transfer_d;
+  float *transfer_h;
+  float *kx_outd;
+  cuComplex *phi_ext_d;
+  cuComplex *phi_ext_h;
+
+  // Used for reduction spectra (zt, target_kxt, source_kxt, source_kyt)
+  static const int NUM_SPECTRA = 4;
+  ReductionSpectra reduction[NUM_SPECTRA];
 };
