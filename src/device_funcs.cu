@@ -4295,11 +4295,10 @@ __global__ void get_full(cuComplex* f_ext, const cuComplex* f)
       int iky_da_neg = -idy + nkys/2;
 
       // Calculate the index in the extended array for the negative ky
-      unsigned int idxyz_neg = get_idxyz(idx_neg, idy, idz);
       unsigned int idxyz_ext_neg = iky_da_neg + nkys * (ikx_da_neg + nakx * idz);
 
       // Copy the conjugate of the flipped value
-      f_ext[idxyz_ext_neg] = cuConjf(f[idxyz_neg]);
+      f_ext[idxyz_ext_neg] = cuConjf(f[idxyz]);
     }
   }
 }
