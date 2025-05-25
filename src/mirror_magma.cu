@@ -152,7 +152,7 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
             h_B[i*ldb*nrhs + j] = d_B_i[j];
         }
     }
-    //fill_B(h_B, N, nrhs, ldb, batchCount);
+    fill_B(h_B, N, nrhs, ldb, batchCount);
 
     save_rhs(h_B, h_X_test, ldb, 11, 0, nrhs);
 
