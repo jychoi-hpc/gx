@@ -132,6 +132,7 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     
     for(int i = 0; i < batchCount; i++){
         checkCuda(cudaMalloc((void**) &d_B[i], sizeof(cuComplex)*ldb*nrhs));
+        cudaMemset(d_B[i], 0.0f, sizeof(cuComplex)*ldb*nrhs);
     }
 
     checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
@@ -145,14 +146,16 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
 
     /*Initialize RHS and copy over to host*/
     fill_dB_array(dB_array, N, nrhs, ldb, batchCount);
-    checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
-    for(int i = 0; i < batchCount; i++){
-        checkCuda(cudaMemcpy(d_B[i], d_B_i, sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(d_B, dB_array, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+//    cudaMemset(d_B_i, 0.0f, sizeof(cuComplex)*ldb*nrhs);
+    for(int i = 11; i < 12; i++){
+        checkCuda(cudaMemcpy(d_B_i, d_B[i], sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
         for(int j = 0; j < ldb*nrhs; j++){
             h_B[i*ldb*nrhs + j] = d_B_i[j];
+            
         }
     }
-    fill_B(h_B, N, nrhs, ldb, batchCount);
+    //fill_B(h_B, N, nrhs, ldb, batchCount);
 
     save_rhs(h_B, h_X_test, ldb, 11, 0, nrhs);
 
@@ -214,9 +217,9 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
 
     //magma_cgetmatrix( N, nrhs*batchCount, d_B, lddb, h_X, ldb, my_queue );
 
-    checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(d_B, dB_array, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyDeviceToHost));
     for(int i = 0; i < batchCount; i++){
-        checkCuda(cudaMemcpy(d_B[i], d_B_i, sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
+        checkCuda(cudaMemcpy(d_B_i, d_B[i], sizeof(cuComplex)*ldb*nrhs, cudaMemcpyDeviceToHost));
         for(int j = 0; j < ldb*nrhs; j++){
             h_X[i*ldb*nrhs + j] = d_B_i[j];
         }
@@ -280,7 +283,7 @@ void Mirror_magma::fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, 
 
 void Mirror_magma::save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs){
     for(int i = 0; i < ldb; i++){
-        h_X_test[i] = h_B[ind*nrhs*ldb + i];
+        h_X_test[i] = h_B[ind*nrhs*ldb + ldb + i];
     }
 
     FILE* file;
