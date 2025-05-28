@@ -237,7 +237,8 @@ void Lie_Trotter::invert_bounce(MomentsG** G1, Fields *f, double sdt)
     add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
   for(int is = ielectron; is < grids_->Nspecies; is++){
-    mirror[is]->invert_stream(G1[is]->G(), 0);
+    //mirror[is]->invert_stream(G1[is]->G(), 0);
+    mirror_magma->invert(G1[is]->G(), 0);
 
     if(pars_->fapar > 0.){
       sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), G_sm_b_apar[is], solver_->getAmpereParFac()); 

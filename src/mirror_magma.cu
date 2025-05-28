@@ -10,21 +10,21 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
 
     magma_init();
     
-    magma_queue_t my_queue;    // magma queue variable, internally holds a cuda stream and a cublas handle
+    //magma_queue_t my_queue;    // magma queue variable, internally holds a cuda stream and a cublas handle
     magma_device_t cdev;       // variable to indicate current gpu id
 
     magma_getdevice( &cdev );
     magma_queue_create( cdev, &my_queue );     // create a queue on this cdev
 
-    int N = pars_->nl_in * pars_->nm_in;
+    N = pars_->nl_in * pars_->nm_in;
     int Nband = 5;
-    int KL = pars_->nm_in - 1;
-    int KU = pars_->nm_in - 1;
-    int nrhs = grids_->Nyc*grids_->Nx;
+    KL = pars_->nm_in - 1;
+    KU = pars_->nm_in - 1;
+    nrhs = grids_->Nyc*grids_->Nx;
     //int nrhs = 1;
-    int batchCount = grids_->Nz;
-    int ldda = 2*KL+KU+1;
-    int lddb = N;
+    batchCount = grids_->Nz;
+    ldda = 2*KL+KU+1;
+    lddb = N;
     int lda = ldda;
     int ldb = lddb;
     int info = 0;
@@ -38,15 +38,14 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     cuComplex *h_X_test;
     float error, Rnorm, Anorm, Xnorm, *work;
     int* ipiv, *cpu_info;
-    int *dipiv, *dinfo_array;
+    int *dipiv;
 
     cuComplex c_one     = MAGMA_C_ONE;
     cuComplex c_neg_one = MAGMA_C_NEG_ONE;
 
     cuComplex** d_B = NULL;
-    cuComplex **dA_array = NULL;
-    cuComplex **dB_array = NULL;
-    int     **dipiv_array = NULL;
+
+    dipiv_array = NULL;
 
     float tol = 1e-6;
     int status = 0;
@@ -279,6 +278,19 @@ Mirror_magma::~Mirror_magma()
 
 void Mirror_magma::fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, int batchCount){
     copy_brhs_from_g_d_id<<<dG_bd, dB_bd>>>(dB_array);
+}
+
+void Mirror_magma::invert(cuComplex* G, bool copy){
+    copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(dB_array, G, false);
+
+    info = magma_cgbsv_batched(
+            N, KL, KU, nrhs,
+            dA_array, ldda, dipiv_array,
+            dB_array, lddb, dinfo_array,
+            batchCount, my_queue);
+
+    copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, dB_array);
+
 }
 
 void Mirror_magma::save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs){

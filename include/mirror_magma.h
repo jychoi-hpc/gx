@@ -26,6 +26,7 @@ class Mirror_magma{
   void save_matrix(cuComplex* A, cuComplex* A_full, int* h_offsets, int KL, int KU, int num_diags, int N, int lda, int batchCount, int ind);
   void save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs);
   void fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, int batchCount);
+  void invert(cuComplex* G, bool copy);
 
   cuComplex* h_A;
   cuComplex* A_bounce;
@@ -41,6 +42,13 @@ class Mirror_magma{
   cuComplex** d_bounce_rhs_sol;
   cuComplex** bounce_rhs_apar;
   cuComplex** d_bounce_rhs_apar;
+
+  int N, KL, KU, nrhs, ldda, lddb, batchCount;
+  int** dipiv_array;
+  int* dinfo_array;
+  cuComplex** dA_array;
+  cuComplex** dB_array;
+  magma_queue_t my_queue;
 
  private:
   Parameters* pars_;
