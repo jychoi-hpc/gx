@@ -1374,27 +1374,11 @@ void ZonalFlowEnergyTransferDiagnostic::write_full_transfer()
 
 void ZonalFlowEnergyTransferDiagnostic::compute_reduced_spectra()
 {
-  int nz = grids_->Nz;
-  int nkys = 2*(grids_->Naky)-1;
-  int nkxs = grids_->Nakx;
-  int ntkx = grids_->Nakx;
-
-  int dims[4] = {nz, nkys, nkxs, ntkx};
-
   // Launch kernels for each reduction
   for (int i = 0; i < NUM_SPECTRA; i++) {
-    dim3 dB(
-      min(8, dims[reduction[i].dim_idx[0]]),
-      min(8, dims[reduction[i].dim_idx[1]]),
-      min(8, dims[reduction[i].dim_idx[2]])
-    );
-
-    dim3 dG(
-      1 + (dims[reduction[i].dim_idx[0]]-1)/dB.x,
-      1 + (dims[reduction[i].dim_idx[1]]-1)/dB.y,
-      1 + (dims[reduction[i].dim_idx[2]]-1)/dB.z
-    );
-
+    dim3 dB(min(512, reduction[i].dim_size), 1, 1);  // cap at 512 threads
+    dim3 dG(1 + (reduction[i].dim_size - 1) / dB.x, 1, 1);  // 1D grid
+    
     reduction[i].reduce_kernel<<<dG, dB>>>(
       reduction[i].data_d,
       transfer_d

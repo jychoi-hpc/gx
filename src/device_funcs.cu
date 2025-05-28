@@ -4366,76 +4366,104 @@ __global__ void zonal_energy_transfer_summand(float* transfer,
 // Reduce to z,t (sum over source_ky, source_kx, target_kx)
 __global__ void reduce_to_z(float* result, const float* data) 
 {
-  unsigned int ikys = get_id1();
-  unsigned int ikxs = get_id2();
-  unsigned int ikxt = get_id3();
-
+  unsigned int iz = get_id1();
+  
   unsigned int nakx = (1 + 2*((nx-1)/3));
   unsigned int naky = (1 + ((ny-1)/3));
   unsigned int nkys = 2*naky - 1;
-
-  if (ikys < 2*naky-1 && ikxs < nakx && ikxt < nakx) {
-    for (int iz = 0; iz < nz; iz++) {
-      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-      atomicAdd(&result[iz], data[index]);
+  
+  if (iz < nz) {
+    float sum = 0.0f;
+    
+    // Sum over source_ky, source_kx, and target_kx
+    for (int ikys = 0; ikys < nkys; ikys++) {
+      for (int ikxs = 0; ikxs < nakx; ikxs++) {
+        for (int ikxt = 0; ikxt < nakx; ikxt++) {
+          int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+          sum += data[index];
+        }
+      }
     }
+    
+    result[iz] = sum;
   }
 }
 
 // Reduce to target_kx,t (sum over source_ky, source_kx, z)
 __global__ void reduce_to_target_kx(float* result, const float* data) 
 {
-  unsigned int ikys = get_id1();
-  unsigned int ikxs = get_id2();
-  unsigned int iz = get_id3();
-
+  unsigned int ikxt = get_id1();
+  
   unsigned int nakx = (1 + 2*((nx-1)/3));
   unsigned int naky = (1 + ((ny-1)/3));
   unsigned int nkys = 2*naky - 1;
   
-  if (ikys < 2*naky-1 && ikxs < nakx && iz < nz) {
-    for (int ikxt = 0; ikxt < nakx; ikxt++) {
-      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-      atomicAdd(&result[ikxt], data[index]);
+  if (ikxt < nakx) {
+    float sum = 0.0f;
+    
+    // Sum over source_ky, source_kx, and z
+    for (int ikys = 0; ikys < nkys; ikys++) {
+      for (int ikxs = 0; ikxs < nakx; ikxs++) {
+        for (int iz = 0; iz < nz; iz++) {
+          int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+          sum += data[index];
+        }
+      }
     }
+    
+    result[ikxt] = sum;
   }
 }
 
 // Reduce to source_kx,t (sum over source_ky, target_kx, z)
 __global__ void reduce_to_source_kx(float* result, const float* data) 
 {
-  unsigned int ikys = get_id1();
-  unsigned int ikxt = get_id2();
-  unsigned int iz = get_id3();
-
+  unsigned int ikxs = get_id1();
+  
   unsigned int nakx = (1 + 2*((nx-1)/3));
   unsigned int naky = (1 + ((ny-1)/3));
   unsigned int nkys = 2*naky - 1;
   
-  if (ikys < 2*naky-1 && ikxt < nakx && iz < nz) {
-    for (int ikxs = 0; ikxs < nakx; ikxs++) {
-      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-      atomicAdd(&result[ikxs], data[index]);
+  if (ikxs < nakx) {
+    float sum = 0.0f;
+    
+    // Sum over source_ky, target_kx, and z
+    for (int ikys = 0; ikys < nkys; ikys++) {
+      for (int ikxt = 0; ikxt < nakx; ikxt++) {
+        for (int iz = 0; iz < nz; iz++) {
+          int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+          sum += data[index];
+        }
+      }
     }
+    
+    result[ikxs] = sum;
   }
 }
 
 // Reduce to source_ky,t (sum over source_kx, target_kx, z)
 __global__ void reduce_to_source_ky(float* result, const float* data) 
 {
-  unsigned int ikxs = get_id1();
-  unsigned int ikxt = get_id2();
-  unsigned int iz = get_id3();
-
+  unsigned int ikys = get_id1();
+  
   unsigned int nakx = (1 + 2*((nx-1)/3));
   unsigned int naky = (1 + ((ny-1)/3));
   unsigned int nkys = 2*naky - 1;
   
-  if (ikxs < nakx && ikxt < nakx && iz < nz) {
-    for (int ikys = 0; ikys < 2*naky-1; ikys++) {
-      int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
-      atomicAdd(&result[ikys], data[index]);
+  if (ikys < nkys) {
+    float sum = 0.0f;
+    
+    // Sum over source_kx, target_kx, and z
+    for (int ikxs = 0; ikxs < nakx; ikxs++) {
+      for (int ikxt = 0; ikxt < nakx; ikxt++) {
+        for (int iz = 0; iz < nz; iz++) {
+          int index = ikys + nkys * (ikxs + nakx * (ikxt + nakx * iz));
+          sum += data[index];
+        }
+      }
     }
+    
+    result[ikys] = sum;
   }
 }
 
