@@ -206,11 +206,49 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     // synchronous api with ptr array
     //gpu_time = magma_sync_wtime( opts.queue );
 
-    info = magma_cgbsv_batched(
-            N, KL, KU, nrhs,
+    // info = magma_cgbsv_batched(
+    //         N, KL, KU, nrhs,
+    //         dA_array, ldda, dipiv_array,
+    //         dB_array, lddb, dinfo_array,
+    //         batchCount, my_queue);
+
+
+    info = magma_cgbtrf_batched(
+            N, N, KL, KU,
+            dA_array, ldda, dipiv_array, dinfo_array,
+            batchCount, my_queue);
+    if (info != 0) {
+        printf("magma_cgbtrf_batched failed with info = %d\n", info);
+    exit(EXIT_FAILURE);
+    }
+    else{
+        printf("magma_cgbtrf_batched succeeded\n");
+    }
+
+    int* h_info = (int*)malloc(batchCount * sizeof(int));
+    checkCuda(cudaMemcpy(h_info, dinfo_array, batchCount * sizeof(int), cudaMemcpyDeviceToHost));
+    for (int i = 0; i < batchCount; ++i) {
+        if (h_info[i] != 0) {
+            printf("Batch %d failed with info = %d\n", i, h_info[i]);
+        }
+    }
+
+    info = magma_cgbtrs_batched(
+            MagmaNoTrans, N, KL, KU, nrhs,
             dA_array, ldda, dipiv_array,
             dB_array, lddb, dinfo_array,
             batchCount, my_queue);
+
+    if (info != 0) {
+        printf("magma_cgbtrs_batched failed with info = %d\n", info);
+        exit(EXIT_FAILURE);
+    }
+    else{
+        printf("magma_cgbtrs_batched succeeded\n");
+    }
+
+    free(h_info);
+
     //gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
 
 
@@ -283,12 +321,19 @@ void Mirror_magma::fill_dB_array(cuComplex** dB_array,int N, int nrhs, int ldb, 
 void Mirror_magma::invert(cuComplex* G, bool copy){
     copy_brhs_from_g_d<<<dG_bd, dB_bd>>>(dB_array, G, false);
 
-    info = magma_cgbsv_batched(
-            N, KL, KU, nrhs,
+    // info = magma_cgbsv_batched(
+    //         N, KL, KU, nrhs,
+    //         dA_array, ldda, dipiv_array,
+    //         dB_array, lddb, dinfo_array,
+    //         batchCount, my_queue);
+
+    info = magma_cgbtrs_batched(
+            MagmaNoTrans, N, KL, KU, nrhs,
             dA_array, ldda, dipiv_array,
             dB_array, lddb, dinfo_array,
             batchCount, my_queue);
 
+    
     copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, dB_array);
 
 }
