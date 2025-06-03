@@ -19,7 +19,7 @@ class Mirror_magma{
   ~Mirror_magma();
 
   void invert_stream(cuComplex* G, int stage);
-  void invert_sherman_morrison(cuComplex* u);
+  void invert_apar(cuComplex* u);
   void fill_B(cuComplex* B, int N, int nrhs, int ldb, int batchCount);
   void fill_A(cuComplex* A, cuComplex* h_diags, int* h_offsets, int N, int lda, int batchCount, int KL, int KU, int M, int num_diags);
   void fill_diags(cuComplex* diags, int N, int M, int L, int batchCount, int Nband, double coeff);
@@ -48,6 +48,8 @@ class Mirror_magma{
   int* dinfo_array;
   cuComplex** dA_array;
   cuComplex** dB_array;
+  cuComplex** dB_array_apar;
+
   magma_queue_t my_queue;
 
  private:

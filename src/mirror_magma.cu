@@ -44,6 +44,7 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
     cuComplex c_neg_one = MAGMA_C_NEG_ONE;
 
     cuComplex** d_B = NULL;
+    cuComplex** d_B_apar = NULL;
 
     dipiv_array = NULL;
 
@@ -126,15 +127,22 @@ Mirror_magma::Mirror_magma(Parameters *pars, Grids *grids, Geometry *geo, double
 
     h_B = (cuComplex*) malloc(sizeof(cuComplex)*ldb*nrhs*batchCount);
     d_B = (cuComplex**) malloc(sizeof(cuComplex*)*batchCount);
+    d_B_apar = (cuComplex**) malloc(sizeof(cuComplex*)*batchCount);
     cuComplex* d_B_i = (cuComplex*) malloc(sizeof(cuComplex)*ldb*nrhs);
     checkCuda(cudaMalloc((void**) &dB_array, sizeof(cuComplex*)*batchCount));
-    
+    checkCuda(cudaMalloc((void**) &dB_array_apar, sizeof(cuComplex*)*batchCount));
+   
     for(int i = 0; i < batchCount; i++){
         checkCuda(cudaMalloc((void**) &d_B[i], sizeof(cuComplex)*ldb*nrhs));
         cudaMemset(d_B[i], 0.0f, sizeof(cuComplex)*ldb*nrhs);
+
+        checkCuda(cudaMalloc((void**) &d_B_apar[i], sizeof(cuComplex)*ldb));
+        cudaMemset(d_B_apar[i], 0.0f, sizeof(cuComplex)*ldb);
+
     }
 
     checkCuda(cudaMemcpy(dB_array, d_B, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
+    checkCuda(cudaMemcpy(dB_array_apar, d_B_apar, sizeof(cuComplex*)*grids_->Nz, cudaMemcpyHostToDevice));
 
     /* Initialize the matrices */
     int ione     = 1;
@@ -337,6 +345,26 @@ void Mirror_magma::invert(cuComplex* G, bool copy){
     copy_g_from_brhs_d<<<dG_bd, dB_bd>>>(G, dB_array);
 
 }
+
+void Mirror_magma::invert_apar(cuComplex* u){
+    copy_brhs_apar_from_g_d<<<dG_lu_sm,dB_lu_sm>>>(dB_array_apar, u);
+
+    // info = magma_cgbsv_batched(
+    //         N, KL, KU, nrhs,
+    //         dA_array, ldda, dipiv_array,
+    //         dB_array, lddb, dinfo_array,
+    //         batchCount, my_queue);
+
+    info = magma_cgbtrs_batched(
+            MagmaNoTrans, N, KL, KU, 1,
+            dA_array, ldda, dipiv_array,
+            dB_array_apar, lddb, dinfo_array,
+            batchCount, my_queue);
+    
+    copy_g_from_brhs_apar_d<<<dG_lu_sm,dB_lu_sm>>>(u, dB_array_apar);
+
+}
+
 
 void Mirror_magma::save_rhs(cuComplex* h_B, cuComplex* h_X_test, int ldb, int ind, int id, int nrhs){
     for(int i = 0; i < ldb; i++){

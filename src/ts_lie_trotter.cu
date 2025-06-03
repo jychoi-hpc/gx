@@ -120,7 +120,9 @@ Lie_Trotter::Lie_Trotter(Linear *linear, Nonlinear *nonlinear, Solver *solver,
   if(pars_->fapar > 0.){
     grad_par->zft_sherman_morrison_subsolve_lw(G_sm_s_apar, *(G1[0]->species), *(G1[ielectron]->species),r_*dt_,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_);
     set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(G_sm_b_apar[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, r_*dt_); 
-    mirror[ielectron]->invert_sherman_morrison(G_sm_b_apar[ielectron]);
+    //mirror[ielectron]->invert_sherman_morrison(G_sm_b_apar[ielectron]);
+    mirror_magma->invert_apar(G_sm_b_apar[ielectron]);
+
 
   }
 
@@ -237,8 +239,8 @@ void Lie_Trotter::invert_bounce(MomentsG** G1, Fields *f, double sdt)
     add_apar_rhs<<<dG_m2, dB_m2>>>(G1[ielectron]->G(),f->apar,*(G1[ielectron]->species), sdt, geo_->bgrad);
   }
   for(int is = ielectron; is < grids_->Nspecies; is++){
-    mirror[is]->invert_stream(G1[is]->G(), 0);
-    //mirror_magma->invert(G1[is]->G(), 0);
+    //mirror[is]->invert_stream(G1[is]->G(), 0);
+    mirror_magma->invert(G1[is]->G(), 0);
 
     if(pars_->fapar > 0.){
       sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[is]->G(), G_sm_b_apar[is], solver_->getAmpereParFac()); 

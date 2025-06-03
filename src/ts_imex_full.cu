@@ -108,6 +108,7 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     grad_par = new GradParallelLinked(pars_, grids_);
   }
   mirror[ielectron] = new Cublas_test(pars, grids, geo, pars->p_, pars->r_, pars->u_, pars->sdirk, (double) pars->dt, A1[ielectron]->species->vt);
+  mirror_magma = new Mirror_magma(pars_, grids_, geo_, pars_->p_, pars_->r_, pars_->u_, true, (double) pars_->dt, A1[ielectron]->species->vt);
 
   int nn1 = grids_->Nyc;             int nt1 = min(nn1, 16);   int nb1 = 1 + (nn1-1)/nt1;
   int nn2 = grids_->Nx;              int nt2 = min(nn2,  4);   int nb2 = 1 + (nn2-1)/nt2;
@@ -150,7 +151,9 @@ IMEX_3stage_Full::IMEX_3stage_Full(Linear *linear, Nonlinear *nonlinear, Solver 
     grad_par->zft_sherman_morrison_subsolve_lw(G_sm_s_apar, *(G1[0]->species), *(G1[ielectron]->species),r_*dt_,gradpar_, 1, pars_->hypercollisions_const, pars_->hypercollisions_kz, pars_->nu_hyper_l, pars_->nu_hyper_m, pars_->nu_hyper_lm, pars_->p_hyper_l, pars_->p_hyper_m, pars_->p_hyper_lm, pars_->vtmax, dt_); 
     
     set_mirror_apar_rhs<<<dG_m1, dB_m1>>>(G_sm_b_apar[ielectron], *(G1[ielectron]->species),geo_->bgrad, pars_->beta, r_*dt_); 
-    mirror[ielectron]->invert_sherman_morrison(G_sm_b_apar[ielectron]);
+//    mirror[ielectron]->invert_sherman_morrison(G_sm_b_apar[ielectron]);
+    mirror_magma->invert_apar(G_sm_b_apar[ielectron]);
+
 
   }
 
@@ -415,7 +418,9 @@ void IMEX_3stage_Full::invert_implicit_terms_linked_lw(MomentsG** G1, MomentsG**
   }
 
 
-  mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
+//  mirror[ielectron]->invert_stream(G1[ielectron]->G(), 0);
+  mirror_magma->invert(G1[ielectron]->G(), 0);
+
   if(pars_->fapar > 0.){
     sherman_morrison_mirror<<<dG_m2, dB_m2>>>(G1[ielectron]->G(), G_sm_b_apar[ielectron], solver_->getAmpereParFac()); 
   }

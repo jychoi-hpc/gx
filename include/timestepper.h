@@ -465,6 +465,7 @@ class IMEX_3stage_Full : public Timestepper {
   Grids        * grids_     ;
   Geometry     * geo_       ;
   Cublas_test  ** mirror    ;
+  Mirror_magma * mirror_magma;
   Forcing      * forcing_   ;
   GradParallel * grad_par   ;
   MomentsG     ** G1         ;
