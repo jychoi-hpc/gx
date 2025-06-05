@@ -75,6 +75,7 @@
 [Restart]
  restart = false
  save_for_restart = true
+ nsave = 50				        # number of timesteps between saving restart data
 
 [Diagnostics]
  nwrite = 50                    # write diagnostics every nwrite timesteps

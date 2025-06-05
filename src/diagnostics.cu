@@ -631,12 +631,14 @@ void Diagnostics::print_growth_rates_to_screen(cuComplex* w)
   }
 }
 
-void Diagnostics::restart_write(MomentsG** G, double *time)
+void Diagnostics::restart_write(MomentsG** G, double *time, int *counter)
 {
   char strb[512];
   int retval;
   int ncres;
-  strcpy(strb, pars_->restart_to_file.c_str());
+  printf("restart_write: %s %f %d\n", pars_->restart_to_file.c_str(), *time, *counter);
+  // strcpy(strb, pars_->restart_to_file.c_str());
+  sprintf(strb, "%s.%d.nc", pars_->restart_to_file.c_str(), *counter);
   if (retval = nc_create_par(strb, NC_CLOBBER | NC_NETCDF4, pars_->mpcom, MPI_INFO_NULL, &ncres)) ERR(retval);
   
   int moments_out[7];

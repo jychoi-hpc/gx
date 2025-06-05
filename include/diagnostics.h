@@ -21,7 +21,7 @@ class Diagnostics {
   virtual ~Diagnostics() {};
   virtual bool loop(MomentsG** G, Fields* fields, double dt, int counter, double time) = 0 ;
   virtual void finish(MomentsG** G, Fields* fields, double time) = 0;  
-  void restart_write(MomentsG** G, double *time);
+  void restart_write(MomentsG** G, double *time, int *counter);
   bool checkstop();
   void print_growth_rates_to_screen (cuComplex *w);
 

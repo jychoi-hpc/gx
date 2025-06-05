@@ -261,7 +261,8 @@ TEST_F(TestMomentsG, Restart) {
   }
 
   double t = 0.1;
-  diagnostics->restart_write(G, &t);
+  int counter = 0;
+  diagnostics->restart_write(G, &t, &counter);
 
   t = -10.0;
   for(int is=0; is<grids->Nspecies; is++) {
