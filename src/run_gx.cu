@@ -163,6 +163,10 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   // TIMESTEP LOOP
   int counter = 0;           float timer = 0;          cudaEvent_t start, stop;    bool checkstop = false;
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
+  
+  // Reset counter if GX_COUNTER_RESET
+  const char *GX_COUNTER_RESET = getenv("GX_COUNTER_RESET");
+  if (GX_COUNTER_RESET) counter = atoi(GX_COUNTER_RESET);
 
   cudaDeviceSynchronize();
   checkCuda(cudaGetLastError());
@@ -170,6 +174,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
+    // JYC: Save restart file before advance
+    if ((counter > 0) && (pars->save_for_restart && counter % pars->nsave == 0)) diagnostics -> restart_write(G, &time, &counter);
 
     checkCuda(cudaGetLastError());
 
@@ -179,7 +185,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
     if (checkstop) break;
 
-    if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time, &counter);
+    // JYC: disable here. We move restart write before advance
+    // if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time, &counter);
 
     // this will catch any error in the timestep loop, but it won't be able to identify where the error occurred.
     checkCuda(cudaGetLastError());
@@ -189,7 +196,8 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
     }
   }
 
-  if (pars->save_for_restart) diagnostics -> restart_write(G, &time, &counter);
+  // FIXME: temporarily disable writing restart file at the end of the run
+  // if (pars->save_for_restart) diagnostics -> restart_write(G, &time, &counter);
 
   if (pars->eqfix && (pars->scheme_opt == Tmethod::k10) ) {
     printf("\n");
