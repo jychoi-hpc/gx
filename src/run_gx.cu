@@ -164,29 +164,35 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
   int counter = 0;           float timer = 0;          cudaEvent_t start, stop;    bool checkstop = false;
   cudaEventCreate(&start);   cudaEventCreate(&stop);   cudaEventRecord(start,0);
   
-  // Reset counter if GX_COUNTER_RESET
-  const char *GX_COUNTER_RESET = getenv("GX_COUNTER_RESET");
-  if (GX_COUNTER_RESET) counter = atoi(GX_COUNTER_RESET);
-
   cudaDeviceSynchronize();
   checkCuda(cudaGetLastError());
 
   while(counter<pars->nstep && time<pars->t_max) {
 
     checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), counter, time);
-    // JYC: Save restart file before advance
-    if ((counter > 0) && (pars->save_for_restart && counter % pars->nsave == 0)) diagnostics -> restart_write(G, &time, &counter);
 
     checkCuda(cudaGetLastError());
 
+    // JYC: we save at every 0.1 sec interval
+    // double target_time = floor(time*10 + 1)/10; // every 0.1 sec interval
+    double target_time = floor(time*2 + 1)/2; // every 0.5 sec interval
+
     timestep -> advance(&time, G, fields);
+
+    // JYC:
+    if (time >= target_time) {
+      if(grids->iproc == 0) printf("Target reached: Step %7d\n", counter);
+      checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), pars->nwrite, time);
+      diagnostics -> restart_write(G, &time, &counter);
+      checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), pars->nwrite+1, time);
+      if (pars->nwrite != pars->nwrite_big) checkstop = diagnostics -> loop(G, fields, timestep->get_dt(), pars->nwrite_big+1, time);
+    }
 
     checkCuda(cudaGetLastError());
 
     if (checkstop) break;
 
-    // JYC: disable here. We move restart write before advance
-    // if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time, &counter);
+    if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time, &counter);
 
     // this will catch any error in the timestep loop, but it won't be able to identify where the error occurred.
     checkCuda(cudaGetLastError());

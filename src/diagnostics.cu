@@ -126,7 +126,9 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
 {
   bool stop = false;
   // if(counter % pars_->nwrite == 1 || time > pars_->t_max) {
-  if((counter > 0) && (counter % pars_->nwrite == 0)) {
+  // if((counter > 0) && (counter % pars_->nwrite == 0)) {
+  if((counter/pars_->nwrite > 0) && (counter % pars_->nwrite == 1 || time > pars_->t_max)) {
+
     if(grids_->iproc == 0) printf("%s: Step %7d: Time = %10.5f  dt = %.3e   ", pars_->run_name, counter, time, dt);          // To screen
     for( auto & diagnostic : spectraDiagnosticList ) {
       diagnostic->set_dt_data(G_old, fields_old, dt);
@@ -147,8 +149,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   }
 
   // write out full grid (big) diagnostics less frequently
-  // if((counter % pars_->nwrite_big == 1 || time > pars_->t_max) && ( pars_->write_moms || pars_->write_fields) ) {
-  if((counter > 0) && ((counter % pars_->nwrite_big == 0) && ( pars_->write_moms || pars_->write_fields))) {
+  if((counter/pars_->nwrite_big > 0) && (counter % pars_->nwrite_big == 1 || time > pars_->t_max) && ( pars_->write_moms || pars_->write_fields) ) {
     if(pars_->write_fields) {
       fieldsDiagnostic->calculate_and_write(fields);
       if(pars_->nonlinear_mode) {
@@ -165,7 +166,7 @@ bool Diagnostics_GK::loop(MomentsG** G, Fields* fields, double dt, int counter, 
   }
 
   // save fields for growth rate calculation in next timestep
-  if(counter % pars_->nwrite == 0 || time + dt > pars_->t_max) {
+  if((counter/pars_->nwrite > 0) && (counter % pars_->nwrite == 0 || time + dt > pars_->t_max)) {
     fields_old->copyPhiFrom(fields);
     fields_old->copyAparFrom(fields);
     fields_old->copyBparFrom(fields);
@@ -638,7 +639,7 @@ void Diagnostics::restart_write(MomentsG** G, double *time, int *counter)
   char strb[512];
   int retval;
   int ncres;
-  printf("restart_write: %s %f %d\n", pars_->restart_to_file.c_str(), *time, *counter);
+  if(grids_->iproc == 0) printf("restart_write: %s %f %d\n", pars_->restart_to_file.c_str(), *time, *counter);
   // strcpy(strb, pars_->restart_to_file.c_str());
   sprintf(strb, "%s.Time_%f.nc", pars_->restart_to_file.c_str(), *time);
   if (retval = nc_create_par(strb, NC_CLOBBER | NC_NETCDF4, pars_->mpcom, MPI_INFO_NULL, &ncres)) ERR(retval);
