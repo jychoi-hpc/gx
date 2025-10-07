@@ -192,7 +192,7 @@ void run_gx(Parameters *pars, Grids *grids, Geometry *geo)
 
     if (checkstop) break;
 
-    if (pars->save_for_restart && counter % pars->nsave == 0) diagnostics -> restart_write(G, &time, &counter);
+    if (pars->save_for_restart && counter % pars->nsave == 0 && counter/pars->nsave > 0) diagnostics -> restart_write(G, &time, &counter);
 
     // this will catch any error in the timestep loop, but it won't be able to identify where the error occurred.
     checkCuda(cudaGetLastError());
